@@ -55,9 +55,9 @@ createAgeKeyPair() {
     local publicKey=$(echo "${key}" | grep "public key: age1" | awk '{print $NF}')
     [[ -f ${keyFile} ]] && fail "${keyFile} should have been deleted!"
 
-    # The following command does not fail with either pinentry-sage and pinentry-mac, HOWEVER:
-    # pinentry-sage returns cancelled on empty, while pinentry-mac returns nothing so rage GENERATES!
-    # Seems like the only way to fix this is for pinentry-sage to detect and *wrap* pinentry-mac so
+    # The following command does not fail with either ravyn-pinentry-sage and ravyn-pinentry-mac, HOWEVER:
+    # ravyn-pinentry-sage returns cancelled on empty, while ravyn-pinentry-mac returns nothing so rage GENERATES!
+    # Seems like the only way to fix this is for ravyn-pinentry-sage to detect and *wrap* ravyn-pinentry-mac so
     # it can return cancelled on empty AND provide a nicer UX on mac. So it does.
 
     echo "${key}" | rage -p -o "${keyFile}" -

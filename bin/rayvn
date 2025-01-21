@@ -4,7 +4,7 @@ readonly VERSION='rayvn 0.1.0'
 
 usage() {
     echo
-    echo "$(ansi bold Manage shared bash libraries)."
+    echo "Manage shared bash libraries."
     echo
     echo "Usage: ${scriptName} <options>"
     echo
@@ -33,6 +33,9 @@ main() {
 
 init() {
     readonly scriptName=$(basename "${0}")
+    declare -grx RAYVN_BIN_DIR="$(dirname "${0}")"
+    echo "RAYVN_BIN_DIR = $RAYVN_BIN_DIR"
+
     readonly rayvnHome="${HOME}/.rayvn"
     readonly rayvnLibDir="${rayvnHome}/lib"
     readonly bootFile="${rayvnHome}/boot.sh"
