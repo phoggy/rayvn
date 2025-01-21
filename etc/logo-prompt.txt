@@ -1,0 +1,5 @@
+Gemini Prompt
+
+create a web logo, with a transparent background, of a raven in flight, with claws holding documents, in purple tones
+
+Note that this uses a style I like, but the transparent background directive does not seem to work.

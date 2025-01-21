@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+
+readonly VERSION='rayvn 0.1.0'
+
+usage() {
+    echo
+    echo "$(ansi bold Manage shared bash libraries)."
+    echo
+    echo "Usage: ${scriptName} <options>"
+    echo
+    echo "Options:"
+    echo
+    echo "    -a, --add LIBRARY     Add library at LIBRARY path (must contain 'rayvn.meta' file with 'namespace=<name>')."
+    echo "    -r, --remove LIBRARY  Remove library at LIBRARY path (must contain 'rayvn.meta' file with 'namespace=<name>')."
+    echo "    -l, --list            List installed libraries."
+    echo "    -h, --help            Display usage and exit."
+    echo "    --version             Display version and exit."
+    echo
+    bye "${@}"
+}
+
+main() {
+    init "${@}"
+    case "${action}" in
+        add) addNamespace ;;
+        remove) removeNamespace ;;
+        list) listNamespaces ;;
+        test) testRequireCore ;;
+        reset) reset ;;
+        *) usage ;;
+    esac
+}
+
+init() {
+    readonly scriptName=$(basename "${0}")
+    readonly rayvnHome="${HOME}/.rayvn"
+    readonly rayvnLibDir="${rayvnHome}/lib"
+    readonly bootFile="${rayvnHome}/boot.sh"
+    readonly metaDataFile="rayvn.meta"
+
+    action=
+    nameSpace=
+    nameSpaceDir=
+    nameSpaceRef=
+
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            -i | --add) shift; setNamespace "${1}"; action='add' ;;
+            -u | --remove) shift; setNamespace "${1}"; action='remove' ;;
+            -l | --list) action='list' ;;
+            --reset) action='reset' ;;
+            --test) action='test' ;;
+            -h | --help) usage ;;
+            --version) version ${VERSION} ;;
+            *) usage "Unknown option: ${1}" ;;
+        esac
+        shift
+    done
+
+    if [[ ${action} != 'reset' ]]; then
+       ensureHome
+    fi
+}
+
+setNamespace() {
+    nameSpaceDir="${1}"
+    [[ -d ${nameSpaceDir} ]] || bye "rayvn namespace directory '${nameSpaceDir}' not found"
+    local metaFile="${nameSpaceDir}/${metaDataFile}"
+    [[ -f ${metaFile} ]] || bye "'${metaFile}' not found"
+    nameSpaceVar="$(cat "${metaFile}" | grep namespace)"
+    [[ ${nameSpaceVar} ]] || bye "namespace=<name> not found in '${metaFile}'"
+    nameSpace="${nameSpaceVar#*=}"
+    nameSpaceRef="${rayvnLibDir}/${nameSpace}"
+}
+
+addNamespace() {
+    [[ -e ${nameSpaceRef} ]] && bye "${nameSpace} already present: ${nameSpaceRef} "
+    ln -s "${nameSpaceDir}" "${nameSpaceRef}"
+    echo "added library root ${nameSpaceDir} as '${nameSpace}' namespace"
+}
+
+listNamespaces() {
+    cd "${rayvnLibDir}" || bye "rayvn not installed!"
+    ls -l
+}
+
+removeNamespace() {
+    [[ -e ${nameSpaceRef} ]] || bye "${nameSpace} not found"
+    currentNameSpaceDir="$(realpath "${nameSpaceDir}")"
+    [[ ${nameSpaceDir} == "${currentNameSpaceDir}" ]] || bye "namespace '${nameSpace} points elsewhere: ${currentNameSpaceDir}"
+    echo "removing '${nameSpaceDir}' as '${nameSpace}'"
+    unlink "${nameSpaceRef}"
+}
+
+testRequireCore() {
+    [[ ${RAYVN_LIBRARY_core__base} ]] && bye "core/base already loaded!"
+
+    # this is how each script is supposed to bring it in.
+    source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
+    require 'core/base'
+
+    echo "'$(ansi bold require core/base)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
+    [[ ${RAYVN_LIBRARY_core__base} ]] || bye "core/base not loaded!"
+    [[ ${RAYVN_LIBRARY_core__base} == 'loaded' ]] || bye "core/base variable set to unexpected value: ${RAYVN_LIBRARY_core__base}!"
+}
+
+reset() {
+   rm -rf "${rayvnHome}" || bye
+   ensureHome
+}
+
+ensureHome() {
+    if [[ ! -f ${bootFile} ]]; then
+        mkdir -p "${rayvnLibDir}" 2> /dev/null
+
+        # generate boot script
+        (
+            echo "#!/usr/bin/env bash"
+            echo
+            echo "readonly rayvnLibDir=\"${HOME}/.rayvn/lib\""
+            echo
+            type bye | tail -n +2
+            echo
+            type require | tail -n +2
+
+        ) > "${bootFile}"
+
+        setNamespace "$(realpath "${BASH_SOURCE%/*/*}/lib")"
+        addNamespace
+    fi
+}
+
+require() {
+    local qualifiedName="${1}"
+    local nameSpace="${qualifiedName%/*}"
+    local libraryName="${qualifiedName#*/}"
+    local libraryVarName="RAYVN_LIBRARY_${nameSpace}__${libraryName}"
+    if [[ ! ${!libraryVarName} ]]; then
+        local nameSpaceDir="${rayvnLibDir}/${nameSpace}"
+        local libraryFile="${nameSpaceDir}/${libraryName}.sh"
+        [[ -d ${nameSpaceDir} ]] || bye "rayvn namespace '${nameSpace}' not found"
+        [[ -f ${libraryFile} ]] || bye "rayvn library '${libraryName}' not found"
+        #echo "${BASHPID}: BEGIN loading ${libraryFile}" >> /tmp/debug.log
+        source "${libraryFile}"
+        local initFunction="init_${nameSpace}_${libraryName}"
+        if [[ $(type -t ${initFunction}) == function  ]]; then
+            #echo "    ${BASHPID}: initializing ${libraryFile}" >> /tmp/debug.log
+            ${initFunction}
+        fi
+        #echo "${BASHPID}: END loading ${libraryFile}" >> /tmp/debug.log
+        declare -grx ${libraryVarName}='loaded'
+    fi
+}
+declare -rf require
+
+bye() {
+    if [[ ${1} ]]; then
+        echo "${@}"
+        exit 1
+    fi
+    exit 0
+}
+
+main "${@}"
+
+
+
+
+
