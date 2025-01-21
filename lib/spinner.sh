@@ -5,8 +5,8 @@
 
 require 'core/base'
 
-init_core_progress_meter() {
-    initProgressMeter
+init_core_spinner() {
+    initSpinner
 }
 
 declare -grx defaultProgressChars='◞◜◝◟◞◜◝◟◞◜◝◟'
@@ -17,7 +17,7 @@ declare -g maxProgressIndex=
 declare -g progressIndex=
 declare -g progressForward=
 
-initProgressMeter() {
+initSpinner() {
     local color="${1:-${defaultProgressCharsColor}}"
     local chars="${2:-${defaultProgressChars}}"
     local count="${#chars}"
@@ -32,8 +32,8 @@ initProgressMeter() {
     maxProgressIndex=$(( ${count} -1))
 }
 
-startProgressMeter() {
-    [[ ${progressArraySize} ]] || initProgressMeter
+startSpinner() {
+    [[ ${progressArraySize} ]] || initSpinner
     saveCursor
     tput civis
     progressIndex=0
@@ -45,7 +45,7 @@ _printProgressChar() {
     printf "${progressArray[${progressIndex}]}"
 }
 
-updateProgressMeter() {
+updateSpinner() {
     if [[ ${progressForward} ]]; then
         if ((${progressIndex} < ${maxProgressIndex})); then
             progressIndex=$((progressIndex + 1))
@@ -66,35 +66,35 @@ updateProgressMeter() {
     fi
 }
 
-endProgressMeter() {
+endSpinner() {
     restoreCursor
     eraseToEndOfLine
     tput cnorm
 }
 
-startBackgroundProgressMeter() {
+startBackgroundSpinner() {
     declare -g backgroundProgressPid
-    startProgressMeter
-    _runBackgroundProgressMeter &
+    startSpinner
+    _runBackgroundSpinner &
     backgroundProgressPid=${!}
 }
 
-stopBackgroundProgressMeter() {
+stopBackgroundSpinner() {
     if [[ ${backgroundProgressPid} ]]; then
         kill SIGINT ${backgroundProgressPid}  2> /dev/null
         backgroundProgressPid=
     fi
-    endProgressMeter
+    endSpinner
 }
 
-_runBackgroundProgressMeter() {
+_runBackgroundSpinner() {
     while true; do
         sleep .25
-        updateProgressMeter
+        updateSpinner
     done
 }
 
-progressMeterTest() {
+SpinnerTest() {
 #    echo "maxSpin: ${maxProgressIndex}"
 #    echo -n "         "
 #    for (( i=0; i < ${progressArraySize}; i++ )); do printf ${progressArray[i]}; done
@@ -103,21 +103,21 @@ progressMeterTest() {
 #    for (( i=0; i < ${progressArraySize}; i++ )); do printf ${i}; done
 #    echo
     echo -n "Working "
-    startProgressMeter
+    startSpinner
     for i in {1..30}; do
         sleep .25
         #read -s -n 1 key
-        updateProgressMeter
+        updateSpinner
     done
-    endProgressMeter
+    endSpinner
     eraseCurrentLine
 }
 
-backgroundProgressMeterTest() {
+backgroundSpinnerTest() {
     [[ ${1} ]] || fail "tty required for foreground work output"
     local output=${1}
     echo -n "Testing "
-    startBackgroundProgressMeter
+    startBackgroundSpinner
     echo > ${output}
     echo "START foreground work" > ${output}
     for i in {1..10}; do
@@ -125,6 +125,6 @@ backgroundProgressMeterTest() {
         sleep 1
     done
     echo "END foreground work"  > ${output}
-    stopBackgroundProgressMeter
+    stopBackgroundSpinner
     eraseCurrentLine
 }
