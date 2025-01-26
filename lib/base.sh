@@ -236,7 +236,7 @@ setDirVar() {
 
 _setFileSystemVar() {
     local -n resultVar="${1}"
-    local file="${2}"
+    local file="$(realpath "${2}")"
     local description="${3}"
     local isDir="${4}"
     [[ ${file} ]] || fail "${description} path is required"
@@ -250,7 +250,7 @@ _setFileSystemVar() {
 }
 
 timeStamp() {
-    date "+%Y-%m-%d_%Z_%H.%M.%S"
+    date "+%Y-%m-%d_%H.%M.%S_%Z"
 }
 
 saveCursor() {
@@ -315,7 +315,10 @@ printRepeat() {
 }
 
 printVar() {
-    echo "${1}: '${!1}'" > ${terminal}
+    while ((${#} > 0)); do
+        echo "${1}: '${!1}'" > ${terminal}
+        shift
+    done
 }
 
 printFormatted() {
