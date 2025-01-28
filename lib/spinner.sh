@@ -80,11 +80,18 @@ startBackgroundSpinner() {
 }
 
 stopBackgroundSpinner() {
+    local eraseLine="${1}"
     if [[ ${backgroundProgressPid} ]]; then
         kill SIGINT ${backgroundProgressPid}  2> /dev/null
         backgroundProgressPid=
     fi
     endSpinner
+    [[ ${eraseLine} == true ]] && eraseCurrentLine
+}
+
+failSpin() {
+    [[ ${backgroundProgressPid} ]] && stopBackgroundSpinner true
+    fail "${@}"
 }
 
 _runBackgroundSpinner() {
