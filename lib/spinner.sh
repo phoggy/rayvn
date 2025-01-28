@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Library supporting progress meters
-# Intended for use via: require 'core/progress'
+# Library supporting progress spinner
+# Intended for use via: require 'core/spinner'
 
 require 'core/base'
 
@@ -17,6 +17,7 @@ declare -g maxProgressIndex=
 declare -g progressIndex=
 declare -g progressForward=
 
+# shellcheck disable=SC2120
 initSpinner() {
     local color="${1:-${defaultProgressCharsColor}}"
     local chars="${2:-${defaultProgressChars}}"
