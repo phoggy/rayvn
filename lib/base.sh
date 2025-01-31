@@ -253,6 +253,10 @@ timeStamp() {
     date "+%Y-%m-%d_%H.%M.%S_%Z"
 }
 
+epochSeconds() {
+    date +%s
+}
+
 saveCursor() {
     echo -n "${_saveCursor}"
 }
