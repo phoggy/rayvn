@@ -6,99 +6,115 @@
 require 'core/base'
 
 init_core_spinner() {
-    initSpinner
+    configureSpinner
 }
 
-declare -grx defaultProgressChars='◞◜◝◟◞◜◝◟◞◜◝◟'
-declare -grx defaultProgressCharsColor='bold_blue'
-declare -ga progressArray=
-declare -g progressArraySize=
-declare -g maxProgressIndex=
-declare -g progressIndex=
-declare -g progressForward=
+declare -grx spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟'
+declare -grx spinnerDefaultCharsColor='bold_blue'
+declare -ga spinnerArray=
+declare -g spinnerArraySize=
+declare -g spinnerMaxIndex=
+declare -g spinnerIndex=
+declare -g spinnerForward=
+declare -g spinnerPid=
+declare -g spinnerCleanupRegistered
+
+startSpinner() {
+    if [[ ! ${spinnerPid} ]]; then
+        _ensureStopOnExit
+        _startSpinner
+        _runBackgroundSpinner &
+        spinnerPid=${!}
+    fi
+}
+
+stopSpinner() {
+    local eraseLine="${1}"
+    if [[ ${spinnerPid} ]]; then
+        kill SIGINT ${spinnerPid}  2> /dev/null
+        spinnerPid=
+    fi
+    _endSpinner
+    [[ ${eraseLine} == true ]] && eraseCurrentLine
+}
+
+failSpin() {
+    _spinExit
+    fail "${@}"
+}
 
 # shellcheck disable=SC2120
-initSpinner() {
-    local color="${1:-${defaultProgressCharsColor}}"
-    local chars="${2:-${defaultProgressChars}}"
+configureSpinner() {
+    local color="${1:-${spinnerDefaultCharsColor}}"
+    local chars="${2:-${spinnerDefaultChars}}"
     local count="${#chars}"
     local i c
-    progressArray=()
+    spinnerArray=()
     for (( i=0; i < ${count}; i++ )); do
         c="${chars:i:1}"
         c="$(printf "$(ansi ${color} ${chars:${i}:1})${ansi_normal}")"
-        progressArray[${i}]="${c}"
+        spinnerArray[${i}]="${c}"
     done
-    progressArraySize=${count}
-    maxProgressIndex=$(( ${count} -1))
+    spinnerArraySize=${count}
+    spinnerMaxIndex=$(( ${count} -1))
+    unset spinnerPid
 }
 
-startSpinner() {
-    [[ ${progressArraySize} ]] || initSpinner
+_ensureStopOnExit() {
+    if [[ ! ${spinnerCleanupRegistered} ]]; then
+        addExitHandler _spinExit
+        spinnerCleanupRegistered=true
+    fi
+}
+
+_spinExit() {
+    [[ ${spinnerPid} ]] && stopSpinner true
+}
+
+_startSpinner() {
+    [[ ${spinnerArraySize} ]] || configureSpinner
     saveCursor
     tput civis
-    progressIndex=0
-    progressForward=true
+    spinnerIndex=0
+    spinnerForward=true
     _printProgressChar
 }
 
 _printProgressChar() {
-    printf "${progressArray[${progressIndex}]}"
+    printf "${spinnerArray[${spinnerIndex}]}"
 }
 
-updateSpinner() {
-    if [[ ${progressForward} ]]; then
-        if ((${progressIndex} < ${maxProgressIndex})); then
-            progressIndex=$((progressIndex + 1))
+_updateSpinner() {
+    if [[ ${spinnerForward} ]]; then
+        if ((${spinnerIndex} < ${spinnerMaxIndex})); then
+            spinnerIndex=$((spinnerIndex + 1))
             _printProgressChar
         else
-            progressIndex=$((progressIndex - 1))
-            progressForward=   # reverse direction
+            spinnerIndex=$((spinnerIndex - 1))
+            spinnerForward=   # reverse direction
             printf '\b \b' # backup and erase 1 character
         fi
-    elif ((${progressIndex} > 0)); then
-        progressIndex=$((progressIndex - 1))
+    elif ((${spinnerIndex} > 0)); then
+        spinnerIndex=$((spinnerIndex - 1))
         printf '\b \b' # backup 1 character
     else
-        progressIndex=0
-        progressForward=true # reverse
+        spinnerIndex=0
+        spinnerForward=true # reverse
         printf '\b \b'   # backup 1 character
         _printProgressChar
     fi
 }
 
-endSpinner() {
+_endSpinner() {
     restoreCursor
     eraseToEndOfLine
     tput cnorm
 }
 
-startBackgroundSpinner() {
-    declare -g backgroundProgressPid
-    startSpinner
-    _runBackgroundSpinner &
-    backgroundProgressPid=${!}
-}
-
-stopBackgroundSpinner() {
-    local eraseLine="${1}"
-    if [[ ${backgroundProgressPid} ]]; then
-        kill SIGINT ${backgroundProgressPid}  2> /dev/null
-        backgroundProgressPid=
-    fi
-    endSpinner
-    [[ ${eraseLine} == true ]] && eraseCurrentLine
-}
-
-failSpin() {
-    [[ ${backgroundProgressPid} ]] && stopBackgroundSpinner true
-    fail "${@}"
-}
-
 _runBackgroundSpinner() {
     while true; do
         sleep .25
-        updateSpinner
+        _updateSpinner
     done
 }
 
@@ -111,13 +127,13 @@ SpinnerTest() {
 #    for (( i=0; i < ${progressArraySize}; i++ )); do printf ${i}; done
 #    echo
     echo -n "Working "
-    startSpinner
+    _startSpinner
     for i in {1..30}; do
         sleep .25
         #read -s -n 1 key
-        updateSpinner
+        _updateSpinner
     done
-    endSpinner
+    _endSpinner
     eraseCurrentLine
 }
 
@@ -125,7 +141,7 @@ backgroundSpinnerTest() {
     [[ ${1} ]] || fail "tty required for foreground work output"
     local output=${1}
     echo -n "Testing "
-    startBackgroundSpinner
+    startSpinner
     echo > ${output}
     echo "START foreground work" > ${output}
     for i in {1..10}; do
@@ -133,6 +149,6 @@ backgroundSpinnerTest() {
         sleep 1
     done
     echo "END foreground work"  > ${output}
-    stopBackgroundSpinner
+    stopSpinner
     eraseCurrentLine
 }
