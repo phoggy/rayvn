@@ -11,6 +11,7 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
     declare -grx rootDir="$(realpath "${libDir}/..")"
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
+    declare -grx macOS=$( [[ ${osName} == Darwin2 ]] && echo true )
 
     # Is stdout a terminal?
 
@@ -330,7 +331,7 @@ printFormatted() {
 }
 
 print() {
-    echo "${*}" > ${terminal}
+    echo -e "${*}" > ${terminal}
 }
 
 warn() {
