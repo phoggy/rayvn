@@ -44,7 +44,7 @@ readPassword() {
     resultVar=''
 
     case ${passwordVisibility} in
-        none) unset visible show ;;
+        none) unset visible show; prompt="$(ansi cyan "${1}") $(ansi dim [hidden]) " ;;
         hide) unset show ;;
         show) show=true ;;
         *) fail "unknown visibility mode: ${passwordVisibility}"

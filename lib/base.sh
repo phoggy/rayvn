@@ -42,6 +42,7 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
             declare -grx ansi_italic="$(printf '\e[3m')"
             declare -grx ansi_normal="$(tput sgr0)"
             declare -grx ansi_black="$(tput setaf 0)"
+            declare -grx ansi_dim="$(printf '\e[2m')"
 
             declare -grx ansi_red="$(tput setaf 1)"
             declare -grx ansi_green="$(tput setaf 2)"
