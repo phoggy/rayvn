@@ -49,7 +49,7 @@ showAgeKeyPairAdvice() {
 }
 
 createAgeKeyPair() {
-    enablePinEntry
+    useRayvnPinEntry
     local keyFile="${1}"
     local publicKeyFile="${2}"
     local key=$(rage-keygen 2> /dev/null)
@@ -60,7 +60,7 @@ createAgeKeyPair() {
     [[ -f ${keyFile} ]] || fail "canceled"
     echo "${publicKey}" > "${publicKeyFile}"
     unset key
-    disablePinEntry
+    disableRayvnPinEntry
 }
 
 verifyAgeKeyPair() {
@@ -68,13 +68,13 @@ verifyAgeKeyPair() {
     local keyFile="${1}"
     local publicKeyFile="${2}"
     local tempEncryptedFile=$(tempDirPath sample.age)
+    useRayvnPinEntry
 
     setSampleText sampleText
-    enablePinEntry
     echo -n "${sampleText}" | rage -R "${publicKeyFile}" -o "${tempEncryptedFile}" || fail
     local decrypted=$(rage -d -i "${keyFile}" "${tempEncryptedFile}" 2> /dev/null)
-    disablePinEntry
     diff -u <(echo -n "${sampleText}") <(echo "${decrypted}") > /dev/null || fail "not verified (wrong passphrase?)"
+    disableRayvnPinEntry
 }
 
 armorAgeFile() {

@@ -253,11 +253,11 @@ _setFileSystemVar() {
     resultVar="${file}"
 }
 
-enablePinEntry() {
+useRayvnPinEntry() {
     declare -gx PINENTRY_PROGRAM="${pinEntryProgram}"
 }
 
-disablePinEntry() {
+disableRayvnPinEntry() {
     unset PINENTRY_PROGRAM
 }
 
