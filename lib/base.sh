@@ -9,9 +9,12 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
     trap '_onExit' EXIT
     declare -grx libDir="$(realpath "${BASH_SOURCE%/*}")"
     declare -grx rootDir="$(realpath "${libDir}/..")"
+    declare -grx etcDir="${rootDir}/etc"
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
     declare -grx macOS=$( [[ ${osName} == Darwin2 ]] && echo true )
+    declare -grx pinEntryProgram="${etcDir}/pinentry"     # See enable/disablePinEntry
+    declare -grx proxyPinEntry="${RAYVN_PIN_ENTRY}"       # e.g. 'pinentry-mac', space separated list
 
     # Is stdout a terminal?
 
@@ -248,6 +251,14 @@ _setFileSystemVar() {
         [[ -f ${file} ]] || fail "${file} is not a file"
     fi
     resultVar="${file}"
+}
+
+enablePinEntry() {
+    declare -gx PINENTRY_PROGRAM="${pinEntryProgram}"
+}
+
+disablePinEntry() {
+    unset PINENTRY_PROGRAM
 }
 
 timeStamp() {

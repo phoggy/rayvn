@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+
+# This pinentry implementation exists in order to change some default behaviors:
+#
+#   1. Bypass the rage behavior of auto-generating a passphrase on empty: cancel instead.
+#   2. Use the readPassword() function in the 'core/readpass' library OR
+#   3. If a preferred version of pinentry is available (e.g. pinentry-mac), use that
+#
+# Uses env vars to configure (controlled by sage):
+#
+#   proxyPinEntry -> ordered, space separated list of pinentry executable names (may be empty)
+#   showPassword  -> if no proxy AND set, passphrase will be visible until enter is pressed
+#   debugLogFile  -> where to write debug log messages (may be empty)
+#
+
+main () {
+    init "${@}"
+    serve
+}
+
+init() {
+    readonly readyMessage='OK Ready'
+    readonly noError='OK'
+    readonly cancelledError='ERR 83886179 Operation cancelled <pinentry>'
+    #readonly timeoutError='ERR 83886142 Timeout <pinentry>'
+    #readonly ipcParameterError='ERR 83886360 IPC parameter error <pinentry>'
+
+    readonly emptyPinError=${cancelledError}
+    readonly mismatchedPinError=${cancelledError}
+    readonly pinRepeatedResponse='S PIN_REPEATED'
+
+    readonly replaceDescriptionMatching='generate a secure one)'
+    readonly replacementDescription='Enter a strong passphrase to protect your new key...'
+
+    readonly mainPrompt='Passphrase'
+    readonly confirmPrompt='Confirm'
+    readonly confirmError='confirmation does not match'
+
+    # Path to pinentry executable, if requested and found
+
+    proxyPath=
+
+    # Request state (update resetRequestState() if change)
+
+    description=
+    timeout=0
+    confirm=
+    proxyCommand=
+
+    # Init debug log file if requested
+
+    if [[ ${debugLogFile} ]]; then
+        log $'--- BEGIN pinentry -----------------------------------------------------\n'
+        log "      date: $(date)"
+        log "  terminal: ${terminal}"
+        log "       pid: ${BASHPID}"
+        log "      args: ${*}"
+        log
+    fi
+
+    # Find a pinentry program to proxy, if requested
+
+    if [[ ${proxyPinEntry} ]]; then
+        local pinEntry
+        for pinEntry in ${proxyPinEntry}; do
+            log "Checking for ${pinEntry}"
+            proxyPath="$(which "${pinEntry}")"
+            if [[ ${proxyPath} ]]; then
+                log "Reverse-proxy to '${pinEntry}' at ${proxyPath}"
+                break
+            fi
+        done
+    fi
+
+    log $'\n'
+}
+
+serve() {
+    respond "${readyMessage}"
+    local command commandArgs lowerCommand
+    while : ; do
+        read -r command commandArgs 2> /dev/null || continue
+        lowerCommand="${command,,}"
+        log "${lowerCommand}: ${commandArgs}"
+        case "${lowerCommand}" in
+            bye)            onBye ;;
+            getpin)         onGetPin ;;
+            settimeout)     onSetTimeout "${command}" "${commandArgs}" ;;
+            setdesc)        onSetDescription "${command}" "${commandArgs}" ;;
+            setprompt)      onSetPrompt "${command}" ;;
+            setrepeat)      onSetRepeat "${command}" ;;
+            *)              respond ${noError} ;;
+        esac
+    done
+}
+
+onBye() {
+    respond "OK closing connection"
+    log $'\n--- END pinentry -----------------------------------------------------\n'
+    exit 0
+}
+
+respond() {
+    local response="${*}"
+    log "--> ${response}"
+    echo "${response}"
+}
+
+resetRequestState() {
+    description=
+    timeout=0
+    confirm=
+    proxyCommand=
+}
+
+log() {
+    [[ ${debugLogFile} ]] && echo "${@}" >> "${debugLogFile}"
+}
+
+onGetPin() {
+    if [[ ${proxyPath} ]]; then
+        getProxyPin
+    else
+        getSagePin
+    fi
+    resetRequestState
+}
+
+getProxyPin() {
+    local cmd="${proxyCommand}GETPIN${newline}BYE${newline}"
+    log "proxy cmd: ${cmd}"
+    local response=$(echo "${cmd}" | ${proxyPath} | grep -v OK | while read -r line; do echo "${line}"; done)
+
+    if [[ ${response} ]]; then
+        respond "${response}"
+        if [[ ! ${response} =~ ^ERR* ]]; then
+            respond ${noError}
+        fi
+    else
+        respond "${emptyPinError}"
+    fi
+}
+
+getSagePin() {
+    local p1 p2
+    describe "${description}"
+    readPassword "${mainPrompt}" p1 ${timeout} true
+    if [[ ${p1} == '' ]]; then
+        respond "${emptyPinError}"
+        return
+    fi
+
+    if [[ ${confirm} ]]; then
+        local retries=3
+        while (( retries > 0 )); do
+            readPassword "   ${confirmPrompt}" p2 ${timeout} false
+            if [[ ${p2} == '' ]]; then
+                respond "${emptyPinError}"
+                return
+            fi
+
+            if [[ ${p1} == "${p2}" ]]; then
+                break
+            else
+                (( retries -= 1 ))
+                mismatchError "   ${confirmError}" ${retries}
+            fi
+        done
+        if (( retries <= 0 )); then
+            respond "${mismatchedPinError}"
+            return
+        fi
+        respond "${pinRepeatedResponse}"
+    fi
+
+    # Got it
+
+ 	respond "D ${p1}"
+	respond ${noError}
+}
+
+onSetTimeout() {
+    local cmd="${1}"
+    local arg="${2}"
+	if (( arg > 0 && arg < 60 )); then
+	    timeout="${arg}"
+        addProxyCommandAndRespond "${cmd}" "${timeout}"
+    else
+    	respond ${noError}
+	fi
+}
+
+onSetDescription() {
+    local cmd="${1}"
+    local desc="${2}"
+    if [[ ${desc} =~ ${replaceDescriptionMatching} ]]; then
+        log "replacing '${desc}' with '${replacementDescription}"
+        desc="${replacementDescription}"
+    fi
+    log "description set to '${desc}'"
+    description="${desc}"
+    addProxyCommandAndRespond "${cmd}" "${description}"
+}
+
+onSetPrompt() {
+    addProxyCommandAndRespond "${1}" "${mainPrompt}"
+}
+
+onSetRepeat() {
+    log "confirm enabled"
+    confirm=true
+    addProxyCommandAndRespond "${1}" "${confirmPrompt}"
+}
+
+addProxyCommandAndRespond() {
+    proxyCommand+="${1} ${2}${newline}"
+	respond ${noError}
+}
+
+source "${HOME}/.rayvn/boot.sh" 2>/dev/null || { echo 'rayvn not installed' && exit 0; }
+require 'core/readpass'
+main "${@}"
+
+

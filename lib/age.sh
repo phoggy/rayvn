@@ -49,21 +49,18 @@ showAgeKeyPairAdvice() {
 }
 
 createAgeKeyPair() {
+    enablePinEntry
     local keyFile="${1}"
     local publicKeyFile="${2}"
-    local key=$(rage-keygen 2>/dev/null)
+    local key=$(rage-keygen 2> /dev/null)
     local publicKey=$(echo "${key}" | grep "public key: age1" | awk '{print $NF}')
     [[ -f ${keyFile} ]] && fail "${keyFile} should have been deleted!"
-
-    # The following command does not fail with either ravyn-pinentry-sage and ravyn-pinentry-mac, HOWEVER:
-    # ravyn-pinentry-sage returns cancelled on empty, while ravyn-pinentry-mac returns nothing so rage GENERATES!
-    # Seems like the only way to fix this is for ravyn-pinentry-sage to detect and *wrap* ravyn-pinentry-mac so
-    # it can return cancelled on empty AND provide a nicer UX on mac. So it does.
 
     echo "${key}" | rage -p -o "${keyFile}" -
     [[ -f ${keyFile} ]] || fail "canceled"
     echo "${publicKey}" > "${publicKeyFile}"
     unset key
+    disablePinEntry
 }
 
 verifyAgeKeyPair() {
@@ -73,8 +70,10 @@ verifyAgeKeyPair() {
     local tempEncryptedFile=$(tempDirPath sample.age)
 
     setSampleText sampleText
+    enablePinEntry
     echo -n "${sampleText}" | rage -R "${publicKeyFile}" -o "${tempEncryptedFile}" || fail
     local decrypted=$(rage -d -i "${keyFile}" "${tempEncryptedFile}" 2> /dev/null)
+    disablePinEntry
     diff -u <(echo -n "${sampleText}") <(echo "${decrypted}") > /dev/null || fail "not verified (wrong passphrase?)"
 }
 
