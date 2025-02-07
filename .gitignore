@@ -1,0 +1,10 @@
+# MacOS
+.DS_Store
+profile
+
+# IntelliJ Idea
+.idea/
+*.iws
+*.ipr
+*.iml
+
