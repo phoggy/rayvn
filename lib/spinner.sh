@@ -133,6 +133,22 @@ _endSpin() {
     _killSpinner
 }
 
+_spinServerMain() {
+    local message="${1}"
+    onServerExit() {
+        exit 0
+    }
+
+    trap "onServerExit" INT
+
+    _beginSpin "${message}"
+
+    while true; do
+        sleep .25
+        _nextSpin
+    done
+}
+
 _spinExit() {
     if [[ ${spinnerPid} ]]; then
         # Abnormal exit, clean up
@@ -161,107 +177,3 @@ _testSpinner() {
     sleep 2
     stopSpinner '.'
 }
-
-
-## Server main functions ----------------------------
-
-_spinServerMain() {
-    local message="${1}"
-    onServerExit() {
-       # restoreCursor
-       # eraseCurrentLine
-        exit 0
-    }
-
-    trap "onServerExit" INT
-
-    _beginSpin "${message}"
-
-    while true; do
-        sleep .25
-        _nextSpin
-    done
-}
-
-#_spinServerNetcat() {  ## TODO this doesn't work correctly
-#    local message="${1}"
-#    declare -grx spinnerSocket="$(tempDirPath)/spinner.sock"
-#    rm "${spinnerSocket}" 2> /dev/null
-#
-#    onServerExit() {
-#        killNetcat
-#        restoreCursor
-#        eraseCurrentLine
-#       # echo "NEW spin server exiting"
-#        exit 0
-#    }
-#
-#    killNetcat() {
-#        [[ ${netcatPid} ]] && kill "${netcatPid}" 2> /dev/null
-#        removeSocket
-#    }
-#
-#    removeSocket() {
-#        # Check if the socket file exists and is in use
-#        if [[ -e "${spinnerSocket}" ]]; then
-#            if lsof -U "${spinnerSocket}" >/dev/null 2>&1; then # Check if something is using it
-#                pid=$(lsof -t -U "${spinnerSocket}")            # Get the PID
-#                echo "Socket file '${spinnerSocket}' is in use by PID: ${pid}. Killing..."
-#                if ! kill "${pid}"; then
-#                    echo "Error killing process ${pid}."
-#                fi
-#            fi
-#            rm -f "${spinnerSocket}" 2> /dev/null
-#        fi
-#    }
-#
-#    trap "onServerExit" INT
-#    removeSocket
-#    _beginSpin "${message}"
-#
-#    while true; do
-#
-#        # Run netcat in the background so we can receive commands
-#
-#        nc -l -U "${spinnerSocket}" | while read command; do
-#            echo "Command received: ${command}"   # TODO!
-#        done &
-#        netcatPid="${!}"
-#
-#        # Update the spinner so long as netcat is alive
-#
-#        while [[ -f "${spinnerSocket}" ]]; do
-#            _nextSpin
-#            sleep 0.25
-#        done
-#
-#        # Client disconnected, restart netcat
-#
-#        killNetcat
-#
-#    done
-#}
-
-updateSpinner() {   # TODO?
-    echo "${1}" | nc -U "${spinnerSocket}"
-}
-
-## Example usage (mostly unchanged)
-#spinSocket="/tmp/my_socket.sock"
-#
-#rm -f "${spinSocket}"
-#
-#server "${spinSocket}" &
-#SERVER_PID="${!}"
-#
-#sleep 0.1 # Give server time to start
-#
-#client "${spinSocket}" "Hello from client 1"
-#client "${spinSocket}" "Another message"
-#
-#sleep 2 # Let it run for a bit
-#
-#kill "${SERVER_PID}"
-#rm "${spinSocket}"
-#
-#echo "Done."
