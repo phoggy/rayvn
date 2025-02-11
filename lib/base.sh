@@ -27,8 +27,6 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
 
         # Set constant ANSI codes for some cursor and erase operations
 
-        declare -grx _saveCursor=$(printf $'\x1b[s')
-        declare -grx _restoreCursor=$(printf $'\x1b[u')
         declare -grx _eraseToEndOfLine=$(printf $'\x1b[0K')
         declare -grx _eraseCurrentLine=$(printf '\x1b[2K\r')
         declare -grx _cursorUpOneAndEraseLine=$(printf $'\x1b[1F\x1b[0K')
@@ -37,10 +35,11 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
         # Set ansi colors if terminal supports colors
 
         if (($(tput colors) >= 8)); then
+            declare -grx ansi_normal="$(tput sgr0)"
+
             declare -grx ansi_bold="$(tput bold)"
             declare -grx ansi_underline="$(tput smul)"
             declare -grx ansi_italic="$(printf '\e[3m')"
-            declare -grx ansi_normal="$(tput sgr0)"
             declare -grx ansi_black="$(tput setaf 0)"
             declare -grx ansi_dim="$(printf '\e[2m')"
 
@@ -61,6 +60,12 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
             declare -grx ansi_bold_white="${ansi_bold}${ansi_white}"
             declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
         fi
+
+        # Set misc constants
+
+        declare -grx _checkMark="✔"
+        declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
+
     else
         echo "🔺 must be run in a terminal"
         exit 1
@@ -271,11 +276,11 @@ epochSeconds() {
 }
 
 saveCursor() {
-    echo -n "${_saveCursor}"
+    tput sc
 }
 
 restoreCursor() {
-    echo -n "${_restoreCursor}"
+    tput rc
 }
 
 eraseToEndOfLine() {
