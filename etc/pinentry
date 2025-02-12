@@ -142,9 +142,10 @@ getProxyPin() {
 }
 
 getSagePin() {
-    local p1 p2
+    local p1 p2 checkFirst
+    checkFirst=$([[ ${confirm} ]] && echo true || echo false)
     describe "${description}"
-    readPassword "${mainPrompt}" p1 ${timeout} true
+    readPassword "${mainPrompt}" p1 ${timeout} ${checkFirst}
     if [[ ${p1} == '' ]]; then
         respond "${emptyPinError}"
         return
