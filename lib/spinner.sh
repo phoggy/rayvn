@@ -32,6 +32,16 @@ startSpinner() {
     fi
 }
 
+restartSpinner() {
+    stopSpinner "${1}"
+    startSpinner "${2}"
+}
+
+replaceSpinnerAndRestart() {
+    stopSpinner "${spinnerEraseLineCommand}" "${1}"
+    startSpinner "${2}"
+}
+
 stopSpinnerAndEraseLine() {
     stopSpinner "${spinnerEraseLineCommand}" "${1}"
 }
@@ -165,15 +175,22 @@ _killSpinner() {
     fi
 }
 _testSpinner() {
+    local punctuation='.'
+    local doneCheck="${_greenCheckMark}"
+    local periodCheck="${punctuation} ${doneCheck}"
     startSpinner "Working 1"
     sleep 2
-    stopSpinner ". ${_greenCheckMark}"
+    stopSpinner "${periodCheck}"
 
     startSpinner "Working 2"
     sleep 2
-    stopSpinnerAndEraseLine "Work completed ${_greenCheckMark}"
-
-    startSpinner "Working 3"
+    replaceSpinnerAndRestart "Work completed ${doneCheck}" "Working 3"
     sleep 2
-    stopSpinner '.'
+    stopSpinner "${punctuation}"
+
+    startSpinner "Working 4"
+    sleep 2
+    restartSpinner "${periodCheck}" "Working 5"
+    sleep 2
+    stopSpinner "${punctuation}"
 }
