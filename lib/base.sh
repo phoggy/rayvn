@@ -12,7 +12,8 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
     declare -grx etcDir="${rootDir}/etc"
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
-    declare -grx macOS=$( [[ ${osName} == Darwin2 ]] && echo true )
+    declare -grx macOS=$( [[ ${osName} == Darwin ]] && echo true )
+    declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
     declare -grx pinEntryProgram="${etcDir}/pinentry"     # See enable/disablePinEntry
     declare -grx proxyPinEntry="${RAYVN_PIN_ENTRY}"       # e.g. 'pinentry-mac', space separated list
 
