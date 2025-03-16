@@ -18,7 +18,7 @@ init_core_genpass() {
     assertExecutables dependencies
 }
 
-readonly passphraseWordsFile="${rootDir}/etc/words.txt"
+readonly passphraseWordsFile="${rayvnRootDir}/etc/words.txt"     # TODO FIX: should point to sage/etc dir.
 
 randomIndex() {
     local -i maxIndex="${1}"
