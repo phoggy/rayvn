@@ -43,13 +43,11 @@ main() {
 
 init() {
     readonly scriptName=$(basename "${0}")
-    readonly rayvnSourceBinDir="$(dirname "${0}")"
     readonly rayvnHome="${HOME}/.rayvn"
     readonly rayvnLibDir="${rayvnHome}/lib"
     readonly rayvnBinDir="${rayvnHome}/bin"
     readonly bootFile="${rayvnHome}/boot.sh"
     readonly metaDataFile="rayvn.meta"
-    readonly terminal=$(tty)
 
     action=
     namespace=
