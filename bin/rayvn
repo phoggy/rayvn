@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2155
 
 readonly VERSION='rayvn 0.1.0'
 
@@ -10,47 +11,57 @@ usage() {
     echo
     echo "Options:"
     echo
-    echo "    -a, --add LIBRARY     Add library at LIBRARY path (must contain 'rayvn.meta' file with 'namespace=<name>')."
-    echo "    -r, --remove LIBRARY  Remove library at LIBRARY path (must contain 'rayvn.meta' file with 'namespace=<name>')."
-    echo "    -l, --list            List installed libraries."
-    echo "    -h, --help            Display usage and exit."
-    echo "    --version             Display version and exit."
+    echo "    --install           Install rayvn by itself."
+    echo "    -a, --add PATH      Add project at PATH, which must contain a 'rayvn.meta' file at the root."
+    echo "    -r, --remove PATH   Remove project at PATH, which must contain a 'rayvn.meta' file at the root."
+    echo "    -l, --list          List installed libraries."
+    echo "    -h, --help          Display usage and exit."
+    echo "    --version           Display version and exit."
     echo
-    bye "${@}"
+    echo "The 'rayvn.meta' may contain the following key=value declarations:"
+    echo
+    echo "  'namespace = <name>'  Declares the namespace name for shared libraries in the \${PATH}/lib directory."
+    echo
+    echo "  'binaries = <names>'  Declares one or more binaries int the \${PATH}/bin directory that should be included"
+    echo "                        in the search path. Can be a comma separated list or '*' to add all."
+    echo
+    _bye "${@}"
 }
 
 main() {
     init "${@}"
     case "${action}" in
-        add) addNamespace ;;
+        add) installProject ;;
         remove) removeNamespace ;;
         list) listNamespaces ;;
         test) testRequireCore ;;
         reset) reset ;;
+        install) install ;;
         *) usage ;;
     esac
 }
 
 init() {
     readonly scriptName=$(basename "${0}")
-    declare -grx RAYVN_BIN_DIR="$(dirname "${0}")"
-    echo "RAYVN_BIN_DIR = $RAYVN_BIN_DIR"
-
+    readonly rayvnSourceBinDir="$(dirname "${0}")"
     readonly rayvnHome="${HOME}/.rayvn"
     readonly rayvnLibDir="${rayvnHome}/lib"
+    readonly rayvnBinDir="${rayvnHome}/bin"
     readonly bootFile="${rayvnHome}/boot.sh"
     readonly metaDataFile="rayvn.meta"
+    readonly terminal=$(tty)
 
     action=
-    nameSpace=
-    nameSpaceDir=
+    namespace=
+    sourceDir=
     nameSpaceRef=
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            -i | --add) shift; setNamespace "${1}"; action='add' ;;
-            -u | --remove) shift; setNamespace "${1}"; action='remove' ;;
+            -a | --add) shift; loadProject "${1}"; action='add' ;;
+            -r | --remove) shift; loadProject "${1}"; action='remove' ;;
             -l | --list) action='list' ;;
+            --install) action='install' ;;
             --reset) action='reset' ;;
             --test) action='test' ;;
             -h | --help) usage ;;
@@ -60,76 +71,161 @@ init() {
         shift
     done
 
-    if [[ ${action} != 'reset' ]]; then
-       ensureHome
+    if [[ ${action} ]]; then
+        if [[ ${action} != 'reset' ]]; then
+           install
+        fi
+    else
+        usage
     fi
 }
 
-setNamespace() {
-    nameSpaceDir="${1}"
-    [[ -d ${nameSpaceDir} ]] || bye "rayvn namespace directory '${nameSpaceDir}' not found"
-    local metaFile="${nameSpaceDir}/${metaDataFile}"
-    [[ -f ${metaFile} ]] || bye "'${metaFile}' not found"
-    nameSpaceVar="$(cat "${metaFile}" | grep namespace)"
-    [[ ${nameSpaceVar} ]] || bye "namespace=<name> not found in '${metaFile}'"
-    nameSpace="${nameSpaceVar#*=}"
-    nameSpaceRef="${rayvnLibDir}/${nameSpace}"
+loadProject() {
+    declare -g projectDir meta namespace binaries
+    projectDir="${1}"
+    [[ -d "${projectDir}" ]] || _bye "project directory '${projectDir}' not found"
+    metaFile="${projectDir}/${metaDataFile}"
+    [[ -f ${metaFile} ]] || _bye "'${metaFile}' not found"
+    meta="$(cat ${metaFile})"
+
+    # Get supported declarations from the metadata
+
+    namespace="$(getMetaValue namespace)"
+    binaries="$(getMetaValue binaries)"
+
+    # Do we have any declarations?
+
+    if [[ ! ${namespace} && ! ${binaries} ]]; then
+        _bye "No supported '<key> = <value>' declarations found in '${metaFile}'"
+    fi
 }
 
-addNamespace() {
-    [[ -e ${nameSpaceRef} ]] && bye "${nameSpace} already present: ${nameSpaceRef} "
-    ln -s "${nameSpaceDir}" "${nameSpaceRef}"
-    echo "added library root ${nameSpaceDir} as '${nameSpace}' namespace"
+getMetaValue() {
+    local key=${1}
+    local definition="$(echo "${meta}" | grep ${key} | tr -d '[:space:]')"
+    definition=${definition%#*} # strip any comments
+
+    if [[ ${definition} ]]; then
+        local value="${definition#*=}"
+        echo "${value}"
+    fi
+}
+
+installProject() {
+
+    # Install namespace if defined
+
+    if [[ ${namespace} ]]; then
+        sourceDir="${projectDir}/lib"
+        [[ -d ${sourceDir} ]] || _bye "directory '${sourceDir}' not found"
+        nameSpaceRef="${rayvnLibDir}/${namespace}"
+        [[ -e ${nameSpaceRef} ]] && _bye "${namespace} already present: ${nameSpaceRef} "
+
+        # Create namespace link to actual directory
+
+        ln -s "${sourceDir}" "${nameSpaceRef}"
+        echo "added shared library root ${sourceDir} as '${namespace}' namespace"
+    fi
+
+    # Install binaries if defined
+
+    if [[ ${binaries} ]]; then
+
+        local sourceDir="${projectDir}/bin"
+        [[ -d ${sourceDir} ]] || _bye "directory '${sourceDir}' not found"
+        local executables=()
+
+        # Yes. All of them?
+
+        if [[ ${binaries} == '*' ]]; then
+
+            # Yes, so build list
+
+            for fileName in $(ls -1 "${sourceDir}" | tr '\n' ' '); do
+                executables+=("${fileName}")
+            done
+
+        else
+            # Nope, specific ones
+
+            executables=("$(echo ${binaries} | tr ',' ' ')")
+        fi
+
+        # Install links for each
+
+        for binary in "${executables[@]}"; do
+            local binaryRef="${rayvnBinDir}/${binary}"
+            local binarySrc="${sourceDir}/${binary}"
+            ln -s "${binarySrc}" "${binaryRef}"
+            echo "added executable ${binary}"
+        done
+    fi
 }
 
 listNamespaces() {
-    cd "${rayvnLibDir}" || bye "rayvn not installed!"
+    cd "${rayvnLibDir}" || _bye "rayvn not installed!"
     ls -l
 }
 
 removeNamespace() {
-    [[ -e ${nameSpaceRef} ]] || bye "${nameSpace} not found"
-    currentNameSpaceDir="$(realpath "${nameSpaceDir}")"
-    [[ ${nameSpaceDir} == "${currentNameSpaceDir}" ]] || bye "namespace '${nameSpace} points elsewhere: ${currentNameSpaceDir}"
-    echo "removing '${nameSpaceDir}' as '${nameSpace}'"
+    [[ -e ${nameSpaceRef} ]] || _bye "${namespace} not found"
+    currentNameSpaceDir="$(realpath "${sourceDir}")"
+    [[ ${sourceDir} == "${currentNameSpaceDir}" ]] || _bye "namespace '${namespace} points elsewhere: ${currentNameSpaceDir}"
+    echo "removing '${sourceDir}' as '${namespace}'"
     unlink "${nameSpaceRef}"
 }
 
 testRequireCore() {
-    [[ ${RAYVN_LIBRARY_core__base} ]] && bye "core/base already loaded!"
+    [[ ${RAYVN_LIBRARY_core__base} ]] && _bye "core/base already loaded!"
 
     # this is how each script is supposed to bring it in.
     source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
     require 'core/base'
 
     echo "'$(ansi bold require core/base)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
-    [[ ${RAYVN_LIBRARY_core__base} ]] || bye "core/base not loaded!"
-    [[ ${RAYVN_LIBRARY_core__base} == 'loaded' ]] || bye "core/base variable set to unexpected value: ${RAYVN_LIBRARY_core__base}!"
+    [[ ${RAYVN_LIBRARY_core__base} ]] || _bye "core/base not loaded!"
+    [[ ${RAYVN_LIBRARY_core__base} == 'loaded' ]] || _bye "core/base variable set to unexpected value: ${RAYVN_LIBRARY_core__base}!"
 }
 
 reset() {
-   rm -rf "${rayvnHome}" || bye
-   ensureHome
+   rm -rf "${rayvnHome}" || _bye
+   install
 }
 
-ensureHome() {
+install() {
     if [[ ! -f ${bootFile} ]]; then
         mkdir -p "${rayvnLibDir}" 2> /dev/null
+        mkdir -p "${rayvnBinDir}" 2> /dev/null
 
         # generate boot script
         (
             echo "#!/usr/bin/env bash"
             echo
-            echo "readonly rayvnLibDir=\"${HOME}/.rayvn/lib\""
+            echo "declare -grx rayvnLibDir=\"${HOME}/.rayvn/lib\""
+            echo "declare -grx rayvnBinDir=\"${HOME}/.rayvn/bin\""
             echo
-            type bye | tail -n +2
+            declare -f require
             echo
-            type require | tail -n +2
+            declare -f bye
+            echo
+            declare -rf require
 
         ) > "${bootFile}"
 
-        setNamespace "$(realpath "${BASH_SOURCE%/*/*}/lib")"
-        addNamespace
+        # Install rayvn itself
+
+        loadProject "$(realpath "${BASH_SOURCE%/*/*}")"
+        installProject
+
+        # Modify .bashrc to append ${rayvnBinDir} to PATH
+
+        if ! grep '.rayvn/bin' ${HOME}/.bashrc > /dev/null; then
+            (
+                echo
+                echo "PATH=\${PATH}:${rayvnBinDir}   # Ensure rayvn binaries can be found"
+            ) >>"${HOME}/.bashrc"
+            echo "updated .bashrc to include binaries in PATH"
+        fi
     fi
 }
 
@@ -141,8 +237,8 @@ require() {
     if [[ ! ${!libraryVarName} ]]; then
         local nameSpaceDir="${rayvnLibDir}/${nameSpace}"
         local libraryFile="${nameSpaceDir}/${libraryName}.sh"
-        [[ -d ${nameSpaceDir} ]] || bye "rayvn namespace '${nameSpace}' not found"
-        [[ -f ${libraryFile} ]] || bye "rayvn library '${libraryName}' not found"
+        [[ -d ${nameSpaceDir} ]] || _bye "rayvn namespace '${nameSpace}' not found"
+        [[ -f ${libraryFile} ]] || _bye "rayvn library '${libraryName}' not found"
         #echo "${BASHPID}: BEGIN loading ${libraryFile}" >> /tmp/debug.log
         source "${libraryFile}"
         local initFunction="init_${nameSpace}_${libraryName}"
@@ -151,17 +247,26 @@ require() {
             ${initFunction}
         fi
         #echo "${BASHPID}: END loading ${libraryFile}" >> /tmp/debug.log
-        declare -grx ${libraryVarName}='loaded'
+        declare -grx ${libraryVarName}='loaded' # do not reload
+
+        # Ensure ${nameSpace}_HOME is set libraries can reference their own dirs
+
+        local homeVar="${nameSpace^^}_HOME"
+        if [[ ! ${homeVar} ]]; then
+            local homeDir="$(realpath ${nameSpaceDir}/..)"
+            declare -grx ${homeVar}="${homeDir}"
+            declare -p "${homeVar}" # TODO remove!
+        fi
     fi
 }
-declare -rf require
 
-bye() {
+_bye() {
     if [[ ${1} ]]; then
         echo "${@}"
         exit 1
+    else
+        exit 0
     fi
-    exit 0
 }
 
 main "${@}"
