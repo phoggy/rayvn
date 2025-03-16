@@ -7,15 +7,12 @@
 if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
 
     trap '_onExit' EXIT
-    declare -grx libDir="$(realpath "${BASH_SOURCE%/*}")"
-    declare -grx rootDir="$(realpath "${libDir}/..")"
-    declare -grx etcDir="${rootDir}/etc"
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
     declare -grx macOS=$( [[ ${osName} == Darwin ]] && echo true )
     declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
-    declare -grx pinEntryProgram="${etcDir}/pinentry"     # See enable/disablePinEntry
-    declare -grx proxyPinEntry="${RAYVN_PIN_ENTRY}"       # e.g. 'pinentry-mac', space separated list
+    declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
+    declare -grx pinEntryProgram="${rayvnRootDir}/bin/rayvn-pinentry"
 
     # Is stdout a terminal?
 
@@ -87,7 +84,7 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
 fi
 
 rootDirPath() {
-    echo "${rootDir}/${1}"
+    echo "${rayvnRootDir}/${1}"
 }
 
 tempDirPath() {
