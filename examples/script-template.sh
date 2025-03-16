@@ -23,6 +23,7 @@ main() {
     doSomething
 }
 
+# shellcheck disable=SC2155
 init() {
     assertBashVersion
     readonly scriptName=$(basename "${0}")
