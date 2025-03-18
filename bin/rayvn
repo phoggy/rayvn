@@ -1,22 +1,39 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
+# TODO:
+#  - Move this project to the rayvn-roost repo?
+#  - Create a rayvn-roost/rayvn-registry repo with administrators and projects directories for
+#  - Update script to implement new usage.
+#  -
+
+
 readonly VERSION='rayvn 0.1.0'
 
 usage() {
     echo
     echo "Manage shared bash libraries."
     echo
-    echo "Usage: ${scriptName} <options>"
+    echo "Usage: ${scriptName} COMMAND <options>"
+    echo
+    echo "User Commands"
+    echo
+    echo "    init                  Create the local repository and update ~/.bashrc to extend binary search PATH."
+    echo "    add NAME [PATH]       Add the NAME project to the local repository."
+    echo "    remove NAME           Remove the NAME project from the local repository."
+    echo "    list [-g | --global]  List all projects in the local or global repository."
+    echo "    help                  Display usage (same as -h or --help)."
+    echo "    version               Display version (same as -v or --version)."
+    echo
+    echo "Developer Commands"
+    echo
+    echo "    admin PATH          Writes a new rayvn.admin template file to the PATH directory."
+    echo "    guid                Return a new rayvn GUID."
     echo
     echo "Options:"
     echo
-    echo "    --install           Install rayvn by itself."
-    echo "    -a, --add PATH      Add project at PATH, which must contain a 'rayvn.meta' file at the root."
-    echo "    -r, --remove PATH   Remove project at PATH, which must contain a 'rayvn.meta' file at the root."
-    echo "    -l, --list          List installed libraries."
-    echo "    -h, --help          Display usage and exit."
-    echo "    --version           Display version and exit."
+    echo "    -h, --help          Display usage."
+    echo "    -v, --version       Display version."
     echo
     echo "The 'rayvn.meta' may contain the following key=value declarations:"
     echo
@@ -48,6 +65,7 @@ init() {
     readonly rayvnBinDir="${rayvnHome}/bin"
     readonly bootFile="${rayvnHome}/boot.sh"
     readonly metaDataFile="rayvn.meta"
+    readonly adminFileName-"rayvn.admin"
 
     action=
     namespace=
@@ -265,6 +283,22 @@ _bye() {
     else
         exit 0
     fi
+}
+
+createAdminFile() {
+    local repoRootPath="${1}"
+    local file="${repoRootPath}/${adminFileName}"
+    (
+        echo "# rayvn-local registry administrator"
+        echo
+        echo "admin.id = rayvn-$(uuidgen)"
+        echo "admin.created = $(date +%s) # $(date +%Y-%m-%d_%H.%M.%S_%Z)"
+        echo
+        echo "admin.name = NAME                      # Replace NAME with your administrator name (does not need to match username)"
+        echo "admin.email = EMAIL                    # Replace EMAIL with one or more contact email addresses, comma separated."
+        echo "admin.roost = https://github.com/USER  # Replace USER with your GitHub username."
+
+    ) > "${file}"
 }
 
 main "${@}"
