@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # Library supporting age file encryption via rage
-# Intended for use via: require 'core/age'
+# Intended for use via: require 'rayvn/age'
 
-require 'core/base'
+require 'rayvn/core'
 
-init_core_age() {
+init_rayvn_age() {
     declare -A dependencies=(
 
         [rage_min]='0.11.1'
@@ -43,7 +43,7 @@ showAgeKeyPairAdvice() {
     echo "That comic makes another important point in the last cell: creating a mental scene to represent your"
     echo "passphrase is an excellent way to help remember it."
     echo
-    echo "Please use a $(ansi bold_green strong) passphrase, preferably generated. When you enter it below, a score will be shown"
+    echo "Please use a $(ansi bold_green strong) passphrase, preferably generated. When you enter it below, a srayvn will be shown"
     echo "so you can see the strength of your passphrase."
     echo
 }

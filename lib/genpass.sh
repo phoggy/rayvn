@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # Library supporting password/phrase generation
-# Intended for use via: require 'core/genpass'
+# Intended for use via: require 'rayvn/genpass'
 
-require 'core/base'
+require 'rayvn/core'
 
-init_core_genpass() {
+init_rayvn_genpass() {
     declare -A dependencies=(
 
         [mrld_min]='0.1.0'

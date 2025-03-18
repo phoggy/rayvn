@@ -2,9 +2,9 @@
 # shellcheck disable=SC2155
 
 # Library supporting common functionality
-# Intended for use via: require 'core/base'
+# Intended for use via: require 'rayvn/core'
 
-if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
+if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
 
     trap '_onExit' EXIT
     declare -grx newline=$'\n'
@@ -80,7 +80,7 @@ if [[ ! ${BASE_GLOBALS_DECLARED} ]]; then
         fi
     fi
 
-    declare -grx BASE_GLOBALS_DECLARED=true
+    declare -grx CORE_GLOBALS_DECLARED=true
 fi
 
 rootDirPath() {
@@ -380,7 +380,7 @@ bye() {
     exit 0
 }
 
-init_core_base() {
+init_rayvn_core() {
     assertBashVersion 5
 }
 

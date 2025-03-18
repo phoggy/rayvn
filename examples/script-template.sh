@@ -46,7 +46,7 @@ doSomething() {
 }
 
 source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
-require 'core/base'
+require 'rayvn/base'
 main "${@}"
 
 

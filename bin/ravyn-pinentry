@@ -3,7 +3,7 @@
 # This pinentry implementation exists in order to change some default behaviors:
 #
 #   1. Bypass the rage behavior of auto-generating a passphrase on empty: cancel instead.
-#   2. Use the readPassword() function in the 'core/readpass' library OR
+#   2. Use the readPassword() function in the 'rayvn/readpass' library OR
 #   3. If a preferred version of pinentry is available (e.g. pinentry-mac), use that
 #
 # Uses env vars to configure (controlled by sage):
@@ -218,7 +218,7 @@ addProxyCommandAndRespond() {
 }
 
 source "${HOME}/.rayvn/boot.sh" 2>/dev/null || { echo 'rayvn not installed' && exit 0; }
-require 'core/readpass'
+require 'rayvn/readpass'
 main "${@}"
 
 

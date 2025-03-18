@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # Library supporting PDF file creation from markdown
-# Intended for use via: require 'core/pdf'
+# Intended for use via: require 'rayvn/pdf'
 
-require 'core/base'
+require 'rayvn/core'
 
-init_core_pdf() {
+init_rayvn_pdf() {
     declare -A dependencies=(
 
         [pandoc_min]='3.1'

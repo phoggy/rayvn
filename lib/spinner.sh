@@ -2,11 +2,11 @@
 # shellcheck disable=SC2120,SC2155
 
 # Library supporting progress spinner
-# Intended for use via: require 'core/spinner'
+# Intended for use via: require 'rayvn/spinner'
 
-require 'core/base'
+require 'rayvn/core'
 
-init_core_spinner() {
+init_rayvn_spinner() {
     configureSpinner
 }
 

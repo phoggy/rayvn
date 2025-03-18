@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # Library supporting password/phrase generation
-# Intended for use via: require 'core/pwned'
+# Intended for use via: require 'rayvn/pwned'
 
-require 'core/base'
+require 'rayvn/core'
 
-init_core_pwned() {
+init_rayvn_pwned() {
     declare -A dependencies=(
 
         [curl_min]='7.76.0'

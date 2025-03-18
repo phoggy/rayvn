@@ -19,7 +19,7 @@ usage() {
     echo "User Commands"
     echo
     echo "    init                  Create the local repository and update ~/.bashrc to extend binary search PATH."
-    echo "    add NAME [PATH]       Add the NAME project to the local repository."
+    echo "    install [PATH]        Add the rayvn project at PATH to the local repository."
     echo "    remove NAME           Remove the NAME project from the local repository."
     echo "    list [-g | --global]  List all projects in the local or global repository."
     echo "    help                  Display usage (same as -h or --help)."
@@ -35,7 +35,7 @@ usage() {
     echo "    -h, --help          Display usage."
     echo "    -v, --version       Display version."
     echo
-    echo "The 'rayvn.meta' may contain the following key=value declarations:"
+    echo "The 'rayvn.pkg' may contain the following key=value declarations:"
     echo
     echo "  'namespace = <name>'  Declares the namespace name for shared libraries in the \${PATH}/lib directory."
     echo
@@ -48,12 +48,12 @@ usage() {
 main() {
     init "${@}"
     case "${action}" in
-        add) installProject ;;
+        install) installProject ;;
         remove) removeNamespace ;;
         list) listNamespaces ;;
         test) testRequireCore ;;
         reset) reset ;;
-        install) install ;;
+        init) initHome ;;
         *) usage ;;
     esac
 }
@@ -64,8 +64,7 @@ init() {
     readonly rayvnLibDir="${rayvnHome}/lib"
     readonly rayvnBinDir="${rayvnHome}/bin"
     readonly bootFile="${rayvnHome}/boot.sh"
-    readonly metaDataFile="rayvn.meta"
-    readonly adminFileName-"rayvn.admin"
+    readonly packageFileName="rayvn.pkg"
 
     action=
     namespace=
@@ -74,10 +73,10 @@ init() {
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            -a | --add) shift; loadProject "${1}"; action='add' ;;
+            init) action='init' ;;
+            install) shift; loadProject "${1}"; action='install' ;;
             -r | --remove) shift; loadProject "${1}"; action='remove' ;;
             -l | --list) action='list' ;;
-            --install) action='install' ;;
             --reset) action='reset' ;;
             --test) action='test' ;;
             -h | --help) usage ;;
@@ -89,7 +88,7 @@ init() {
 
     if [[ ${action} ]]; then
         if [[ ${action} != 'reset' ]]; then
-           install
+           initHome
         fi
     else
         usage
@@ -100,7 +99,8 @@ loadProject() {
     declare -g projectDir meta namespace binaries
     projectDir="${1}"
     [[ -d "${projectDir}" ]] || _bye "project directory '${projectDir}' not found"
-    metaFile="${projectDir}/${metaDataFile}"
+    projectDir="$(realpath ${projectDir})"
+    metaFile="${projectDir}/${packageFileName}"
     [[ -f ${metaFile} ]] || _bye "'${metaFile}' not found"
     meta="$(cat ${metaFile})"
 
@@ -192,23 +192,23 @@ removeNamespace() {
 }
 
 testRequireCore() {
-    [[ ${RAYVN_LIBRARY_core__base} ]] && _bye "core/base already loaded!"
+    [[ ${RAYVN_LIBRARY_rayvn__base} ]] && _bye "rayvn/base already loaded!"
 
     # this is how each script is supposed to bring it in.
     source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
-    require 'core/base'
+    require 'rayvn/base'
 
-    echo "'$(ansi bold require core/base)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
-    [[ ${RAYVN_LIBRARY_core__base} ]] || _bye "core/base not loaded!"
-    [[ ${RAYVN_LIBRARY_core__base} == 'loaded' ]] || _bye "core/base variable set to unexpected value: ${RAYVN_LIBRARY_core__base}!"
+    echo "'$(ansi bold require rayvn/base)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
+    [[ ${RAYVN_LIBRARY_rayvn__base} ]] || _bye "rayvn/base not loaded!"
+    [[ ${RAYVN_LIBRARY_rayvn__base} == 'loaded' ]] || _bye "rayvn/base variable set to unexpected value: ${RAYVN_LIBRARY_rayvn__base}!"
 }
 
 reset() {
    rm -rf "${rayvnHome}" || _bye
-   install
+   initHome
 }
 
-install() {
+initHome() {
     if [[ ! -f ${bootFile} ]]; then
         mkdir -p "${rayvnLibDir}" 2> /dev/null
         mkdir -p "${rayvnBinDir}" 2> /dev/null
@@ -222,7 +222,7 @@ install() {
             echo
             declare -f require
             echo
-            declare -f bye
+            declare -f _bye
             echo
             declare -rf require
 
@@ -254,7 +254,7 @@ require() {
         local nameSpaceDir="${rayvnLibDir}/${nameSpace}"
         local libraryFile="${nameSpaceDir}/${libraryName}.sh"
         [[ -d ${nameSpaceDir} ]] || _bye "rayvn namespace '${nameSpace}' not found"
-        [[ -f ${libraryFile} ]] || _bye "rayvn library '${libraryName}' not found"
+        [[ -f ${libraryFile} ]] || _bye "rayvn library '${libraryName}' not found @ ${libraryFile}"
         #echo "${BASHPID}: BEGIN loading ${libraryFile}" >> /tmp/debug.log
         source "${libraryFile}"
         local initFunction="init_${nameSpace}_${libraryName}"
@@ -271,7 +271,6 @@ require() {
         if [[ ! ${homeVar} ]]; then
             local homeDir="$(realpath ${nameSpaceDir}/..)"
             declare -grx ${homeVar}="${homeDir}"
-            declare -p "${homeVar}" # TODO remove!
         fi
     fi
 }
@@ -285,21 +284,61 @@ _bye() {
     fi
 }
 
-createAdminFile() {
-    local repoRootPath="${1}"
-    local file="${repoRootPath}/${adminFileName}"
-    (
-        echo "# rayvn-local registry administrator"
-        echo
-        echo "admin.id = rayvn-$(uuidgen)"
-        echo "admin.created = $(date +%s) # $(date +%Y-%m-%d_%H.%M.%S_%Z)"
-        echo
-        echo "admin.name = NAME                      # Replace NAME with your administrator name (does not need to match username)"
-        echo "admin.email = EMAIL                    # Replace EMAIL with one or more contact email addresses, comma separated."
-        echo "admin.roost = https://github.com/USER  # Replace USER with your GitHub username."
+# createProjectFile test bob/test robert robert@foo.com ${HOME}/dev/rayvn-registry
+createProjectFile() {
+    local projectName="${1}"
+    local projectRepo="${2}"
+    local adminName="${3}"
+    local adminEmail="${4}"
+    local registryRepoDir="${5}"
+    local projectsDir="${registryRepoDir}/projects"
+    local projectFile="${projectsDir}/${projectName}"
 
-    ) > "${file}"
+    # make sure repo is valid
+
+    if [[ "${projectRepo}" =~ ^[a-zA-Z0-9-]+/[a-zA-Z0-9-]+$ ]]; then
+        if ! git ls-remote https://github.com/${projectRepo} > /dev/null 2>&1; then
+            _bye "${projectRepo} not found on GitHub"
+        fi
+    else
+        _bye "Invalid GitHub username/repository name: ${projectRepo}"
+    fi
+
+    # make sure email is valid
+
+    if [[ ! "${adminEmail}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$ ]]; then
+        _bye "Email address ${adminEmail} is invalid."
+    fi
+
+    # make sure the repo directory exists
+
+    [[ -d "${registryRepoDir}" ]] || _bye "${registryRepoDir} not found"
+
+    # make sure the projects directory exists
+
+    mkdir -p "${projectsDir}"
+
+    # we're good, so write it out
+
+    (
+        echo "# rayvn project registration"
+        echo
+        echo "project.name = ${projectName}"
+        echo "project.repo = ${projectRepo}"
+        echo
+        echo "admin.name = ${adminName}"
+        echo "admin.email = ${adminEmail}"
+
+    ) > "${projectFile}"
+
+    echo
+    echo "Created project file ${projectFile}:"
+    echo
+    cat "${projectFile}"
+    echo
 }
+
+# createProjectFile test 'bob/test' robert robert@foo.com ${HOME}/dev/rayvn-registry; _bye
 
 main "${@}"
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # Library supporting password/phrase input
-# Intended for use via: require 'core/readpass'
+# Intended for use via: require 'rayvn/readpass'
 
-require 'core/base'
-require 'core/pwned'
+require 'rayvn/core'
+require 'rayvn/pwned'
 
-init_core_readpass() {
+init_rayvn_readpass() {
     declare -A dependencies=(
 
         [mrld_min]='0.1.0'
