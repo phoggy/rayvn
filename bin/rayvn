@@ -42,7 +42,7 @@ usage() {
     echo "  'binaries = <names>'  Declares one or more binaries int the \${PATH}/bin directory that should be included"
     echo "                        in the search path. Can be a comma separated list or '*' to add all."
     echo
-    _bye "${@}"
+    _exitRequire "${@}"
 }
 
 main() {
@@ -61,10 +61,13 @@ main() {
 init() {
     readonly scriptName=$(basename "${0}")
     readonly rayvnHome="${HOME}/.rayvn"
+    readonly bashrcFile="${HOME}/.bashrc"
     readonly rayvnLibDir="${rayvnHome}/lib"
     readonly rayvnBinDir="${rayvnHome}/bin"
     readonly bootFile="${rayvnHome}/boot.sh"
+    readonly rayvnEnvFile="${rayvnHome}/rayvn.env"
     readonly packageFileName="rayvn.pkg"
+    declare -gxAi RAYVN_LIBRARIES=()
 
     action=
     namespace=
@@ -98,10 +101,12 @@ init() {
 loadProject() {
     declare -g projectDir meta namespace binaries
     projectDir="${1}"
-    [[ -d "${projectDir}" ]] || _bye "project directory '${projectDir}' not found"
+
+    [[ -d "${projectDir}" ]] || _exitRequire "project directory '${projectDir}' not found"
     projectDir="$(realpath ${projectDir})"
+
     metaFile="${projectDir}/${packageFileName}"
-    [[ -f ${metaFile} ]] || _bye "'${metaFile}' not found"
+    [[ -f ${metaFile} ]] || _exitRequire "'${metaFile}' not found"
     meta="$(cat ${metaFile})"
 
     # Get supported declarations from the metadata
@@ -112,7 +117,7 @@ loadProject() {
     # Do we have any declarations?
 
     if [[ ! ${namespace} && ! ${binaries} ]]; then
-        _bye "No supported '<key> = <value>' declarations found in '${metaFile}'"
+        _exitRequire "No supported '<key> = <value>' declarations found in '${metaFile}'"
     fi
 }
 
@@ -129,13 +134,15 @@ getMetaValue() {
 
 installProject() {
 
+    [[ ${1} ]] && loadProject "${1}"
+
     # Install namespace if defined
 
     if [[ ${namespace} ]]; then
         sourceDir="${projectDir}/lib"
-        [[ -d ${sourceDir} ]] || _bye "directory '${sourceDir}' not found"
+        [[ -d ${sourceDir} ]] || _exitRequire "directory '${sourceDir}' not found"
         nameSpaceRef="${rayvnLibDir}/${namespace}"
-        [[ -e ${nameSpaceRef} ]] && _bye "${namespace} already present: ${nameSpaceRef} "
+        [[ -e ${nameSpaceRef} ]] && _exitRequire "${namespace} already present: ${nameSpaceRef} "
 
         # Create namespace link to actual directory
 
@@ -148,7 +155,7 @@ installProject() {
     if [[ ${binaries} ]]; then
 
         local sourceDir="${projectDir}/bin"
-        [[ -d ${sourceDir} ]] || _bye "directory '${sourceDir}' not found"
+        [[ -d ${sourceDir} ]] || _exitRequire "directory '${sourceDir}' not found"
         local executables=()
 
         # Yes. All of them?
@@ -179,32 +186,32 @@ installProject() {
 }
 
 listNamespaces() {
-    cd "${rayvnLibDir}" || _bye "rayvn not installed!"
+    cd "${rayvnLibDir}" || _exitRequire "rayvn not installed!"
     ls -l
 }
 
 removeNamespace() {
-    [[ -e ${nameSpaceRef} ]] || _bye "${namespace} not found"
+    [[ -e ${nameSpaceRef} ]] || _exitRequire "${namespace} not found"
     currentNameSpaceDir="$(realpath "${sourceDir}")"
-    [[ ${sourceDir} == "${currentNameSpaceDir}" ]] || _bye "namespace '${namespace} points elsewhere: ${currentNameSpaceDir}"
+    [[ ${sourceDir} == "${currentNameSpaceDir}" ]] || _exitRequire "namespace '${namespace} points elsewhere: ${currentNameSpaceDir}"
     echo "removing '${sourceDir}' as '${namespace}'"
     unlink "${nameSpaceRef}"
 }
 
 testRequireCore() {
-    [[ ${RAYVN_LIBRARY_rayvn__base} ]] && _bye "rayvn/base already loaded!"
+    [[ ${RAYVN_LIBRARY_rayvn__core} ]] && _exitRequire "rayvn/core already loaded!"
 
     # this is how each script is supposed to bring it in.
     source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
-    require 'rayvn/base'
+    require 'rayvn/core'
 
-    echo "'$(ansi bold require rayvn/base)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
-    [[ ${RAYVN_LIBRARY_rayvn__base} ]] || _bye "rayvn/base not loaded!"
-    [[ ${RAYVN_LIBRARY_rayvn__base} == 'loaded' ]] || _bye "rayvn/base variable set to unexpected value: ${RAYVN_LIBRARY_rayvn__base}!"
+    echo "'$(ansi bold require rayvn/core)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
+    [[ ${RAYVN_LIBRARY_rayvn__core} ]] || _exitRequire "rayvn/core not loaded!"
+    [[ ${RAYVN_LIBRARY_rayvn__core} == 'loaded' ]] || _exitRequire "rayvn/core variable set to unexpected value: ${RAYVN_LIBRARY_rayvn__core}!"
 }
 
 reset() {
-   rm -rf "${rayvnHome}" || _bye
+   rm -rf "${rayvnHome}" || _exitRequire
    initHome
 }
 
@@ -213,75 +220,102 @@ initHome() {
         mkdir -p "${rayvnLibDir}" 2> /dev/null
         mkdir -p "${rayvnBinDir}" 2> /dev/null
 
+        # generate rayvn.env file
+        (
+            # Ensure rayvn binaries can be found
+
+            declare -f ensureInPath
+            echo
+            echo "ensureInPath rayvn ${rayvnBinDir}"
+
+        ) > "${rayvnEnvFile}"
+
+        # Modify .bashrc to source our env file
+
+        if ! grep "${rayvnEnvFile}" ${bashrcFile} > /dev/null; then
+            (
+                echo
+                echo "source ${rayvnEnvFile} # init rayvn environment"
+
+            ) >>"${bashrcFile}"
+            echo "updated \${HOME}.bashrc to 'source ${rayvnEnvFile}' so either start a new shell or execute that command"
+        fi
+
         # generate boot script
+
         (
             echo "#!/usr/bin/env bash"
             echo
-            echo "declare -grx rayvnLibDir=\"${HOME}/.rayvn/lib\""
-            echo "declare -grx rayvnBinDir=\"${HOME}/.rayvn/bin\""
+            echo "declare -grx rayvnLibDir=\"\${HOME}/.rayvn/lib\""
+            echo "declare -grx rayvnBinDir=\"\${HOME}/.rayvn/bin\""
+            echo "declare -gxAi RAYVN_LIBRARIES=()"
             echo
-            declare -f require
+            declare -f require       # print function
             echo
-            declare -f _bye
+            declare -f _exitRequire  # print function
             echo
-            declare -rf require
+            echo "declare -rf require _exitRequire"
 
         ) > "${bootFile}"
 
         # Install rayvn itself
 
-        loadProject "$(realpath "${BASH_SOURCE%/*/*}")"
-        installProject
-
-        # Modify .bashrc to append ${rayvnBinDir} to PATH
-
-        if ! grep '.rayvn/bin' ${HOME}/.bashrc > /dev/null; then
-            (
-                echo
-                echo "PATH=\${PATH}:${rayvnBinDir}   # Ensure rayvn binaries can be found"
-            ) >>"${HOME}/.bashrc"
-            echo "updated .bashrc to include binaries in PATH"
-        fi
+        installProject "$(realpath "${BASH_SOURCE%/*/*}")"
     fi
 }
 
 require() {
     local qualifiedName="${1}"
-    local nameSpace="${qualifiedName%/*}"
+    local projectName="${qualifiedName%/*}"
     local libraryName="${qualifiedName#*/}"
-    local libraryVarName="RAYVN_LIBRARY_${nameSpace}__${libraryName}"
-    if [[ ! ${!libraryVarName} ]]; then
-        local nameSpaceDir="${rayvnLibDir}/${nameSpace}"
-        local libraryFile="${nameSpaceDir}/${libraryName}.sh"
-        [[ -d ${nameSpaceDir} ]] || _bye "rayvn namespace '${nameSpace}' not found"
-        [[ -f ${libraryFile} ]] || _bye "rayvn library '${libraryName}' not found @ ${libraryFile}"
+    local key="${projectName}_${libraryName}"
+
+    (( RAYVN_LIBRARIES[${projectName}]++ ))
+
+    if [[ -v RAYVN_LIBRARIES[${key}] ]]; then
+        (( RAYVN_LIBRARIES[${key}]++ ))
+    else
+        local projectDir="${rayvnLibDir}/${projectName}"
+        local libraryFile="${projectDir}/${libraryName}.sh"
+        [[ -d ${projectDir} ]] || _exitRequire "rayvn project '${projectName}' not found"
+        [[ -f ${libraryFile} ]] || _exitRequire "rayvn library '${libraryName}' not found at ${libraryFile}"
         #echo "${BASHPID}: BEGIN loading ${libraryFile}" >> /tmp/debug.log
         source "${libraryFile}"
-        local initFunction="init_${nameSpace}_${libraryName}"
-        if [[ $(type -t ${initFunction}) == function  ]]; then
+        local initFunction="init_${projectName}_${libraryName}"
+        if [[ $(type -t ${initFunction}) == function ]]; then
             #echo "    ${BASHPID}: initializing ${libraryFile}" >> /tmp/debug.log
             ${initFunction}
         fi
-        #echo "${BASHPID}: END loading ${libraryFile}" >> /tmp/debug.log
-        declare -grx ${libraryVarName}='loaded' # do not reload
 
-        # Ensure ${nameSpace}_HOME is set libraries can reference their own dirs
+        # We've successfully loaded the library, so set the initial count
 
-        local homeVar="${nameSpace^^}_HOME"
+        RAYVN_LIBRARIES[${key}]=1
+
+        # Ensure ${projectName}_HOME is set so libraries can reference their own dirs
+        # and test whether any libraries
+
+        local homeVar="${projectName^^}_HOME"
         if [[ ! ${homeVar} ]]; then
-            local homeDir="$(realpath ${nameSpaceDir}/..)"
+            local homeDir="$(realpath ${projectDir}/..)"
             declare -grx ${homeVar}="${homeDir}"
         fi
     fi
 }
 
-_bye() {
+_exitRequire() {
     if [[ ${1} ]]; then
         echo "${@}"
         exit 1
     else
         exit 0
     fi
+}
+
+ensureInPath() {
+    local executable="${1}"
+    local executableDir="${2}"
+    local foundPath="$(which ${executable})"
+    [[ ${foundPath} ]] || declare -gx PATH="${PATH}:${executableDir}"
 }
 
 # createProjectFile test bob/test robert robert@foo.com ${HOME}/dev/rayvn-registry
@@ -298,21 +332,21 @@ createProjectFile() {
 
     if [[ "${projectRepo}" =~ ^[a-zA-Z0-9-]+/[a-zA-Z0-9-]+$ ]]; then
         if ! git ls-remote https://github.com/${projectRepo} > /dev/null 2>&1; then
-            _bye "${projectRepo} not found on GitHub"
+            _exitRequire "${projectRepo} not found on GitHub"
         fi
     else
-        _bye "Invalid GitHub username/repository name: ${projectRepo}"
+        _exitRequire "Invalid GitHub username/repository name: ${projectRepo}"
     fi
 
     # make sure email is valid
 
     if [[ ! "${adminEmail}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$ ]]; then
-        _bye "Email address ${adminEmail} is invalid."
+        _exitRequire "Email address ${adminEmail} is invalid."
     fi
 
     # make sure the repo directory exists
 
-    [[ -d "${registryRepoDir}" ]] || _bye "${registryRepoDir} not found"
+    [[ -d "${registryRepoDir}" ]] || _exitRequire "${registryRepoDir} not found"
 
     # make sure the projects directory exists
 
@@ -337,8 +371,6 @@ createProjectFile() {
     cat "${projectFile}"
     echo
 }
-
-# createProjectFile test 'bob/test' robert robert@foo.com ${HOME}/dev/rayvn-registry; _bye
 
 main "${@}"
 
