@@ -45,8 +45,36 @@ printStack() {
     done
 }
 clean() {
-    rm -rf ~/.rayvn >/dev/null
-    removePathDir ~/.rayvn/bin
+    local rayvnHomeDir="${HOME}/.rayvn"
+    local rayvnPathDir="$rayvnHomeDir}/bin"
+    local bashrcFile="${HOME}/.bashrc"
+
+    rm -rf ${rayvnHomeDir} > /dev/null
+    removePathDir "${rayvnPathDir}"
+    removeMatchingLinesFromFile '.rayvn' "${bashrcFile}"
+    removeTrailingBlankLinesFromFile "${bashrcFile}"
+}
+removeTrailingBlankLinesFromFile() {
+    local file="${1}"
+    sed -i '.bak' -e :a -e '/^\n*$/{$d;N;ba' -e '}' "${file}"
+}
+
+removeMatchingLinesFromFile() {
+    local match="${1}"
+    local file="${2}"
+    if grep -e "${match}" "${file}" > /dev/null; then
+        sed -i '.bak' "/.${match}/d" "${file}"
+    fi
+}
+assertNotInFile() {
+    local match="${1}"
+    local file="${2}"
+    grep -e "${match}" "${file}" > /dev/null && failed "'${match}' found in file ${file}."
+}
+assertInFile() {
+    local match="${1}"
+    local file="${2}"
+    grep -e "${match}" "${file}" > /dev/null 2>&1  || failed "'${match}' not found in file ${file}."
 }
 removePathDir() {
     local removePath="${1}"
@@ -90,7 +118,7 @@ assertNotDefined() {
 
 assertDefined() {
     local varName="${1}"
-    declare -p ${varName} 1>/dev/null 2>&1 || failed "${varName} is not defined"
+    declare -p ${varName} > /dev/null 2>&1 || failed "${varName} is not defined"
 }
 
 assertHashTableDefined() {
@@ -115,12 +143,15 @@ assertHashValue() {
 }
 
 testCleanInstall() {
-    clean
+    local bashrc="${HOME}/.bashrc"
 
-    # Make sure not installed
+    # Start clean and double check it
+
+    clean
 
     assertNotInPath rayvn
     source "${HOME}/.rayvn/boot.sh" 2>/dev/null && failed 'rayvn already installed'
+    assertNotInFile '.rayvn' "${bashrc}"
 
     # Install it
 
@@ -133,6 +164,7 @@ testCleanInstall() {
     # Ensure installed
 
     assertInPath rayvn "${rayvnBinDir}/rayvn"
+    assertInFile '.rayvn' "${bashrc}"
 
     # Now act boot rayvn in this shell
 
