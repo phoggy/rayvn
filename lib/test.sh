@@ -143,6 +143,7 @@ assertHashValue() {
     local keyName="${2}"
     local expectedValue="${3}"
 
+    assertVarDefined ${varName}
     [[ -v ${varName}[${keyName}] ]] || failed "${varName}[${keyName}] is not defined"
     local actualValue="$(eval echo \$"{${varName}[${keyName}]}")" # complexity required to use variables for var and key
     [[ ${actualValue} == "${expectedValue}" ]] || failed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"

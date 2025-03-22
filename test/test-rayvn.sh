@@ -6,7 +6,7 @@ source "$(dirname "${0}")/../lib/test.sh"
 
 test() {
     testCleanInstall
-    echo "PASSED"
+    echo "PASSED" # TODO REMOVE, should be in test runner
 }
 
 testCleanInstall() {
