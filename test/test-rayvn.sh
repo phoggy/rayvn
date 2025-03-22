@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
+# TODO move util functions into 'test' library
+# TODO move init() and main() into rayvn test runner
+
 main() {
     init "${@}"
 
@@ -111,19 +114,30 @@ assertInPath() {
         fi
     fi
 }
-assertNotDefined() {
+
+assertFunctionNotDefined() {
+    local name="${1}"
+    declare -f ${name} > /dev/null 2>&1 && failed "function '${name}(){...} is defined"
+}
+
+assertFunctionDefined() {
+    local name="${1}"
+    declare -f ${name} > /dev/null 2>&1 || failed "function '${name}(){...} is not defined"
+}
+
+assertVarNotDefined() {
     local varName="${1}"
     [[ -v ${!varName} ]] && failed "${varName} is defined"
 }
 
-assertDefined() {
+assertVarDefined() {
     local varName="${1}"
     declare -p ${varName} > /dev/null 2>&1 || failed "${varName} is not defined"
 }
 
 assertHashTableDefined() {
     local varName=${1}
-    assertDefined ${varName}
+    assertVarDefined ${varName}
     [[ "$(declare -p ${varName} 2>/dev/null)" =~ "declare -A" ]] || failed "${varName} is not a hash table"
 }
 assertHashKeyNotDefined() {
@@ -166,17 +180,29 @@ testCleanInstall() {
     assertInPath rayvn "${rayvnBinDir}/rayvn"
     assertInFile '.rayvn' "${bashrc}"
 
-    # Now act boot rayvn in this shell
+    # Ensure that functions from our boot script are NOT present in this shell
+
+    assertFunctionNotDefined 'require'
+    assertFunctionNotDefined '_exitRequire'
+
+    # Now boot rayvn in this shell
 
     source "${HOME}/.rayvn/boot.sh" 2>/dev/null || failed 'rayvn not installed'
 
+    # Ensure that functions from our boot script are now present in this shell
+
+    assertFunctionDefined 'require'
+    assertFunctionDefined '_exitRequire'
+
     # We have not called require, so our index should not yet be defined
 
-    assertNotDefined 'RAYVN_LIBRARIES'
+    assertVarNotDefined 'RAYVN_LIBRARIES'
 
     # Ensure that functions from our core library are NOT present in this shell
 
-    # TODO
+    assertFunctionNotDefined 'rootDirPath'
+    assertFunctionNotDefined 'tempDirPath'
+    assertFunctionNotDefined 'init_rayvn_core'
 
     # Execute require for our core library
 
@@ -189,11 +215,11 @@ testCleanInstall() {
     assertHashValue 'RAYVN_LIBRARIES' 'rayvn' 1
     assertHashValue 'RAYVN_LIBRARIES' 'rayvn_core' 1
 
-    # TODO move util functions into 'test' library
+    # Ensure that functions from our core library are now present in this shell
 
-    # Ensure that rayvn/core functions are available in this shell
-
-    # TODO
+    assertFunctionDefined 'rootDirPath'
+    assertFunctionDefined 'tempDirPath'
+    assertFunctionDefined 'init_rayvn_core'
 }
 
 main "${@}"
