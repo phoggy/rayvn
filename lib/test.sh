@@ -6,10 +6,12 @@
 
 # TODO: create 'rayvn test' command, with optional test name(s)
 
-rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
-rayvnBinDir="${rayvnRootDir}/bin"
-rayvnInstallDir="${HOME}/.rayvn"
-rayvnInstallBinDir="${rayvnInstallDir}/bin"
+init_rayvn_test() {
+    local rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
+    declare -grx rayvnBinDir="${rayvnRootDir}/bin"
+    declare -grx rayvnInstallDir="${HOME}/.rayvn"
+    declare -grx rayvnInstallBinDir="${rayvnInstallDir}/bin"
+}
 
 failed() {
     if [[ ${1} ]]; then

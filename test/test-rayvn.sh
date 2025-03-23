@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Cannot use 'require rayvn/test' here since we are going to test it!
-source "$(dirname "${0}")/../lib/test.sh"
+# Cannot use 'require rayvn/test' here since we are going to test it, so
+# do it 'manually' here
 
-test() {
+source "$(dirname "${0}")/../lib/test.sh"; init_rayvn_test
+
+suiteAll() {   # TODO: clarify suite model
     testCleanInstall
     echo "PASSED" # TODO REMOVE, should be in test runner
 }
@@ -75,4 +77,4 @@ testCleanInstall() {
     assertFunctionDefined 'init_rayvn_core'
 }
 
-test "${@}"
+suiteAll "${@}"

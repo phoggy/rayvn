@@ -5,6 +5,10 @@
 
 require 'rayvn/core'
 
+# TODO: use phraze! Need to add support for 'cargo' in dependencies!!
+# TODO: rename to 'passwords'
+# TODO: don't display strength (via mrld) as it is inaccurate. Just pick a threshold and warn is week if below.
+
 init_rayvn_genpass() {
     declare -A dependencies=(
 

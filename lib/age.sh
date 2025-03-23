@@ -16,10 +16,10 @@ init_rayvn_age() {
     )
 
     assertExecutables dependencies
-}
 
-readonly ageFileExtension='age'
-readonly tarFileExtension='tar.xz'
+    declare -grx ageFileExtension='age'
+    declare -grx tarFileExtension='tar.xz'
+}
 
 showAgeKeyPairAdvice() {
     echo "Your new private key will be encrypted. You will be prompted to enter a 'passphrase', twice, and it is very"
