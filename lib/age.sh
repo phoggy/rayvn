@@ -5,17 +5,17 @@
 
 require 'rayvn/core'
 
+declare -grxA rayvn_age_dependencies=(
+
+    [rage_min]='0.11.1'
+    [rage_brew]=true
+    [rage_brew_tap]='str4d.xyz/rage https://str4d.xyz/rage'
+    [rage_install]='https://github.com/str4d/rage'
+    [rage_version]='versionExtract'
+)
+
 init_rayvn_age() {
-    declare -A dependencies=(
-
-        [rage_min]='0.11.1'
-        [rage_brew]=true
-        [rage_brew_tap]='str4d.xyz/rage https://str4d.xyz/rage'
-        [rage_install]='https://github.com/str4d/rage'
-        [rage_version]='versionExtract'
-    )
-
-    assertExecutables dependencies
+    assertExecutables rayvn_age_dependencies
 
     declare -grx ageFileExtension='age'
     declare -grx tarFileExtension='tar.xz'

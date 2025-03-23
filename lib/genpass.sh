@@ -9,17 +9,17 @@ require 'rayvn/core'
 # TODO: rename to 'passwords'
 # TODO: don't display strength (via mrld) as it is inaccurate. Just pick a threshold and warn is week if below.
 
+declare -grxA rayvn_genpass_dependencies=(
+
+    [mrld_min]='0.1.0'
+    [mrld_brew]=true
+    [mrld_brew_tap]='phoggy/mrld'
+    [mrld_install]='https://github.com/phoggy/mrld'
+    [mrld_version]='versionExtract'
+)
+
 init_rayvn_genpass() {
-    declare -A dependencies=(
-
-        [mrld_min]='0.1.0'
-        [mrld_brew]=true
-        [mrld_brew_tap]='phoggy/mrld'
-        [mrld_install]='https://github.com/phoggy/mrld'
-        [mrld_version]='versionExtract'
-    )
-
-    assertExecutables dependencies
+    assertExecutables rayvn_genpass_dependencies
 }
 
 readonly passphraseWordsFile="${rayvnRootDir}/etc/words.txt"     # TODO FIX: should point to sage/etc dir.

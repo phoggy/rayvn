@@ -6,17 +6,17 @@
 require 'rayvn/core'
 require 'rayvn/pwned'
 
+declare -grxA rayvn_readpass_dependencies=(
+
+    [mrld_min]='0.1.0'
+    [mrld_brew]=true
+    [mrld_brew_tap]='phoggy/mrld'
+    [mrld_install]='https://github.com/phoggy/mrld'
+    [mrld_version]='versionExtract'
+)
+
 init_rayvn_readpass() {
-    declare -A dependencies=(
-
-        [mrld_min]='0.1.0'
-        [mrld_brew]=true
-        [mrld_brew_tap]='phoggy/mrld'
-        [mrld_install]='https://github.com/phoggy/mrld'
-        [mrld_version]='versionExtract'
-    )
-
-    assertExecutables dependencies
+    assertExecutables rayvn_readpass_dependencies
 }
 
 readVerifiedPassword() {

@@ -5,16 +5,17 @@
 
 require 'rayvn/core'
 
+declare -grxA rayvn_pwned_dependencies=(
+
+    [curl_min]='7.76.0'
+    [curl_brew]=true
+    [curl_install]='https://curl.se/dlwiz/?type=bin'
+    [curl_version]='versionExtract'
+)
+
+
 init_rayvn_pwned() {
-    declare -A dependencies=(
-
-        [curl_min]='7.76.0'
-        [curl_brew]=true
-        [curl_install]='https://curl.se/dlwiz/?type=bin'
-        [curl_version]='versionExtract'
-    )
-
-    assertExecutables dependencies
+    assertExecutables rayvn_pwned_dependencies
 }
 
 readonly pwnedPasswordsApiUrl='https://api.pwnedpasswords.com'
