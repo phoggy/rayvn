@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2155
 
 # Library supporting password/phrase generation
 # Intended for use via: require 'rayvn/pwned'
@@ -13,12 +14,10 @@ declare -grxA rayvn_pwned_dependencies=(
     [curl_version]='versionExtract'
 )
 
-
 init_rayvn_pwned() {
     assertExecutables rayvn_pwned_dependencies
+    declare -grx pwnedPasswordsApiUrl='https://api.pwnedpasswords.com'
 }
-
-readonly pwnedPasswordsApiUrl='https://api.pwnedpasswords.com'
 
 hasNotBeenPwned() {
     local pass="${1}"
