@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2155
 
 # Library supporting password/phrase input
 # Intended for use via: require 'rayvn/readpass'
