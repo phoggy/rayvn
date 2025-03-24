@@ -133,8 +133,6 @@ loadProject() {
     if [[ ! ${projectHasLibraries} && ! ${projectBinaries} ]]; then
          fail "either projectHasLibraries or projectBinaries var is required in ${packageFile}"
     fi
-
-    declare -p projectDir projectName projectVersion projectHasLibraries projectBinaries # TODO REMOVE
 }
 
 installProject() {
