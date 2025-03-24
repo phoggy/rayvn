@@ -162,7 +162,6 @@ sourceEnvFile() {
     assertFileExists "${envFile}"
     # strip anything that isn't env var declarations and source that
     local strippedEnvFile=$(_stripEnvFile "${envFile}")
-    declare -p strippedEnvFile
     source <(echo ${strippedEnvFile})
 }
 _stripEnvFile() {
