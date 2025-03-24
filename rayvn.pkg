@@ -1,3 +1,9 @@
-namespace = rayvn
-binaries = rayvn
+# rayvn package attributes
+
+projectName='rayvn'
+projectVersion='0.1.0'
+projectHasLibraries=true
+projectBinaries=('rayvn')
+
+yetAnother=foo
 

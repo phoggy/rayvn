@@ -42,7 +42,7 @@ usage() {
     echo "  'binaries = <names>'  Declares one or more binaries int the \${PATH}/bin directory that should be included"
     echo "                        in the search path. Can be a comma separated list or '*' to add all."
     echo
-    _exitRequire "${@}"
+    bye "${@}"
 }
 
 main() {
@@ -51,7 +51,7 @@ main() {
         install) installProject ;;
         remove) removeNamespace ;;
         list) listNamespaces ;;
-        test) testRequireCore ;;
+        test) runAllTests ;;
         reset) reset ;;
         init) initHome ;;
         *) usage ;;
@@ -60,8 +60,12 @@ main() {
 
 init() {
     readonly scriptName=$(basename "${0}")
+    readonly scriptBinDir=$(dirname "${0}")
+    readonly scriptDir=$(realpath "${scriptBinDir}/..")
+    readonly scriptLibDir="${scriptDir}/lib"
     readonly rayvnHome="${HOME}/.rayvn"
     readonly bashrcFile="${HOME}/.bashrc"
+    readonly rayvnPkgDir="${rayvnHome}/pkg"
     readonly rayvnLibDir="${rayvnHome}/lib"
     readonly rayvnBinDir="${rayvnHome}/bin"
     readonly bootFile="${rayvnHome}/boot.sh"
@@ -69,21 +73,24 @@ init() {
     readonly packageFileName="rayvn.pkg"
     declare -gxAi RAYVN_LIBRARIES=()
 
+    requireRayvnCore # source the 'rayvn/core' library
+
     action=
-    namespace=
+    projectName=
     sourceDir=
-    nameSpaceRef=
+    namespaceRef=
 
     while (( ${#} > 0 )); do
         case "${1}" in
             init) action='init' ;;
             install) shift; loadProject "${1}"; action='install' ;;
-            -r | --remove) shift; loadProject "${1}"; action='remove' ;;
-            -l | --list) action='list' ;;
-            --reset) action='reset' ;;
-            --test) action='test' ;;
+            remove) shift; loadProject "${1}"; action='remove' ;;
+            list) action='list' ;;
+            reset) action='reset' ;;
+            test) action='test' ;;
+            deps) action='deps' ;;
             -h | --help) usage ;;
-            --version) version ${VERSION} ;;
+            -v | --version) version ${VERSION} ;;
             *) usage "Unknown option: ${1}" ;;
         esac
         shift
@@ -98,125 +105,146 @@ init() {
     fi
 }
 
-loadProject() {
-    declare -g projectDir meta namespace binaries
-    projectDir="${1}"
-
-    [[ -d "${projectDir}" ]] || _exitRequire "project directory '${projectDir}' not found"
-    projectDir="$(realpath ${projectDir})"
-
-    metaFile="${projectDir}/${packageFileName}"
-    [[ -f ${metaFile} ]] || _exitRequire "'${metaFile}' not found"
-    meta="$(cat ${metaFile})"
-
-    # Get supported declarations from the metadata
-
-    namespace="$(getMetaValue namespace)"
-    binaries="$(getMetaValue binaries)"
-
-    # Do we have any declarations?
-
-    if [[ ! ${namespace} && ! ${binaries} ]]; then
-        _exitRequire "No supported '<key> = <value>' declarations found in '${metaFile}'"
+requireRayvnCore() {
+    local coreFile="${scriptLibDir}/rayvn/core.sh"
+    if [[ ! -e ${coreFile} ]]; then
+        coreFile="${scriptLibDir}/core.sh"
     fi
+    source "${coreFile}" || exit 1
 }
 
-getMetaValue() {
-    local key=${1}
-    local definition="$(echo "${meta}" | grep ${key} | tr -d '[:space:]')"
-    definition=${definition%#*} # strip any comments
+loadProject() {
+    declare -g projectDir projectName projectVersion projectHasLibraries projectBinaries
 
-    if [[ ${definition} ]]; then
-        local value="${definition#*=}"
-        echo "${value}"
+    projectDir="${1}"
+    assertDirectory "${projectDir}"
+    projectDir="$(realpath ${projectDir})"
+
+    local packageFile="${projectDir}/${packageFileName}"
+    assertFile "${packageFile}"
+
+    # source and validate it
+
+    unset projectName projectVersion projectHasLibraries projectBinaries
+    sourceEnvFile "${packageFile}"
+    [[ ${projectName} ]] || fail "projectName var required in ${packageFile}"
+    [[ ${projectVersion} ]] || fail "projectVersion var required in ${packageFile}"
+
+    if [[ ! ${projectHasLibraries} && ! ${projectBinaries} ]]; then
+         fail "either projectHasLibraries or projectBinaries var is required in ${packageFile}"
     fi
+
+    declare -p projectDir projectName projectVersion projectHasLibraries projectBinaries # TODO REMOVE
 }
 
 installProject() {
-
     [[ ${1} ]] && loadProject "${1}"
+    local projectRef="${rayvnPkgDir}/${projectName}"
 
-    # Install namespace if defined
+    if [[ ! -e "${projectRef}" ]]; then
 
-    if [[ ${namespace} ]]; then
-        sourceDir="${projectDir}/lib"
-        [[ -d ${sourceDir} ]] || _exitRequire "directory '${sourceDir}' not found"
-        nameSpaceRef="${rayvnLibDir}/${namespace}"
-        [[ -e ${nameSpaceRef} ]] && _exitRequire "${namespace} already present: ${nameSpaceRef} "
+            # Install project link
 
-        # Create namespace link to actual directory
+        ln -s "${projectDir}" "${projectRef}"
+        echo "added '${projectDir}' as '${projectName}' project"
 
-        ln -s "${sourceDir}" "${nameSpaceRef}"
-        echo "added shared library root ${sourceDir} as '${namespace}' namespace"
-    fi
+        # Install libraries if defined
 
-    # Install binaries if defined
+        if [[ ${projectHasLibraries} == true ]]; then
+            sourceDir="${projectDir}/lib"
+            assertDirectory "${sourceDir}"
+            namespaceRef="${rayvnLibDir}/${projectName}"
+            [[ -e ${namespaceRef} ]] && fail "${projectName} already present: ${namespaceRef}"
 
-    if [[ ${binaries} ]]; then
+            # Create namespace link to actual directory
 
-        local sourceDir="${projectDir}/bin"
-        [[ -d ${sourceDir} ]] || _exitRequire "directory '${sourceDir}' not found"
-        local executables=()
-
-        # Yes. All of them?
-
-        if [[ ${binaries} == '*' ]]; then
-
-            # Yes, so build list
-
-            for fileName in $(ls -1 "${sourceDir}" | tr '\n' ' '); do
-                executables+=("${fileName}")
-            done
-
-        else
-            # Nope, specific ones
-
-            executables=("$(echo ${binaries} | tr ',' ' ')")
+            ln -s "${sourceDir}" "${namespaceRef}"
+            echo "added shared library root '${sourceDir}' as '${projectName}' namespace"
         fi
 
-        # Install links for each
+        # Install binaries if defined
 
-        for binary in "${executables[@]}"; do
-            local binaryRef="${rayvnBinDir}/${binary}"
-            local binarySrc="${sourceDir}/${binary}"
-            ln -s "${binarySrc}" "${binaryRef}"
-            echo "added executable ${binary}"
-        done
+        if declare -p projectBinaries &> /dev/null; then
+
+            local sourceDir="${projectDir}/bin"
+            [[ -d ${sourceDir} ]] || fail "directory '${sourceDir}' not found"
+
+            # Install links for each
+
+            for binary in "${projectBinaries[@]}"; do
+                local binarySrc="${sourceDir}/${binary}"
+                assertFileExists "${binarySrc}"
+                [[ -x "${binarySrc}" ]] || chmod +x "${binarySrc}"
+                local binaryRef="${rayvnBinDir}/${binary}"
+                ln -s "${binarySrc}" "${binaryRef}"
+                echo "installed executable '${binary}'"
+            done
+        fi
+    else
+        fail "${projectRef} already installed"
     fi
 }
 
 listNamespaces() {
-    cd "${rayvnLibDir}" || _exitRequire "rayvn not installed!"
+    cd "${rayvnLibDir}" || fail "rayvn not installed!"
     ls -l
 }
 
 removeNamespace() {
-    [[ -e ${nameSpaceRef} ]] || _exitRequire "${namespace} not found"
+    [[ -e ${namespaceRef} ]] || fail "${projectName} not found"
     currentNameSpaceDir="$(realpath "${sourceDir}")"
-    [[ ${sourceDir} == "${currentNameSpaceDir}" ]] || _exitRequire "namespace '${namespace} points elsewhere: ${currentNameSpaceDir}"
-    echo "removing '${sourceDir}' as '${namespace}'"
-    unlink "${nameSpaceRef}"
+    [[ ${sourceDir} == "${currentNameSpaceDir}" ]] || fail "namespace '${projectName} points elsewhere: ${currentNameSpaceDir}"
+    echo "removing '${sourceDir}' as '${projectName}'"
+    unlink "${namespaceRef}"
 }
 
-testRequireCore() {
-    [[ ${RAYVN_LIBRARY_rayvn__core} ]] && _exitRequire "rayvn/core already loaded!"
+runAllTests() {
+    local projects projectDir
+    projects=("$(ls -1 ${rayvnPkgDir})")
+    for projectDir in "${projects[@]}"; do
+        runProjectTests "${projectDir}"
+    done
+}
 
-    # this is how each script is supposed to bring it in.
-    source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
-    require 'rayvn/core'
+runProjectTests() {
+    local projectDir="${1}"
+    local testDir="${projectDir}/test"
+    if [[ -d "${testDir}" ]]; then
+        local tests=("$(ls -1 "${testDir}/test-*.sh" )")
+        for testSource in "${testSource[@]}"; do
+            runTest "${testSource}"
+        done
+    fi
+}
 
-    echo "'$(ansi bold require rayvn/core)' worked if $(ansi bold_green this) line has $(ansi magenta colored) text"
-    [[ ${RAYVN_LIBRARY_rayvn__core} ]] || _exitRequire "rayvn/core not loaded!"
-    [[ ${RAYVN_LIBRARY_rayvn__core} == 'loaded' ]] || _exitRequire "rayvn/core variable set to unexpected value: ${RAYVN_LIBRARY_rayvn__core}!"
+runTest() {
+    local testSource="${1}"
+    assertFileExists "${testSource}"
+    (
+        if [[ -x "${testSource}" ]]; then
+            echo
+            echo "Running ${testSource}"
+            echo
+            "${testSource}"
+            if [[ ${?} == 0 ]]; then
+                echo "$(ansi green PASSED)"
+            else
+                echo "$(ansi red FAILED)"
+            fi
+        else
+            echo "Skipping ${testSource}: not executable"
+        fi
+    )
 }
 
 reset() {
-   rm -rf "${rayvnHome}" || _exitRequire
+   rm -rf "${rayvnHome}" || fail
    initHome
 }
 
 initHome() {
     if [[ ! -f ${bootFile} ]]; then
+        mkdir -p "${rayvnPkgDir}" 2> /dev/null
         mkdir -p "${rayvnLibDir}" 2> /dev/null
         mkdir -p "${rayvnBinDir}" 2> /dev/null
 
@@ -278,7 +306,7 @@ require() {
         local projectDir="${rayvnLibDir}/${projectName}"
         local libraryFile="${projectDir}/${libraryName}.sh"
         [[ -d ${projectDir} ]] || _exitRequire "rayvn project '${projectName}' not found"
-        [[ -f ${libraryFile} ]] || _exitRequire "rayvn library '${libraryName}' not found at ${libraryFile}"
+        [[ -f ${libraryFile} ]] || _exitRequire "rayvn shared library '${libraryName}' not found at ${libraryFile}"
         #echo "${BASHPID}: BEGIN loading ${libraryFile}" >> /tmp/debug.log
         source "${libraryFile}"
         local initFunction="init_${projectName}_${libraryName}"
@@ -314,8 +342,7 @@ _exitRequire() {
 ensureInPath() {
     local executable="${1}"
     local executableDir="${2}"
-    local foundPath="$(which ${executable})"
-    [[ ${foundPath} ]] || declare -gx PATH="${PATH}:${executableDir}"
+    which ${executable} &> /dev/null || declare -gx PATH="${PATH:+$PATH:}${executableDir}"
 }
 
 # createProjectFile test bob/test robert robert@foo.com ${HOME}/dev/rayvn-registry
@@ -331,22 +358,22 @@ createProjectFile() {
     # make sure repo is valid
 
     if [[ "${projectRepo}" =~ ^[a-zA-Z0-9-]+/[a-zA-Z0-9-]+$ ]]; then
-        if ! git ls-remote https://github.com/${projectRepo} > /dev/null 2>&1; then
-            _exitRequire "${projectRepo} not found on GitHub"
+        if ! git ls-remote https://github.com/${projectRepo} &> /dev/null; then
+            fail "${projectRepo} not found on GitHub"
         fi
     else
-        _exitRequire "Invalid GitHub username/repository name: ${projectRepo}"
+        fail "Invalid GitHub username/repository name: ${projectRepo}"
     fi
 
     # make sure email is valid
 
     if [[ ! "${adminEmail}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$ ]]; then
-        _exitRequire "Email address ${adminEmail} is invalid."
+        fail "Email address ${adminEmail} is invalid."
     fi
 
     # make sure the repo directory exists
 
-    [[ -d "${registryRepoDir}" ]] || _exitRequire "${registryRepoDir} not found"
+    [[ -d "${registryRepoDir}" ]] || fail "${registryRepoDir} not found"
 
     # make sure the projects directory exists
 
