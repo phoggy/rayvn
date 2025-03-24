@@ -157,6 +157,60 @@ assertFileDoesNotExist() {
     [[ -e "${1}" ]] && fail "${1} already exists"
 }
 
+sourceEnvFile() {
+    local envFile="${1}"
+    assertFileExists "${envFile}"
+    # strip anything that isn't env var declarations and source that
+    local strippedEnvFile=$(_stripEnvFile "${envFile}")
+    declare -p strippedEnvFile
+    source <(echo ${strippedEnvFile})
+}
+_stripEnvFile() {
+    local envFile="${1}"
+    cat "${envFile}" | grep '^[_[:alpha:]][_[:alpha:][:digit:]]*[=].*$'
+
+
+# TODO: debug this!
+#    local inMultiline=0
+#    local multilineVar=''
+#
+#    # Process the script line by line
+#    while IFS= read -r line; do
+#        # Remove leading and trailing whitespace
+#        line=$(echo "${line}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+#
+#        # Skip lines that are empty or comments
+#        if [[ -z "${line}" || "${line}" =~ ^# ]]; then
+#            continue
+#        fi
+#
+#        # Check if it's a multi-line variable assignment (e.g., arrays or multiline values)
+#        if [[ "${line}" =~ [^#]*=\(.*\) ]]; then
+#            inMultiline=1
+#            multilineVar="${line}"
+#            continue
+#        fi
+#
+#        # If we're already in a multi-line variable, continue appending
+#        if [[ ${inMultiline} -eq 1 ]]; then
+#            multilineVar="${multilineVar}${line}"
+#            # Check if the multi-line ends
+#            if [[ "${line}" =~ \)$ ]]; then
+#                echo "${multilineVar}"
+#                inMultiline=0
+#                multilineVar=""
+#            fi
+#            continue
+#        fi
+#
+#        # Otherwise, it's a single-line variable declaration (camelCase)
+#        if [[ "${line}" =~ ^[A-Za-z][A-Za-z0-9]*=[^#]*$ ]]; then
+#            echo "${line}"
+#        fi
+#    done < "${envFile}"
+}
+
+
 assertExecutables() {
     local dependenciesVarName="${1}"
     declare -n deps="${dependenciesVarName}"
