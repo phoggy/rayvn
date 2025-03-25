@@ -22,8 +22,8 @@ init() {
     readonly readyMessage='OK Ready'
     readonly noError='OK'
     readonly cancelledError='ERR 83886179 Operation cancelled <pinentry>'
-    #readonly timeoutError='ERR 83886142 Timeout <ravyn-pinentry>'
-    #readonly ipcParameterError='ERR 83886360 IPC parameter error <ravyn-pinentry>'
+    #readonly timeoutError='ERR 83886142 Timeout <rayvn-pinentry>'
+    #readonly ipcParameterError='ERR 83886360 IPC parameter error <rayvn-pinentry>'
 
     readonly emptyPinError=${cancelledError}
     readonly mismatchedPinError=${cancelledError}
@@ -36,7 +36,7 @@ init() {
     readonly confirmPrompt='Confirm'
     readonly confirmError='confirmation does not match'
 
-    # Path to ravyn-pinentry executable, if requested and found
+    # Path to rayvn-pinentry executable, if requested and found
 
     proxyPath=
 
@@ -58,7 +58,7 @@ init() {
         log
     fi
 
-    # Find a ravyn-pinentry program to proxy, if requested
+    # Find a rayvn-pinentry program to proxy, if requested
 
     if [[ ${proxyPinEntry} ]]; then
         local pinEntry
