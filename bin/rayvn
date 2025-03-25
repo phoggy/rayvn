@@ -74,6 +74,7 @@ init() {
     declare -gxAi RAYVN_LIBRARIES=()
 
     requireRayvnCore # source the 'rayvn/core' library
+    assertBashVersion
 
     action=
     projectName=
