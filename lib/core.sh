@@ -64,6 +64,8 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         declare -grx _checkMark="✔"
         declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
 
+    elif [[ ${RAYVN_REQUIRE_TERMINAL} == false ]]; then
+        echo "⚠️ not running in a terminal, functionality is limited"
     else
         echo "🔺 must be run in a terminal"
         exit 1
