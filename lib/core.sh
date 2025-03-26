@@ -125,6 +125,11 @@ addExitHandler() {
     trap -- "${newCommand}" EXIT
 }
 
+version() {
+    echo "${1}"
+    exit 0
+}
+
 assertMinimumVersion() {
     local minimum="${1}"
     local version="${2}"

@@ -8,7 +8,7 @@
 #  -
 
 
-readonly VERSION='rayvn 0.1.0'
+readonly RAYVN_VERSION='rayvn 0.1.0'
 
 usage() {
     echo
@@ -91,7 +91,7 @@ init() {
             test) action='test' ;;
             deps) action='deps' ;;
             -h | --help) usage ;;
-            -v | --version) version ${VERSION} ;;
+            -v | --version) version "${RAYVN_VERSION}" ;;
             *) usage "Unknown option: ${1}" ;;
         esac
         shift
