@@ -243,9 +243,9 @@ reset() {
 
 initHome() {
     if [[ ! -f ${bootFile} ]]; then
-        mkdir -p "${rayvnPkgDir}" 2> /dev/null
-        mkdir -p "${rayvnLibDir}" 2> /dev/null
-        mkdir -p "${rayvnBinDir}" 2> /dev/null
+        mkdir -p "${rayvnPkgDir}" || fail
+        mkdir -p "${rayvnLibDir}" || fail
+        mkdir -p "${rayvnBinDir}" || fail
 
         # generate rayvn.env file
         (
