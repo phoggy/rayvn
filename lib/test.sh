@@ -41,16 +41,6 @@ printStack() {
         echo "   ${function}() line ${line} [in ${script}] --> ${called}()"
     done
 }
-clean() {
-    local rayvnHomeDir="${HOME}/.rayvn"
-    local rayvnPathDir="$rayvnHomeDir}/bin"
-    local bashrcFile="${HOME}/.bashrc"
-
-    rm -rf ${rayvnHomeDir} > /dev/null
-    removePathDir "${rayvnPathDir}"
-    removeMatchingLinesFromFile '.rayvn' "${bashrcFile}"
-    removeTrailingBlankLinesFromFile "${bashrcFile}"
-}
 removeTrailingBlankLinesFromFile() {
     local file="${1}"
     sed -i '.bak' -e :a -e '/^\n*$/{$d;N;ba' -e '}' "${file}"
@@ -84,7 +74,40 @@ removePathDir() {
             newPath="${newPath:+$newPath:}${dir}"
         fi
     done
-    export ${pathVariable}="${newPath}"
+    declare -gx ${pathVariable}="${newPath}"
+}
+
+# Prepend directory to PATH.
+# Removes directory prior to prepend if already present.
+prependPath () {
+    local path="${1}"
+    local pathVariable=${2:-PATH}
+    removePath "${path}" ${pathVariable}
+    declare -gx ${pathVariable}="${path}${!pathVariable:+:${!pathVariable}}"
+}
+
+# Append directory to PATH.
+# Removes directory prior to append if already present.
+appendPath () {
+    local path="${1}"
+    local pathVariable=${2:-PATH}
+    removePath "${path}" ${pathVariable}
+    declare -gx  ${pathVariable}="${!pathVariable:+${!pathVariable}:}${path}"
+}
+
+# Remove directory from PATH.
+removePath () {
+    local removePath="${1}"
+    local pathVariable=${2:-PATH}
+    local dir newPath paths
+    IFS=':' read -ra paths <<< "${!pathVariable}"
+
+    for dir in "${paths[@]}" ; do
+        if [[ "${dir}" != "${removePath}" ]] ; then
+            newPath="${newPath:+$newPath:}${dir}"
+        fi
+    done
+    declare -gx  ${pathVariable}="${newPath}"
 }
 
 assertNotInPath() {
