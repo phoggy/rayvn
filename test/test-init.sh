@@ -8,7 +8,21 @@ source "$(dirname "${0}")/../lib/test.sh"; init_rayvn_test
 
 suiteAll() {   # TODO: clarify suite model
     testCleanInstall
-    echo "PASSED" # TODO REMOVE, should be in test runner
+}
+
+clean() {
+    local rayvnHomeDir="${HOME}/.rayvn"
+    local bashrcFile="${HOME}/.bashrc"
+
+    rm -rf ${rayvnHomeDir} &> /dev/null
+    removeMatchingLinesFromFile '.rayvn' "${bashrcFile}"
+    removeTrailingBlankLinesFromFile "${bashrcFile}"
+
+    while which rayvn > /dev/null; do
+        local path="$(which rayvn)"
+        local dir="$(dirname "${path}")"
+        removePath "${dir}"
+    done
 }
 
 testCleanInstall() {
@@ -17,7 +31,6 @@ testCleanInstall() {
     # Start clean and double check it
 
     clean
-
     assertNotInPath rayvn
     source "${HOME}/.rayvn/boot.sh" 2>/dev/null && failed 'rayvn already installed'
     assertNotInFile '.rayvn' "${bashrc}"

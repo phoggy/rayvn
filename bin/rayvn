@@ -199,39 +199,48 @@ removeNamespace() {
 
 runAllTests() {
     local projects projectDir
-    projects=("$(ls -1 ${rayvnPkgDir})")
-    for projectDir in "${projects[@]}"; do
-        runProjectTests "${projectDir}"
-    done
+    if [[ -d ${rayvnPkgDir} ]]; then
+        projects=("$(ls -1 ${rayvnPkgDir})")
+        for projectDir in "${projects[@]}"; do
+            runProjectTests "${rayvnPkgDir}/${projectDir}"
+        done
+    else
+        # not installed, so just run ours.
+        declare -d scriptDir
+        runProjectTests "${scriptDir}"
+    fi
 }
 
 runProjectTests() {
     local projectDir="${1}"
     local testDir="${projectDir}/test"
     if [[ -d "${testDir}" ]]; then
-        local tests=("$(ls -1 "${testDir}/test-*.sh" )")
-        for testSource in "${testSource[@]}"; do
-            runTest "${testSource}"
+        local tests=("$(ls -1 "${testDir}"/test-*.sh)")
+        for testFile in "${tests[@]}"; do
+            runTest "${projectDir}" "${testFile}"
         done
     fi
 }
 
 runTest() {
-    local testSource="${1}"
-    assertFileExists "${testSource}"
+    local projectDir="${1}"
+    local testFile="${2}"
+    local projectName=$(basename "${projectDir}")
+    local testName=$(basename "${testFile}" | cut -d'-' -f2 | cut -d'.' -f1)
+    assertFileExists "${testFile}"
     (
-        if [[ -x "${testSource}" ]]; then
+        if [[ -x "${testFile}" ]]; then
             echo
-            echo "Running ${testSource}"
+            echo "Running $(ansi bold ${projectName}) $(ansi cyan ${testName}) test"
             echo
-            "${testSource}"
+            "${testFile}"
             if [[ ${?} == 0 ]]; then
-                echo "$(ansi green PASSED)"
+                echo "$(ansi bold_green PASSED)"
             else
-                echo "$(ansi red FAILED)"
+                echo "$(ansi bold_red FAILED)"
             fi
         else
-            echo "Skipping ${testSource}: not executable"
+            echo "Skipping ${testFile}: not executable"
         fi
     )
 }

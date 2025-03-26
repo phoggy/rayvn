@@ -63,19 +63,6 @@ assertInFile() {
     local file="${2}"
     grep -e "${match}" "${file}" > /dev/null 2>&1  || failed "'${match}' not found in file ${file}."
 }
-removePathDir() {
-    local removePath="${1}"
-    local pathVariable=${2:-PATH}
-    local dir newPath paths
-    IFS=':' read -ra paths <<<"${!pathVariable}"
-
-    for dir in "${paths[@]}"; do
-        if [[ "${dir}" != "${removePath}" ]]; then
-            newPath="${newPath:+$newPath:}${dir}"
-        fi
-    done
-    declare -gx ${pathVariable}="${newPath}"
-}
 
 # Prepend directory to PATH.
 # Removes directory prior to prepend if already present.
@@ -108,6 +95,22 @@ removePath () {
         fi
     done
     declare -gx  ${pathVariable}="${newPath}"
+}
+# Print PATH one line per directory.
+showPath() {
+    local pathVariable=${1:-PATH}
+    if [[ ${!pathVariable} ]]; then
+        echo "${pathVariable} search order:"
+        echo
+        local paths dir
+        IFS=':' read -ra paths <<< "${!pathVariable}"
+        for dir in "${paths[@]}" ; do
+            echo "${dir}"
+        done
+        echo
+    else
+         echo "'${pathVariable}' not set"
+    fi
 }
 
 assertNotInPath() {
