@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# TODO:
-#  - Move this project to the rayvn-roost repo?
-#  - Create a rayvn-roost/rayvn-registry repo with administrators and projects directories for
-#  - Update script to implement new usage.
-#  -
+# TODO: Update script to implement new usage and commands in README.md
 
-
-readonly RAYVN_VERSION='rayvn 0.1.0'
+declare -grx RAYVN_VERSION='rayvn 0.1.0'
 
 usage() {
     echo
     echo "Manage shared bash libraries."
     echo
-    echo "Usage: ${scriptName} COMMAND <options>"
+    echo "Usage: ${rayvnBinaryName} COMMAND <options>"
     echo
     echo "User Commands"
     echo
@@ -59,22 +54,39 @@ main() {
 }
 
 init() {
-    readonly scriptName=$(basename "${0}")
-    readonly scriptBinDir=$(dirname "${0}")
-    readonly scriptDir=$(realpath "${scriptBinDir}/..")
-    readonly scriptLibDir="${scriptDir}/lib"
-    readonly rayvnHome="${HOME}/.rayvn"
-    readonly bashrcFile="${HOME}/.bashrc"
-    readonly rayvnPkgDir="${rayvnHome}/pkg"
-    readonly rayvnLibDir="${rayvnHome}/lib"
-    readonly rayvnBinDir="${rayvnHome}/bin"
-    readonly bootFile="${rayvnHome}/boot.sh"
-    readonly rayvnEnvFile="${rayvnHome}/rayvn.env"
-    readonly packageFileName="rayvn.pkg"
-    declare -gxAi RAYVN_LIBRARIES=()
 
-    requireRayvnCore # source the 'rayvn/core' library
+    # installation vars
+
+    declare -grx rayvnBinaryFile="$(realpath "${0}")"
+    declare -grx rayvnBinaryName=$(basename "${rayvnBinaryFile}")
+    declare -grx rayvnBinaryHome=$(realpath "$(dirname "${rayvnBinaryFile}/../../..")")
+    declare -grx rayvnBinaryLibDir="${rayvnBinaryHome}/lib"
+    declare -grx rayvnBinaryBinDir="${rayvnBinaryHome}/bin"
+
+    # config directory vars
+
+    declare -grx rayvnConfigDir="${HOME}/.rayvn"
+    declare -grx rayvnConfigPkgDir="${rayvnConfigDir}/pkg"
+    declare -grx rayvnConfigLibDir="${rayvnConfigDir}/lib"
+    declare -grx rayvnConfigBinDir="${rayvnConfigDir}/bin"
+    declare -grx rayvnConfigBootFile="${rayvnConfigDir}/boot.sh"
+    declare -grx rayvnConfigEnvFile="${rayvnConfigDir}/rayvn.env"
+
+    # misc vars
+
+    declare -grx rayvnPackageFileName="rayvn.pkg"
+    declare -gAix RAYVN_LIBRARIES=()
+    declare -r bashrcFile="${HOME}/.bashrc"
+
+    # "require" our rayvn/core library
+
+    requireRayvnCore
+
+    # Make sure we have a valid bash version
+
     assertBashVersion
+
+    # process arguments
 
     action=
     projectName=
@@ -99,7 +111,7 @@ init() {
 
     if [[ ${action} ]]; then
         if [[ ${action} != 'reset' ]]; then
-           initHome
+            initHome
         fi
     else
         usage
@@ -107,21 +119,18 @@ init() {
 }
 
 requireRayvnCore() {
-    local coreFile="${scriptLibDir}/rayvn/core.sh"
-    if [[ ! -e ${coreFile} ]]; then
-        coreFile="${scriptLibDir}/core.sh"
-    fi
+    local coreFile="${rayvnBinaryLibDir}/core.sh"
     source "${coreFile}" || exit 1
 }
 
 loadProject() {
-    declare -g projectDir projectName projectVersion projectHasLibraries projectBinaries
+    # declare -p projectDir projectName projectVersion projectHasLibraries projectBinaries  # TODO REMOVE
 
     projectDir="${1}"
     assertDirectory "${projectDir}"
     projectDir="$(realpath ${projectDir})"
 
-    local packageFile="${projectDir}/${packageFileName}"
+    local packageFile="${projectDir}/${rayvnPackageFileName}"
     assertFile "${packageFile}"
 
     # source and validate it
@@ -138,46 +147,46 @@ loadProject() {
 
 installProject() {
     [[ ${1} ]] && loadProject "${1}"
-    local projectRef="${rayvnPkgDir}/${projectName}"
+    local projectRef="${rayvnConfigPkgDir}/${projectName}"
 
     if [[ ! -e "${projectRef}" ]]; then
 
-            # Install project link
+        # Install project link
 
         ln -s "${projectDir}" "${projectRef}"
-        echo "added '${projectDir}' as '${projectName}' project"
+        echo "Installed project $(ansi bold "${projectName}") from $(ansi blue ${projectDir})"
 
         # Install libraries if defined
 
         if [[ ${projectHasLibraries} == true ]]; then
-            sourceDir="${projectDir}/lib"
-            assertDirectory "${sourceDir}"
-            namespaceRef="${rayvnLibDir}/${projectName}"
+            local projectLibDir="${projectDir}/lib"
+            assertDirectory "${projectLibDir}"
+            namespaceRef="${rayvnConfigLibDir}/${projectName}"
             [[ -e ${namespaceRef} ]] && fail "${projectName} already present: ${namespaceRef}"
 
             # Create namespace link to actual directory
 
-            ln -s "${sourceDir}" "${namespaceRef}"
-            echo "added shared library root '${sourceDir}' as '${projectName}' namespace"
-        fi
+            ln -s "${projectLibDir}" "${namespaceRef}"
+            echo "Added shared library root $(ansi blue "${projectLibDir}") as '$(ansi bold "${projectName}")' namespace."
+       fi
 
         # Install binaries if defined
 
         if declare -p projectBinaries &> /dev/null; then
 
-            local sourceDir="${projectDir}/bin"
-            [[ -d ${sourceDir} ]] || fail "directory '${sourceDir}' not found"
+            local projectBinDir="${projectDir}/bin"
+            assertDirectory "${projectBinDir}"
 
             # Install links for each
 
             for binary in "${projectBinaries[@]}"; do
-                local binarySrc="${sourceDir}/${binary}"
+                local binarySrc="${projectBinDir}/${binary}"
                 assertFileExists "${binarySrc}"
                 [[ -x "${binarySrc}" ]] || chmod +x "${binarySrc}"
-                local binaryRef="${rayvnBinDir}/${binary}"
+                local binaryRef="${rayvnConfigBinDir}/${binary}"
                 ln -s "${binarySrc}" "${binaryRef}"
-                echo "installed executable '${binary}'"
-            done
+                echo "Installed executable $(ansi blue "${binary}")"
+           done
         fi
     else
         fail "${projectRef} already installed"
@@ -185,7 +194,7 @@ installProject() {
 }
 
 listNamespaces() {
-    cd "${rayvnLibDir}" || fail "rayvn not installed!"
+    cd "${rayvnConfigLibDir}" || fail "rayvn not installed!"
     ls -l
 }
 
@@ -199,10 +208,10 @@ removeNamespace() {
 
 runAllTests() {
     local projects projectDir
-    if [[ -d ${rayvnPkgDir} ]]; then
-        projects=("$(ls -1 ${rayvnPkgDir})")
+    if [[ -d ${rayvnConfigPkgDir} ]]; then
+        projects=("$(ls -1 ${rayvnConfigPkgDir})")
         for projectDir in "${projects[@]}"; do
-            runProjectTests "${rayvnPkgDir}/${projectDir}"
+            runProjectTests "${rayvnConfigPkgDir}/${projectDir}"
         done
     else
         # not installed, so just run ours.
@@ -226,56 +235,60 @@ runTest() {
     local projectDir="${1}"
     local testFile="${2}"
     local projectName=$(basename "${projectDir}")
-    local testName=$(basename "${testFile}" | cut -d'-' -f2 | cut -d'.' -f1)
     assertFileExists "${testFile}"
+    local fileName="$(basename ${testFile})"
+    local testName="${fileName#test-}"
+    echo "About to run ${testFile}"
+    testName="${testName%.sh}"
     (
         if [[ -x "${testFile}" ]]; then
             echo
-            echo "Running $(ansi bold ${projectName}) $(ansi cyan ${testName}) test"
+            echo "$(ansi bold ${projectName}) project test: $(ansi cyan ${testName})"
             echo
-            "${testFile}"
+            if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-init" ]]; then
+                # special case
+                (
+                    env -u PATH bash --norc -c "${testFile}"
+                )
+            else
+                (
+                    bash "${testFile}"
+                )
+            fi
             if [[ ${?} == 0 ]]; then
                 echo "$(ansi bold_green PASSED)"
             else
                 echo "$(ansi bold_red FAILED)"
             fi
         else
-            echo "Skipping ${testFile}: not executable"
+            warn "Skipping ${testFile}: not executable"
         fi
     )
 }
 
 reset() {
-   rm -rf "${rayvnHome}" || fail
+   rm -rf "${rayvnConfigDir}" || fail
    initHome
 }
 
 initHome() {
-    if [[ ! -f ${bootFile} ]]; then
-        mkdir -p "${rayvnPkgDir}" || fail
-        mkdir -p "${rayvnLibDir}" || fail
-        mkdir -p "${rayvnBinDir}" || fail
+    if [[ ! -d ${rayvnConfigDir} || ! -f ${rayvnConfigBootFile} ]]; then
+        echo
+        echo "$(ansi bold Initializing rayvn)"
+        echo
+        mkdir -p "${rayvnConfigPkgDir}" || fail
+        mkdir -p "${rayvnConfigLibDir}" || fail
+        mkdir -p "${rayvnConfigBinDir}" || fail
 
-        # generate rayvn.env file
+        # generate rayvn.env file   # TODO do we need this content here? Maybe just a placeholder comment for now?
         (
             # Ensure rayvn binaries can be found
 
             declare -f ensureInPath
             echo
-            echo "ensureInPath rayvn ${rayvnBinDir}"
+            echo "ensureInPath rayvn ${rayvnConfigBinDir}"
 
-        ) > "${rayvnEnvFile}"
-
-        # Modify .bashrc to source our env file
-
-        if ! grep "${rayvnEnvFile}" ${bashrcFile} > /dev/null; then
-            (
-                echo
-                echo "source ${rayvnEnvFile} # init rayvn environment"
-
-            ) >>"${bashrcFile}"
-            echo "updated \${HOME}.bashrc to 'source ${rayvnEnvFile}' so either start a new shell or execute that command"
-        fi
+        ) > "${rayvnConfigEnvFile}"
 
         # generate boot script
 
@@ -292,11 +305,23 @@ initHome() {
             echo
             echo "declare -rf require _exitRequire"
 
-        ) > "${bootFile}"
+        ) > "${rayvnConfigBootFile}"
 
         # Install rayvn itself
 
-        installProject "$(realpath "${BASH_SOURCE%/*/*}")"
+        installProject "${rayvnBinaryHome}"
+
+        # Modify .bashrc to source our env file
+
+        if ! grep "${rayvnConfigEnvFile}" ${bashrcFile} > /dev/null; then
+            (
+                echo "source ${rayvnConfigEnvFile} # init rayvn environment"
+
+            ) >>"${bashrcFile}"
+            echo "Updated $(ansi blue ${HOME}.bashrc) to 'source ${rayvnConfigEnvFile}'"
+            # $(ansi bold start a new shell or execute that source command to use rayvn)."
+            echo
+        fi
     fi
 }
 
@@ -308,7 +333,7 @@ require() {
 
     (( RAYVN_LIBRARIES[${projectName}]++ ))
 
-    if [[ -v RAYVN_LIBRARIES[${key}] ]]; then
+    if [[ ${RAYVN_LIBRARIES[${key}]} ]]; then
         (( RAYVN_LIBRARIES[${key}]++ ))
     else
         local projectDir="${rayvnLibDir}/${projectName}"
@@ -350,7 +375,7 @@ _exitRequire() {
 ensureInPath() {
     local executable="${1}"
     local executableDir="${2}"
-    which ${executable} &> /dev/null || declare -gx PATH="${PATH:+$PATH:}${executableDir}"
+    command -v ${executable} &> /dev/null || declare -gx PATH="${PATH:+$PATH:}${executableDir}"
 }
 
 # createProjectFile test bob/test robert robert@foo.com ${HOME}/dev/rayvn-registry

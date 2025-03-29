@@ -14,11 +14,11 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
     declare -grx pinEntryProgram="${rayvnRootDir}/bin/rayvn-pinentry"
 
-    # Is stdout a terminal?
+    # Are stdout and stderr both terminals?
 
-    if [[ -t 1 ]]; then
+    if [[ -t 1 && -t 2 ]]; then
 
-        # Yes, so remember and export it so we can redirect from within
+        # Yes, so remember and export the TTY so we can redirect from within
         # child processes
 
         declare -grx terminal=$(tty)
@@ -64,10 +64,19 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         declare -grx _checkMark="✔"
         declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
 
-    elif [[ ${RAYVN_REQUIRE_TERMINAL} == false ]]; then
-        echo "⚠️ not running in a terminal, functionality is limited"
+    elif [[ ${RAYVN_NO_TERMINAL} == true ]]; then
+
+        # No terminal, so ensure we define terminal as empty.
+        # Any code that truly requires the terminal should call assertTerminal
+
+        declare -grx terminal=
+
     else
-        echo "🔺 must be run in a terminal"
+        echo "🔺 Must be run in a terminal."
+        echo
+        echo "   This requirement can be bypassed by exporting RAYVN_NO_TERMINAL=true"
+        echo "   but be aware that some functionality may not work correctly."
+        echo
         exit 1
     fi
 
@@ -77,7 +86,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
 
         # Yes, remember if brew is available
 
-        if which brew > /dev/null ; then
+        if command -v brew > /dev/null ; then
             declare -grx brewInstalled=true
         fi
     fi
@@ -100,10 +109,16 @@ makeDir() {
     echo "${dir}"
 }
 
+assertTerminal() {
+    [[ ${terminal} ]] || assertFailed "must be run in a terminal"
+}
+
 _resetTerminal() {
-    tput cnorm
-    stty echo 2> /dev/null
-    stty -f ${terminal} echo 2> /dev/null
+    if [[ ${terminal} ]]; then
+        tput cnorm
+        stty echo 2> /dev/null
+        stty -f ${terminal} echo 2> /dev/null
+    fi
 }
 
 _onExit() {
@@ -136,7 +151,7 @@ assertMinimumVersion() {
     local targetName="${3}"
     local errorSuffix="${4}"
     local lowest=$(printf '%s\n%s\n' "$version" "$minimum" | sort -V | head -n 1)
-    [[ "${lowest}" != "${minimum}" ]] && fail "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
+    [[ "${lowest}" != "${minimum}" ]] && assertFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
 }
 
 assertBashVersion() {
@@ -145,23 +160,23 @@ assertBashVersion() {
 }
 
 assertFileExists() {
-    [[ -e ${1} ]] || fail "${1} not found"
+    [[ -e ${1} ]] || assertFailed "${1} not found"
 }
 
 assertFile() {
+    local file="${1}"
     local description="${2:file}"
-    [[ ${1} ]] || fail "an ${description} is required"
-    assertFileExists "${1}"
-    [[ -f ${1} ]] || fail "${1} is not an ${description}"
+    assertFileExists "${file}"
+    [[ -f ${1} ]] || assertFailed "${1} is not an ${description}"
 }
 
 assertDirectory() {
     assertFileExists "${1}"
-    [[ -d ${1} ]] || fail "${1} is not a directory"
+    [[ -d ${1} ]] || assertFailed "${1} is not a directory"
 }
 
 assertFileDoesNotExist() {
-    [[ -e "${1}" ]] && fail "${1} already exists"
+    [[ -e "${1}" ]] && assertFailed "${1} already exists"
 }
 
 sourceEnvFile() {
@@ -265,7 +280,7 @@ _assertExecutable() {
             assertMinimumVersion ${minVersion} ${version} "${executable}" "${errMsg}"
         fi
     else
-        fail "unregistered dependency: ${executable}"
+        assertFail "unregistered dependency: ${executable}"
     fi
 }
 
@@ -273,7 +288,7 @@ _assertExecutableFound() {
     local executable="${1}"
     local dependenciesVarName="${2}"
     declare -n deps="${dependenciesVarName}"
-    if ! which ${executable} >/dev/null; then
+    if ! command -v ${executable} &> /dev/null; then
         local errMsg="${executable} not found."
         if [[ ${brewInstalled} && ${deps[${executable}_brew]} == true ]]; then
             local tap="${deps[${executable}_brew_tap]}"
@@ -286,7 +301,7 @@ _assertExecutableFound() {
             errMsg+=" See"
         fi
         errMsg+=" ${deps[${executable}_install]} "
-        fail "${errMsg}"
+        assertFail "${errMsg}"
     fi
 }
 
@@ -307,12 +322,12 @@ _setFileSystemVar() {
     local file="$(realpath "${2}")"
     local description="${3}"
     local isDir="${4}"
-    [[ ${file} ]] || fail "${description} path is required"
-    [[ -e ${file} ]] || fail "${file} not found"
+    [[ ${file} ]] || assertFailed "${description} path is required"
+    [[ -e ${file} ]] || assertFailed "${file} not found"
     if [[ ${isDir} == true ]]; then
-        [[ -d ${file} ]] || fail "${file} is not a directory"
+        [[ -d ${file} ]] || assertFailed "${file} is not a directory"
     else
-        [[ -f ${file} ]] || fail "${file} is not a file"
+        [[ -f ${file} ]] || assretFailed "${file} is not a file"
     fi
     resultVar="${file}"
 }
@@ -334,26 +349,32 @@ epochSeconds() {
 }
 
 saveCursor() {
+    assertTerminal
     tput sc
 }
 
 restoreCursor() {
+    assertTerminal
     tput rc
 }
 
 eraseToEndOfLine() {
+    assertTerminal
     echo -n "${_eraseToEndOfLine}"
 }
 
 eraseCurrentLine() {
+    assertTerminal
     echo -n "${_eraseCurrentLine}"
 }
 
 cursorUpOneAndEraseLine() {
+    assertTerminal
     echo -n "${_cursorUpOneAndEraseLine}"
 }
 
 cursorPosition() {
+    assertTerminal
     local position
     read -sdR -p $'\E[6n' position
     position=${position#*[} # Strip decoration characters <ESC>[
@@ -361,25 +382,28 @@ cursorPosition() {
 }
 
 cursorRow() {
+    assertTerminal
     local row column
     IFS=';' read -sdR -p $'\E[6n' row column
     echo "${row#*[}"
 }
 
 cursorColumn() {
+    assertTerminal
     local row column
     IFS=';' read -sdR -p $'\E[6n' row column
     echo "${column}"
 }
 
 moveCursor() {
+    assertTerminal
     tput cup "${1}" "${2}"
 }
 
 ansi() {
     local color="ansi_${1}"
     shift
-    echo -n "${!color}${*}${ansi_normal}"
+    [[ ${terminal} ]] && echo -n "${!color}${*}${ansi_normal}" || echo -n "${*}"
 }
 
 printRed() {
@@ -423,6 +447,29 @@ redStream() {
         printRed "${error}"
     done
 }
+printStack() {
+    local start=1
+    local caller=${FUNCNAME[1]}
+    local start=1
+    [[ ${caller} == "assertFailed" ]] && start=2
+
+    for ((i = ${start}; i < ${#FUNCNAME[@]} - 1; i++)); do
+        local function="${FUNCNAME[${i}]}"
+        local line=${BASH_LINENO[${i} - 1]}
+        local called=${FUNCNAME[${i} - 1]}
+        local script=${BASH_SOURCE[${i}]}
+        echo "   ${function}() line ${line} [in ${script}] --> ${called}()"
+    done
+}
+assertFailed() {
+    if [[ ${1} ]]; then
+        _resetTerminal
+        error "${*}"
+        echo
+        printStack
+    fi
+    exit 1
+}
 
 fail() {
     if [[ ${1} ]]; then
@@ -444,4 +491,4 @@ init_rayvn_core() {
     assertBashVersion 5
 }
 
-declare -grx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"
+declare -rx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"

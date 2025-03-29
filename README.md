@@ -1,16 +1,59 @@
 ![alt text](https://raw.githubusercontent.com/phoggy/rayvn/refs/heads/main/etc/rayvn-logo.png?token=GHSAT0AAAAAAC5VZJ7UATQMRTWZS2XBXL64Z4P6JSQ "logo") 
 
 # rayvn
-### A simple bash package manager.
+### A simple package manager.
+
+"A simple bash shared library system, enabling `require 'project/library'` to load libraries."
 
 
+### Installation
+
+```bash
+$ brew tap phoggy/homebrew-rayvn # hopefully a temporary step
+$ brew install rayvn
+```
 # CLI
 
 `USAGE: rayvn <command> [options]`
 
-rayvn install [family
+rayvn install PATH-TO-PROJECT
 
-without domain, installs self.
+without path, installs self.
+               
+
+# Developing With Raven
+
+## Using rayvn within scripts
+
+The following line in your script will activate rayvn:
+```bash
+source "${HOME}/.rayvn/boot.sh" &> /dev/null || { echo 'rayvn not installed'; exit 1; }
+```
+
+After that line executes, you now have a `require` function which should then be used to load any installed shared library.
+Nearly all scripts will want to include the 'core' library provided by `rayvn`:
+```bash
+require 'rayvn/core'
+```
+and now you have the core set of functions available for your use. To see them:
+```bash
+raven list 'rayvn/core'
+```
+
+Note that if you look at library source files, any function with leading `_` is *internal* and subject to change;
+use at your own peril!
+
+## Developing rayvn projects
+
+First `cd` to the directory where you want your project to live, then:
+```bash
+$ rayvn create project "my-name"
+```
+This will generate a skeleton project.
+         
+TODO!
+
+# --- NOTE: tentative info follows! --------------------------------------
 
 # Publishing Projects
 

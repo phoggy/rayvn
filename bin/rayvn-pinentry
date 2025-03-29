@@ -64,7 +64,7 @@ init() {
         local pinEntry
         for pinEntry in ${proxyPinEntry}; do
             log "Checking for ${pinEntry}"
-            proxyPath="$(which "${pinEntry}")"
+            proxyPath="$(command -v "${pinEntry}")"
             if [[ ${proxyPath} ]]; then
                 log "Reverse-proxy to '${pinEntry}' at ${proxyPath}"
                 break
