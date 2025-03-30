@@ -313,9 +313,13 @@ initHome() {
 
         installProject "${rayvnBinaryHome}"
 
+        # Ensure that a .bashrc file exists
+
+        [[ -e ${bashrcFile} ]] || touch "${bashrcFile}"
+
         # Modify .bashrc to source our env file
 
-        if ! grep "${rayvnConfigEnvFile}" ${bashrcFile} > /dev/null; then
+        if ! grep "${rayvnConfigEnvFile}" ${bashrcFile} &> /dev/null; then
             (
                 echo "source ${rayvnConfigEnvFile} # init rayvn environment"
 
