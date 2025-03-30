@@ -62,7 +62,7 @@ testCleanInstall() {
     clean
 
     [[ -d ${rayvnHomeDir} ]] && { echo 'found ${ravynHomeDir}'; exit 1; }
-    local rayvnInit="$(cat "${bashrcFile}" | grep .rayvn)"
+    local rayvnInit="$(cat "${bashrcFile}" | grep .rayvn)"  && { echo 'found ${bashrcFile}'; exit 1; }
     [[ ${rayvnInit} ]] && { echo 'found '${rayvnInit}' in PATH in ${rayvnInit}'; exit 1; }
     local found="$(which rayvn)"
     [[ ${found} ]] && { echo 'found rayvn in PATH at ${found}'; exit 1; }
@@ -138,6 +138,7 @@ removeTrailingBlankLinesFromFile() {
 removeMatchingLinesFromFile() {
     local match="${1}"
     local file="${2}"
+    assertFile "${file}"
     if grep -e "${match}" "${file}" > /dev/null; then
         sed -i '.bak' "/.${match}/d" "${file}"
     fi
