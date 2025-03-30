@@ -5,5 +5,3 @@ projectVersion='0.1.0'
 projectHasLibraries=true
 projectBinaries=('rayvn')
 
-yetAnother=foo
-

@@ -98,6 +98,11 @@ rootDirPath() {
     echo "${rayvnRootDir}/${1}"
 }
 
+packageFile() {
+    local project="${1}"
+    echo "${rayvnConfigPkgDir}/${project}.pkg"
+}
+
 tempDirPath() {
     [[ ${1} ]] && echo "${_tempDirectory}/${1}" || echo "${_tempDirectory}"
 }
@@ -122,7 +127,7 @@ _resetTerminal() {
 }
 
 _onExit() {
-    [[ ${RAYVN_REQUIRE_TERMINAL} == false ]] && echo || echo > ${terminal}
+    [[ ${RAYVN_NO_TERMINAL} == true ]] && echo || echo > ${terminal}
     _resetTerminal
     if [[ ${_tempDirectory} ]]; then
         # The "--" option below stops option parsing and allows filenames starting with "-"
@@ -141,8 +146,13 @@ addExitHandler() {
 }
 
 version() {
-    echo "${1}"
-    exit 0
+    local projectDir="${1}"
+    local projectName="$(basename ${projectDir})"
+    local pkgFile="${projectDir}/rayvn.pkg"
+    (
+        sourceEnvFile "${pkgFile}"
+        echo "${projectName} ${projectVersion}"
+    )
 }
 
 assertMinimumVersion() {

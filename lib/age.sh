@@ -110,8 +110,3 @@ setSampleText() {
 HEREDOC
     fi
 }
-
-version() {
-    echo "${1} {$(rage --version)}"
-    bye
-}
