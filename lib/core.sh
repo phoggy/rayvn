@@ -175,7 +175,7 @@ assertFileExists() {
 
 assertFile() {
     local file="${1}"
-    local description="${2:file}"
+    local description="${2:-file}"
     assertFileExists "${file}"
     [[ -f ${1} ]] || assertFailed "${1} is not an ${description}"
 }
@@ -501,4 +501,4 @@ init_rayvn_core() {
     assertBashVersion 5
 }
 
-declare -rx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"
+declare -grx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"
