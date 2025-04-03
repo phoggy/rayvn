@@ -89,6 +89,15 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         if command -v brew > /dev/null ; then
             declare -grx brewInstalled=true
         fi
+    elif [[ ! ${RAYVN_NO_OS_CHECK} ]]; then
+
+        # No, so warn that not tested here!
+
+        echo "⚠️ This code has only been tested on MacOS. Please report any issues at https://github.com/phoggy/rayvn/issues"
+        echo
+        echo "   This warning can be bypassed by exporting RAYVN_NO_OS_CHECK=true"
+        echo "   but be aware that some functionality may not work correctly."
+        echo
     fi
 
     declare -grx CORE_GLOBALS_DECLARED=true
@@ -444,7 +453,7 @@ print() {
 }
 
 warn() {
-    print "⚠️  $(ansi yellow "${*}")"
+    print "⚠️ $(ansi yellow "${*}")"
 }
 
 error() {
