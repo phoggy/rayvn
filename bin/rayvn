@@ -80,7 +80,7 @@ init() {
 
     requireRayvnCore
 
-    # Make sure we have a valid bash version
+    # Make sure we have at least the required bash version (defaults to 5)
 
     assertBashVersion
 
@@ -243,13 +243,28 @@ runTest() {
             echo "$(ansi bold ${projectName}) project test: $(ansi cyan ${testName})"
             echo
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-init" ]]; then
-                # special case
                 (
-                    env -u PATH bash --norc -c "${testFile}"
+                    # special case to clean the environment of some functions/vars, add
+                    # the path to this executable and a space separated list of the
+                    # function names within the test script itself.
+
+                    unset -F require
+                    unset -F _requireExit
+
+                    local removeRayvnVars="-u RAYVN_LIBRARIES";
+                    for var in $(compgen -v | grep '^rayvn'); do
+                        removeRayvnVars="${removeRayvnVars} -u ${var}"
+                    done
+
+                    local testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
+
+                    env ${removeRayvnVars} rayvnPath="${rayvnBinaryFile}" testFunctionNames="${testFunctionNames%" "}" \
+                        "${SHELL}" --noprofile --norc -c "${testFile}"
                 )
             else
                 (
-                    bash "${testFile}"
+                    "${SHELL}" "${testFile}"
                 )
             fi
             if [[ ${?} == 0 ]]; then
