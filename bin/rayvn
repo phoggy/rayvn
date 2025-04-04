@@ -248,19 +248,81 @@ runTest() {
                     # the path to this executable and a space separated list of the
                     # function names within the test script itself.
 
-                    unset -F require
-                    unset -F _requireExit
+#                    local removeRayvnVars="-u RAYVN_LIBRARIES";
+#                    for var in $(compgen -v | grep '^rayvn'); do
+#                        removeRayvnVars="${removeRayvnVars} -u ${var}"
+#                    done
+#                    for var in $(compgen -v | grep '^RAYVN'); do
+#                        removeRayvnVars="${removeRayvnVars} -u ${var}"
+#                    done
 
-                    local removeRayvnVars="-u RAYVN_LIBRARIES";
-                    for var in $(compgen -v | grep '^rayvn'); do
-                        removeRayvnVars="${removeRayvnVars} -u ${var}"
+                    export installDir="${rayvnBinaryHome}"
+                    export installedBinary="${rayvnBinaryFile}"
+                    export testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
+                    testFunctionNames="${testFunctionNames%" "}"
+
+#                    local sep=' ' # enables testing using \n
+##                    sep=${newline}
+#                    local addVars="rayvnPath='${rayvnBinaryFile}'${sep}";
+#                    addVars+="testFunctionNames='${testFunctionNames}'${sep}"
+
+                    local removeVars var
+                    for var in $(compgen -v | grep -i 'rayvn'); do
+                        removeVars+="-u ${var} "
                     done
 
-                    local testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
-                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
+                    env ${removeVars} bash --noprofile --norc -c "${testFile}"
 
-                    env ${removeRayvnVars} rayvnPath="${rayvnBinaryFile}" testFunctionNames="${testFunctionNames%" "}" \
-                        "${SHELL}" --noprofile --norc -c "${testFile}"
+#                    # Get internal bash variables from a clean environment and create a map
+#                    # for lookup in this shell
+#
+#                    mapfile -t bashVars < <(
+#                        env -i bash --noprofile --norc -c 'compgen -v' | sort
+#                    )
+#
+#                    declare -A bashVarMap
+#                    for var in "${bashVars[@]}"; do
+#                        if [[ ${var} != COMP_WORDBREAKS ]]; then
+#                            bashVarMap["${var}"]=1
+#                        else
+#                            echo "skipping ${var}"
+#                        fi
+#                    done
+#
+#                    # Now add all of the bash vars from this shell
+#
+#                    for var in $(compgen -v); do
+#                        if [[ -v ${bashVarMap["${var}"]} ]]; then
+#                            vars+="${var}='${!var}'${sep}"
+#                        fi
+#                    done
+#                   echo "${vars}" > vars.sh
+#
+#
+#
+#
+#                    for var in $(compgen -v | grep -v rayvn | grep -v RAYVN); do
+#                        vars+="${var}='${!var}' "
+#                    done
+
+#                    local cmd="env -i ${vars} "${SHELL}" --noprofile --norc -c "${testFile}""
+                    #local cmd="env -i  bash --noprofile --norc -c "${testFile}""
+                    #echo "executing: eval ${cmd}"
+                    #eval "${cmd}"
+                    #env -i bash --noprofile --norc -c "${testFile}"
+
+#                    bash --noprofile --norc -c "${testFile}"
+
+#WORKS! env -i rayvnPath='/Users/batsatt/dev/rayvn/bin/rayvn' testFunctionNames='main init _onExit _assertFunctionIsNotDefined _assertFunctionIsDefined _assertVarIsDefined _assertVarNotDefined _assertFileExists _assertIsFile _assertIsDirectory _assertInFile _failed useTestHome useUserHome setHomeVars assertPreconditions testCleanInstall removeTrailingBlankLinesFromFile removeMatchingLinesFromFile'  /usr/local/bin/bash --noprofile --norc -c /Users/batsatt/.rayvn/pkg/rayvn/test/test-rayvn-init.sh
+
+
+
+#                    env -i ${vars} "${SHELL}" --noprofile --norc -c "${testFile}"
+#                    env -i "$(echo ${vars})" "${SHELL}" --noprofile --norc -c "${testFile}"
+
+#                    env -i $(declare -p ) ${removeRayvnVars} rayvnPath="${rayvnBinaryFile}" testFunctionNames="${testFunctionNames%" "}" \
+#                        "${SHELL}" --noprofile --norc -c "${testFile}"
                 )
             else
                 (
