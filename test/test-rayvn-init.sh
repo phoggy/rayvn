@@ -7,9 +7,9 @@ main() {
 }
 
 init() {
-    logEnv test.env
+    #logEnv "test.env"  # TODO: activate under a debug flag passed in the env
 
-    # Check our preconditions
+    # First, ensure that our environment preconditions are satisfied
 
     assertEnvPreconditions
 
@@ -89,6 +89,7 @@ logEnv() {
         printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
         declare -f
     ) > "${file}"
+    echo "Wrote env to ${file}"
 }
 
 # Prefix all assert function names with '_' so that we know they don't collide with
@@ -224,6 +225,14 @@ testCleanInstall() {
 
     _assertInFile '.rayvn/rayvn.env' "${bashrcFile}"
 
+    # List the contents of HOME
+
+    (
+        cd ${HOME} || _failed "could not cd to ${HOME}"
+        echo "Listing test HOME dir..."
+        echo
+        ls -laR
+    )
     # Clear all of the boot vars
 
     unset rayvnConfigDir

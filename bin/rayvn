@@ -244,7 +244,16 @@ runTest() {
             echo
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-init" ]]; then
                 (
-                    # Special case to create preconditions for test.
+                    # TODO: move debug from valt into core, then update logEnvironment to respect it
+                    # logEnvironment "rayvn env, prior to running ${testFile}" "${HOME}/rayvn-subshell.env"
+
+                    # We must create special conditions for this test so that the process it runs in does
+                    # NOT contain any functions from this process (esp. boot.sh and core.sh) and that all
+                    # rayvn variables are excluded.
+                    #
+                    # These preconditions for the test are required so that rayvn init acts exactly as it
+                    # would the first time a user invokes it.
+
                     # First, export vars for the installation directory and binary
 
                     export installDir="${rayvnBinaryHome}"
@@ -264,7 +273,8 @@ runTest() {
                         removeVars+="-u ${var} "
                     done
 
-                    # Finally, remove the rayvn vars and run the test without bash sourcing any init files
+                    # Finally, run the test without functions or rayvn vars in its env, and without sourcing
+                    # any init files
 
                     env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}"
                 )
