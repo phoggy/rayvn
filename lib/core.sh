@@ -480,6 +480,20 @@ printStack() {
         echo "   ${function}() line ${line} [in ${script}] --> ${called}()"
     done
 }
+
+logEnvironment() {
+    local envName="${1}"
+    local file="${2}"
+    (
+        printf "%s\n\n" "#!/usr/bin/env bash"
+        printf "# %s\n\n" "Environment: ${envName}. @ $(timeStamp)"
+        printf "# %s\n\n" '--- VARIABLES --------------'
+        declare -p
+        printf "\n\n# %s\n\n" '--- FUNCTIONS ---------------'
+        declare -f
+    ) > "${file}"
+}
+
 assertFailed() {
     if [[ ${1} ]]; then
         _resetTerminal
