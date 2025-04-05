@@ -136,7 +136,11 @@ _resetTerminal() {
 }
 
 _onExit() {
-    [[ ${RAYVN_NO_TERMINAL} == true ]] && echo || { echo > ${terminal}; }
+    if [[ ${RAYVN_NO_TERMINAL} == true ]]; then
+        echo
+    else
+        echo > ${terminal}
+    fi
     _resetTerminal
     if [[ ${_tempDirectory} ]]; then
         # The "--" option below stops option parsing and allows filenames starting with "-"
