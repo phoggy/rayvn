@@ -2,7 +2,7 @@
 
 projectName='rayvn'
 projectVersion='0.1.5'
-projectReleaseDate='2025-04-06_14.00.35_PDT'
+projectReleaseDate='2025-04-06_14.05.34_PDT'
 projectHasLibraries=true
 projectBinaries=('rayvn')
 
