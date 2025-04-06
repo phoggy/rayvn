@@ -5,9 +5,9 @@
 
 usage() {
     echo
-    echo "Manage shared bash libraries."
+    echo "$(ansi bold Manage shared bash libraries and executables.)"
     echo
-    echo "Usage: ${rayvnBinaryName} COMMAND <options>"
+    echo "Usage: $(ansi bold_blue ${rayvnBinaryName}) COMMAND <options>"
     echo
     echo "User Commands"
     echo
