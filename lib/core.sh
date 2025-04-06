@@ -136,11 +136,7 @@ _resetTerminal() {
 }
 
 _onExit() {
-    if [[ ${terminal} ]]; then
-        echo > ${terminal}
-    else
-        echo
-    fi
+    [[ ${terminal} ]] && echo
     _resetTerminal
     if [[ ${_tempDirectory} ]]; then
         # The "--" option below stops option parsing and allows filenames starting with "-"
