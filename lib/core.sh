@@ -160,11 +160,16 @@ addExitHandler() {
 
 version() {
     local projectDir="${1}"
+    local verbose="${2:-}"
     local projectName="$(basename ${projectDir})"
     local pkgFile="${projectDir}/rayvn.pkg"
     (
         sourceEnvFile "${pkgFile}"
-        echo "${projectName} ${projectVersion}"
+        if [[ ${verbose} ]]; then
+            echo "${projectName} v${projectVersion} (released ${projectReleaseDate})"
+        else
+            echo "${projectName} v${projectVersion}"
+        fi
     )
 }
 

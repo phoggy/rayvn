@@ -16,7 +16,6 @@ usage() {
     echo "    remove NAME           Remove the NAME project from the local repository."
     echo "    list [-g | --global]  List all projects in the local or global repository."
     echo "    help                  Display usage (same as -h or --help)."
-    echo "    version               Display version (same as -v or --version)."
     echo
     echo "Developer Commands"
     echo
@@ -26,7 +25,8 @@ usage() {
     echo "Options:"
     echo
     echo "    -h, --help          Display usage."
-    echo "    -v, --version       Display version."
+    echo "    -v                  Display version."
+    echo "    --version           Display verbose version."
     echo
     echo "The 'rayvn.pkg' may contain the following key=value declarations:"
     echo
@@ -101,7 +101,8 @@ init() {
             test) action='test' ;;
             deps) action='deps' ;;
             -h | --help) usage ;;
-            -v | --version) version "${rayvnBinaryHome}"; exit 0 ;;
+            -v) version "${rayvnBinaryHome}"; exit 0 ;;
+            --version) version "${rayvnBinaryHome}" true; exit 0 ;;
             *) usage "Unknown option: ${1}" ;;
         esac
         shift
