@@ -136,10 +136,10 @@ _resetTerminal() {
 }
 
 _onExit() {
-    if [[ ${RAYVN_NO_TERMINAL} == true ]]; then
-        echo
-    else
+    if [[ ${terminal} ]]; then
         echo > ${terminal}
+    else
+        echo
     fi
     _resetTerminal
     if [[ ${_tempDirectory} ]]; then
