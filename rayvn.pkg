@@ -1,8 +1,8 @@
 # rayvn package
 
 projectName='rayvn'
-projectVersion='0.1.10'
-projectReleaseDate='2025-04-06_14.32.44_PDT'
+projectVersion='0.1.1'
+projectReleaseDate='2025-04-06_14.41.20_PDT'
 projectHasLibraries=true
 projectBinaries=('rayvn')
 
