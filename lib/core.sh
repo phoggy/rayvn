@@ -176,6 +176,7 @@ assertMinimumVersion() {
     local errorSuffix="${4}"
     local lowest=$(printf '%s\n%s\n' "$version" "$minimum" | sort -V | head -n 1)
     [[ "${lowest}" != "${minimum}" ]] && assertFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
+    return 0
 }
 
 assertBashVersion() {
@@ -526,7 +527,11 @@ bye() {
 }
 
 init_rayvn_core() {
+#echo "BEGIN init_rayvn_core"
+#set -x
     assertBashVersion 5
+#set +x
+#echo "END init_rayvn_core"
 }
 
 declare -grx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"

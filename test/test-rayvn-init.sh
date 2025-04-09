@@ -47,7 +47,7 @@ assertEnvPreconditions() {
     _assertVarIsNotDefined rayvnConfigLibDir
     _assertVarIsNotDefined rayvnConfigBinDir
     _assertVarIsNotDefined rayvnConfigPkgDir
-    _assertVarIsNotDefined RAYVN_LIBRARIES
+    _assertVarIsNotDefined rayvnLibraryIndex
 
     # Ensure we have the required vars
 
@@ -73,10 +73,9 @@ assertEnvPreconditions() {
     [[ ${expectedFunctions[*]} ]] && _failed "missing functions '${expectedFunctions[*]}'"
     unset expectedFunctions
 
-    # Now make sure we do not have the require and _exitRequire functions
+    # Now make sure we do not have the require function
 
     _assertFunctionIsNotDefined require
-    _assertFunctionIsNotDefined _exitRequire
 
     errorPrefix=''
 }
@@ -218,7 +217,6 @@ testCleanInstall() {
     # Check that the expected files were created
 
     _assertIsFile "${bashrcFile}"
-    _assertIsFile "${rayvnBootFile}"
     _assertIsFile "${rayvnEnvFile}"
 
     # Ensure that the .bashrc file contains a reference to our env file
@@ -239,7 +237,7 @@ testCleanInstall() {
     unset rayvnConfigLibDir
     unset rayvnConfigBinDir
     unset rayvnConfigPkgDir
-    unset RAYVN_LIBRARIES
+    unset rayvnLibraryIndex
 
     # Remove all PATH dirs containing rayvn so that we can test rayvn.env
 
@@ -269,13 +267,12 @@ testCleanInstall() {
     # Make sure we do not yet hove the boot functions and vars
 
     _assertFunctionIsNotDefined require
-    _assertFunctionIsNotDefined _exitRequire
 
     _assertVarIsNotDefined rayvnConfigDir
     _assertVarIsNotDefined rayvnConfigLibDir
     _assertVarIsNotDefined rayvnConfigBinDir
     _assertVarIsNotDefined rayvnConfigPkgDir
-    _assertVarIsNotDefined RAYVN_LIBRARIES
+    _assertVarIsNotDefined rayvnLibraryIndex
 
     # Ensure that functions from our core library are NOT present in this shell
 
@@ -291,18 +288,17 @@ testCleanInstall() {
 
     # Now boot rayvn
 
-    source "${rayvnBootFile}" 2> /dev/null || _failed 'source ${rayvnBootFile} failed'
+    source rayvn.up 2> /dev/null || _failed 'source rayvn.up failed'
 
     # Make sure our boot functions and vars are now present
 
     _assertFunctionIsDefined require
-    _assertFunctionIsDefined _exitRequire
 
     _assertVarIsDefined rayvnConfigDir
     _assertVarIsDefined rayvnConfigLibDir
     _assertVarIsDefined rayvnConfigBinDir
     _assertVarIsDefined rayvnConfigPkgDir
-    _assertVarIsDefined RAYVN_LIBRARIES
+    _assertVarIsDefined rayvnLibraryIndex
 
     # Good, now we should be able to require our shared test functions
 
@@ -319,11 +315,11 @@ testCleanInstall() {
 
     # OK, so now use them to ensure library index is as expected
 
-    assertHashTableDefined 'RAYVN_LIBRARIES'
-    assertHashKeyNotDefined 'RAYVN_LIBRARIES' 'foobar'
-    assertHashValue 'RAYVN_LIBRARIES' 'rayvn' 2      # both core and test
-    assertHashValue 'RAYVN_LIBRARIES' 'rayvn_test' 1
-    assertHashValue 'RAYVN_LIBRARIES' 'rayvn_core' 1
+    assertHashTableDefined 'rayvnLibraryIndex'
+    assertHashKeyNotDefined 'rayvnLibraryIndex' 'foobar'
+    assertHashValue 'rayvnLibraryIndex' 'rayvn' 2      # both core and test
+    assertHashValue 'rayvnLibraryIndex' 'rayvn_test' 1
+    assertHashValue 'rayvnLibraryIndex' 'rayvn_core' 1
 
     # Ensure that functions from our core library are now present in this shell
 

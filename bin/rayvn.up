@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2317,SC1090
+
+# Bootstrap rayvn shared library system.
+# See https://github.com/phoggy/rayvn for details.
+
+declare -grx rayvnConfigDir="${HOME}/.rayvn"
+declare -grx rayvnConfigLibDir="${rayvnConfigDir}/lib"
+declare -grx rayvnConfigBinDir="${rayvnConfigDir}/bin"
+declare -grx rayvnConfigPkgDir="${rayvnConfigDir}/pkg"
+declare -gxAi rayvnLibraryIndex=()
+
+require() {
+    _exit() {
+        if [[ -n ${1} ]]; then
+            echo "${@}"
+            exit 1
+        else
+            exit 0
+        fi
+    }
+
+    local qualifiedName="${1}"
+    local projectName="${qualifiedName%/*}"
+    local libraryName="${qualifiedName#*/}"
+    local key="${projectName}_${libraryName}"
+
+    # Keep a count of requests for this project
+
+    (( rayvnLibraryIndex[${projectName}]++ ))
+
+    # Have we previously loaded this library?
+
+    if [[ -n ${rayvnLibraryIndex[${key}]} ]]; then
+
+        # Yep, just count it
+
+        (( rayvnLibraryIndex[${key}]++ ))
+
+    else
+
+        # No, so load it
+
+        local projectDir="${rayvnConfigLibDir}/${projectName}"
+        local libraryFile="${projectDir}/${libraryName}.sh"
+        [[ -d ${projectDir} ]] || _exit "rayvn project '${projectName}' not found"
+        [[ -f ${libraryFile} ]] || _exit "rayvn shared library '${libraryName}' not found at ${libraryFile}"
+        source "${libraryFile}"
+
+        # TODO: make all sourced functions readonly so that we will detect collisions!
+
+
+        # Call its init function, if present
+
+        local initFunction="init_${projectName}_${libraryName}"
+        if [[ $(type -t ${initFunction}) == function ]]; then
+            ${initFunction} || _exit "${initFunction}() failed"
+        fi
+
+        # Count the request
+
+        rayvnLibraryIndex[${key}]=1
+
+        # create a ${project}Home var if it does not exist, for project self reference
+
+        local homeVar="${projectName}Home"
+        if [[ ! ${!homeVar} ]]; then
+            local homeDir="$(realpath ${projectDir}/..)"
+            declare -grx ${homeVar}="${homeDir}"
+        fi
+    fi
+}
+
+# require any libraries passed to us
+
+while (( ${#} > 0 )); do
+    require "${1}"; shift
+done
+
+# Prevent the require function from being replaced
+
+declare -rf require
