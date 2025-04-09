@@ -4,15 +4,13 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-declare -grx rayvnConfigDir="${HOME}/.rayvn"
-declare -grx rayvnConfigLibDir="${rayvnConfigDir}/lib"
-declare -grx rayvnConfigBinDir="${rayvnConfigDir}/bin"
-declare -grx rayvnConfigPkgDir="${rayvnConfigDir}/pkg"
-declare -gxAi rayvnLibraryIndex=()
+
+declare -gxAi rayvnRequireCounts=()
 
 require() {
+
     _exit() {
-        if [[ -n ${1} ]]; then
+        if [[ ${1} ]]; then
             echo "${@}"
             exit 1
         else
@@ -23,32 +21,30 @@ require() {
     local qualifiedName="${1}"
     local projectName="${qualifiedName%/*}"
     local libraryName="${qualifiedName#*/}"
-    local key="${projectName}_${libraryName}"
+    local libraryKey="${projectName}_${libraryName}"
 
     # Keep a count of requests for this project
 
-    (( rayvnLibraryIndex[${projectName}]++ ))
+    (( rayvnRequireCounts[${projectName}]++ ))
 
     # Have we previously loaded this library?
 
-    if [[ -n ${rayvnLibraryIndex[${key}]} ]]; then
+    if [[ ! ${rayvnRequireCounts[${libraryKey}]} ]]; then
 
-        # Yep, just count it
+        # Nope, validate the request
 
-        (( rayvnLibraryIndex[${key}]++ ))
+        local projectRoot="${rayvnProjectRoots[${projectName}]}/lib"
+        [[ ${projectRoot} ]] || _exit "rayvn project '${projectName}' not found"
+        [[ -d ${projectRoot} ]] || _exit "rayvn project '${projectName}' root '${projectRoot}' not found"
 
-    else
-
-        # No, so load it
-
-        local projectDir="${rayvnConfigLibDir}/${projectName}"
-        local libraryFile="${projectDir}/${libraryName}.sh"
-        [[ -d ${projectDir} ]] || _exit "rayvn project '${projectName}' not found"
+        local libraryFile="${projectRoot}/${libraryName}.sh"
         [[ -f ${libraryFile} ]] || _exit "rayvn shared library '${libraryName}' not found at ${libraryFile}"
-        source "${libraryFile}"
 
-        # TODO: make all sourced functions readonly so that we will detect collisions!
+        # Load the library
 
+        source "${libraryFile}" || _exit "failed to load rayvn shared library '${libraryName}'"
+
+        # TODO: make all sourced functions readonly so that we will detect collisions??
 
         # Call its init function, if present
 
@@ -56,27 +52,62 @@ require() {
         if [[ $(type -t ${initFunction}) == function ]]; then
             ${initFunction} || _exit "${initFunction}() failed"
         fi
-
-        # Count the request
-
-        rayvnLibraryIndex[${key}]=1
-
-        # create a ${project}Home var if it does not exist, for project self reference
-
-        local homeVar="${projectName}Home"
-        if [[ ! ${!homeVar} ]]; then
-            local homeDir="$(realpath ${projectDir}/..)"
-            declare -grx ${homeVar}="${homeDir}"
-        fi
     fi
+
+    # Count the request
+
+    (( rayvnRequireCounts[${libraryKey}]++ ))
 }
 
-# require any libraries passed to us
+_configure() {
+    local rayvnUpBin projectName projectRoot projectHomeVar
 
-while (( ${#} > 0 )); do
-    require "${1}"; shift
-done
+    # Create the project roots map if not already defined.
+    # Any projects in addition to rayvn must already be configured.
 
-# Prevent the require function from being replaced
+    if ! declare -p rayvnProjectRoots &> /dev/null; then
+        declare -gA rayvnProjectRoots=()
+    fi
 
-declare -rf require
+    # Set the rayvn project root if not already set
+
+    if [[ ! -v rayvnProjectRoots[rayvn] ]]; then
+        rayvnUpBin=$(which rayvn.up)
+        projectRoot="$(dirname ${rayvnUpBin})/.."
+        rayvnProjectRoots[rayvn]="${projectRoot}"
+    fi
+
+    # Process roots
+
+    for projectName in "${!rayvnProjectRoots[@]}"; do
+
+        # Ensure root is valid and an absolute path
+
+        projectRoot="${rayvnProjectRoots[${projectName}]}"
+        projectRoot="$(realpath "${projectRoot}")" || exit 1
+        rayvnProjectRoots[${projectName}]="${projectRoot}"
+
+        # Define a ${project}Home var for project self reference
+
+        projectHomeVar="${projectName}Home"
+        declare -grx ${projectHomeVar}="${projectRoot}"
+    done
+
+    # Lock down the map and ensure it is both global and exported
+
+    declare -grx rayvnProjectRoots
+
+    # Load any libraries passed to us
+
+    while (( ${#} > 0 )); do
+        require "${1}"; shift
+    done
+
+    # Prevent the require function from being replaced
+
+    declare -rf require
+}
+
+# Configure and then remove the function
+
+_configure "${@}"; unset _configure
