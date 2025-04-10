@@ -33,16 +33,16 @@ require() {
 
         # Nope, validate the request
 
-        local projectRoot="${rayvnProjectRoots[${projectName}]}/lib"
-        [[ ${projectRoot} ]] || _exit "rayvn project '${projectName}' not found"
-        [[ -d ${projectRoot} ]] || _exit "rayvn project '${projectName}' root '${projectRoot}' not found"
+        local libraryRootKey="${projectName}::libraries"
+        local libraryRoot="${rayvnProjectRoots[${libraryRootKey}]}"
+        [[ ${libraryRoot} ]] || _exit "rayvn project '${projectName}' not found"
 
-        local libraryFile="${projectRoot}/${libraryName}.sh"
-        [[ -f ${libraryFile} ]] || _exit "rayvn shared library '${libraryName}' not found at ${libraryFile}"
+        local libraryFile="${libraryRoot}/${libraryName}.sh"
+        [[ -f ${libraryFile} ]] || _exit "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
 
         # Load the library
 
-        source "${libraryFile}" || _exit "failed to load rayvn shared library '${libraryName}'"
+        source "${libraryFile}" || _exit "failed to load rayvn shared library '${qualifiedName}'"
 
         # TODO: make all sourced functions readonly so that we will detect collisions??
 
@@ -60,7 +60,7 @@ require() {
 }
 
 _configure() {
-    local rayvnUpBin projectName projectRoot projectHomeVar
+    local rayvnUpBin rootName projectRoot rootName projectHomeVar
 
     # Create the project roots map if not already defined.
     # Any projects in addition to rayvn must already be configured.
@@ -71,26 +71,41 @@ _configure() {
 
     # Set the rayvn project root if not already set
 
-    if [[ ! -v rayvnProjectRoots[rayvn] ]]; then
+    if [[ ! -v rayvnProjectRoots[rayvn::project] ]]; then
         rayvnUpBin=$(which rayvn.up)
         projectRoot="$(dirname ${rayvnUpBin})/.."
-        rayvnProjectRoots[rayvn]="${projectRoot}"
+        rayvnProjectRoots[rayvn::project]="${projectRoot}"
     fi
 
-    # Process roots
+    # Process all roots to ensure they are valid and an absolute path
 
-    for projectName in "${!rayvnProjectRoots[@]}"; do
-
-        # Ensure root is valid and an absolute path
-
-        projectRoot="${rayvnProjectRoots[${projectName}]}"
+    for rootName in "${!rayvnProjectRoots[@]}"; do
+        projectRoot="${rayvnProjectRoots[${rootName}]}"
         projectRoot="$(realpath "${projectRoot}")" || exit 1
-        rayvnProjectRoots[${projectName}]="${projectRoot}"
+        rayvnProjectRoots[${rootName}]="${projectRoot}"
+    done
 
-        # Define a ${project}Home var for project self reference
+    # Now process all project roots and ensure a library path is in the
+    # map. Also define a "${project}Home" variable for each.
 
-        projectHomeVar="${projectName}Home"
-        declare -grx ${projectHomeVar}="${projectRoot}"
+    for rootName in "${!rayvnProjectRoots[@]}"; do
+        if [[ "${rootName}" == *::project ]]; then
+            local projectName="${rootName%::project}"
+            local projectRoot="${rayvnProjectRoots[${rootName}]}"
+            local libraryKey="${projectName}::libraries"
+
+            if [[ ! ${rayvnProjectRoots[${libraryKey}]} ]]; then
+
+                # No library root, so add it assuming it is just ./lib
+
+                rayvnProjectRoots[${libraryKey}]="${projectRoot}/lib"
+            fi
+
+            # Define a ${project}Home var for project self reference
+
+            projectHomeVar="${projectName}Home"
+            declare -grx ${projectHomeVar}="${projectRoot}"
+        fi
     done
 
     # Lock down the map and ensure it is both global and exported
