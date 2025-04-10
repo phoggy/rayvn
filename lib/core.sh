@@ -161,11 +161,12 @@ version() {
     local pkgFile="${projectDir}/rayvn.pkg"
     (
         sourceEnvFile "${pkgFile}"
-        if [[ ${verbose} ]]; then
-            echo "${projectName} v${projectVersion} (released ${projectReleaseDate})"
+        if [[ ${projectReleaseDate} ]]; then
+            [[ ${verbose} ]] && description=" (released ${projectReleaseDate})"
         else
-            echo "${projectName} v${projectVersion}"
+            [[ ${verbose} ]] && description=" (pre-release)"
         fi
+        echo "${projectName} v${projectVersion}${description}"
     )
 }
 
@@ -527,11 +528,7 @@ bye() {
 }
 
 init_rayvn_core() {
-#echo "BEGIN init_rayvn_core"
-#set -x
     assertBashVersion 5
-#set +x
-#echo "END init_rayvn_core"
 }
 
 declare -grx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"
