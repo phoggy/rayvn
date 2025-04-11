@@ -73,7 +73,7 @@ _configure() {
 
     if [[ ! -v rayvnProjectRoots[rayvn::project] ]]; then
 
-        # Find and resolve our dir, handling the symlink case (e.g. brew)
+        # Find and resolve our dir, handling the brew symlink case
 
         rayvnUpBin=$(which rayvn.up)
         rayvnUpBin="$(realpath "${rayvnUpBin}")"
