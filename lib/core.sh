@@ -13,6 +13,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
     declare -grx pinEntryProgram="${rayvnRootDir}/bin/rayvn-pinentry"
+    declare -grx rayvnPackageFileName="rayvn.pkg"
 
     # Are stdout and stderr both terminals?
 

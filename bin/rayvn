@@ -9,7 +9,7 @@ usage() {
     echo
     echo "$(ansi bold Manage shared bash libraries and executables)."
     echo
-    echo "Usage: $(ansi bold ${rayvnBinaryName}) COMMAND <options>"
+    echo "Usage: $(ansi bold rayvn) COMMAND <options>"
     echo
     echo "User Commands"
     echo
@@ -47,26 +47,15 @@ main() {
 
 init() {
 
-    # installation vars  # TODO rename to rayvnHomeBinDir, etc.
-
-    declare -grx rayvnBinaryFile="$(realpath "${0}")"
-    declare -grx rayvnBinaryName=$(basename "${rayvnBinaryFile}")
-
-    # misc vars
-
-    declare -grx rayvnPackageFileName="rayvn.pkg"
-
     # process arguments
 
     action=
-    projectName=
-    sourceDir=
-    namespaceRef=
 
     while (( ${#} > 0 )); do
         case "${1}" in
             test) action='test' ;;
             deps) action='deps' ;;
+            --debug) require 'rayvn/debug' ;;
             -h | --help) usage ;;
             -v) version "${rayvnHome}"; exit 0 ;;
             --version) version "${rayvnHome}" true; exit 0 ;;
@@ -75,9 +64,12 @@ init() {
         shift
     done
 
+    debugVars action
+
     if [[ ! ${action} ]]; then
         usage
     fi
+
 }
 
 runAllTests() {
@@ -132,7 +124,7 @@ runTest() {
                     # First, export vars for the installation directory and binary
 
                     export installDir="${rayvnHome}"
-                    export installedBinary="${rayvnBinaryFile}"
+                    export installedBinary="${installDir}/${rayvnBinaryName}"
 
                     # Second, export a list of the function names within the test itself
                     # (so that it can ensure that no other functions are present, e.g. require)

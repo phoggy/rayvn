@@ -4,7 +4,7 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-
+declare -grx rayvnBinaryName='rayvn'
 declare -gxAi rayvnRequireCounts=()
 
 require() {
