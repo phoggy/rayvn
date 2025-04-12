@@ -6,7 +6,9 @@
 require 'rayvn/core'
 
 init_rayvn_debug() {
-    declare -grx _debug=true
+    declare -gx _debug
+    declare -gx _printLogOnExit
+
     declare -grx _debugDir="${HOME}/.rayvn"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
     declare -gxi _debugStartLine
@@ -27,9 +29,24 @@ init_rayvn_debug() {
     printf "___ rayvn log $(date) _________________________________\n\n" >&3
 }
 
+setDebug() {
+    _debug=true
+    echo "in setDebug"
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            onExit) _printLogOnExit=true ; echo 'set onExit';;
+            *) fail "Unknown setDebug() option: ${1}" ;;
+        esac
+        shift
+    done
+}
+
 _debugExit() {
     exec 3>&- # close it
+    [[ ${_prntLogOnExit} ]] && _printDebugLog
+}
 
+_printDebugLog() {
     local startLine
     declare -i endLine
 
@@ -64,6 +81,7 @@ _debugExit() {
         } > ${terminal}
     fi
 }
+
 debugStatus() {
     [[ ${_debug} ]] && echo "Debug enabled, log at $(ansi blue ${_debugLogFile}) ${_greenCheckMark}"
 }
@@ -84,6 +102,7 @@ debugFile() {
         local fileName="${2:-$(baseName ${sourceFile})}"
         local destFile="${_debugDir}/${fileName}"
         cp "${sourceFile}" "${destFile}"
+        debug "Added file ${destFile}"
     fi
 }
 
@@ -96,3 +115,16 @@ debugJson() {
         echo "${json}" > "${destFile}"
     fi
 }
+
+debugEnvironment() {
+    local fileName="${1}.env"
+    local destFile="${_debugDir}/${fileName}"
+    (
+        printf "%s\n\n" '--- VARIABLES --------------'
+        declare -p
+        printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
+        declare -f
+    ) > "${destFile}"
+    debug "Wrote ${fileName} to ${destFile}"
+}
+

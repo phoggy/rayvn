@@ -40,7 +40,7 @@ require() {
         local libraryFile="${libraryRoot}/${libraryName}.sh"
         [[ -f ${libraryFile} ]] || _exit "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
 
-        # Load the library
+        # Load the library. We can recurse here!
 
         source "${libraryFile}" || _exit "failed to load rayvn shared library '${qualifiedName}'"
 
@@ -57,6 +57,10 @@ require() {
     # Count the request
 
     (( rayvnRequireCounts[${libraryKey}]++ ))
+
+    # All is good, so return 0 to guard against recursion issues
+
+    return 0
 }
 
 _configure() {

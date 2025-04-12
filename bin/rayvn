@@ -55,7 +55,7 @@ init() {
         case "${1}" in
             test) action='test' ;;
             deps) action='deps' ;;
-            --debug) require 'rayvn/debug' ;;
+            --debug) _setDebug onExit ;;
             -h | --help) usage ;;
             -v) version "${rayvnHome}"; exit 0 ;;
             --version) version "${rayvnHome}" true; exit 0 ;;
@@ -63,8 +63,6 @@ init() {
         esac
         shift
     done
-
-    debugVars action
 
     if [[ ! ${action} ]]; then
         usage
@@ -109,7 +107,7 @@ runTest() {
             echo
             echo "--- Project $(ansi bold ${projectName}): $(ansi cyan ${testName}) test ------------------------------"
             echo
-            if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-init" ]]; then
+            if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
                     # TODO: move debug from valt into core, then update logEnvironment to respect it
                     # logEnvironment "rayvn env, prior to running ${testFile}" "${HOME}/rayvn-subshell.env"
@@ -121,29 +119,40 @@ runTest() {
                     # These preconditions for the test are required so that rayvn init acts exactly as it
                     # would the first time a user invokes it.
 
-                    # First, export vars for the installation directory and binary
-
-                    export installDir="${rayvnHome}"
-                    export installedBinary="${installDir}/${rayvnBinaryName}"
-
-                    # Second, export a list of the function names within the test itself
-                    # (so that it can ensure that no other functions are present, e.g. require)
-
-                    export testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
-                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
-                    testFunctionNames="${testFunctionNames%" "}"
-
-                    # Third, prepare to remove all vars whose names start with 'rayvn', ignoring case
+                    # First, collect the names of all existing vars whose names start with 'rayvn', ignoring case so
+                    # we can remove them.
 
                     local removeVars var
                     for var in $(compgen -v | grep -i 'rayvn'); do
                         removeVars+="-u ${var} "
                     done
 
+                    # Second, export var pointing to the current rayvnHome and binary
+
+                    export rayvnInstallHome="${rayvnHome}"
+                    export rayvnInstallBinary="${rayvnHome}/bin/rayvn"
+
+                    # Third, export a list of the function names within the test itself so
+                    # that it can ensure that no other functions are present, e.g. require
+
+                    export testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
+                    testFunctionNames="${testFunctionNames%" "}"
+
+                    # Log vars if in debug mode
+
+                    # TODO: only works if library loaded, so add a flag to
+                    #  debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
+
+                    # Create any args we need for the test
+
+                    local args
+                    [[ ${_debug} ]] && args='--debug'
+
                     # Finally, run the test without functions or rayvn vars in its env, and without sourcing
                     # any init files
 
-                    env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}"
+                    env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}" ${args}
                 )
             else
                 (
@@ -227,8 +236,8 @@ createProjectFile() {
     echo
 }
 
-# Boot rayvn and load rayvn/core
-source rayvn.up 'rayvn/core'
+# Boot rayvn and load rayvn/core and debug
+source rayvn.up 'rayvn/core' 'rayvn/debug'
 
 main "${@}"
 

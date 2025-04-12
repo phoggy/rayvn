@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2155
+# shellcheck disable=SC2155,SC2120
 
 main() {
     init "${@}"
-    testCleanInstall
+    testRayvnUp
 }
 
 init() {
-    #logEnv "test.env"  # TODO: activate under a debug flag passed in the env
+ echo "${*}"
+    if [[ ${1} == --debug ]]; then
+        require 'rayvn/debug'
+        setDebug onExit
+        debugLogEnvironment "test-rayvn-up"
+    fi
 
     # First, ensure that our environment preconditions are satisfied
 
@@ -21,13 +26,6 @@ init() {
     # Save the current HOME so we can switch
 
     declare -grx userHome="${HOME}"
-
-    # Set some vars pointing into the rayvn install that invoked us
-
-    declare -grx rayvnInstallDir="${installDir}"
-    declare -grx rayvnInstallLibDir="${rayvnInstallDir}/lib"
-    declare -grx rayvnInstallBinDir="${rayvnInstallDir}/bin"
-    declare -grx rayvnInstallPkgDir="${rayvnInstallDir}/pkg"
 
     # Keep a copy of PATH so we can restore it
 
@@ -51,8 +49,8 @@ assertEnvPreconditions() {
 
     # Ensure we have the required vars
 
-    _assertVarIsDefined installDir
-    _assertVarIsDefined installedBinary
+    _assertVarIsDefined rayvnInstallHome
+    _assertVarIsDefined rayvnInstallBinary
     _assertVarIsDefined testFunctionNames
 
     # Ensure we contain only our own functions
@@ -78,17 +76,6 @@ assertEnvPreconditions() {
     _assertFunctionIsNotDefined require
 
     errorPrefix=''
-}
-
-logEnv() {
-    local file="${1}"
-    (
-        printf "%s\n\n" '--- VARIABLES --------------'
-        declare -p
-        printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
-        declare -f
-    ) > "${file}"
-    echo "Wrote env to ${file}"
 }
 
 # Prefix all assert function names with '_' so that we know they don't collide with
@@ -139,10 +126,50 @@ _assertInFile() {
     local file="${2}"
     grep -e "${match}" "${file}" > /dev/null 2>&1  || _failed "'${match}' not found in file ${file}."
 }
+_printStack() {
+    local start=1
+    local caller=${FUNCNAME[1]}
+    local start=1
+    [[ ${caller} == "_failed" ]] && start=2
+
+    for ((i = ${start}; i < ${#FUNCNAME[@]} - 1; i++)); do
+        local function="${FUNCNAME[${i}]}"
+        local line=${BASH_LINENO[${i} - 1]}
+        local called=${FUNCNAME[${i} - 1]}
+        local script=${BASH_SOURCE[${i}]}
+        echo "   ${function}() line ${line} [in ${script}] --> ${called}()"
+    done
+}
 
 _failed() {
     echo "${errorPrefix}${1}"
+    _printStack
     exit 1
+}
+
+_printPath() {
+    local pathVariable=${1:-PATH}
+    if [[ ${!pathVariable} ]]; then
+        local paths length width i
+        echo "${pathVariable} search order:"
+        echo
+        IFS=':' read -ra paths <<< "${!pathVariable}"
+        length=${#paths[@]}
+        width=${#length}
+        for (( i = 0; i < length; i++ )); do
+            printf "%*d. %s\n" "${width}" "$((i + 1))" "${paths[i]}"
+        done
+        echo
+    else
+        echo "'${pathVariable}' not set"
+    fi
+}
+
+_prependPath () {
+    local path="${1}"
+    local pathVariable=${2:-PATH}
+    _removePath "${path}" ${pathVariable}
+    declare -gx ${pathVariable}="${path}${!pathVariable:+:${!pathVariable}}"
 }
 
 _removePath () {
@@ -173,15 +200,10 @@ useUserHome() {
 
 setHomeVars() {
     declare -gx bashrcFile="${HOME}/.bashrc"
-    declare -gx rayvnConfigDir="${HOME}/.rayvn"
-    declare -gx rayvnConfigLibDir="${rayvnConfigDir}/lib"
-    declare -gx rayvnConfigBinDir="${rayvnConfigDir}/bin"
-    declare -gx rayvnConfigPkgDir="${rayvnConfigDir}/pkg"
-    declare -gx rayvnBootFile="${rayvnConfigDir}/boot.sh"
-    declare -gx rayvnEnvFile="${rayvnConfigDir}/rayvn.env"
+    declare -gx rayvnConfigHomeDir="${HOME}/.rayvn"
 }
 
-testCleanInstall() {
+testRayvnUp() {
 
     # Switch HOME to test home
 
@@ -190,56 +212,34 @@ testCleanInstall() {
     # Double check that we have the expected vars
 
     [[ "${HOME}" == "${testHome}" ]] || _failed "HOME var is not pointing to ${testHome}"
-    [[ "${rayvnConfigDir}" == "${testHome}"/* ]] || _failed "rayvnConfigDir is not within testHomeDir: ${rayvnConfigDir}"
+    [[ "${rayvnConfigHomeDir}" == "${testHome}"/* ]] || _failed "rayvnConfigHomeDir is not within testHomeDir: ${rayvnConfigHomeDir}"
 
     # Make sure that HOME directory is empty
 
     [[ "$(find "${HOME}" -mindepth 1 -print -quit)" ]] && _failed "test HOME dir '${HOME}' is not empty"
 
-    # Double check that we don't have any of our config dirs (the above should do that, but in case we screw up somewhere...)
+    # Double check that we don't have our config dir (the above should do that, but in case we screw up somewhere...)
 
-    _assertFileDoesNotExist "${rayvnConfigDir}"
-    _assertFileDoesNotExist "${rayvnConfigLibDir}"
-    _assertFileDoesNotExist "${rayvnConfigBinDir}"
-    _assertFileDoesNotExist "${rayvnConfigPkgDir}"
+    _assertFileDoesNotExist "${rayvnConfigHomeDir}"
 
-    # Run init
+    # Clear all boot vars
 
-    ${installedBinary} init || { echo 'rayvn init failed'; exit 1; }
+#    unset rayvnRequireCounts
+#    unset rayvnBinaryName
+#    unset rayvnProjectRoots
+#    unset rayvnHome
 
-    # Check that the expected directories were created
+    # Double check to ensure we do not yet hove the boot functions and vars
 
-    _assertIsDirectory "${rayvnConfigDir}"
-    _assertIsDirectory "${rayvnConfigLibDir}"
-    _assertIsDirectory "${rayvnConfigBinDir}"
-    _assertIsDirectory "${rayvnConfigPkgDir}"
+    _assertFunctionIsNotDefined require
+    _assertFunctionIsNotDefined _configure
 
-    # Check that the expected files were created
+    _assertVarIsNotDefined rayvnRequireCounts
+    _assertVarIsNotDefined rayvnBinaryName
+    _assertVarIsNotDefined rayvnProjectRoots
+    _assertVarIsNotDefined rayvnHome
 
-    _assertIsFile "${bashrcFile}"
-    _assertIsFile "${rayvnEnvFile}"
-
-    # Ensure that the .bashrc file contains a reference to our env file
-
-    _assertInFile '.rayvn/rayvn.env' "${bashrcFile}"
-
-    # List the contents of HOME
-
-    (
-        cd ${HOME} || _failed "could not cd to ${HOME}"
-        echo "Listing test HOME dir..."
-        echo
-        ls -laR
-    )
-    # Clear all of the boot vars
-
-    unset rayvnConfigDir
-    unset rayvnConfigLibDir
-    unset rayvnConfigBinDir
-    unset rayvnConfigPkgDir
-    unset rayvnLibraryIndex
-
-    # Remove all PATH dirs containing rayvn so that we can test rayvn.env
+    # Remove all PATH dirs containing rayvn so that we can test rayvn.up
 
     while true; do
         found="$(which rayvn)"
@@ -253,26 +253,32 @@ testCleanInstall() {
 
     # Double check it
 
-    [[ "$(which rayvn)" ]] && _failed "rayvn found after PATH removals"
+    [[ "$(which rayvn.up)" ]] && _failed "rayvn.up found after PATH removals"
 
-    # OK, now source rayvn.env from the test home using the generated env file to put binary in path
+    # OK, now add the install home back into PATH and check we can find it
 
-    source "${rayvnEnvFile}" 2> /dev/null || _failed 'source ${rayvnEnvFile} failed'
+    _prependPath "${rayvnInstallHome}/bin"
+    [[ "$(which rayvn.up)" ]] || _failed "rayvn.up NOT found after PATH removals"
 
-    # Now make sure that we can find rayvn within our test home
+    # Finally, we're ready to boot, so do it
 
-    rayvnPath="$(which rayvn)" || _failed "which rayvn failed after source of rayvn.env"
-    [[ "${rayvnPath}" == "${testHome}"/* ]] || _failed "rayvn is not within testHomeDir ${rayvnConfigDir}, got ${rayvnPath}"
+    source rayvn.up &> /dev/null || _failed 'source rayvn.up failed'
 
-    # Make sure we do not yet hove the boot functions and vars
+    # Check that it set the expected vars and functions
 
-    _assertFunctionIsNotDefined require
+    _assertFunctionIsDefined require
+    _assertFunctionIsNotDefined _configure
 
-    _assertVarIsNotDefined rayvnConfigDir
-    _assertVarIsNotDefined rayvnConfigLibDir
-    _assertVarIsNotDefined rayvnConfigBinDir
-    _assertVarIsNotDefined rayvnConfigPkgDir
-    _assertVarIsNotDefined rayvnLibraryIndex
+    _assertVarIsDefined rayvnRequireCounts
+    _assertVarIsDefined rayvnBinaryName
+    _assertVarIsDefined rayvnProjectRoots
+    _assertVarIsDefined rayvnHome
+
+    # Now make sure that we can find rayvn within our test home TODO: after require 'rayvn/debug'
+
+#    rayvnPath="$(which rayvn)" || _failed "which rayvn failed after source of rayvn.env"
+#    [[ "${rayvnPath}" == "${testHome}"/* ]] || _failed "rayvn is not within testHomeDir ${rayvnConfigDir}, got ${rayvnPath}"
+
 
     # Ensure that functions from our core library are NOT present in this shell
 
@@ -282,23 +288,9 @@ testCleanInstall() {
 
     # Ensure that functions from our test library are NOT present in this shell
 
-    _assertFunctionIsNotDefined 'rootDirPath'
-    _assertFunctionIsNotDefined 'tempDirPath'
-    _assertFunctionIsNotDefined 'init_rayvn_core'
-
-    # Now boot rayvn
-
-    source rayvn.up 2> /dev/null || _failed 'source rayvn.up failed'
-
-    # Make sure our boot functions and vars are now present
-
-    _assertFunctionIsDefined require
-
-    _assertVarIsDefined rayvnConfigDir
-    _assertVarIsDefined rayvnConfigLibDir
-    _assertVarIsDefined rayvnConfigBinDir
-    _assertVarIsDefined rayvnConfigPkgDir
-    _assertVarIsDefined rayvnLibraryIndex
+    _assertFunctionIsNotDefined 'assertNotInFile'
+    _assertFunctionIsNotDefined 'assertInFile'
+    _assertFunctionIsNotDefined 'printPath'
 
     # Good, now we should be able to require our shared test functions
 
@@ -313,13 +305,21 @@ testCleanInstall() {
     _assertFunctionIsDefined assertHashKeyNotDefined
     _assertFunctionIsDefined assertHashValue
 
-    # OK, so now use them to ensure library index is as expected
+    # OK, so now use them to ensure project roots are as expected
 
-    assertHashTableDefined 'rayvnLibraryIndex'
-    assertHashKeyNotDefined 'rayvnLibraryIndex' 'foobar'
-    assertHashValue 'rayvnLibraryIndex' 'rayvn' 2      # both core and test
-    assertHashValue 'rayvnLibraryIndex' 'rayvn_test' 1
-    assertHashValue 'rayvnLibraryIndex' 'rayvn_core' 1
+    assertHashTableDefined 'rayvnProjectRoots'
+    assertHashKeyNotDefined 'rayvnProjectRoots' 'foobar'
+    assertHashKeyIsDefined 'rayvnProjectRoots' 'rayvn::project'
+    assertHashKeyIsDefined 'rayvnProjectRoots' 'rayvn::libraries'
+    assertHashValue 'rayvnProjectRoots' 'rayvn::project' "${rayvnInstallHome}"
+    assertHashValue 'rayvnProjectRoots' 'rayvn::libraries' "${rayvnInstallHome}/lib"
+
+
+    # And that counts are as expected
+
+    assertHashValue 'rayvnRequireCounts' 'rayvn' 2      # both core and test
+    assertHashValue 'rayvnRequireCounts' 'rayvn_test' 1
+    assertHashValue 'rayvnRequireCounts' 'rayvn_core' 1
 
     # Ensure that functions from our core library are now present in this shell
 
@@ -330,20 +330,6 @@ testCleanInstall() {
     # Finally, restore PATH in case other test functions need it
 
     export PATH="${origPath}"
-}
-
-removeTrailingBlankLinesFromFile() {
-    local file="${1}"
-    sed -i '.bak' -e :a -e '/^\n*$/{$d;N;ba' -e '}' "${file}"
-}
-
-removeMatchingLinesFromFile() {
-    local match="${1}"
-    local file="${2}"
-    assertFile "${file}"
-    if grep -e "${match}" "${file}" > /dev/null; then
-        sed -i '.bak' "/.${match}/d" "${file}"
-    fi
 }
 
 main "${@}"

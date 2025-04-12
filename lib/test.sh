@@ -73,20 +73,30 @@ assertHashTableDefined() {
     assertVarDefined ${varName}
     [[ "$(declare -p ${varName} 2>/dev/null)" =~ "declare -A" ]] || assertFailed "${varName} is not a hash table"
 }
+assertHashKeyIsDefined() {
+    local varName="${1}"
+    local keyName="${2}"
+
+    assertHashTableDefined "${varName}"
+
+    # TODO: the line below screws up function name syntax color, but executes fine
+
+    [[ -v ${varName}[${keyName}] ]] || assertFailed "${varName}[${keyName}] is NOT defined"
+}
+
 assertHashKeyNotDefined() {
     local varName="${1}"
     local keyName="${2}"
-    # TODO: the line below screws up function name syntax color, but executes fine
-    [[ -v ${!varName}[${keyName}] ]] && assertFailed "${varName}[${keyName}] is defined"
+    [[ -v ${varName}[${keyName}] ]] && assertFailed "${varName}[${keyName}] is defined"
 }
 
 assertHashValue() {
     local varName="${1}"
     local keyName="${2}"
     local expectedValue="${3}"
+    assertHashKeyIsDefined "${varName}" "${keyName}"
 
-    assertVarDefined ${varName}
-    [[ -v ${varName}[${keyName}] ]] || assertFailed "${varName}[${keyName}] is not defined"
+
     local actualValue="$(eval echo \$"{${varName}[${keyName}]}")" # complexity required to use variables for var and key
     [[ ${actualValue} == "${expectedValue}" ]] || assertFailed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
 }
