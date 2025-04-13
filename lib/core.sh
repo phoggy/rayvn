@@ -50,6 +50,8 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
             declare -grx ansi_cyan="$(tput setaf 6)"
             declare -grx ansi_white="$(tput setaf 7)"
 
+            declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
+
             declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
             declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
             declare -grx ansi_bold_yellow="${ansi_bold}${ansi_yellow}"

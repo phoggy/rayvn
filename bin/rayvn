@@ -55,7 +55,9 @@ init() {
         case "${1}" in
             test) action='test' ;;
             deps) action='deps' ;;
-            --debug) _setDebug onExit ;;
+            --debug) setDebug showOnExit ;;
+            --debug-new) setDebug clearLog showOnExit ;;
+            --debug-out) setDebug noLog ;;
             -h | --help) usage ;;
             -v) version "${rayvnHome}"; exit 0 ;;
             --version) version "${rayvnHome}" true; exit 0 ;;
@@ -68,6 +70,7 @@ init() {
         usage
     fi
 
+    debug "action: ${action}"
 }
 
 runAllTests() {
@@ -238,7 +241,7 @@ createProjectFile() {
 
 # Boot rayvn and load rayvn/core and debug
 source rayvn.up 'rayvn/core' 'rayvn/debug'
-
+debug "about to call main" # TODO remove
 main "${@}"
 
 

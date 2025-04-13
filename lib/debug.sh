@@ -5,10 +5,37 @@
 
 require 'rayvn/core'
 
-init_rayvn_debug() {
-    declare -gx _debug
-    declare -gx _printLogOnExit
+setDebug() {
+    declare -grx _debug=true
+    declare -gx _debugOut=log
+    declare -gx _showLogOnExit=false
+    local clearLog=false
+    local status=true
 
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            noLog) _debugOut=terminal ;;
+            showOnExit) _showLogOnExit=true ;;
+            clearLog) clearLog=true ;;
+            noStatus) status=false ;;
+            *) fail "Unknown setDebug() option: ${1}" ;;
+        esac
+        shift
+    done
+
+    if [[ ${_debugOut} == terminal ]]; then
+        exec 3>> "${terminal}"
+    else
+        _prepareLogFile "${clearLog}"
+    fi
+
+    addExitHandler _debugExit
+
+    [[ ${status} == true ]] && debugStatus
+}
+
+_prepareLogFile() {
+    local clearLog="${1}"
     declare -grx _debugDir="${HOME}/.rayvn"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
     declare -gxi _debugStartLine
@@ -18,32 +45,24 @@ init_rayvn_debug() {
     fi
 
     if [[ -e "${_debugLogFile}" ]]; then
-        echo >> "${_debugLogFile}"
+        if [[ ${clearLog} == true ]]; then
+            echo > "${_debugLogFile}"
+        else
+            echo >> "${_debugLogFile}"
+        fi
     fi
 
     _debugStartLine=$(wc -l < "${_debugLogFile}")
 
     exec 3>> "${_debugLogFile}"
-    addExitHandler _debugExit
 
     printf "___ rayvn log $(date) _________________________________\n\n" >&3
 }
 
-setDebug() {
-    _debug=true
-    echo "in setDebug"
-    while (( ${#} > 0 )); do
-        case "${1}" in
-            onExit) _printLogOnExit=true ; echo 'set onExit';;
-            *) fail "Unknown setDebug() option: ${1}" ;;
-        esac
-        shift
-    done
-}
 
 _debugExit() {
     exec 3>&- # close it
-    [[ ${_prntLogOnExit} ]] && _printDebugLog
+    [[ ${_showLogOnExit} == true ]] && _printDebugLog
 }
 
 _printDebugLog() {
@@ -58,7 +77,7 @@ _printDebugLog() {
         # yes, so dump what we added
         {
             local closing
-            if (( _debugStartLine > 0 )); then
+            if (( _debugStartLine > 1 )); then
                 closing="$(ansi italic \(skipped ${_debugStartLine} preexisting lines in \'${_debugLogFile}\'))\n"
             fi
             echo
@@ -83,7 +102,15 @@ _printDebugLog() {
 }
 
 debugStatus() {
-    [[ ${_debug} ]] && echo "Debug enabled, log at $(ansi blue ${_debugLogFile}) ${_greenCheckMark}"
+    if [[ ${_debug} ]]; then
+        if [[ ${_debugOut} == log ]]; then
+            local show=
+            [[ ${_showLogOnExit} ]] && show=" $(ansi dim [show on exit])"
+            echo "$(ansi italic_cyan debug enabled) -> $(ansi blue ${_debugLogFile})${show}"
+        else
+            echo "$(ansi italic_cyan debug enabled) -> terminal"
+        fi
+    fi
 }
 
 debug() {
