@@ -6,7 +6,7 @@
 #   2. Use the readPassword() function in the 'rayvn/readpass' library OR
 #   3. If a preferred version of pinentry is available (e.g. pinentry-mac), use that
 #
-# Uses env vars to configure (controlled by sage):
+# Uses env vars to configure (controlled by valt):
 #
 #   proxyPinEntry -> ordered, space separated list of pinentry executable names (may be empty)
 #   showPassword  -> if no proxy AND set, passphrase will be visible until enter is pressed

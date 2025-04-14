@@ -22,7 +22,7 @@ init_rayvn_genpass() {
     assertExecutables rayvn_genpass_dependencies
 }
 
-readonly passphraseWordsFile="${rayvnRootDir}/etc/words.txt"     # TODO FIX: should point to sage/etc dir.
+readonly passphraseWordsFile="${rayvnRootDir}/etc/words.txt"     # TODO FIX: should point to valt/etc dir.
 
 randomIndex() {
     local -i maxIndex="${1}"
