@@ -7,12 +7,9 @@ main() {
 }
 
 init() {
- echo "${*}"
-    if [[ ${1} == --debug ]]; then
-        require 'rayvn/debug'
-        setDebug onExit
-        debugLogEnvironment "test-rayvn-up"
-    fi
+
+    # NOTE: For this test, require() cannot be used until AFTER the call to source rayvn.up!
+    #       This means that debug functions also cannot be used until then.
 
     # First, ensure that our environment preconditions are satisfied
 
@@ -85,6 +82,7 @@ _assertFunctionIsNotDefined() {
     local name="${1}"
     [[ $(declare -f "${name}" 2> /dev/null) ]] && _failed "${name} is set: $(declare -f ${name})"
 }
+
 _assertFunctionIsDefined() {
     local name="${1}"
     [[ ! $(declare -f "${name}" 2> /dev/null) ]] && _failed "${name} not set"
@@ -109,6 +107,7 @@ _assertFileExists() {
   local file="${1}"
   [[ -e "${file}" ]] || _failed "${file} does not exist"
 }
+
 _assertIsFile() {
   local file="${1}"
   _assertFileExists "${file}"
@@ -126,6 +125,7 @@ _assertInFile() {
     local file="${2}"
     grep -e "${match}" "${file}" > /dev/null 2>&1  || _failed "'${match}' not found in file ${file}."
 }
+
 _printStack() {
     local start=1
     local caller=${FUNCNAME[1]}
@@ -222,13 +222,6 @@ testRayvnUp() {
 
     _assertFileDoesNotExist "${rayvnConfigHomeDir}"
 
-    # Clear all boot vars
-
-#    unset rayvnRequireCounts
-#    unset rayvnBinaryName
-#    unset rayvnProjectRoots
-#    unset rayvnHome
-
     # Double check to ensure we do not yet hove the boot functions and vars
 
     _assertFunctionIsNotDefined require
@@ -300,15 +293,15 @@ testRayvnUp() {
 
     _assertFunctionIsDefined assertInPath
     _assertFunctionIsDefined assertInFile
-    _assertFunctionIsDefined assertFunctionNotDefined
-    _assertFunctionIsDefined assertHashTableDefined
-    _assertFunctionIsDefined assertHashKeyNotDefined
+    _assertFunctionIsDefined assertFunctionIsNotDefined
+    _assertFunctionIsDefined assertHashTableIsDefined
+    _assertFunctionIsDefined assertHashKeyIsNotDefined
     _assertFunctionIsDefined assertHashValue
 
     # OK, so now use them to ensure project roots are as expected
 
-    assertHashTableDefined 'rayvnProjectRoots'
-    assertHashKeyNotDefined 'rayvnProjectRoots' 'foobar'
+    assertHashTableIsDefined 'rayvnProjectRoots'
+    assertHashKeyIsNotDefined 'rayvnProjectRoots' 'foobar'
     assertHashKeyIsDefined 'rayvnProjectRoots' 'rayvn::project'
     assertHashKeyIsDefined 'rayvnProjectRoots' 'rayvn::libraries'
     assertHashValue 'rayvnProjectRoots' 'rayvn::project' "${rayvnInstallHome}"
@@ -323,9 +316,9 @@ testRayvnUp() {
 
     # Ensure that functions from our core library are now present in this shell
 
-    assertFunctionDefined 'rootDirPath'
-    assertFunctionDefined 'tempDirPath'
-    assertFunctionDefined 'init_rayvn_core'
+    assertFunctionIsDefined 'rootDirPath'
+    assertFunctionIsDefined 'tempDirPath'
+    assertFunctionIsDefined 'init_rayvn_core'
 
     # Finally, restore PATH in case other test functions need it
 

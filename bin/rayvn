@@ -90,7 +90,7 @@ runProjectTests() {
     local projectDir="${1}"
     local testDir="${projectDir}/test"
     if [[ -d "${testDir}" ]]; then
-        local tests=("$(ls -1 "${testDir}"/test-*.sh)")
+        local tests=("${testDir}"/test-*.sh)
         for testFile in "${tests[@]}"; do
             runTest "${projectDir}" "${testFile}"
         done
@@ -112,7 +112,7 @@ runTest() {
             echo
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
-                    # TODO: move debug from weld into core, then update logEnvironment to respect it
+                    # TODO: move debug from wardn into core, then update logEnvironment to respect it
                     # logEnvironment "rayvn env, prior to running ${testFile}" "${HOME}/rayvn-subshell.env"
 
                     # We must create special conditions for this test so that the process it runs in does

@@ -144,14 +144,16 @@ debugJson() {
 }
 
 debugEnvironment() {
-    local fileName="${1}.env"
-    local destFile="${_debugDir}/${fileName}"
-    (
-        printf "%s\n\n" '--- VARIABLES --------------'
-        declare -p
-        printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
-        declare -f
-    ) > "${destFile}"
-    debug "Wrote ${fileName} to ${destFile}"
+    if [[ ${_debug} ]]; then
+        local fileName="${1}.env"
+        local destFile="${_debugDir}/${fileName}"
+        (
+            printf "%s\n\n" '--- VARIABLES --------------'
+            declare -p
+            printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
+            declare -f
+        ) > "${destFile}"
+        debug "Wrote ${fileName} to ${destFile}"
+    fi
 }
 

@@ -127,7 +127,7 @@ makeDir() {
 }
 
 assertTerminal() {
-    [[ ${terminal} ]] || assertFailed "must be run in a terminal"
+    [[ ${terminal} ]] || assertionFailed "must be run in a terminal"
 }
 
 _resetTerminal() {
@@ -179,7 +179,7 @@ assertMinimumVersion() {
     local targetName="${3}"
     local errorSuffix="${4}"
     local lowest=$(printf '%s\n%s\n' "$version" "$minimum" | sort -V | head -n 1)
-    [[ "${lowest}" != "${minimum}" ]] && assertFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
+    [[ "${lowest}" != "${minimum}" ]] && assertionFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
     return 0
 }
 
@@ -189,23 +189,23 @@ assertBashVersion() {
 }
 
 assertFileExists() {
-    [[ -e ${1} ]] || assertFailed "${1} not found"
+    [[ -e ${1} ]] || assertionFailed "${1} not found"
 }
 
 assertFile() {
     local file="${1}"
     local description="${2:-file}"
     assertFileExists "${file}"
-    [[ -f ${1} ]] || assertFailed "${1} is not an ${description}"
+    [[ -f ${1} ]] || assertionFailed "${1} is not an ${description}"
 }
 
 assertDirectory() {
     assertFileExists "${1}"
-    [[ -d ${1} ]] || assertFailed "${1} is not a directory"
+    [[ -d ${1} ]] || assertionFailed "${1} is not a directory"
 }
 
 assertFileDoesNotExist() {
-    [[ -e "${1}" ]] && assertFailed "${1} already exists"
+    [[ -e "${1}" ]] && assertionFailed "${1} already exists"
 }
 
 sourceEnvFile() {
@@ -215,6 +215,7 @@ sourceEnvFile() {
     local strippedEnvFile=$(_stripEnvFile "${envFile}")
     source <(echo ${strippedEnvFile})
 }
+
 _stripEnvFile() {
     local envFile="${1}"
     cat "${envFile}" | grep '^[_[:alpha:]][_[:alpha:][:digit:]]*[=].*$'
@@ -351,10 +352,10 @@ _setFileSystemVar() {
     local file="$(realpath "${2}")"
     local description="${3}"
     local isDir="${4}"
-    [[ ${file} ]] || assertFailed "${description} path is required"
-    [[ -e ${file} ]] || assertFailed "${file} not found"
+    [[ ${file} ]] || assertionFailed "${description} path is required"
+    [[ -e ${file} ]] || assertionFailed "${file} not found"
     if [[ ${isDir} == true ]]; then
-        [[ -d ${file} ]] || assertFailed "${file} is not a directory"
+        [[ -d ${file} ]] || assertionFailed "${file} is not a directory"
     else
         [[ -f ${file} ]] || assretFailed "${file} is not a file"
     fi
@@ -476,11 +477,12 @@ redStream() {
         printRed "${error}"
     done
 }
+
 printStack() {
     local start=1
     local caller=${FUNCNAME[1]}
     local start=1
-    [[ ${caller} == "assertFailed" ]] && start=2
+    [[ ${caller} == "assertionFailed" ]] && start=2
 
     for ((i = ${start}; i < ${#FUNCNAME[@]} - 1; i++)); do
         local function="${FUNCNAME[${i}]}"
@@ -504,7 +506,7 @@ logEnvironment() {
     ) > "${file}"
 }
 
-assertFailed() {
+assertionFailed() {
     if [[ ${1} ]]; then
         _resetTerminal
         error "${*}"

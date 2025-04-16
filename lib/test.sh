@@ -11,83 +11,85 @@ require 'rayvn/core'
 assertNotInFile() {
     local match="${1}"
     local file="${2}"
-    grep -e "${match}" "${file}" > /dev/null && assertFailed "'${match}' found in file ${file}."
+    grep -e "${match}" "${file}" > /dev/null && assertionFailed "'${match}' found in file ${file}."
 }
 assertInFile() {
     local match="${1}"
     local file="${2}"
-    grep -e "${match}" "${file}" > /dev/null 2>&1  || assertFailed "'${match}' not found in file ${file}."
+    grep -e "${match}" "${file}" > /dev/null 2>&1  || assertionFailed "'${match}' not found in file ${file}."
 }
 
 assertEqual() {
     local msg="${3:-"assert ${1} == ${2} failed"}"
-    [[ ${1} == "${2}" ]] || assertFailed "${msg}"
+    [[ ${1} == "${2}" ]] || assertionFailed "${msg}"
 }
 
 assertNotInPath() {
     local executable="${1}"
     local path="$(command -v ${executable})"
-    [[ ${path} == '' ]] || assertFailed "${executable} was found in PATH at ${path}"
+    [[ ${path} == '' ]] || assertionFailed "${executable} was found in PATH at ${path}"
 }
+
 assertInPath() {
     local executable="${1}"
     local expectedPath="${2}"
     local foundPath="$(command -v ${executable})"
-    [[ ${foundPath} ]] || assertFailed "${executable} was not found in PATH"
+    [[ ${foundPath} ]] || assertionFailed "${executable} was not found in PATH"
     assertFile "${foundPath}"
     local realPath="$(realpath ${foundPath})"
 
     if [[ ${expectedPath} ]]; then
         if [[ ${realPath} == "${foundPath}" ]]; then
             if [[ ${foundPath} != "${expectedPath}" ]]; then
-                assertFailed "${executable} found at ${foundPath}, expected ${expectedPath}"
+                assertionFailed "${executable} found at ${foundPath}, expected ${expectedPath}"
             fi
         elif ! [[ ${foundPath} == "${expectedPath}" || ${realPath} == "${expectedPath}" ]]; then
-            assertFailed "${executable} found at ${foundPath} --> ${realPath}, expected ${expectedPath}"
+            assertionFailed "${executable} found at ${foundPath} --> ${realPath}, expected ${expectedPath}"
         fi
     fi
 }
 
-assertFunctionNotDefined() {
+assertFunctionIsNotDefined() {
     local name="${1}"
-    declare -f ${name} > /dev/null 2>&1 && assertFailed "function '${name}(){...} is defined"
+    [[ $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} is set: $(declare -f ${name})"
 }
 
-assertFunctionDefined() {
+assertFunctionIsDefined() {
     local name="${1}"
-    declare -f ${name} > /dev/null 2>&1 || assertFailed "function '${name}(){...} is not defined"
+    [[ ! $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} not set"
 }
 
-assertVarNotDefined() {
-    local varName="${1}"
-    [[ -v ${!varName} ]] && assertFailed "${varName} is defined"
+assertVarIsDefined() {
+    local name="${1}"
+    [[ ! $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} not set"
 }
 
-assertVarDefined() {
-    local varName="${1}"
-    declare -p ${varName} > /dev/null 2>&1 || assertFailed "${varName} is not defined"
+assertVarIsNotDefined() {
+    local name="${1}"
+    [[ $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} is set"
 }
 
-assertHashTableDefined() {
+assertHashTableIsDefined() {
     local varName=${1}
-    assertVarDefined ${varName}
-    [[ "$(declare -p ${varName} 2>/dev/null)" =~ "declare -A" ]] || assertFailed "${varName} is not a hash table"
+    assertVarIsDefined ${varName}
+    [[ "$(declare -p ${varName} 2>/dev/null)" =~ "declare -A" ]] || assertionFailed "${varName} is not a hash table"
 }
+
 assertHashKeyIsDefined() {
     local varName="${1}"
     local keyName="${2}"
 
-    assertHashTableDefined "${varName}"
+    assertHashTableIsDefined "${varName}"
 
     # TODO: the line below screws up function name syntax color, but executes fine
 
-    [[ -v ${varName}[${keyName}] ]] || assertFailed "${varName}[${keyName}] is NOT defined"
+    [[ -v ${varName}[${keyName}] ]] || assertionFailed "${varName}[${keyName}] is NOT defined"
 }
 
-assertHashKeyNotDefined() {
+assertHashKeyIsNotDefined() {
     local varName="${1}"
     local keyName="${2}"
-    [[ -v ${varName}[${keyName}] ]] && assertFailed "${varName}[${keyName}] is defined"
+    [[ -v ${varName}[${keyName}] ]] && assertionFailed "${varName}[${keyName}] is defined"
 }
 
 assertHashValue() {
@@ -98,7 +100,7 @@ assertHashValue() {
 
 
     local actualValue="$(eval echo \$"{${varName}[${keyName}]}")" # complexity required to use variables for var and key
-    [[ ${actualValue} == "${expectedValue}" ]] || assertFailed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
+    [[ ${actualValue} == "${expectedValue}" ]] || assertionFailed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
 }
 
 ### PATH functions ----------------------------------------------------------------------------------------
