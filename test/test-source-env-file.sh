@@ -8,9 +8,87 @@ main() {
 
 init() {
     if [[ ${1} == --debug ]]; then
-        require 'rayvn/debug'
         setDebug showOnExit
     fi
+
+    local testEnvFile=$(tempDirPath test.env)
+    echo
+    echo "--- CREATE ${testEnvFile} ---------------------------------------"
+    echo
+    createEvilEnvFile "${testEnvFile}"
+    echo
+    echo "--- ORIGINAL ---------------------------------------"
+    echo
+    cat "${testEnvFile}"
+    echo
+    echo "--- STRIPPED ---------------------------------------"
+    echo
+    extractStaticVars "${testEnvFile}"
+    echo
+    echo "--- project ONLY ---------------------------------------"
+    echo
+    extractStaticVars "${testEnvFile}" project
+
+    exit # TODO REMOVE!
+}
+
+createEvilEnvFile() {
+    local outFile="${1}"
+    cat <<- 'EOF' > "${outFile}"
+		# A function that MUST not be called
+
+		evilFunction() {
+		    echo "I am gonna do something evil!"
+		    exit 1
+		}
+
+		# Expected vars
+
+		projectName='foo'
+		projectVersion='0.1.0+'   # pre-release version
+		projectReleaseDate=''     # pre-release version
+		projectHasLibraries=false
+		projectBinaries=('foo')
+
+		# A similarly named var but is not expected
+
+		projectHasNoSuchVariable=true
+
+		# A multi-line string with spaces and line breaks
+
+		userBio="I am a passionate developer
+		who loves to solve complex problems
+		and build efficient software."
+
+		# Comments
+
+		# userName="NOPE!"  # Variable for username
+		userName="JohnDoe"  # Variable for username
+
+		# Multi-line array
+
+		userDetails=(
+		    "John"
+		    "Doe"
+		    "25"
+		)
+
+		# Multi-line associative array
+
+		declare -A myMap=(
+		    [name]="Hawk"
+		    [type]="Bird"
+		)
+
+		# Call evilFunction !!
+
+		evilFunction
+
+		# Variable init with side effects !!
+
+		evilDirectoryVar="$(evilFunction)"
+		evilVar="$(rm -rf "${badDirectoryVar}")"
+	EOF
 }
 
 testSourceEnvFile() {
@@ -19,7 +97,7 @@ testSourceEnvFile() {
 		# rayvn package
 
 		initFoo() {
-		    local myFoo=MINE
+		    local myFoo='ALL MINE!'
 		    echo "myFoo: ${myFoo}"
 		}
 
@@ -31,7 +109,7 @@ testSourceEnvFile() {
 		projectHasLibraries=false
 		projectBinaries=('foo')
 
-		# A similar var but is not defined for rayvn.pkg
+		# A similar var but is not expected
 
 		projectHasNoSuchVariable=true
 
@@ -42,11 +120,17 @@ testSourceEnvFile() {
 		userName="JohnDoe"  # Variable for username
 		userAge=25
 
-		# A multi-line variable assignment (array or string)
+		# A multi-line variable assignment)
 		userDetails=(
 		    "John"
 		    "Doe"
 		    "25"
+		)
+
+		# A multi-line associative array
+		declare -A myMap=(
+		    [name]="Hawk"
+		    [type]="Bird"
 		)
 
 		# Another single-line variable
@@ -64,7 +148,7 @@ testSourceEnvFile() {
 		userStatus="Active"
 
 
-		initFoo
+		initFoo  # Call initFoo
 	EOF
 
     (
@@ -94,6 +178,8 @@ testSourceEnvFile() {
         assertVarIsNotDefined userStatus
 
         # Now source it
+
+stripEnvFile "${pkgFile}"
 
         sourceEnvFile "${pkgFile}"
 
@@ -128,6 +214,6 @@ testSourceEnvFile() {
     )
 }
 
-source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug'
+source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-env'
 
 main "${@}"

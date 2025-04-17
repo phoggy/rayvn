@@ -45,8 +45,8 @@ doSomething() {
     echo "🌱 $(ansi bold_yellow SOMETHING) 🌱 "
 }
 
-source "${HOME}/.rayvn/boot.sh" 2> /dev/null || { echo 'rayvn not installed' && exit 0; }
-require 'rayvn/base'
+source rayvn.up 'rayvn/core'
+
 main "${@}"
 
 
