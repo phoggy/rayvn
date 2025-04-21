@@ -75,6 +75,11 @@ assertHashTableIsDefined() {
     [[ "$(declare -p ${varName} 2>/dev/null)" =~ "declare -A" ]] || assertionFailed "${varName} is not a hash table"
 }
 
+assertHashTableIsNotDefined() {
+    local varName=${1}
+    assertVarIsNotDefined ${varName}
+}
+
 assertHashKeyIsDefined() {
     local varName="${1}"
     local keyName="${2}"

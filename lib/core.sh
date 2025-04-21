@@ -164,7 +164,7 @@ version() {
     local pkgFile="${projectDir}/rayvn.pkg"
     (
         require 'rayvn/safe-env'
-        sourceEnvFile "${pkgFile}"
+        sourceSafeStaticVars "${pkgFile}"
         if [[ ${projectReleaseDate} ]]; then
             [[ ${verbose} ]] && description=" (released ${projectReleaseDate})"
         else
@@ -397,11 +397,18 @@ printRepeat() {
     done
 }
 
-printVar() {
-    while ((${#} > 0)); do
-        echo "${1}: '${!1}'" > ${terminal}
-        shift
-    done
+printVars() {
+    (
+        while ((${#} > 0)); do
+            local var=${1}
+            if declare -p ${var} &> /dev/null; then
+                declare -p ${var}
+            else
+                echo "${var} is not set"
+            fi
+            shift
+        done
+    ) > ${terminal}
 }
 
 printFormatted() {
@@ -428,17 +435,23 @@ redStream() {
 }
 
 printStack() {
-    local start=1
     local caller=${FUNCNAME[1]}
-    local start=1
-    [[ ${caller} == "assertionFailed" ]] && start=2
+    declare -i start=1
+    declare -i depth=${#FUNCNAME[@]}
 
-    for ((i = ${start}; i < ${#FUNCNAME[@]} - 1; i++)); do
+    if (( ${depth} > 2 )); then
+        [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
+    fi
+
+    echo
+    for ((i = ${start}; i < ${depth}; i++)); do
         local function="${FUNCNAME[${i}]}"
-        local line=${BASH_LINENO[${i} - 1]}
+        local line="$(ansi bold_blue ${BASH_LINENO[${i} - 1]})"
+        local arrow="$(ansi cyan -\>)"
         local called=${FUNCNAME[${i} - 1]}
-        local script=${BASH_SOURCE[${i}]}
-        echo "   ${function}() line ${line} [in ${script}] --> ${called}()"
+        local script="$(ansi dim ${BASH_SOURCE[${i}]})"
+        (( i == ${start} )) && function="$(ansi red ${function})" || function="$(ansi blue ${function})"
+        echo "   ${function}() ${script}:${line} ${arrow} ${called}()"
     done
 }
 
@@ -456,28 +469,20 @@ logEnvironment() {
 }
 
 assertionFailed() {
-    if [[ ${1} ]]; then
-        _resetTerminal
-        error "${*}"
-        echo
-        printStack
-    fi
+    [[ ${1} ]] && error "${*}"
+    printStack
     exit 1
 }
 
 fail() {
-    if [[ ${1} ]]; then
-        _resetTerminal
-        error "${*}"
-    fi
+    [[ ${1} ]] && error "${*}"
+    printStack
     exit 1
 }
 
 bye() {
-    if [[ ${1} ]]; then
-        printRed "${@}"
-        exit 1
-    fi
+    [[ ${1} ]] && printRed "${*}"
+    isDebug && printStack
     exit 0
 }
 

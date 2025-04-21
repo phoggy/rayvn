@@ -5,6 +5,10 @@
 
 require 'rayvn/core'
 
+isDebug() {
+    [[ ${_debug} ]]
+}
+
 setDebug() {
     declare -grx _debug=true
     declare -gx _debugOut=log
@@ -59,7 +63,6 @@ _prepareLogFile() {
     printf "___ rayvn log $(date) _________________________________\n\n" >&3
 }
 
-
 _debugExit() {
     exec 3>&- # close it
     [[ ${_showLogOnExit} == true ]] && _printDebugLog
@@ -101,6 +104,12 @@ _printDebugLog() {
     fi
 }
 
+debugDir() {
+    if [[ ${_debug} ]]; then
+        echo "${_debugDir}"
+    fi
+}
+
 debugStatus() {
     if [[ ${_debug} ]]; then
         if [[ ${_debugOut} == log ]]; then
@@ -120,6 +129,47 @@ debug() {
 debugVars() {
     if [[ ${_debug} ]]; then
         declare -p "${@}" >&3
+    fi
+}
+
+debugVarIsSet() {
+    if [[ ${_debug} ]]; then
+        local var="${1}"
+        local prefix="${2}"
+        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
+        (
+            echo -n "${prefix}$(ansi blue expect \'${var}\' is set -\>) "
+            if _varIsSet ${var}; then
+                declare -p ${var}
+            else
+                echo "$(ansi red NOT SET!)"
+                printStack
+                echo
+            fi
+        ) >&3
+    fi
+}
+
+_varIsSet() {
+    declare -p "${1}" &> /dev/null
+}
+
+debugVarIsNotSet() {
+    if [[ ${_debug} ]]; then
+        local var="${1}"
+        local prefix="${2}"
+        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
+        (
+            local var="${1}"
+            echo -n "${prefix}$(ansi blue expect \'${var}\' is not set -\>) "
+            if _varIsSet ${var}; then
+                echo "$(ansi red=${!var})"
+                printStack
+                echo
+            else
+                echo "not set"
+            fi
+        ) >&3
     fi
 }
 
