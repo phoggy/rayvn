@@ -74,26 +74,13 @@ init() {
 }
 
 runAllTests() {
-    local entry projectName projectDir
-    declare -p _rayvnProjects
-    for entry in "${_rayvnProjects[@]}"; do
-        if [[ "${rootName}" == *::project ]]; then
-            projectName="${rootName}"
-            projectDir=${_rayvnProjects[${rootName}]}
-    declare -p projectName projectDir
+    local entry projectDir
+    for entry in "${!_rayvnProjects[@]}"; do
+        if [[ "${entry}" == *::project ]]; then
+            projectDir=${_rayvnProjects[${entry}]}
+            runProjectTests "${projectDir}"
         fi
     done
-# TODO remove
-#
-#    if [[ -d ${rayvnConfigPkgDir} ]]; then
-#        projects=("$(ls -1 ${rayvnConfigPkgDir})")
-#        for projectDir in "${projects[@]}"; do
-#            runProjectTests "${rayvnConfigPkgDir}/${projectDir}"
-#        done
-#    else
-#        # not installed, so just run ours.
-#        runProjectTests "${rayvnHome}"
-#    fi
 }
 
 runProjectTests() {

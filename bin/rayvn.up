@@ -10,7 +10,7 @@ declare -gxA _rayvnProjects=()
 declare -grx _projectRootSuffix='::project'
 declare -grx _libraryRootSuffix='::library'
 declare -grx _versionSuffix='::version'
-declare -grx _releaseDateSuffix='::release-date'
+declare -grx _releaseDateSuffix='::releaseDate'
 declare -gxAi _rayvnRequireCounts=()
 
 require() {
