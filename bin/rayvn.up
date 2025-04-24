@@ -4,132 +4,154 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-declare -grx rayvnBinaryName='rayvn'
-declare -gxAi rayvnRequireCounts=()
+declare -grx rayvnPkgFileName='rayvn.pkg'
+
+declare -gxA _rayvnProjects=()
+declare -grx _projectRootSuffix='::project'
+declare -grx _libraryRootSuffix='::library'
+declare -grx _versionSuffix='::version'
+declare -grx _releaseDateSuffix='::release-date'
+declare -gxAi _rayvnRequireCounts=()
 
 require() {
+     while (( ${#} > 0 )); do
+        local qualifiedName="${1}"
+        local projectName="${qualifiedName%/*}"
+        local libraryName="${qualifiedName#*/}"
+        local libraryKey="${projectName}_${libraryName}"
 
-    _exit() {
-        if [[ ${1} ]]; then
-            echo "${@}"
-            exit 1
-        else
-            exit 0
+        # Keep a count of requests for this project
+
+        (( _rayvnRequireCounts[${projectName}]++ ))
+
+        # Have we previously loaded this library?
+
+        if [[ ! ${_rayvnRequireCounts[${libraryKey}]} ]]; then
+
+            # Nope, validate the request
+
+            local libraryRootKey="${projectName}${_libraryRootSuffix}"
+            local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
+            [[ ${libraryRoot} ]] || fail "no libraries configured for rayvn project '${projectName}'"
+
+            local libraryFile="${libraryRoot}/${libraryName}.sh"
+            [[ -f ${libraryFile} ]] || fail "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
+
+            # Load the library. We can recurse here!
+
+            source "${libraryFile}" || fail "failed to load rayvn shared library '${qualifiedName}'"
+
+            # TODO: make all sourced functions readonly so that we will detect collisions??
+
+            # Call its init function, if present
+
+            local initFunction="init_${projectName}_${libraryName}"
+            if [[ $(type -t ${initFunction}) == function ]]; then
+                ${initFunction} || fail "${initFunction}() failed"
+            fi
         fi
-    }
 
-    local qualifiedName="${1}"
-    local projectName="${qualifiedName%/*}"
-    local libraryName="${qualifiedName#*/}"
-    local libraryKey="${projectName}_${libraryName}"
+        # Count the request
 
-    # Keep a count of requests for this project
+        (( _rayvnRequireCounts[${libraryKey}]++ ))
 
-    (( rayvnRequireCounts[${projectName}]++ ))
-
-    # Have we previously loaded this library?
-
-    if [[ ! ${rayvnRequireCounts[${libraryKey}]} ]]; then
-
-        # Nope, validate the request
-
-        local libraryRootKey="${projectName}::libraries"
-        local libraryRoot="${rayvnProjectRoots[${libraryRootKey}]}"
-        [[ ${libraryRoot} ]] || _exit "rayvn project '${projectName}' not found"
-
-        local libraryFile="${libraryRoot}/${libraryName}.sh"
-        [[ -f ${libraryFile} ]] || _exit "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
-
-        # Load the library. We can recurse here!
-
-        source "${libraryFile}" || _exit "failed to load rayvn shared library '${qualifiedName}'"
-
-        # TODO: make all sourced functions readonly so that we will detect collisions??
-
-        # Call its init function, if present
-
-        local initFunction="init_${projectName}_${libraryName}"
-        if [[ $(type -t ${initFunction}) == function ]]; then
-            ${initFunction} || _exit "${initFunction}() failed"
-        fi
-    fi
-
-    # Count the request
-
-    (( rayvnRequireCounts[${libraryKey}]++ ))
-
-    # All is good, so return 0 to guard against recursion issues
+        shift
+    done
 
     return 0
 }
 
+# bashsupport disable=BP3002
 _configure() {
-    local rayvnUpBin rootName projectRoot rootName projectHomeVar
+    local keySuffix projectName projectRoot key executable path packageFile
 
-    # Create the project roots map if not already defined.
-    # Any projects in addition to rayvn must already be configured.
+    _addRoot() {
+        projectName="${1}"
+        keySuffix="${2}"
+        projectRoot="${3}"
+        key="${projectName}${keySuffix}"
+        [[ -v _rayvnProjects[${key}] ]] && fail "'${key}' already set"
+        projectRoot="$(realpath "${projectRoot}")" || fail "Could not resolve real path of: ${projectRoot}"
+        _rayvnProjects[${key}]="${projectRoot}"
 
-    if ! declare -p rayvnProjectRoots &> /dev/null; then
-        declare -gA rayvnProjectRoots=()
-    fi
+        # Define a ${project}Home var for project self reference
+        [[ ${keySuffix} == "${_projectRootSuffix}" ]] &&  declare -grx "${projectName}Home"="${projectRoot}"
+    }
 
-    # Set the rayvn project root if not already set
+    _addProjectFromExecutable() {
+        projectName="${1}"
+        executable="${2}"
+        path="$(type -p ${executable})" || fail "'${executable}' not found for project '${projectName}'"
+        path="$(realpath "${path}")" || fail # handle symlinks, e.g. brew style
+        projectRoot="$(dirname ${path})/.."
+        _addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+    }
 
-    if [[ ! -v rayvnProjectRoots[rayvn::project] ]]; then
+    # bashsupport disable=BP3002
+    _addPackage() {
+        projectName="${1}"
+        packageFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/${rayvnPkgFileName}"
+        sourceSafeStaticVars "${packageFile}" project
 
-        # Find and resolve our dir, handling the brew symlink case
+        # Add version and release date
 
-        rayvnUpBin=$(which rayvn.up)
-        rayvnUpBin="$(realpath "${rayvnUpBin}")"
-        projectRoot="$(dirname ${rayvnUpBin})/.."
-        rayvnProjectRoots[rayvn::project]="${projectRoot}"
-    fi
+        _rayvnProjects["${projectName}${_versionSuffix}"]="${projectVersion}"
+        _rayvnProjects["${projectName}${_releaseDateSuffix}"]="${projectReleaseDate}"
 
-    # Process all roots to ensure they are valid and an absolute path
+        # Add the library project root if needed
 
-    for rootName in "${!rayvnProjectRoots[@]}"; do
-        projectRoot="${rayvnProjectRoots[${rootName}]}"
-        projectRoot="$(realpath "${projectRoot}")" || exit 1
-        rayvnProjectRoots[${rootName}]="${projectRoot}"
-    done
-
-    # Now process all project roots and ensure a library path is in the
-    # map. Also define a "${project}Home" variable for each.
-
-    for rootName in "${!rayvnProjectRoots[@]}"; do
-        if [[ "${rootName}" == *::project ]]; then
-            local projectName="${rootName%::project}"
-            local projectRoot="${rayvnProjectRoots[${rootName}]}"
-            local libraryKey="${projectName}::libraries"
-
-            if [[ ! ${rayvnProjectRoots[${libraryKey}]} ]]; then
-
-                # No library root, so add it assuming it is just ./lib
-
-                rayvnProjectRoots[${libraryKey}]="${projectRoot}/lib"
-            fi
-
-            # Define a ${project}Home var for project self reference
-
-            projectHomeVar="${projectName}Home"
-            declare -grx ${projectHomeVar}="${projectRoot}"
+        if [[ ${projectName} != rayvn && ${projectLibraries} ]]; then
+            projectRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/${projectLibraries}"
+            _addRoot "${projectName}" ${_libraryRootSuffix}  "${projectRoot}"
         fi
+
+        unset projectName projectVersion projectReleaseDate projectLibraries projectBinaries
+    }
+
+    _addProject() {
+        projectName="${1}"
+        projectRoot="${2}"
+        if [[ -e ${projectRoot} ]]; then
+            _addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
+        else
+            _addProjectFromExecutable ${projectName} "${projectRoot}"
+        fi
+        _addPackage "${projectName}"
+    }
+
+    # Add rayvn
+
+    _addProjectFromExecutable rayvn rayvn.up
+    _addRoot rayvn ${_libraryRootSuffix} "${_rayvnProjects[rayvn${_projectRootSuffix}]}/lib"
+    require 'rayvn/safe-env'
+    _addPackage rayvn
+
+    # Now, process arguments in two passes: add projects, then load any required libraries
+
+    local required=()
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            -a | --add) shift; _addProject "${1%%=*}" "${1#*=}";;
+            *) required+=("${1}") ;;
+        esac
+        shift
+    done
+    for (( i=0; i < ${#required[@]}; i++ )); do
+            require "${required[i]}"
     done
 
     # Lock down the map and ensure it is both global and exported
 
-    declare -grx rayvnProjectRoots
-
-    # Load any libraries passed to us
-
-    while (( ${#} > 0 )); do
-        require "${1}"; shift
-    done
+    declare -grx _rayvnProjects
 
     # Prevent the require function from being replaced
 
     declare -rf require
 }
+
+# This function will be replaced when rayvn/core is loaded
+
+fail() { echo "${@}"; exit 1; }
 
 # Configure and then remove the function
 

@@ -3,6 +3,6 @@
 projectName='rayvn'
 projectVersion='0.1.2+'
 projectReleaseDate=''
-projectHasLibraries=true
+projectLibraries='lib'
 projectBinaries=('rayvn' 'rayvn.up')
 

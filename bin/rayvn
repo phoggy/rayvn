@@ -59,8 +59,8 @@ init() {
             --debug-new) setDebug clearLog showOnExit ;;
             --debug-out) setDebug noLog ;;
             -h | --help) usage ;;
-            -v) version "${rayvnHome}"; exit 0 ;;
-            --version) version "${rayvnHome}" true; exit 0 ;;
+            -v) version rayvn; exit 0 ;;
+            --version) version rayvn true; exit 0 ;;
             *) usage "Unknown option: ${1}" ;;
         esac
         shift
@@ -74,16 +74,26 @@ init() {
 }
 
 runAllTests() {
-    local projects projectDir
-    if [[ -d ${rayvnConfigPkgDir} ]]; then
-        projects=("$(ls -1 ${rayvnConfigPkgDir})")
-        for projectDir in "${projects[@]}"; do
-            runProjectTests "${rayvnConfigPkgDir}/${projectDir}"
-        done
-    else
-        # not installed, so just run ours.
-        runProjectTests "${rayvnHome}"
-    fi
+    local entry projectName projectDir
+    declare -p _rayvnProjects
+    for entry in "${_rayvnProjects[@]}"; do
+        if [[ "${rootName}" == *::project ]]; then
+            projectName="${rootName}"
+            projectDir=${_rayvnProjects[${rootName}]}
+    declare -p projectName projectDir
+        fi
+    done
+# TODO remove
+#
+#    if [[ -d ${rayvnConfigPkgDir} ]]; then
+#        projects=("$(ls -1 ${rayvnConfigPkgDir})")
+#        for projectDir in "${projects[@]}"; do
+#            runProjectTests "${rayvnConfigPkgDir}/${projectDir}"
+#        done
+#    else
+#        # not installed, so just run ours.
+#        runProjectTests "${rayvnHome}"
+#    fi
 }
 
 runProjectTests() {
@@ -112,8 +122,7 @@ runTest() {
             echo
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
-                    # TODO: move debug from wardn into core, then update logEnvironment to respect it
-                    # logEnvironment "rayvn env, prior to running ${testFile}" "${HOME}/rayvn-subshell.env"
+                    # debugEnvironment "rayvn env, prior to running ${testFile}" "rayvn-subshell"
 
                     # We must create special conditions for this test so that the process it runs in does
                     # NOT contain any functions from this process (esp. rayvn.up and core.sh) and that all
@@ -239,9 +248,9 @@ createProjectFile() {
     echo
 }
 
-# Boot rayvn and load rayvn/core and debug
-source rayvn.up 'rayvn/core' 'rayvn/debug'
-debug "about to call main" # TODO remove
+# Boot rayvn and load rayvn/debug
+source rayvn.up 'rayvn/debug'
+
 main "${@}"
 
 

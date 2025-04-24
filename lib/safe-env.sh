@@ -14,7 +14,6 @@ sourceSafeStaticVars() {
     local input="${1}"
     local prefixFilter="${2}"
     safeEnv="$(extractSafeStaticVars "${input}" "${prefixFilter}" | _globalizeDeclarations)" || fail
-    debug "sourcing: ${safeEnv}"
     source <(echo "${safeEnv}")
 }
 

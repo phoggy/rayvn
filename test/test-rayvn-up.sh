@@ -38,11 +38,8 @@ assertEnvPreconditions() {
 
     # Make sure we did not inherit our boot vars
 
-    _assertVarIsNotDefined rayvnConfigDir
-    _assertVarIsNotDefined rayvnConfigLibDir
-    _assertVarIsNotDefined rayvnConfigBinDir
-    _assertVarIsNotDefined rayvnConfigPkgDir
-    _assertVarIsNotDefined rayvnLibraryIndex
+    _assertVarIsNotDefined _rayvnProjects
+    _assertVarIsNotDefined _rayvnRequireCounts
 
     # Ensure we have the required vars
 
@@ -218,18 +215,13 @@ testRayvnUp() {
 
     [[ "$(find "${HOME}" -mindepth 1 -print -quit)" ]] && _failed "test HOME dir '${HOME}' is not empty"
 
-    # Double check that we don't have our config dir (the above should do that, but in case we screw up somewhere...)
-
-    _assertFileDoesNotExist "${rayvnConfigHomeDir}"
-
     # Double check to ensure we do not yet hove the boot functions and vars
 
     _assertFunctionIsNotDefined require
     _assertFunctionIsNotDefined _configure
 
-    _assertVarIsNotDefined rayvnRequireCounts
-    _assertVarIsNotDefined rayvnBinaryName
-    _assertVarIsNotDefined rayvnProjectRoots
+    _assertVarIsNotDefined _rayvnRequireCounts
+    _assertVarIsNotDefined _rayvnProjectRoots
     _assertVarIsNotDefined rayvnHome
 
     # Remove all PATH dirs containing rayvn so that we can test rayvn.up
@@ -262,16 +254,9 @@ testRayvnUp() {
     _assertFunctionIsDefined require
     _assertFunctionIsNotDefined _configure
 
-    _assertVarIsDefined rayvnRequireCounts
-    _assertVarIsDefined rayvnBinaryName
-    _assertVarIsDefined rayvnProjectRoots
+    _assertVarIsDefined _rayvnRequireCounts
+    _assertVarIsDefined _rayvnProjects
     _assertVarIsDefined rayvnHome
-
-    # Now make sure that we can find rayvn within our test home TODO: after require 'rayvn/debug'
-
-#    rayvnPath="$(which rayvn)" || _failed "which rayvn failed after source of rayvn.env"
-#    [[ "${rayvnPath}" == "${testHome}"/* ]] || _failed "rayvn is not within testHomeDir ${rayvnConfigDir}, got ${rayvnPath}"
-
 
     # Ensure that functions from our core library are NOT present in this shell
 
@@ -300,19 +285,19 @@ testRayvnUp() {
 
     # OK, so now use them to ensure project roots are as expected
 
-    assertHashTableIsDefined 'rayvnProjectRoots'
-    assertHashKeyIsNotDefined 'rayvnProjectRoots' 'foobar'
-    assertHashKeyIsDefined 'rayvnProjectRoots' 'rayvn::project'
-    assertHashKeyIsDefined 'rayvnProjectRoots' 'rayvn::libraries'
-    assertHashValue 'rayvnProjectRoots' 'rayvn::project' "${rayvnInstallHome}"
-    assertHashValue 'rayvnProjectRoots' 'rayvn::libraries' "${rayvnInstallHome}/lib"
+    assertHashTableIsDefined '_rayvnProjects'
+    assertHashKeyIsNotDefined '_rayvnProjects' 'foobar'
+    assertHashKeyIsDefined '_rayvnProjects' 'rayvn::project'
+    assertHashKeyIsDefined '_rayvnProjects' 'rayvn::libraries'
+    assertHashValue '_rayvnProjects' 'rayvn::project' "${rayvnInstallHome}"
+    assertHashValue '_rayvnProjects' 'rayvn::libraries' "${rayvnInstallHome}/lib"
 
 
     # And that counts are as expected
 
-    assertHashValue 'rayvnRequireCounts' 'rayvn' 2      # both core and test
-    assertHashValue 'rayvnRequireCounts' 'rayvn_test' 1
-    assertHashValue 'rayvnRequireCounts' 'rayvn_core' 1
+    assertHashValue '_rayvnRequireCounts' 'rayvn' 2      # both core and test
+    assertHashValue '_rayvnRequireCounts' 'rayvn_test' 1
+    assertHashValue '_rayvnRequireCounts' 'rayvn_core' 1
 
     # Ensure that functions from our core library are now present in this shell
 

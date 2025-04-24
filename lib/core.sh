@@ -13,7 +13,6 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
     declare -grx pinEntryProgram="${rayvnRootDir}/bin/rayvn-pinentry"
-    declare -grx rayvnPackageFileName="rayvn.pkg"
 
     # Are stdout and stderr both terminals?
 
@@ -110,11 +109,6 @@ rootDirPath() {
     echo "${rayvnRootDir}/${1}"
 }
 
-packageFile() {
-    local project="${1}"
-    echo "${rayvnConfigPkgDir}/${project}.pkg"
-}
-
 tempDirPath() {
     [[ ${1} ]] && echo "${_tempDirectory}/${1}" || echo "${_tempDirectory}"
 }
@@ -161,6 +155,9 @@ version() {
     local projectDir="${1}"
     local verbose="${2:-}"
     local projectName="$(basename ${projectDir})"
+
+
+
     local pkgFile="${projectDir}/rayvn.pkg"
     (
         require 'rayvn/safe-env'
@@ -453,19 +450,6 @@ printStack() {
         (( i == ${start} )) && function="$(ansi red ${function})" || function="$(ansi blue ${function})"
         echo "   ${function}() ${script}:${line} ${arrow} ${called}()"
     done
-}
-
-logEnvironment() {
-    local envName="${1}"
-    local file="${2}"
-    (
-        printf "%s\n\n" "#!/usr/bin/env bash"
-        printf "# %s\n\n" "Environment: ${envName}. @ $(timeStamp)"
-        printf "# %s\n\n" '--- VARIABLES --------------'
-        declare -p
-        printf "\n\n# %s\n\n" '--- FUNCTIONS ---------------'
-        declare -f
-    ) > "${file}"
 }
 
 assertionFailed() {
