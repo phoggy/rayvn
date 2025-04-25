@@ -288,9 +288,9 @@ testRayvnUp() {
     assertHashTableIsDefined '_rayvnProjects'
     assertHashKeyIsNotDefined '_rayvnProjects' 'foobar'
     assertHashKeyIsDefined '_rayvnProjects' 'rayvn::project'
-    assertHashKeyIsDefined '_rayvnProjects' 'rayvn::libraries'
+    assertHashKeyIsDefined '_rayvnProjects' 'rayvn::library'
     assertHashValue '_rayvnProjects' 'rayvn::project' "${rayvnInstallHome}"
-    assertHashValue '_rayvnProjects' 'rayvn::libraries' "${rayvnInstallHome}/lib"
+    assertHashValue '_rayvnProjects' 'rayvn::library' "${rayvnInstallHome}/lib"
 
 
     # And that counts are as expected

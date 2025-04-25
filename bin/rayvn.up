@@ -9,8 +9,6 @@ declare -grx rayvnPkgFileName='rayvn.pkg'
 declare -gxA _rayvnProjects=()
 declare -grx _projectRootSuffix='::project'
 declare -grx _libraryRootSuffix='::library'
-declare -grx _versionSuffix='::version'
-declare -grx _releaseDateSuffix='::releaseDate'
 declare -gxAi _rayvnRequireCounts=()
 
 require() {
@@ -57,15 +55,14 @@ require() {
 
         shift
     done
-
     return 0
 }
 
 # bashsupport disable=BP3002
 _configure() {
-    local keySuffix projectName projectRoot key executable path packageFile
+    local keySuffix projectName projectRoot key executable path libraryRoot
 
-    _addRoot() {
+    addRoot() {
         projectName="${1}"
         keySuffix="${2}"
         projectRoot="${3}"
@@ -78,60 +75,46 @@ _configure() {
         [[ ${keySuffix} == "${_projectRootSuffix}" ]] &&  declare -grx "${projectName}Home"="${projectRoot}"
     }
 
-    _addProjectFromExecutable() {
+    addProjectFromExecutable() {
         projectName="${1}"
         executable="${2}"
         path="$(type -p ${executable})" || fail "'${executable}' not found for project '${projectName}'"
         path="$(realpath "${path}")" || fail # handle symlinks, e.g. brew style
         projectRoot="$(dirname ${path})/.."
-        _addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+        addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
     }
 
-    # bashsupport disable=BP3002
-    _addPackage() {
-        projectName="${1}"
-        packageFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/${rayvnPkgFileName}"
-        sourceSafeStaticVars "${packageFile}" project
-
-        # Add version and release date
-
-        _rayvnProjects["${projectName}${_versionSuffix}"]="${projectVersion}"
-        _rayvnProjects["${projectName}${_releaseDateSuffix}"]="${projectReleaseDate}"
-
-        # Add the library project root if needed
-
-        if [[ ${projectName} != rayvn && ${projectLibraries} ]]; then
-            projectRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/${projectLibraries}"
-            _addRoot "${projectName}" ${_libraryRootSuffix}  "${projectRoot}"
-        fi
-
-        unset projectName projectVersion projectReleaseDate projectLibraries projectBinaries
-    }
-
-    _addProject() {
+    addProject() {
         projectName="${1}"
         projectRoot="${2}"
-        if [[ -e ${projectRoot} ]]; then
-            _addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
+
+        # Add project root
+
+        if [[ -d ${projectRoot} ]]; then
+            addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
         else
-            _addProjectFromExecutable ${projectName} "${projectRoot}"
+            addProjectFromExecutable ${projectName} "${projectRoot}"
         fi
-        _addPackage "${projectName}"
+
+        # Add library root if it exists
+
+        libraryRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/lib"
+        if [[ -d "${libraryRoot}" ]]; then
+            addRoot "${projectName}" ${_libraryRootSuffix} "${libraryRoot}"
+        fi
     }
 
-    # Add rayvn
+    # Add rayvn using *our* path to ensure we do not find a different install.
+    # This is important when this file is sourced using a file path.
 
-    _addProjectFromExecutable rayvn rayvn.up
-    _addRoot rayvn ${_libraryRootSuffix} "${_rayvnProjects[rayvn${_projectRootSuffix}]}/lib"
-    require 'rayvn/safe-env'
-    _addPackage rayvn
+    addProject rayvn "$(dirname ${BASH_SOURCE[0]})/.."
 
     # Now, process arguments in two passes: add projects, then load any required libraries
 
     local required=()
     while (( ${#} > 0 )); do
         case "${1}" in
-            -a | --add) shift; _addProject "${1%%=*}" "${1#*=}";;
+            -a | --add) shift; addProject "${1%%=*}" "${1#*=}";;
             *) required+=("${1}") ;;
         esac
         shift

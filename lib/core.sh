@@ -152,16 +152,12 @@ addExitHandler() {
 }
 
 version() {
-    local projectDir="${1}"
+    local projectName="${1}"
     local verbose="${2:-}"
-    local projectName="$(basename ${projectDir})"
-
-
-
-    local pkgFile="${projectDir}/rayvn.pkg"
+    local pkgFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/rayvn.pkg"
     (
         require 'rayvn/safe-env'
-        sourceSafeStaticVars "${pkgFile}"
+        sourceSafeStaticVars "${pkgFile}" project
         if [[ ${projectReleaseDate} ]]; then
             [[ ${verbose} ]] && description=" (released ${projectReleaseDate})"
         else
