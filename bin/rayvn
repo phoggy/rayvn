@@ -70,7 +70,7 @@ init() {
         usage
     fi
 
-    debug "action: ${action}"
+    debug "action: " ${action}
 }
 
 runAllTests() {
@@ -235,8 +235,8 @@ createProjectFile() {
     echo
 }
 
-# Boot rayvn and load rayvn/debug
-source rayvn.up 'rayvn/debug'
+# Boot rayvn and load core and debug
+source rayvn.up 'rayvn/core' 'rayvn/debug'
 
 main "${@}"
 

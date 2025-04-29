@@ -4,12 +4,10 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-declare -grx rayvnPkgFileName='rayvn.pkg'
-
-declare -gxA _rayvnProjects=()
-declare -grx _projectRootSuffix='::project'
-declare -grx _libraryRootSuffix='::library'
-declare -gxAi _rayvnRequireCounts=()
+declare -gA _rayvnProjects=()
+declare -gAi _rayvnRequireCounts=()
+declare -gr _projectRootSuffix='::project'
+declare -gr _libraryRootSuffix='::library'
 
 require() {
      while (( ${#} > 0 )); do
@@ -20,17 +18,17 @@ require() {
 
         # Keep a count of requests for this project
 
-        (( _rayvnRequireCounts[${projectName}]++ ))
+        (( _rayvnRequireCounts["${projectName}"]+=1 )) # under errexit, using ++ fails but +=1 does not
 
         # Have we previously loaded this library?
 
-        if [[ ! ${_rayvnRequireCounts[${libraryKey}]} ]]; then
+        if [[ ! -v ${_rayvnRequireCounts[${libraryKey}]} ]]; then
 
             # Nope, validate the request
 
             local libraryRootKey="${projectName}${_libraryRootSuffix}"
             local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
-            [[ ${libraryRoot} ]] || fail "no libraries configured for rayvn project '${projectName}'"
+            [[ ${libraryRoot} ]] || fail "require '${qualifiedName}': no library root configured for rayvn project '${projectName}'"
 
             local libraryFile="${libraryRoot}/${libraryName}.sh"
             [[ -f ${libraryFile} ]] || fail "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
@@ -44,14 +42,14 @@ require() {
             # Call its init function, if present
 
             local initFunction="init_${projectName}_${libraryName}"
-            if [[ $(type -t ${initFunction}) == function ]]; then
+            if [[ $(type -t "${initFunction}") == function ]]; then
                 ${initFunction} || fail "${initFunction}() failed"
             fi
         fi
 
         # Count the request
 
-        (( _rayvnRequireCounts[${libraryKey}]++ ))
+        (( _rayvnRequireCounts["${libraryKey}"]+=1 )) # under errexit, using ++ fails but +=1 does not
 
         shift
     done
@@ -72,15 +70,16 @@ _configure() {
         _rayvnProjects[${key}]="${projectRoot}"
 
         # Define a ${project}Home var for project self reference
-        [[ ${keySuffix} == "${_projectRootSuffix}" ]] &&  declare -grx "${projectName}Home"="${projectRoot}"
+        [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName}Home"="${projectRoot}"
+        return 0
     }
 
     addProjectFromExecutable() {
         projectName="${1}"
         executable="${2}"
-        path="$(type -p ${executable})" || fail "'${executable}' not found for project '${projectName}'"
+        path="$(type -p "${executable}")" || fail "'${executable}' not found for project '${projectName}'"
         path="$(realpath "${path}")" || fail # handle symlinks, e.g. brew style
-        projectRoot="$(dirname ${path})/.."
+        projectRoot="$(dirname "${path}")/.."
         addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
     }
 
@@ -93,7 +92,7 @@ _configure() {
         if [[ -d ${projectRoot} ]]; then
             addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
         else
-            addProjectFromExecutable ${projectName} "${projectRoot}"
+            addProjectFromExecutable "${projectName}" "${projectRoot}"
         fi
 
         # Add library root if it exists
@@ -107,7 +106,7 @@ _configure() {
     # Add rayvn using *our* path to ensure we do not find a different install.
     # This is important when this file is sourced using a file path.
 
-    addProject rayvn "$(dirname ${BASH_SOURCE[0]})/.."
+    addProject rayvn "$(dirname "${BASH_SOURCE[0]}")/.."
 
     # Now, process arguments in two passes: add projects, then load any required libraries
 
@@ -120,7 +119,7 @@ _configure() {
         shift
     done
     for (( i=0; i < ${#required[@]}; i++ )); do
-            require "${required[i]}"
+        require "${required[i]}"
     done
 
     # Lock down the map and ensure it is both global and exported
@@ -134,7 +133,31 @@ _configure() {
 
 # This function will be replaced when rayvn/core is loaded
 
-fail() { echo "${@}"; exit 1; }
+fail() { printStack "${*}"; exit 1; }
+
+# And so will this one
+
+printStack() {
+    local caller=${FUNCNAME[1]}
+    declare -i start=1
+    declare -i depth=${#FUNCNAME[@]}
+    local indent='    '
+    (( depth - start == 1 )) && indent=''
+    [[ ${1} ]] && { echo "${*}"; echo; }
+    for ((i = start; i < depth; i++)); do
+        echo "${indent}${FUNCNAME[${i}]} ${BASH_SOURCE[${i}]}:${BASH_LINENO[${i} - 1]} -> ${FUNCNAME[${i} - 1]}()"
+    done
+}
+
+_onUncaughtError() {
+    echo
+    printStack
+}
+
+set -o errexit
+set -o pipefail
+set -o errtrace
+trap _onUncaughtError ERR
 
 # Configure and then remove the function
 

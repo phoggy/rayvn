@@ -5,16 +5,19 @@
 
 require 'rayvn/core'
 
+declare -gxi _debug=0
+declare -gx _debugOut=log
+declare -gx _showLogOnExit=false
+
 isDebug() {
-    [[ ${_debug} ]]
+    (( _debug ))
 }
 
 setDebug() {
-    declare -grx _debug=true
-    declare -gx _debugOut=log
-    declare -gx _showLogOnExit=false
     local clearLog=false
     local status=true
+
+    _debug=1
 
     while (( ${#} > 0 )); do
         case "${1}" in
@@ -36,6 +39,105 @@ setDebug() {
     addExitHandler _debugExit
 
     [[ ${status} == true ]] && debugStatus
+}
+
+debugDir() {
+    (( _debug )) && echo "${_debugDir}"; return 0
+}
+
+debugStatus() {
+    if (( _debug )); then
+        if [[ ${_debugOut} == log ]]; then
+            local show=
+            [[ ${_showLogOnExit} ]] && show=" $(ansi dim [show on exit])"
+            echo "$(ansi italic_cyan debug enabled) -> $(ansi blue "${_debugLogFile}")${show}"
+        else
+            echo "$(ansi italic_cyan debug enabled) -> terminal"
+        fi
+    fi
+}
+
+debug() {
+    (( _debug )) && echo "${@}" >&3; return 0
+}
+
+debugVars() {
+    (( _debug )) && declare -p "${@}" >&3; return 0
+}
+
+debugVarIsSet() {
+    if (( _debug )); then
+        local var="${1}"
+        local prefix="${2}"
+        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
+        (
+            echo -n "${prefix}$(ansi blue expect \'${var}\' is set -\>) "
+            if _varIsSet ${var}; then
+                declare -p ${var}
+            else
+                echo "$(ansi red NOT SET!)"
+                printStack
+                echo
+            fi
+        ) >&3
+    fi
+}
+
+debugVarIsNotSet() {
+    if (( _debug )); then
+        local var="${1}"
+        local prefix="${2}"
+        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
+        (
+            local var="${1}"
+            echo -n "${prefix}$(ansi blue expect \'${var}\' is not set -\>) "
+            if _varIsSet ${var}; then
+                echo "$(ansi red=${!var})"
+                printStack
+                echo
+            else
+                echo "not set"
+            fi
+        ) >&3
+    fi
+}
+
+debugFile() {
+    if (( _debug )); then
+        local sourceFile="${1}"
+        local fileName="${2:-$(baseName ${sourceFile})}"
+        local destFile="${_debugDir}/${fileName}"
+        cp "${sourceFile}" "${destFile}"
+        debug "Added file ${destFile}"
+    fi
+}
+
+debugJson() {
+    if (( _debug )); then
+        local -n json="${1}"
+        local fileName="${2}"
+        local destFile="${_debugDir}/${fileName}.json"
+        debug "created ${destFile}"
+        echo "${json}" > "${destFile}"
+    fi
+}
+
+debugEnvironment() {
+    if (( _debug )); then
+        local fileName="${1}.env"
+        local destFile="${_debugDir}/${fileName}"
+        (
+            printf "%s\n\n" '--- VARIABLES --------------'
+            declare -p
+            printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
+            declare -f
+        ) > "${destFile}"
+        debug "Wrote ${fileName} to ${destFile}"
+    fi
+}
+
+_varIsSet() {
+    declare -p "${1}" &> /dev/null
 }
 
 _prepareLogFile() {
@@ -103,107 +205,3 @@ _printDebugLog() {
         } > ${terminal}
     fi
 }
-
-debugDir() {
-    if [[ ${_debug} ]]; then
-        echo "${_debugDir}"
-    fi
-}
-
-debugStatus() {
-    if [[ ${_debug} ]]; then
-        if [[ ${_debugOut} == log ]]; then
-            local show=
-            [[ ${_showLogOnExit} ]] && show=" $(ansi dim [show on exit])"
-            echo "$(ansi italic_cyan debug enabled) -> $(ansi blue ${_debugLogFile})${show}"
-        else
-            echo "$(ansi italic_cyan debug enabled) -> terminal"
-        fi
-    fi
-}
-
-debug() {
-    [[ ${_debug} ]] && echo "${@}" >&3
-}
-
-debugVars() {
-    if [[ ${_debug} ]]; then
-        declare -p "${@}" >&3
-    fi
-}
-
-debugVarIsSet() {
-    if [[ ${_debug} ]]; then
-        local var="${1}"
-        local prefix="${2}"
-        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
-        (
-            echo -n "${prefix}$(ansi blue expect \'${var}\' is set -\>) "
-            if _varIsSet ${var}; then
-                declare -p ${var}
-            else
-                echo "$(ansi red NOT SET!)"
-                printStack
-                echo
-            fi
-        ) >&3
-    fi
-}
-
-_varIsSet() {
-    declare -p "${1}" &> /dev/null
-}
-
-debugVarIsNotSet() {
-    if [[ ${_debug} ]]; then
-        local var="${1}"
-        local prefix="${2}"
-        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
-        (
-            local var="${1}"
-            echo -n "${prefix}$(ansi blue expect \'${var}\' is not set -\>) "
-            if _varIsSet ${var}; then
-                echo "$(ansi red=${!var})"
-                printStack
-                echo
-            else
-                echo "not set"
-            fi
-        ) >&3
-    fi
-}
-
-debugFile() {
-    if [[ ${_debug} ]]; then
-        local sourceFile="${1}"
-        local fileName="${2:-$(baseName ${sourceFile})}"
-        local destFile="${_debugDir}/${fileName}"
-        cp "${sourceFile}" "${destFile}"
-        debug "Added file ${destFile}"
-    fi
-}
-
-debugJson() {
-    if [[ ${_debug} ]]; then
-        local -n json="${1}"
-        local fileName="${2}"
-        local destFile="${_debugDir}/${fileName}.json"
-        debug "created ${destFile}"
-        echo "${json}" > "${destFile}"
-    fi
-}
-
-debugEnvironment() {
-    if [[ ${_debug} ]]; then
-        local fileName="${1}.env"
-        local destFile="${_debugDir}/${fileName}"
-        (
-            printf "%s\n\n" '--- VARIABLES --------------'
-            declare -p
-            printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
-            declare -f
-        ) > "${destFile}"
-        debug "Wrote ${fileName} to ${destFile}"
-    fi
-}
-

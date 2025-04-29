@@ -110,7 +110,7 @@ rootDirPath() {
 }
 
 tempDirPath() {
-    [[ ${1} ]] && echo "${_tempDirectory}/${1}" || echo "${_tempDirectory}"
+    [[ ${1} ]] && echo "${_rayvnTempDir}/${1}" || echo "${_rayvnTempDir}"
 }
 
 makeDir() {
@@ -135,9 +135,9 @@ _resetTerminal() {
 _onExit() {
     [[ ${terminal} ]] && echo
     _resetTerminal
-    if [[ ${_tempDirectory} ]]; then
+    if [[ ${_rayvnTempDir} ]]; then
         # The "--" option below stops option parsing and allows filenames starting with "-"
-        rm -rf -- "${_tempDirectory}"
+        rm -rf -- "${_rayvnTempDir}"
     fi
 }
 
@@ -436,27 +436,26 @@ printStack() {
         [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
 
-    echo
-    for ((i = ${start}; i < ${depth}; i++)); do
+    [[ ${1} ]] && { error "${*}"; echo; }
+
+    for ((i = start; i < depth; i++)); do
         local function="${FUNCNAME[${i}]}"
         local line="$(ansi bold_blue ${BASH_LINENO[${i} - 1]})"
         local arrow="$(ansi cyan -\>)"
         local called=${FUNCNAME[${i} - 1]}
-        local script="$(ansi dim ${BASH_SOURCE[${i}]})"
-        (( i == ${start} )) && function="$(ansi red ${function})" || function="$(ansi blue ${function})"
-        echo "   ${function}() ${script}:${line} ${arrow} ${called}()"
+        local script="$(ansi dim "${BASH_SOURCE[${i}]}")"
+        (( i == start )) && function="$(ansi red ${function}\(\))" || function="$(ansi blue ${function}\(\))"
+        echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
 }
 
 assertionFailed() {
-    [[ ${1} ]] && error "${*}"
-    printStack
+    printStack "${*}"
     exit 1
 }
 
 fail() {
-    [[ ${1} ]] && error "${*}"
-    printStack
+    printStack "${*}"
     exit 1
 }
 
@@ -470,4 +469,6 @@ init_rayvn_core() {
     assertBashVersion 5
 }
 
-declare -grx _tempDirectory="$(mktemp -d)" || fail "could not create temp directory"
+if ! declare -p _rayvnTempDir 2> /dev/null; then
+    declare -grx _rayvnTempDir="$(mktemp -d)" || fail "could not create temp directory"
+fi
