@@ -129,6 +129,15 @@ _configure() {
     # Prevent the require function from being replaced
 
     declare -rf require
+
+    # Disable and warn if any 'Unofficial Strict Mode' options are set
+
+    if [[ -o errexit || -o pipefail || -o nounset ]]; then
+        set +o errexit
+        set +o pipefail
+        set +o nounset
+        echo "errexit, pipefail and nounset have been disabled, see https://www.reddit.com/r/bash/comments/mivbcm/comment/gt8harr/"
+    fi
 }
 
 # This function will be replaced when rayvn/core is loaded
@@ -148,16 +157,6 @@ printStack() {
         echo "${indent}${FUNCNAME[${i}]} ${BASH_SOURCE[${i}]}:${BASH_LINENO[${i} - 1]} -> ${FUNCNAME[${i} - 1]}()"
     done
 }
-
-_onUncaughtError() {
-    echo
-    printStack
-}
-
-set -o errexit
-set -o pipefail
-set -o errtrace
-trap _onUncaughtError ERR
 
 # Configure and then remove the function
 

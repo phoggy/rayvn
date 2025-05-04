@@ -432,7 +432,7 @@ printStack() {
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
 
-    if (( ${depth} > 2 )); then
+    if (( depth > 2 )); then
         [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
 
@@ -469,6 +469,6 @@ init_rayvn_core() {
     assertBashVersion 5
 }
 
-if ! declare -p _rayvnTempDir 2> /dev/null; then
+if ! declare -p _rayvnTempDir &> /dev/null; then
     declare -grx _rayvnTempDir="$(mktemp -d)" || fail "could not create temp directory"
 fi
