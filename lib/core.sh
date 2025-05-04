@@ -444,7 +444,7 @@ printStack() {
         local arrow="$(ansi cyan -\>)"
         local called=${FUNCNAME[${i} - 1]}
         local script="$(ansi dim "${BASH_SOURCE[${i}]}")"
-        (( i == start )) && function="$(ansi red ${function}\(\))" || function="$(ansi blue ${function}\(\))"
+        (( i == start )) && function="$(ansi red "${function}"\(\))" || function="$(ansi blue "${function}"\(\))"
         echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
 }
