@@ -66,6 +66,10 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         declare -grx _checkMark="✔"
         declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
 
+        # Ensure debug flag is set and turned off
+
+        declare -gxi _debug=0
+
     elif [[ ${RAYVN_NO_TERMINAL} == true ]]; then
 
         # No terminal, so ensure we define terminal as empty.
@@ -210,6 +214,26 @@ assertExecutables() {
             _assertExecutable "${name%_version}" "${dependenciesVarName}"
         fi
     done
+}
+
+assertValidFileName() {
+    local name="${1}"
+    declare -p name
+    # Reject empty, ".", or ".."
+    [[ -z ${name} || ${name} == "." || ${name} == ".." ]] && \
+        fail "Invalid filename: '${name}' is reserved or empty"
+
+    # Reject slash
+    [[ ${name} == *"/"* ]] && \
+        fail "Invalid filename: '${name}' contains forbidden character '/'"
+
+    # Reject control characters
+    [[ ${name} =~ [[:cntrl:]] ]] && \
+        fail "Invalid filename: '${name}' contains control characters"
+
+    # Reject reserved characters (Windows-unsafe or problematic cross-platform)
+    [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] && \
+        fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
 }
 
 versionExtract() {
@@ -472,3 +496,26 @@ init_rayvn_core() {
 if ! declare -p _rayvnTempDir &> /dev/null; then
     declare -grx _rayvnTempDir="$(mktemp -d)" || fail "could not create temp directory"
 fi
+
+# Debug control functions
+
+isDebug() {
+    (( _debug ))
+}
+
+setDebug() {
+    require 'rayvn/debug'
+    _setDebug "${@}"
+}
+
+# Placeholder debug functions, replaced in setDebug()
+
+debug() { :; }
+debugDir() { :; }
+debugEnvironment() { :; }
+debugFile() { :; }
+debugJson() { :; }
+debugStatus() { :; }
+debugVarIsNotSet() { :; }
+debugVarIsSet() { :; }
+debugVars() { :; }

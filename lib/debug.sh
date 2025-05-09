@@ -5,40 +5,13 @@
 
 require 'rayvn/core'
 
-declare -gxi _debug=0
-declare -gx _debugOut=log
-declare -gx _showLogOnExit=false
+# IMPORTANT!
+#
+# Each of the following public functions MUST have a corresponding NO-OP declaration
+# within core. If you add a new function here, add a NO-OP at the bottom of core.sh
 
-isDebug() {
-    (( _debug ))
-}
-
-setDebug() {
-    local clearLog=false
-    local status=true
-
-    _debug=1
-
-    while (( ${#} > 0 )); do
-        case "${1}" in
-            noLog) _debugOut=terminal ;;
-            showOnExit) _showLogOnExit=true ;;
-            clearLog) clearLog=true ;;
-            noStatus) status=false ;;
-            *) fail "Unknown setDebug() option: ${1}" ;;
-        esac
-        shift
-    done
-
-    if [[ ${_debugOut} == terminal ]]; then
-        exec 3>> "${terminal}"
-    else
-        _prepareLogFile "${clearLog}"
-    fi
-
-    addExitHandler _debugExit
-
-    [[ ${status} == true ]] && debugStatus
+debug() {
+    (( _debug )) && echo "${@}" >&3; return 0
 }
 
 debugDir() {
@@ -57,12 +30,8 @@ debugStatus() {
     fi
 }
 
-debug() {
-    (( _debug )) && echo "${@}" >&3; return 0
-}
-
 debugVars() {
-    (( _debug )) && declare -p "${@}" >&3; return 0
+    (( _debug )) && declare -p "${@}" >&3 2> /dev/null; return 0
 }
 
 debugVarIsSet() {
@@ -134,6 +103,39 @@ debugEnvironment() {
         ) > "${destFile}"
         debug "Wrote ${fileName} to ${destFile}"
     fi
+}
+
+## private data and functions ----------------------------------------
+
+declare -gx _debugOut=log
+declare -gx _showLogOnExit=false
+
+_setDebug() {
+    local clearLog=false
+    local status=true
+
+    _debug=1
+
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            noLog) _debugOut=terminal ;;
+            showOnExit) _showLogOnExit=true ;;
+            clearLog) clearLog=true ;;
+            noStatus) status=false ;;
+            *) fail "Unknown setDebug() option: ${1}" ;;
+        esac
+        shift
+    done
+
+    if [[ ${_debugOut} == terminal ]]; then
+        exec 3>> "${terminal}"
+    else
+        _prepareLogFile "${clearLog}"
+    fi
+
+    addExitHandler _debugExit
+
+    [[ ${status} == true ]] && debugStatus
 }
 
 _varIsSet() {
