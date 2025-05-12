@@ -155,7 +155,7 @@ addExitHandler() {
     trap -- "${newCommand}" EXIT
 }
 
-version() {
+projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
     local pkgFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/rayvn.pkg"

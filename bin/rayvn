@@ -59,8 +59,8 @@ init() {
             --debug-new) setDebug clearLog showOnExit ;;
             --debug-out) setDebug noLog ;;
             -h | --help) usage ;;
-            -v) version rayvn; exit 0 ;;
-            --version) version rayvn true; exit 0 ;;
+            -v) projectVersion rayvn; exit 0 ;;
+            --version) projectVersion rayvn true; exit 0 ;;
             *) usage "Unknown option: ${1}" ;;
         esac
         shift
