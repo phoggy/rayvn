@@ -108,6 +108,35 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx CORE_GLOBALS_DECLARED=true
 fi
 
+allNewFilesUserOnly() {
+    # Ensure that all new files are accessible by the current user only
+    umask 0077
+}
+
+withDefaultUmask() {
+    withUmask 0022 "${@}"
+}
+
+withUmask() {
+    local newUmask="${1}"
+    local oldUmask status
+    shift
+
+    # Save umask and set to new
+
+    oldUmask="$(umask)"
+    umask "${newUmask}"
+
+    # execute the command and save the status
+
+    "${@}"
+    status=${?}
+
+    # Restore the original umask and return command status
+    umask "${oldUmask}"
+    return "${status}"
+}
+
 rootDirPath() {
     echo "${rayvnRootDir}/${1}"
 }
