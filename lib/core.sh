@@ -114,7 +114,12 @@ rootDirPath() {
 }
 
 tempDirPath() {
-    [[ ${1} ]] && echo "${_rayvnTempDir}/${1}" || echo "${_rayvnTempDir}"
+    local fileName="${1:-}"
+    if [[ -z ${_rayvnTempDir:-} ]]; then
+        declare -grx _rayvnTempDir="$(mktemp -d)" || fail "could not create temp directory"
+        chmod 700 "${_rayvnTempDir}" || fail "chmod failed for rayvn temp directory"
+    fi
+    [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
 makeDir() {
@@ -492,10 +497,6 @@ bye() {
 init_rayvn_core() {
     assertBashVersion 5
 }
-
-if ! declare -p _rayvnTempDir &> /dev/null; then
-    declare -grx _rayvnTempDir="$(mktemp -d)" || fail "could not create temp directory"
-fi
 
 # Debug control functions
 

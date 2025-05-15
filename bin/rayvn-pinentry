@@ -121,7 +121,7 @@ onGetPin() {
     if [[ ${proxyPath} ]]; then
         getProxyPin
     else
-        getSagePin
+        getPin
     fi
     resetRequestState
 }
@@ -141,7 +141,7 @@ getProxyPin() {
     fi
 }
 
-getSagePin() {
+getPin() {
     local p1 p2
     describe "${description}"
     readPassword "${mainPrompt}" p1 ${timeout} true
