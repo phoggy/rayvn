@@ -41,7 +41,7 @@ require() {
 
             # Call its init function, if present
 
-            local initFunction="init_${projectName}_${libraryName}"
+            local initFunction="_init_${projectName}_${libraryName}"
             if [[ $(type -t "${initFunction}") == function ]]; then
                 ${initFunction} || fail "${initFunction}() failed"
             fi

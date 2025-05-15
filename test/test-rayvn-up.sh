@@ -262,7 +262,7 @@ testRayvnUp() {
 
     _assertFunctionIsNotDefined 'rootDirPath'
     _assertFunctionIsNotDefined 'tempDirPath'
-    _assertFunctionIsNotDefined 'init_rayvn_core'
+    _assertFunctionIsNotDefined '_init_rayvn_core'
 
     # Ensure that functions from our test library are NOT present in this shell
 
@@ -303,7 +303,7 @@ testRayvnUp() {
 
     assertFunctionIsDefined 'rootDirPath'
     assertFunctionIsDefined 'tempDirPath'
-    assertFunctionIsDefined 'init_rayvn_core'
+    assertFunctionIsDefined '_init_rayvn_core'
 
     # Finally, restore PATH in case other test functions need it
 

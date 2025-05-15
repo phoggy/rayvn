@@ -6,7 +6,7 @@
 
 require 'rayvn/core'
 
-init_rayvn_spinner() {
+_init_rayvn_spinner() {
     configureSpinner
 }
 
@@ -88,7 +88,7 @@ _ensureStopOnExit() {
     fi
 }
 
-_initSpinner() {
+_init_Spinner() {
     [[ ${spinnerArraySize} ]] || configureSpinner
     tput civis
     spinnerIndex=0
@@ -104,7 +104,7 @@ _beginSpin() {
     [[ ${1} ]] && echo -n "${1}"
     saveCursor
     printf ' '
-    _initSpinner
+    _init_Spinner
 }
 
 _nextSpin() {

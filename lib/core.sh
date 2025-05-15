@@ -12,7 +12,6 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx macOS=$( [[ ${osName} == Darwin ]] && echo true )
     declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
-    declare -grx pinEntryProgram="${rayvnRootDir}/bin/rayvn-pinentry"
 
     # Are stdout and stderr both terminals?
 
@@ -333,14 +332,6 @@ _setFileSystemVar() {
     resultVar="${realFile}"
 }
 
-useRayvnPinEntry() {
-    declare -gx PINENTRY_PROGRAM="${pinEntryProgram}"
-}
-
-disableRayvnPinEntry() {
-    unset PINENTRY_PROGRAM
-}
-
 timeStamp() {
     date "+%Y-%m-%d_%H.%M.%S_%Z"
 }
@@ -442,11 +433,11 @@ print() {
 }
 
 warn() {
-    print "⚠️ $(ansi yellow "${*}")"
+    print "⚠️ $(ansi yellow "${*}")" >&2
 }
 
 error() {
-    print "🔺 $(ansi red "${*}")"
+    print "🔺 $(ansi red "${*}")" >&2
 }
 
 redStream() {
@@ -494,7 +485,7 @@ bye() {
     exit 0
 }
 
-init_rayvn_core() {
+_init_rayvn_core() {
     assertBashVersion 5
 }
 
