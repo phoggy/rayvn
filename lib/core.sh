@@ -369,6 +369,20 @@ epochSeconds() {
     date +%s
 }
 
+secureEraseVars() {
+    local varName value length
+    while (( ${#} > 0 )); do
+        varName="${1}"
+        if [[ -n ${!varName+x} ]]; then
+            value="${!varName}"
+            length="${#value}"
+            printf -v "${varName}" '%*s' "${length}" ''
+            unset "${varName}"
+        fi
+        shift
+    done
+}
+
 saveCursor() {
     assertTerminal
     tput sc
@@ -441,7 +455,7 @@ printRepeat() {
 
 printVars() {
     (
-        while ((${#} > 0)); do
+        while (( ${#} > 0 )); do
             local var=${1}
             if declare -p ${var} &> /dev/null; then
                 declare -p ${var}
