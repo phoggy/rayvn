@@ -20,9 +20,12 @@ init() {
         declare -grx tempDir="$(tempDirPath)"
     fi
 
-    declare -grx evilEnvFilePath="${tempDir}/evil.env"
-    declare -grx safeEnvFilePath="${tempDir}/safe.env"
-    declare -grx safeFilteredEnvFilePath="${tempDir}/safe-filtered.env"
+# TODO     declare -grx evilEnvFilePath="${tempDir}/evil.env"
+# TODO declare -grx safeEnvFilePath="${tempDir}/safe.env"
+# TODO declare -grx safeFilteredEnvFilePath="${tempDir}/safe-filtered.env"
+    declare -grx evilEnvFilePath="${HOME}/evil.env"
+    declare -grx safeEnvFilePath="${HOME}/safe.env"
+    declare -grx safeFilteredEnvFilePath="${HOME}/safe-filtered.env"
 
     # Create evil file and var
 
@@ -154,8 +157,8 @@ testSourceSafeStaticVarsWithoutFilter() {
         assertVarIsNotDefined projectName
         assertVarIsNotDefined projectVersion
         assertVarIsNotDefined projectReleaseDate
-        assertVarIsNotDefined projectHasLibraries
         assertVarIsNotDefined projectBinaries
+        assertHashTableIsNotDefined projectDependencies
 
         assertVarIsNotDefined projectHasNoSuchVariable
 
@@ -187,8 +190,12 @@ testSourceSafeStaticVarsWithoutFilter() {
         assertVarIsDefined projectName
         assertVarIsDefined projectVersion
         assertVarIsDefined projectReleaseDate
-        assertVarIsDefined projectHasLibraries
         assertVarIsDefined projectBinaries
+ declare -p projectDependencies
+        assertHashTableIsDefined projectDependencies
+        assertHashValue projectDependencies 'awk_min' '20250116'
+        assertHashValue projectDependencies 'awk_brew' 'true'
+        assertHashValue projectDependencies 'awk_version' 'versionExtractA'
 
         assertVarIsDefined projectHasNoSuchVariable
 
@@ -219,8 +226,8 @@ testSourceSafeStaticVarsWithFilter() {
         assertVarIsNotDefined projectName
         assertVarIsNotDefined projectVersion
         assertVarIsNotDefined projectReleaseDate
-        assertVarIsNotDefined projectHasLibraries
         assertVarIsNotDefined projectBinaries
+        assertHashTableIsNotDefined projectDependencies
 
         assertVarIsNotDefined projectHasNoSuchVariable
 
@@ -252,8 +259,12 @@ testSourceSafeStaticVarsWithFilter() {
         assertVarIsDefined projectName
         assertVarIsDefined projectVersion
         assertVarIsDefined projectReleaseDate
-        assertVarIsDefined projectHasLibraries
         assertVarIsDefined projectBinaries
+declare -p projectDependencies
+        assertHashTableIsDefined projectDependencies
+        assertHashValue projectDependencies 'awk_min' '20250116'
+        assertHashValue projectDependencies 'awk_brew' true
+        assertHashValue projectDependencies 'awk_version' 'versionExtractA'
 
         assertVarIsDefined projectHasNoSuchVariable
 
@@ -270,6 +281,7 @@ testSourceSafeStaticVarsWithFilter() {
 
         assertVarIsNotDefined evilDirectoryVar
         assertVarIsNotDefined evilVar
+
     )
 }
 
@@ -287,8 +299,13 @@ _generateEvilEnv() {
 		projectName='foo'
 		projectVersion='0.1.0+'   # pre-release version
 		projectReleaseDate=''     # pre-release version
-		projectHasLibraries=false
 		projectBinaries=('foo')
+		declare -A projectDependencies=(
+			[awk_min]='20250116'
+			[awk_brew]=true
+			[awk_version]='versionExtractA'
+		)
+
 
 		# A similarly named var but is not expected
 
