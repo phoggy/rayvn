@@ -209,7 +209,7 @@ assertMinimumVersion() {
     local version="${2}"
     local targetName="${3}"
     local errorSuffix="${4}"
-    local lowest=$(printf '%s\n%s\n' "$version" "$minimum" | sort -V | head -n 1)
+    local lowest=$(printf '%s\n%s\n' "${version}" "${minimum}" | sort -V | head -n 1)
     [[ "${lowest}" != "${minimum}" ]] && assertionFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
     return 0
 }
@@ -284,6 +284,11 @@ versionExtractB() {
 versionExtractDash() {
     ${1} --version 2>&1 | tail -n 1 | cut -d'-' -f2
 }
+
+versionExtractExiftool() {
+    ${1} -ver 2>&1
+}
+
 
 _assertExecutable() {
     local executable="${1}"
