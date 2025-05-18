@@ -191,7 +191,6 @@ testSourceSafeStaticVarsWithoutFilter() {
         assertVarIsDefined projectVersion
         assertVarIsDefined projectReleaseDate
         assertVarIsDefined projectBinaries
- declare -p projectDependencies
         assertHashTableIsDefined projectDependencies
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' 'true'
@@ -260,7 +259,6 @@ testSourceSafeStaticVarsWithFilter() {
         assertVarIsDefined projectVersion
         assertVarIsDefined projectReleaseDate
         assertVarIsDefined projectBinaries
-declare -p projectDependencies
         assertHashTableIsDefined projectDependencies
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' true
@@ -300,7 +298,7 @@ _generateEvilEnv() {
 		projectVersion='0.1.0+'   # pre-release version
 		projectReleaseDate=''     # pre-release version
 		projectBinaries=('foo')
-		declare -A projectDependencies=(
+		declare -rA projectDependencies=(
 			[awk_min]='20250116'
 			[awk_brew]=true
 			[awk_version]='versionExtractA'

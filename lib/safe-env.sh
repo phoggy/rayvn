@@ -49,7 +49,7 @@ _extractSafeStaticVarsOnly() {
 
     _isVarDeclStart() {
         [[ "${1}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*= ]] || \
-        [[ "${1}" =~ ^[[:space:]]*declare[[:space:]]+-[aA]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*= ]]
+        [[ "${1}" =~ ^[[:space:]]*declare[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*[a-zA-Z_][a-zA-Z0-9_]*= ]]
     }
 
     _readInput() {
@@ -125,17 +125,18 @@ _extractSafeStaticVarsOnly() {
 # Convert raw array assignments (e.g., foo=(...)) to declare -g -a foo=(...)
 _globalizeDeclarations() {
     sed -E '
-        # If declare already includes -g, leave it alone
-        /declare[[:space:]]+(-[^[:space:]]*g[^[:space:]]*)/b
+        # If declare already contains -g (in any position), skip (no change)
+        /^(declare[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*)-g([a-zA-Z]*[[:space:]]+)?/b end
 
-        # If declare has any -options but no -g, add g to the option block
-        s/^(declare[[:space:]]+-[^[:space:]]*)/\1g/
+        # Add -g to existing flags
+        s/^(declare[[:space:]]+-)([a-zA-Z]+)([[:space:]]+)/\1g\2\3/
 
-        # If declare has no -options at all, add -g
+        # If no flags, insert -g after declare
         s/^(declare)([[:space:]]+)/\1 -g\2/
 
-        # Raw array assignment: foo=(...) → declare -g -a foo=(...)
-        # BUT only if not already a declare statement
+        :end
+
+        # Convert raw array assignment to declare -g -a
         /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\(/ {
             s/^([[:space:]]*)([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=\((.*)\)$/\1declare -g -a \2=(\3)/
         }
@@ -178,18 +179,26 @@ _filterStaticVarsByPrefix() {
 
         if (!collecting) {
             split(stripped, parts, "=")
-            var = parts[1]
+            raw = parts[1]
 
-            # Clean off leading declare/local/etc. and options
-            gsub(/^(declare|typeset|local|export)[ \t]+/, "", var)
-            gsub(/-[a-zA-Z]+[ \t]+/, "", var)
+            # Remove any declare/local/etc.
+            sub(/^(declare|typeset|local|export)[ \t]+/, "", raw)
+
+            # Find first non-flag token as var name
+            n = split(raw, tokens, /[ \t]+/)
+            for (i = 1; i <= n; i++) {
+                if (tokens[i] !~ /^-/) {
+                    var = tokens[i]
+                    break
+                }
+            }
 
             if (var ~ ("^" prefix)) {
                 collecting = 1
                 buffer = line
 
-                # Start tracking multiline declarations if line ends in open paren
-                if (line ~ /\([ \t]*$/ || line ~ /=\([ \t]*$/) {
+                # Detect multiline declaration opening
+                if (line ~ /=\([ \t]*$/ || line ~ /\([ \t]*$/) {
                     parens++
                 } else {
                     flush()
