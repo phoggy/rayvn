@@ -5,3 +5,8 @@ projectVersion='0.1.2+'
 projectReleaseDate=''
 projectBinaries=('rayvn' 'rayvn.up')
 
+declare -gA projectDependencies=(
+    [awk_min]='20250116'
+    [awk_brew]=true
+    [awk_version]='versionExtractA'
+)
