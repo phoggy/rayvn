@@ -39,38 +39,91 @@ usage() {
 
 main() {
     init "${@}"
-    case "${action}" in
-        test) runAllTests ;;
-        *) usage ;;
-    esac
+    for action in "${actions[@]}"; do
+        if declare -F "${action% *}" > /dev/null; then
+            ${action}
+        else
+            fail "${action} is not an available function"
+        fi
+    done
 }
 
 init() {
 
     # process arguments
 
-    action=
+    unset debugOptions
+    actions=()
+    roots=
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            test) action='test' ;;
-            deps) action='deps' ;;
-            --debug) setDebug showOnExit ;;
-            --debug-new) setDebug clearLog showOnExit ;;
-            --debug-out) setDebug noLog ;;
+            test) actions+=('runAllTests') ;;
+            libs) actions+=('withEachLibrary _printLibrary') ;;
+            deps) actions+=('assertDependencies') ;;
+            --add) shift; addRoot "${1}" ;;
+            --debug) debugOptions='showOnExit' ;;
+            --debug-new) debugOptions 'clearLog showOnExit' ;;
+            --debug-out) debugOptions='noLog' ;;
             -h | --help) usage ;;
             -v) projectVersion rayvn; exit 0 ;;
             --version) projectVersion rayvn true; exit 0 ;;
-            *) usage "Unknown option: ${1}" ;;
+            -*) usage "Unknown option: ${1}" ;;
+            *) actions+=("${1}")
         esac
         shift
     done
 
-    if [[ ! ${action} ]]; then
-        usage
-    fi
+    # Boot rayvn, adding any additional roots, then load core and debug
+    source rayvn.up ${roots} 'rayvn/core' 'rayvn/debug'
 
-    debug "action: " ${action}
+    [[ -v actions ]] || usage
+    [[ -v debugOptions ]] && setDebug ${debugOptions}
+
+    debug "actions: " ${actions}
+}
+
+addRoot() {
+    roots="${roots:+${roots} }--add ${1}"
+}
+
+assertDependencies() {
+    require 'rayvn/safe-env'
+    for key in "${!_rayvnProjects[@]}"; do
+        if [[ ${key} == *::project ]]; then
+            local name="${key%%::*}"
+            local pkgFile="${_rayvnProjects[${name}${_projectRootSuffix}]}/rayvn.pkg"
+            (
+                sourceSafeStaticVars "${pkgFile}" project
+                declare -p projectName projectVersion projectDependencies
+                if [[ -v projectDependencies ]]; then
+                    assertExecutables projectDependencies
+                fi
+            )
+        fi
+    done
+}
+
+withEachLibrary() {
+    for key in "${!_rayvnProjects[@]}"; do
+        if [[ ${key} == *::library ]]; then
+            local project="${key%%::*}"  # remove everything from :: onward
+            local libraryRoot="${_rayvnProjects[${key}]}"
+            for file in "${libraryRoot}"/*.sh; do
+                [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
+                local fileName="$(basename "${file}")"
+                local library="${fileName%.*}"
+                "${*}" "${project}" "${library}" "${file}"
+            done
+        fi
+    done
+}
+
+_printLibrary() {
+    local projectName="${1}"
+    local libraryName="${2}"
+    local libraryRoot="${3}"
+    echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
 runAllTests() {
@@ -235,12 +288,4 @@ createProjectFile() {
     echo
 }
 
-# Boot rayvn and load core and debug
-source rayvn.up 'rayvn/core' 'rayvn/debug'
-
 main "${@}"
-
-
-
-
-
