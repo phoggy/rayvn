@@ -111,13 +111,20 @@ _configure() {
     # Now, process arguments in two passes: add projects, then load any required libraries
 
     local required=()
+    local projects
+    local project
     while (( ${#} > 0 )); do
         case "${1}" in
-            -a | --add) shift; addProject "${1%%=*}" "${1#*=}";;
+            -a | --add) shift; IFS=',' read -r -a projects <<< "${1}" ;;
             *) required+=("${1}") ;;
         esac
         shift
     done
+
+    for project in "${projects[@]}"; do
+        addProject "${project%%=*}" "${project#*=}"
+    done
+
     for (( i=0; i < ${#required[@]}; i++ )); do
         require "${required[i]}"
     done

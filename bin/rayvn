@@ -54,14 +54,14 @@ init() {
 
     unset debugOptions
     actions=()
-    roots=
+    projects=
 
     while (( ${#} > 0 )); do
         case "${1}" in
             test) actions+=('runAllTests') ;;
             libs) actions+=('withEachLibrary _printLibrary') ;;
-            deps) actions+=('assertDependencies') ;;
-            --add) shift; addRoot "${1}" ;;
+            dependencies) actions+=('assertDependencies') ;;
+            --projects) shift; projects="--add ${1}" ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions 'clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
@@ -74,8 +74,8 @@ init() {
         shift
     done
 
-    # Boot rayvn, adding any additional roots, then load core and debug
-    source rayvn.up ${roots} 'rayvn/core' 'rayvn/debug'
+    # Boot rayvn, adding any additional projects, then load core and debug
+    source rayvn.up ${projects} 'rayvn/core' 'rayvn/debug'
 
     [[ -v actions ]] || usage
     [[ -v debugOptions ]] && setDebug ${debugOptions}
@@ -83,20 +83,16 @@ init() {
     debug "actions: " ${actions}
 }
 
-addRoot() {
-    roots="${roots:+${roots} }--add ${1}"
-}
-
 assertDependencies() {
-    require 'rayvn/safe-env'
+    require 'rayvn/safe-env' 'rayvn/dependencies'
     for key in "${!_rayvnProjects[@]}"; do
         if [[ ${key} == *::project ]]; then
             local name="${key%%::*}"
             local pkgFile="${_rayvnProjects[${name}${_projectRootSuffix}]}/rayvn.pkg"
             (
                 sourceSafeStaticVars "${pkgFile}" project
-                declare -p projectName projectVersion projectDependencies
-                if [[ -v projectDependencies ]]; then
+                if declare -p projectDependencies &> /dev/null; then
+                    echo "checking project '${name}' dependencies"
                     assertExecutables projectDependencies
                 fi
             )

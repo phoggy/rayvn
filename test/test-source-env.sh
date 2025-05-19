@@ -194,7 +194,7 @@ testSourceSafeStaticVarsWithoutFilter() {
         assertHashTableIsDefined projectDependencies
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' 'true'
-        assertHashValue projectDependencies 'awk_version' 'versionExtractA'
+        assertHashValue projectDependencies 'awk_extract' '2'
 
         assertVarIsDefined projectHasNoSuchVariable
 
@@ -262,7 +262,7 @@ testSourceSafeStaticVarsWithFilter() {
         assertHashTableIsDefined projectDependencies
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' true
-        assertHashValue projectDependencies 'awk_version' 'versionExtractA'
+        assertHashValue projectDependencies 'awk_extract' '2'
 
         assertVarIsDefined projectHasNoSuchVariable
 
@@ -301,7 +301,7 @@ _generateEvilEnv() {
 		declare -rA projectDependencies=(
 			[awk_min]='20250116'
 			[awk_brew]=true
-			[awk_version]='versionExtractA'
+			[awk_extract]='2'
 		)
 
 
@@ -366,6 +366,6 @@ _generateEvilEnv() {
 	EOF
 }
 
-source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-env'
+source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-env' 'rayvn/dependencies'
 
 main "${@}"
