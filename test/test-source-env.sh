@@ -91,7 +91,6 @@ printBeforeEnv() {
         declare -p projectVersion
         declare -p projectReleaseDate
         declare -p projectHasLibraries
-        declare -p projectBinaries
         declare -p projectHasNoSuchVariable
         declare -p userName
         declare -p evilUserName
@@ -130,7 +129,6 @@ printAfterSafeEnv() {
             declare -p projectVersion
             declare -p projectReleaseDate
             declare -p projectHasLibraries
-            declare -p projectBinaries
 
             declare -p projectHasNoSuchVariable
 
@@ -157,7 +155,6 @@ testSourceSafeStaticVarsWithoutFilter() {
         assertVarIsNotDefined projectName
         assertVarIsNotDefined projectVersion
         assertVarIsNotDefined projectReleaseDate
-        assertVarIsNotDefined projectBinaries
         assertHashTableIsNotDefined projectDependencies
 
         assertVarIsNotDefined projectHasNoSuchVariable
@@ -190,7 +187,6 @@ testSourceSafeStaticVarsWithoutFilter() {
         assertVarIsDefined projectName
         assertVarIsDefined projectVersion
         assertVarIsDefined projectReleaseDate
-        assertVarIsDefined projectBinaries
         assertHashTableIsDefined projectDependencies
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' 'true'
@@ -225,7 +221,6 @@ testSourceSafeStaticVarsWithFilter() {
         assertVarIsNotDefined projectName
         assertVarIsNotDefined projectVersion
         assertVarIsNotDefined projectReleaseDate
-        assertVarIsNotDefined projectBinaries
         assertHashTableIsNotDefined projectDependencies
 
         assertVarIsNotDefined projectHasNoSuchVariable
@@ -258,7 +253,6 @@ testSourceSafeStaticVarsWithFilter() {
         assertVarIsDefined projectName
         assertVarIsDefined projectVersion
         assertVarIsDefined projectReleaseDate
-        assertVarIsDefined projectBinaries
         assertHashTableIsDefined projectDependencies
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' true
@@ -297,7 +291,6 @@ _generateEvilEnv() {
 		projectName='foo'
 		projectVersion='0.1.0+'   # pre-release version
 		projectReleaseDate=''     # pre-release version
-		projectBinaries=('foo')
 		declare -rA projectDependencies=(
 			[awk_min]='20250116'
 			[awk_brew]=true

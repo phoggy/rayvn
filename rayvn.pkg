@@ -3,7 +3,6 @@
 projectName='rayvn'
 projectVersion='0.1.2+'
 projectReleaseDate=''
-projectBinaries=('rayvn' 'rayvn.up')
 
 declare -A projectDependencies=(
     [bash_min]='5'
