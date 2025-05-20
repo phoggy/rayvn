@@ -49,25 +49,27 @@ main() {
 }
 
 init() {
+    projectNames=('rayvn')
+    debugOptions=
+    actions=()
+    upOptions=
+    testFilter='*'
 
     # process arguments
 
-    unset debugOptions
-    actions=()
-    projects=
 
     while (( ${#} > 0 )); do
         case "${1}" in
             test) actions+=('runAllTests') ;;
             libs) actions+=('withEachLibrary _printLibrary') ;;
-            dependencies) actions+=('assertDependencies') ;;
-            --projects) shift; projects="--add ${1}" ;;
+            deps | dependencies) actions+=('assertDependencies') ;;
+            --projects) shift; setProjects "${1}" ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions 'clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
             -h | --help) usage ;;
-            -v) projectVersion rayvn; exit 0 ;;
-            --version) projectVersion rayvn true; exit 0 ;;
+            -v) printVersion; exit 0 ;;
+            --version) printVersion true; exit 0 ;;
             -*) usage "Unknown option: ${1}" ;;
             *) actions+=("${1}")
         esac
@@ -75,12 +77,32 @@ init() {
     done
 
     # Boot rayvn, adding any additional projects, then load core and debug
-    source rayvn.up ${projects} 'rayvn/core' 'rayvn/debug'
+    source rayvn.up ${upOptions} 'rayvn/core' 'rayvn/debug'
 
     [[ -v actions ]] || usage
     [[ -v debugOptions ]] && setDebug ${debugOptions}
 
     debug "actions: " ${actions}
+}
+
+setProjects() {
+    local projectsArg="${1}"
+    local projects=()
+    local project name
+    upOptions="--add ${projectsArg}"
+    IFS=',' read -r -a projects <<< "${projectsArg}"
+    for project in "${projects[@]}"; do
+        name="$(trim "${project%%=*}")"
+        projectNames+=("${name}")
+    done
+    declare -p projectNames; exit
+}
+
+trim() {
+    local value="${1}"
+    value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
+    value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
+    echo "${value}"
 }
 
 assertDependencies() {
@@ -115,12 +137,31 @@ withEachLibrary() {
     done
 }
 
+printVersion() {
+    local verbose="${1:-}"
+    if ! declare -p _rayvnProjects &> /dev/null; then
+        source rayvn.up 'rayvn/core'
+    fi
+    projectVersion rayvn "${verbose}"
+}
+
 _printLibrary() {
     local projectName="${1}"
     local libraryName="${2}"
     local libraryRoot="${3}"
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
+
+projectNames() {
+    lo
+    local entry
+    for entry in "${!_rayvnProjects[@]}"; do
+        if [[ "${entry}" == *::project ]]; then
+            projectDir=${_rayvnProjects[${entry}]}
+        fi
+    done
+}
+
 
 runAllTests() {
     local entry projectDir

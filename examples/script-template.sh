@@ -25,7 +25,6 @@ main() {
 
 # shellcheck disable=SC2155
 init() {
-    assertBashVersion
     readonly scriptName=$(basename "${0}")
 
     while (( ${#} > 0 )); do

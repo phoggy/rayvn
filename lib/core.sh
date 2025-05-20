@@ -65,7 +65,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         declare -grx _checkMark="✔"
         declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
 
-        # Ensure debug flag is set and turned off
+        # Ensure debug flag is set and off by default
 
         declare -gxi _debug=0
 
@@ -188,6 +188,13 @@ addExitHandler() {
     trap -- "${newCommand}" EXIT
 }
 
+trim() {
+    local value="${1}"
+    value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
+    value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
+    echo "${value}"
+}
+
 projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
@@ -200,7 +207,7 @@ projectVersion() {
         else
             [[ ${verbose} ]] && description=" (pre-release)"
         fi
-        echo "${projectName} v${projectVersion}${description}"
+        echo "${projectName} ${projectVersion}${description}"
     )
 }
 
