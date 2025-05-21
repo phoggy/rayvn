@@ -125,7 +125,6 @@ _configure() {
         project="${project%"${project##*[![:space:]]}"}"  # remove trailing whitespace
         name="${project%%=*}"
         path="${project#*=}"
-declare -p name path
         addProject "${name}" "${path}"
     done
 
