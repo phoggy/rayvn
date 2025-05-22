@@ -3,34 +3,77 @@
 # Library for dependency management.
 # Intended for use via: require 'rayvn/dependency'
 
-require 'rayvn/core'
+require 'rayvn/core' 'rayvn/safe-env'
 
-assertExecutables() {
-    local dependenciesVarName="${1}"
-    declare -n deps="${dependenciesVarName}"
-    for name in "${!deps[@]}"; do
-        if [[ ${name} =~ _extract$ ]]; then
-            _assertExecutable "${name%_extract}" "${dependenciesVarName}"
+printBrewDependencies() {
+   for key in "${!_rayvnProjects[@]}"; do
+        if [[ ${key} == *::project ]]; then
+            local projectName="${key%%::*}"
+            (
+                _printProjectBrewDependencies "${projectName}"
+            )
         fi
     done
 }
 
-_assertMinimumVersion() {
-    local minimum="${1}"
-    local version="${2}"
-    local targetName="${3}"
-    local errorSuffix="${4}"
-    local lowest=$(printf '%s\n%s\n' "${version}" "${minimum}" | sort -V | head -n 1)
-    [[ "${lowest}" != "${minimum}" ]] && assertionFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
-    return 0
+
+assertDependencies() {
+    for key in "${!_rayvnProjects[@]}"; do
+        if [[ ${key} == *::project ]]; then
+            local projectName="${key%%::*}"
+            (
+                _getProjectDependencies "${projectName}"
+                echo "checking project '${projectName}' dependencies"
+                _assertExecutables projectDependencies
+            )
+        fi
+    done
 }
 
-assertBashVersion() {
-    local minVersion="${1:-5}"
-    _assertMinimumVersion "${minVersion}" "${BASH_VERSINFO:-0}" "bash" "at ${BASH} (update PATH to fix)"
+UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_assertExecutables() {
+    local dependenciesVarName="${1}"
+    declare -n deps="${dependenciesVarName}"
+    for key in "${!deps[@]}"; do
+        if [[ ${key} == *_extract$ ]]; then
+            _assertExecutable "${key%_extract}" "${dependenciesVarName}"
+        fi
+    done
 }
 
-extractVersion() {
+_printProjectBrewDependencies() {
+    local key executable
+    local projectName="${1}"
+    _getProjectDependencies "${projectName}"
+    for key in "${!projectDependencies[@]}"; do
+        if [[ ${key} == *_min ]]; then
+            executable="${key%_min}"
+            brew=${projectDependencies[${executable}_brew]}
+            tap=${projectDependencies[${executable}_brew_tap]}
+            url=${projectDependencies[${executable}_install]}
+            if [[ -n "${tap}" ]]; then
+                echo "depends_on \"${tap}/${executable}\""
+            elif [[ ${brew} == true ]]; then
+                echo "depends_on \"${executable}\""
+            else
+                fail "${executable} via: MANUAL?? ${url}"
+            fi
+        fi
+    done
+}
+
+_getProjectDependencies() {
+    local projectName="${1}"
+    local pkgFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/rayvn.pkg"
+    assertFileExists "${pkgFile}"
+    sourceSafeStaticVars "${pkgFile}" project
+    if ! declare -p projectDependencies &> /dev/null; then
+        fail "No projectDependencies found in '${pkgFile}'"
+    fi
+}
+
+_extractVersion() {
     local command="${1}"
     local method="${2}"
 
@@ -41,7 +84,7 @@ extractVersion() {
         3) ${command} -version 2>&1 | tail -n 1 | cut -d' ' -f3 ;;
         4) ${command} --version 2>&1 | tail -n 1 | cut -d'-' -f2 ;;
         5) ${command} -ver 2>&1 ;;
-        *) fail "unknown extract method: ${method}"
+        *) fail "unknown version extract method: ${method}" ;;
     esac
 }
 
@@ -55,9 +98,9 @@ _assertExecutable() {
         _assertExecutableFound "${executable}" ${dependenciesVarName}
         local extractMethod="${deps[${executable}_extract]}"
         if [[ ${minVersion} != 0 ]]; then
-            local version=$(extractVersion ${executable} ${extractMethod})
+            local version=$(_extractVersion ${executable} ${extractMethod})
             local errMsg=":"
-            if [[ ${brewInstalled} && ${deps[${executable}_brew]} == true ]]; then
+            if [[ ${brewIsInstalled} && ${deps[${executable}_brew]} == true ]]; then
                 errMsg+=" try 'brew update ${executable}' or see"
             else
                 errMsg+=" see"
@@ -75,9 +118,9 @@ _assertExecutableFound() {
     local executable="${1}"
     local dependenciesVarName="${2}"
     declare -n deps="${dependenciesVarName}"
-    if ! command -v ${executable} &> /dev/null; then
+    if ! command -v ${executable} &>/dev/null; then
         local errMsg="${executable} not found."
-        if [[ ${brewInstalled} && ${deps[${executable}_brew]} == true ]]; then
+        if [[ ${brewIsInstalled} && ${deps[${executable}_brew]} == true ]]; then
             local tap="${deps[${executable}_brew_tap]}"
             if [[ ${tap} ]]; then
                 errMsg+=" Try 'brew tap ${tap} && brew install ${executable}' or see"
@@ -90,4 +133,14 @@ _assertExecutableFound() {
         errMsg+=" ${deps[${executable}_install]} "
         assertFail "${errMsg}"
     fi
+}
+
+_assertMinimumVersion() {
+    local minimum="${1}"
+    local version="${2}"
+    local targetName="${3}"
+    local errorSuffix="${4}"
+    local lowest=$(printf '%s\n%s\n' "${version}" "${minimum}" | sort -V | head -n 1)
+    [[ "${lowest}" != "${minimum}" ]] && assertionFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
+    return 0
 }

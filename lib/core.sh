@@ -92,7 +92,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         # Yes, remember if brew is available
 
         if command -v brew > /dev/null ; then
-            declare -grx brewInstalled=true
+            declare -grx brewIsInstalled=true
         fi
     elif [[ ! ${RAYVN_NO_OS_CHECK} ]]; then
 

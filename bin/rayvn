@@ -40,29 +40,30 @@ usage() {
 main() {
     init "${@}"
     for action in "${actions[@]}"; do
-        if declare -F "${action% *}" > /dev/null; then
-            ${action}
-        else
-            fail "${action} is not an available function"
-        fi
+        ${action}
+
+#        if declare -F "${action% *}" > /dev/null; then
+#            ${action}
+#        else
+#            fail "${action} is not an available function"
+#        fi
     done
 }
 
 init() {
     projectNames=('rayvn')
-    debugOptions=
+    unset debugOptions
     actions=()
     upOptions=
-    testFilter='*'
 
     # process arguments
-
 
     while (( ${#} > 0 )); do
         case "${1}" in
             test) actions+=('runAllTests') ;;
             libs) actions+=('withEachLibrary _printLibrary') ;;
-            deps | dependencies) actions+=('assertDependencies') ;;
+            deps | assertDeps) actions+=("require rayvn/dependencies" "assertDependencies") ;;
+            brew | brewDeps) actions+=("require rayvn/dependencies" "printBrewDependencies") ;;
             --projects) shift; setProjects "${1}" ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions 'clearLog showOnExit' ;;
@@ -88,14 +89,13 @@ init() {
 setProjects() {
     local projectsArg="${1}"
     local projects=()
-    local project name
+    local project key
     upOptions="--add ${projectsArg}"
     IFS=',' read -r -a projects <<< "${projectsArg}"
     for project in "${projects[@]}"; do
         name="$(trim "${project%%=*}")"
         projectNames+=("${name}")
     done
-    declare -p projectNames; exit
 }
 
 trim() {
@@ -105,24 +105,18 @@ trim() {
     echo "${value}"
 }
 
-assertDependencies() {
-    require 'rayvn/safe-env' 'rayvn/dependencies'
+
+forEachProject() {
     for key in "${!_rayvnProjects[@]}"; do
-        if [[ ${key} == *::project ]]; then
-            local name="${key%%::*}"
-            local pkgFile="${_rayvnProjects[${name}${_projectRootSuffix}]}/rayvn.pkg"
-            (
-                sourceSafeStaticVars "${pkgFile}" project
-                if declare -p projectDependencies &> /dev/null; then
-                    echo "checking project '${name}' dependencies"
-                    assertExecutables projectDependencies
-                fi
-            )
+        if [[ ${key} == *::library ]]; then
+            local projectName="${key%%::*}"
+            local libraryRoot="${_rayvnProjects[${key}]}"
+            "${*}" "${projectName}" "${libraryRoot}"
         fi
     done
 }
 
-withEachLibrary() {
+forEachLibrary() {
     for key in "${!_rayvnProjects[@]}"; do
         if [[ ${key} == *::library ]]; then
             local project="${key%%::*}"  # remove everything from :: onward
@@ -152,16 +146,16 @@ _printLibrary() {
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
-projectNames() {
-    lo
+_projectNames() {
+    local -n resultArray="${1}"
     local entry
+    resultArray=()
     for entry in "${!_rayvnProjects[@]}"; do
         if [[ "${entry}" == *::project ]]; then
-            projectDir=${_rayvnProjects[${entry}]}
+            resultArray+=("${entry%::*}")
         fi
     done
 }
-
 
 runAllTests() {
     local entry projectDir
@@ -260,7 +254,7 @@ runTest() {
 }
 
 printFunction() {
-    local name="${1}"
+    local key="${1}"
     printf "%s() {\n%s\n" "${name}" "$(declare -f "${name}" | tail -n +3)"
 }
 
