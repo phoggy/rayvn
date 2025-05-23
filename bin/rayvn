@@ -51,7 +51,6 @@ main() {
 }
 
 init() {
-    projectNames=('rayvn')
     unset debugOptions
     actions=()
     upOptions=
@@ -62,9 +61,9 @@ init() {
         case "${1}" in
             test) actions+=('runAllTests') ;;
             libs) actions+=('withEachLibrary _printLibrary') ;;
-            deps | assertDeps) actions+=("require rayvn/dependencies" "assertDependencies") ;;
-            brew | brewDeps) actions+=("require rayvn/dependencies" "printBrewDependencies") ;;
-            --projects) shift; setProjects "${1}" ;;
+            deps | assertDeps) actions+=("require rayvn/dependencies" assertDependencies) ;;
+            brew | brewDeps) actions+=("require rayvn/dependencies" printBrewDependencies) ;;
+            -p | --projects) shift; upOptions="--add ${1}" ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions 'clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
@@ -84,18 +83,6 @@ init() {
     [[ -v debugOptions ]] && setDebug ${debugOptions}
 
     debug "actions: " ${actions}
-}
-
-setProjects() {
-    local projectsArg="${1}"
-    local projects=()
-    local project key
-    upOptions="--add ${projectsArg}"
-    IFS=',' read -r -a projects <<< "${projectsArg}"
-    for project in "${projects[@]}"; do
-        name="$(trim "${project%%=*}")"
-        projectNames+=("${name}")
-    done
 }
 
 trim() {

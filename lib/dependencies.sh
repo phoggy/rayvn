@@ -6,7 +6,8 @@
 require 'rayvn/core' 'rayvn/safe-env'
 
 printBrewDependencies() {
-   for key in "${!_rayvnProjects[@]}"; do
+    local key
+    for key in "${!_rayvnProjects[@]}"; do
         if [[ ${key} == *::project ]]; then
             local projectName="${key%%::*}"
             (
@@ -16,15 +17,16 @@ printBrewDependencies() {
     done
 }
 
-
 assertDependencies() {
+    local key
     for key in "${!_rayvnProjects[@]}"; do
         if [[ ${key} == *::project ]]; then
             local projectName="${key%%::*}"
             (
                 _getProjectDependencies "${projectName}"
-                echo "checking project '${projectName}' dependencies"
+                echo -n "checking project '${projectName}' dependencies "
                 _assertExecutables projectDependencies
+                echo "${_greenCheckMark}"
             )
         fi
     done
@@ -43,22 +45,39 @@ _assertExecutables() {
 }
 
 _printProjectBrewDependencies() {
-    local key executable
+    local key executable brew tap url rayvnDep
     local projectName="${1}"
+    local executables=()
+    local nonRayvnExecutables=()
     _getProjectDependencies "${projectName}"
+
+    # Collect rayvn and non-rayvn executables then append to keep rayvn dependencies first
+
     for key in "${!projectDependencies[@]}"; do
         if [[ ${key} == *_min ]]; then
             executable="${key%_min}"
-            brew=${projectDependencies[${executable}_brew]}
-            tap=${projectDependencies[${executable}_brew_tap]}
-            url=${projectDependencies[${executable}_install]}
-            if [[ -n "${tap}" ]]; then
-                echo "depends_on \"${tap}/${executable}\""
-            elif [[ ${brew} == true ]]; then
-                echo "depends_on \"${executable}\""
+            url=${projectDependencies[${executable}_url]}
+            if [[ ${url} == */github.com/phoggy/* ]]; then
+                executables+=("${executable}")
             else
-                fail "${executable} via: MANUAL?? ${url}"
+                nonRayvnExecutables+=("${executable}")
             fi
+        fi
+    done
+    executables+=("${nonRayvnExecutables[@]}")
+
+    for executable in "${executables[@]}"; do
+        brew=${projectDependencies[${executable}_brew]}
+        tap=${projectDependencies[${executable}_brew_tap]}
+        if [[ -n "${tap}" ]]; then
+            echo "    depends_on \"${tap}/${executable}\""
+        elif [[ ${brew} == true ]]; then
+            echo "    depends_on \"${executable}\""
+        elif brew which-formula "${executable}" &> /dev/null; then
+            echo "    depends_on \"${executable}\""
+        else
+            url=${projectDependencies[${executable}_url]}
+            fail "${executable} is not available from brew. Maybe there is a tap? See ${url}"
         fi
     done
 }
@@ -105,7 +124,7 @@ _assertExecutable() {
             else
                 errMsg+=" see"
             fi
-            errMsg+=" ${deps[${executable}_install]}"
+            errMsg+=" ${deps[${executable}_url]}"
 
             _assertMinimumVersion ${minVersion} ${version} "${executable}" "${errMsg}"
         fi
@@ -130,7 +149,7 @@ _assertExecutableFound() {
         else
             errMsg+=" See"
         fi
-        errMsg+=" ${deps[${executable}_install]} "
+        errMsg+=" ${deps[${executable}_url]} "
         assertFail "${errMsg}"
     fi
 }

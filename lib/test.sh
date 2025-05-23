@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Library supporting test cases
+# Test case support library.
 # Intended for use via: require 'rayvn/test'
 
 require 'rayvn/core'
@@ -13,6 +13,7 @@ assertNotInFile() {
     local file="${2}"
     grep -e "${match}" "${file}" > /dev/null && assertionFailed "'${match}' found in file ${file}."
 }
+
 assertInFile() {
     local match="${1}"
     local file="${2}"
@@ -86,7 +87,7 @@ assertHashKeyIsDefined() {
 
     assertHashTableIsDefined "${varName}"
 
-    # TODO: the line below screws up function name syntax color, but executes fine
+    # TODO: the line below screws up function name syntax color (white instead of blue), but executes fine
 
     [[ -v ${varName}[${keyName}] ]] || assertionFailed "${varName}[${keyName}] is NOT defined"
 }
@@ -102,7 +103,6 @@ assertHashValue() {
     local keyName="${2}"
     local expectedValue="${3}"
     assertHashKeyIsDefined "${varName}" "${keyName}"
-
 
     local actualValue="$(eval echo \$"{${varName}[${keyName}]}")" # complexity required to use variables for var and key
     [[ ${actualValue} == "${expectedValue}" ]] || assertionFailed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
@@ -150,15 +150,9 @@ removePath () {
 printPath() {
     local pathVariable=${1:-PATH}
     if [[ ${!pathVariable} ]]; then
-        local paths length width i
-        echo "${pathVariable} search order:"
         echo
-        IFS=':' read -ra paths <<< "${!pathVariable}"
-        length=${#paths[@]}
-        width=${#length}
-        for (( i = 0; i < length; i++ )); do
-            printf "%*d. %s\n" "${width}" "$((i + 1))" "${paths[i]}"
-        done
+        echo "${pathVariable} search order:"
+        echo $PATH | tr ':' '\n' | nl
         echo
     else
         echo "'${pathVariable}' not set"
