@@ -144,15 +144,33 @@ rootDirPath() {
 tempDirPath() {
     local fileName="${1:-}"
     if [[ -z ${_rayvnTempDir:-} ]]; then
-        declare -grx _rayvnTempDir="$(mktemp -d)" || fail "could not create temp directory"
-        chmod 700 "${_rayvnTempDir}" || fail "chmod failed for rayvn temp directory"
+        declare -grx _rayvnTempDir="$(withUmask 700 mktemp -d)" || fail "could not create temp directory"
     fi
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
+configDirPath() {
+    local fileName="${1:-}"
+    if [[ -z ${_rayvnConfigDir:-} ]]; then
+        local configRootDir="${HOME}/.rayvn"
+        local configDir="${configRootDir}/${currentProjectName}"
+        withUmask 700 ensureDir "${configRootDir}"
+        withUmask 700 ensureDir "${configDir}"
+        _rayvnConfigDir="${configDir}"
+    fi
+    [[ -z ${fileName:-} ]] && echo "${_rayvnConfigDir}/${fileName}" || echo "${_rayvnConfigDir}"
+}
+
+ensureDir() {
+    local dir="${1}"
+    if [[ ! -d ${dir} ]]; then
+        makeDir "${dir}"
+    fi
+}
+
 makeDir() {
     local dir="${1}"
-    [[ ${2} ]] && dir="${1}/${2}"
+    [[ -z ${2:-} ]] && dir="${1}/${2}"
     mkdir -p "${dir}" || fail "could not create directory ${dir}"
     echo "${dir}"
 }
@@ -233,7 +251,7 @@ assertFileDoesNotExist() {
 
 assertValidFileName() {
     local name="${1}"
-    declare -p name
+
     # Reject empty, ".", or ".."
     [[ -z ${name} || ${name} == "." || ${name} == ".." ]] && \
         fail "Invalid filename: '${name}' is reserved or empty"

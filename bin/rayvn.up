@@ -4,11 +4,6 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-declare -gA _rayvnProjects=()
-declare -gAi _rayvnRequireCounts=()
-declare -gr _projectRootSuffix='::project'
-declare -gr _libraryRootSuffix='::library'
-
 require() {
      while (( ${#} > 0 )); do
         local qualifiedName="${1}"
@@ -37,7 +32,7 @@ require() {
 
             source "${libraryFile}" || fail "failed to load rayvn shared library '${qualifiedName}'"
 
-            # TODO: make all sourced functions readonly so that we will detect collisions??
+            # TODO: make all sourced functions readonly so that collisions will cause error??
 
             # Call its init function, if present
 
@@ -58,6 +53,12 @@ require() {
 
 # bashsupport disable=BP3002
 _configure() {
+    declare -gx currentProjectName=
+    declare -gAx _rayvnProjects=()
+    declare -gAix _rayvnRequireCounts=()
+    declare -grx _projectRootSuffix='::project'
+    declare -grx _libraryRootSuffix='::library'
+
     local keySuffix projectName projectRoot key executable path libraryRoot
 
     addRoot() {
@@ -139,6 +140,10 @@ _configure() {
     # Prevent the require function from being replaced
 
     declare -rf require
+
+    # Set the project name
+
+    declare -grx currentProjectName="$(basename "${BASH_SOURCE[2]}")"
 
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 
