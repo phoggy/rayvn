@@ -107,7 +107,9 @@ _configure() {
     # Add rayvn using *our* path to ensure we do not find a different install.
     # This is important when this file is sourced using a file path.
 
-    addProject rayvn "$(dirname "${BASH_SOURCE[0]}")/.."
+    local rayvnBinary="${BASH_SOURCE[0]}"
+    rayvnBinary="$(realpath ${rayvnBinary}/..)"
+    addProject rayvn "$(dirname "${rayvnBinary}")"
 
     # Now, process arguments in two passes: add projects, then load any required libraries
 
