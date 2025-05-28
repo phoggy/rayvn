@@ -1,8 +1,8 @@
 # rayvn package
 
 projectName='rayvn'
-projectVersion='0.1.2'
-projectReleaseDate=''
+projectVersion='0.1.3'
+projectReleaseDate='2025-05-28_10.39.57_PDT'
 
 declare -A projectDependencies=(
     [bash_min]='5.2.0'
