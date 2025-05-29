@@ -41,12 +41,6 @@ main() {
     init "${@}"
     for action in "${actions[@]}"; do
         ${action}
-
-#        if declare -F "${action% *}" > /dev/null; then
-#            ${action}
-#        else
-#            fail "${action} is not an available function"
-#        fi
     done
 }
 
@@ -61,8 +55,9 @@ init() {
         case "${1}" in
             test) actions+=('runAllTests') ;;
             libs) actions+=('withEachLibrary _printLibrary') ;;
-            deps | assertDeps) actions+=("require rayvn/dependencies" assertDependencies) ;;
-            brew | brewDeps) actions+=("require rayvn/dependencies" printBrewDependencies) ;;
+            assertDeps) shift; actions+=("assertDependenciesQuiet ${1}") ;;
+            assertDepsVerbose) shift; actions+=("assertDependenciesVerbose ${1}") ;;
+            brewDeps) shift; actions+=("brewDependencies ${1}") ;;
             -p | --projects) shift; upOptions="--add ${1}" ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions 'clearLog showOnExit' ;;
@@ -92,6 +87,23 @@ trim() {
     echo "${value}"
 }
 
+assertDependenciesQuiet() {
+    local projectName="${1}"
+    require 'rayvn/dependencies'
+    assertDependencies "${projectName}"
+}
+
+assertDependenciesVerbose() {
+    local projectName="${1}"
+    require 'rayvn/dependencies'
+    assertDependencies "${projectName}" 1
+}
+
+brewDependencies() {
+    local projectName="${1}"
+    require 'rayvn/dependencies'
+    printBrewDependencies "${projectName}"
+}
 
 forEachProject() {
     for key in "${!_rayvnProjects[@]}"; do
