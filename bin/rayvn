@@ -39,34 +39,34 @@ usage() {
 
 main() {
     init "${@}"
-    for action in "${actions[@]}"; do
-        ${action}
-    done
+    ${command} "${args[@]}"
 }
 
 init() {
     unset debugOptions
-    actions=()
+    command=
+    args=()
     upOptions=
 
     # process arguments
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            test) actions+=('runAllTests') ;;
-            libs) actions+=('withEachLibrary _printLibrary') ;;
-            assertDeps) shift; actions+=("assertDependenciesQuiet ${1}") ;;
-            assertDepsVerbose) shift; actions+=("assertDependenciesVerbose ${1}") ;;
-            brewDeps) shift; actions+=("brewDependencies ${1}") ;;
-            -p | --projects) shift; upOptions="--add ${1}" ;;
+            test) command=runAllTests ;;
+            libs) command=withEachLibrary; args+=('_printLibrary') ;;
+            assertDeps) command=assertDependenciesQuiet; shift; args+=("${1}") ;;
+            assertDepsVerbose) command=assertDependenciesVerbose; shift; args+=("${1}") ;;
+            brewDeps) command=brewDependencies; shift; args+=("${1}") ;;
+            release) command=releaseProject; shift; args+=("${1}"); addProject "${1}"; shift; args+=("${1}") ;;
+            -p | --project) shift; addProject "${1}" ;;
             --debug) debugOptions='showOnExit' ;;
-            --debug-new) debugOptions 'clearLog showOnExit' ;;
+            --debug-new) debugOptions='clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
             -h | --help) usage ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -*) usage "Unknown option: ${1}" ;;
-            *) actions+=("${1}")
+            *) command+=("${1}")
         esac
         shift
     done
@@ -74,10 +74,10 @@ init() {
     # Boot rayvn, adding any additional projects, then load core and debug
     source rayvn.up ${upOptions} 'rayvn/core' 'rayvn/debug'
 
-    [[ -v actions ]] || usage
+    [[ -v command ]] || usage
     [[ -v debugOptions ]] && setDebug ${debugOptions}
 
-    debug "actions: " ${actions}
+    debug "command: ${command} ${args[*]}"
 }
 
 trim() {
@@ -85,6 +85,26 @@ trim() {
     value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
     value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
     echo "${value}"
+}
+
+addProject() {
+    local project="${1#*/}"
+    [[ ${project} == rayvn ]] && return 0
+    [[ ${upOptions} != *project* ]] && upOptions+=" --add ${project}"
+}
+
+releaseProject() {
+    local ghRepo="${1}"
+    local version="${2}"
+    require 'rayvn/release'
+    case "${ghRepo}" in
+        */*) ;; # expected format
+        rayvn) ghRepo='phoggy/rayvn' ;;
+        valt) ghRepo='phoggy/valt' ;;
+        wardn) ghRepo='phoggy/wardn' ;;
+        *) fail "unknown GitHub repo '${ghRepo}', please specify in accountName/repoName format."
+    esac
+    release "${ghRepo}" "${version}"
 }
 
 assertDependenciesQuiet() {
