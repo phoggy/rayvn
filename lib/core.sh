@@ -150,6 +150,13 @@ tempDirPath() {
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
+makeTempFile() {
+    local file="$(tempDirPath "${1}")"
+    touch "${file}" || fail
+    chmod 600 "${file}"
+    echo "${file}"
+}
+
 makeTempDir() {
    local dirPath="$(tempDirPath ${1:-})"
    ensureDir "${dirPath}"

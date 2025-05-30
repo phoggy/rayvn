@@ -333,7 +333,7 @@ _updateBrewFormulaDependencies() {
     require 'rayvn/dependencies'
     local project="${1}"
     local formulaFile="${2}"
-    local tempFile="$(tempDirPath "${project}.rb")"
+    local tempFile="$(makeTempFile "${project}.rb")"
     local dependencies=()
     declare -i found=0
 
@@ -344,7 +344,7 @@ _updateBrewFormulaDependencies() {
     # Update using temp file
 
     while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*depends_on[[:space:]] ]]; then
+        if [[ "${line}" =~ ^[[:space:]]*depends_on[[:space:]] ]]; then
             if (( ! found )); then
                 for dep in "${dependencies[@]}"; do
                     echo "  depends_on \"${dep}\"" >> "${tempFile}"
@@ -353,7 +353,7 @@ _updateBrewFormulaDependencies() {
             fi
             continue  # skip original depends_on
         fi
-        echo "$line" >> "${tempFile}"
+        echo "${line}" >> "${tempFile}"
     done < "${formulaFile}"
 
     # Overwrite the formula file
