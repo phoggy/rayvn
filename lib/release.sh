@@ -333,7 +333,7 @@ _updateBrewFormulaDependencies() {
     require 'rayvn/dependencies'
     local project="${1}"
     local formulaFile="${2}"
-    local tempFile="$(makeTempFile "${project}.rb")"
+    local tempFile="$(makeTempFile "${project}.rb")" || fail
     local dependencies=()
     declare -i found=0
 
