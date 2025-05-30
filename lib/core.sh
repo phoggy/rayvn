@@ -150,6 +150,12 @@ tempDirPath() {
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
+makeTempDir() {
+   local dirPath="$(tempDirPath ${1:-})"
+   ensureDir "${dirPath}"
+   echo "${dirPath}"
+}
+
 configDirPath() {
     local fileName="${1:-}"
     if [[ -z ${_rayvnConfigDir:-} ]]; then
