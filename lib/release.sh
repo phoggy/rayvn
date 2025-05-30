@@ -321,19 +321,12 @@ _gitHubReleaseHash() {
     local versionTag="v${version}"
     local -n result="${4}"
     local url="https://github.com/${ghRepo}/archive/refs/tags/${versionTag}.tar.gz"
-    local tempFileName="${project}-${versionTag}.tar.gz"
-    local tempFile="$(tempDirPath ${tempFileName})"
+    local sha256
 
-    echo "Downloading ${project} release ${versionTag} file at'${url}'"
-    if curl -L --no-progress-meter --fail "${url}" --output "${tempFile}"; then
-        [[ -f ${tempFile} ]] || fail "did not store file ${tempFile}!"
-        local sha256="$(shasum -a 256 "${tempFile}" | cut -d' ' -f1)"
-        rm "${tempFile}" &> /dev/null
-        echo "sha256 ${sha256}"
-        result="${sha256}"
-    else
-        fail "failed to download ${url}"
-    fi
+    echo "Computing sha256 for ${project} release ${versionTag} file at'${url}'"
+    sha256="$(curl -L --no-progress-meter --fail "${url}" | shasum -a 256 | cut -d' ' -f1)" || fail
+    echo "sha256 ${sha256}"
+    result="${sha256}"
 }
 
 _updateBrewFormulaDependencies() {
