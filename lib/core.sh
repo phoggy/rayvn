@@ -146,14 +146,15 @@ tempDirPath() {
     local fileName="${1:-}"
     if [[ -z ${_rayvnTempDir:-} ]]; then
         declare -grx _rayvnTempDir="$(withUmask 0077 mktemp -d)" || fail "could not create temp directory"
+        chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
 makeTempFile() {
     local file="$(tempDirPath "${1}")"
-    touch "${file}" || fail
-    chmod 600 "${file}"|| fail
+    touch "${file}" || fail "could not create temp file: ${file}"
+    chmod 600 "${file}" || fail "chmod failed on ${file}"
     echo "${file}"
 }
 
