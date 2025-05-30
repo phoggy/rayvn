@@ -148,7 +148,7 @@ _updateFormula() {
         _printHeader "Formula updated, doing commit and push"
         (
             cd "${brewFormulaDir}" || fail "cd ${brewFormulaDir} failed!"
-            git commit -q -m "Update for ${versionTag} release." "${formulaFileName}" fail "commit failed!"
+            git commit -q -m "Update for ${versionTag} release." "${formulaFileName}" || fail "commit failed!"
             git push || fail "push failed!"
             rm "${formulaBackupFile}" || fail
         )
