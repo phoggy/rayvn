@@ -32,7 +32,7 @@ release () {
         echo "brew uninstall ${project} && brew install ${project} && brew test ${project}"
     elif brew list ${project} &> /dev/null; then
         echo "$(ansi bold The ${version} brew release of ${project} was previously installed. Please run the following:)"
-        echo "brew upgrade ${project} && && brew test ${project}"
+        echo "brew update && brew upgrade ${project} && brew test ${project}"
         echo
         echo "If you get a sha256 mismatch, look for the tar file described as 'Already downloaded', delete it and retry."
     else
