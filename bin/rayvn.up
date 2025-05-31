@@ -145,7 +145,7 @@ _configure() {
 
     # Set the project name
 
-    declare -grx currentProjectName="$(basename "${BASH_SOURCE[2]}")"
+    declare -grx currentProjectName="$(basename "${BASH_SOURCE[2]}")" || fail
 
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 

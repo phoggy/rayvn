@@ -12,7 +12,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx macOS=$( [[ ${osName} == Darwin ]] && echo true )
     declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
-    declare -grx rayvnConfigDir="${HOME}/.rayvn"
+    declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
 
     # Are stdout and stderr both terminals?
 
@@ -167,12 +167,12 @@ makeTempDir() {
 configDirPath() {
     local fileName="${1:-}"
     if [[ -z ${_rayvnConfigDir:-} ]]; then
-        local configDir="${rayvnConfigDir}/${currentProjectName}"
-        withUmask 0077 ensureDir "${rayvnConfigDir}"
+        local configDir="${rayvnConfigDirPath}"
+        [[ ${currentProjectName} != rayvn ]] && configDir+="/${currentProjectName}"
         withUmask 0077 ensureDir "${configDir}"
         _rayvnConfigDir="${configDir}"
     fi
-    [[ -z ${fileName:-} ]] && echo "${_rayvnConfigDir}/${fileName}" || echo "${_rayvnConfigDir}"
+    [[ -n ${fileName} ]] && echo "${_rayvnConfigDir}/${fileName}" || echo "${_rayvnConfigDir}"
 }
 
 ensureDir() {

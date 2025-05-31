@@ -143,8 +143,9 @@ _varIsSet() {
 }
 
 _prepareLogFile() {
-    local clearLog="${1}"
-    declare -grx _debugDir="${HOME}/.rayvn"
+    local clearLog="${1}" configDir
+    configDir="$(configDirPath)" || fail
+    declare -grx _debugDir="${configDir}/debug"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
     declare -gxi _debugStartLine
 
@@ -158,6 +159,8 @@ _prepareLogFile() {
         else
             echo >> "${_debugLogFile}"
         fi
+    else
+        touch "${_debugLogFile}"
     fi
 
     _debugStartLine=$(wc -l < "${_debugLogFile}")

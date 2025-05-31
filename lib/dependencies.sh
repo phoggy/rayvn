@@ -22,7 +22,7 @@ listBrewDependencies() {
     )
 }
 
-assertDependencies() {
+assertProjectDependencies() {
     local projectName="${1}"
     declare -i verbose="${2:-0}"
     (
@@ -59,7 +59,7 @@ _listProjectBrewDependencies() {
     local projectName="${1}"
     local dependencies=()
     _collectBrewDependencies "${projectName}" dependencies
-    echo "${projectName}: ${dependencies[*]}"
+    echo "$(ansi bold ${projectName}) ${dependencies[*]}"
 }
 
 _collectBrewDependencies() {

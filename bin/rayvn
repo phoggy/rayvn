@@ -43,60 +43,101 @@ main() {
 }
 
 init() {
-    unset debugOptions
-    command=
-    args=()
-    upOptions=
+    declare -g debugOptions=
+    declare -g command=
+    declare -g projects=()
+    declare -g args=()
+    declare -gAi flags=()
+    upOptions=()
 
     # process arguments
 
     while (( ${#} > 0 )); do
         case "${1}" in
             test) command=runAllTests ;;
-            libs) command=withEachLibrary; args+=('_printLibrary') ;;
-            assertDeps) command=assertDependenciesQuiet; shift; args+=("${1}") ;;
-            assertDepsVerbose) command=assertDependenciesVerbose; shift; args+=("${1}") ;;
-            brewDeps) command=brewDependencies; shift; args+=("${1}") ;;
-            release) command=releaseProject; shift; args+=("${1}"); addProject "${1}"; shift; args+=("${1}") ;;
-            -p | --project) shift; addProject "${1}" ;;
-            --debug) debugOptions='showOnExit' ;;
-            --debug-new) debugOptions='clearLog showOnExit' ;;
-            --debug-out) debugOptions='noLog' ;;
+            libs) command=forEachLibrary; args+=('_printLibrary') ;;
+            assert) parseArgs assertDependencies "${@:2}"; break ;;
+            brew) parseArgs brewDependencies "${@:2}"; break ;;
+            release) parseArgs releaseProject "${@:2}"; break ;;
             -h | --help) usage ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -*) usage "Unknown option: ${1}" ;;
-            *) command+=("${1}")
         esac
         shift
     done
 
     # Boot rayvn, adding any additional projects, then load core and debug
-    source rayvn.up ${upOptions} 'rayvn/core' 'rayvn/debug'
+    source rayvn.up ${upOptions[*]} 'rayvn/core' 'rayvn/debug'
 
-    [[ -v command ]] || usage
-    [[ -v debugOptions ]] && setDebug ${debugOptions}
+    [[ -n ${command} ]] || usage
+    [[ -n ${debugOptions} ]] && setDebug ${debugOptions}
 
     debug "command: ${command} ${args[*]}"
 }
 
-trim() {
-    local value="${1}"
-    value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
-    value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
-    echo "${value}"
+parseArgs() {
+    command="${1}"
+    shift
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            -p | --project) shift; addProject "${1}" ;;
+            --verbose) flags+=(["verbose"]=1) ;;
+            --debug) debugOptions='showOnExit' ;;
+            --debug-new) debugOptions='clearLog showOnExit' ;;
+            --debug-out) debugOptions='noLog' ;;
+            -*) args+=("${1}") ;;
+            *) isRayvnExecutable "${1}" && addProject "${1}" || args+=("${1}")
+        esac
+        shift
+    done
+    [[ "${#projects[@]}" == 0 ]] && projects+=(rayvn)
 }
 
 addProject() {
-    local project="${1#*/}"
-    [[ ${project} == rayvn ]] && return 0
-    [[ ${upOptions} != *project* ]] && upOptions+=" --add ${project}"
+    local projectName="${1#*/}"
+    projects+=("${projectName}")
+    [[ ${projectName} == rayvn ]] && return 0
+    upOptions+=("--add ${projectName}")
+}
+
+isRayvnExecutable() {
+    local name="${1}"
+    local path rayvnPkgFile
+    path="$(which "${name}")"
+    if [[ -n "${path}" ]]; then
+
+        # Get root directory
+
+        path="$(realpath "${path}")"
+        path="${path%/}"  # normalize trailing slash
+        path="${path%/*}" # strip last component
+        path="${path%/*}" # and again
+
+        # See if there is a rayvn.pkg file
+
+        rayvnPkgFile="${path}/rayvn.pkg"
+        [[ -f ${rayvnPkgFile} ]] && return 0
+    fi
+    return 1
+}
+
+assertSingleProject() {
+    [[ ${#projects[@]} == 1 ]] || fail "only one project name is supported"
+}
+
+assertDependencies() {
+    assertSingleProject
+    require 'rayvn/dependencies'
+    assertProjectDependencies "${projects[0]}" flags["verbose"]
 }
 
 releaseProject() {
-    local ghRepo="${1}"
-    local version="${2}"
-    require 'rayvn/release'
+    assertSingleProject
+    local ghRepo="${projects[0]}"
+    local version="${args[0]}"
+    [[ -n ${version} ]] || fail "version required"
+
     case "${ghRepo}" in
         */*) ;; # expected format
         rayvn) ghRepo='phoggy/rayvn' ;;
@@ -104,25 +145,22 @@ releaseProject() {
         wardn) ghRepo='phoggy/wardn' ;;
         *) fail "unknown GitHub repo '${ghRepo}', please specify in accountName/repoName format."
     esac
+
+    require 'rayvn/release'
     release "${ghRepo}" "${version}"
 }
 
-assertDependenciesQuiet() {
-    local projectName="${1}"
-    require 'rayvn/dependencies'
-    assertDependencies "${projectName}"
-}
-
-assertDependenciesVerbose() {
-    local projectName="${1}"
-    require 'rayvn/dependencies'
-    assertDependencies "${projectName}" 1
-}
-
 brewDependencies() {
-    local projectName="${1}"
+    assertSingleProject
     require 'rayvn/dependencies'
-    listBrewDependencies "${projectName}"
+    listBrewDependencies "${projects[0]}"
+}
+
+trim() {
+    local value="${1}"
+    value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
+    value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
+    echo "${value}"
 }
 
 forEachProject() {
