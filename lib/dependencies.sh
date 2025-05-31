@@ -5,17 +5,17 @@
 
 require 'rayvn/core' 'rayvn/safe-env'
 
-printBrewDependencies() {
+listBrewDependencies() {
     local projectName="${1:-}"
     (
         if [[ -n "${projectName}" ]]; then
-            _printProjectBrewDependencies "${projectName}"
+            _listProjectBrewDependencies "${projectName}"
         else
             local key
             for key in "${!_rayvnProjects[@]}"; do
                 if [[ ${key} == *::project ]]; then
                     projectName="${key%%::*}"
-                    _printProjectBrewDependencies "${projectName}"
+                    _listProjectBrewDependencies "${projectName}"
                 fi
             done
         fi
@@ -55,7 +55,7 @@ _assertProjectDependencies() {
     (( verbose )) && echo "${_greenCheckMark}"
 }
 
-_printProjectBrewDependencies() {
+_listProjectBrewDependencies() {
     local projectName="${1}"
     local dependencies=()
     _collectBrewDependencies "${projectName}" dependencies

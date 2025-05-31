@@ -122,7 +122,7 @@ assertDependenciesVerbose() {
 brewDependencies() {
     local projectName="${1}"
     require 'rayvn/dependencies'
-    printBrewDependencies "${projectName}"
+    listBrewDependencies "${projectName}"
 }
 
 forEachProject() {
