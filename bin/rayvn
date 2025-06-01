@@ -47,6 +47,7 @@ init() {
     declare -g command=
     declare -g projects=()
     declare -g args=()
+    declare -g gitHubRepo
     declare -gAi flags=()
     upOptions=()
 
@@ -54,8 +55,8 @@ init() {
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            test) command=runAllTests ;;
-            libs) command=forEachLibrary; args+=('_printLibrary') ;;
+            test) command=runAllTests ;;    # TODO!!
+            libs) command=forEachLibrary; args+=('_printLibrary') ;; # TODO  ??
             assert) parseArgs assertDependencies "${@:2}"; break ;;
             brew) parseArgs brewDependencies "${@:2}"; break ;;
             release) parseArgs releaseProject "${@:2}"; break ;;
@@ -81,29 +82,21 @@ parseArgs() {
     shift
     while (( ${#} > 0 )); do
         case "${1}" in
-            -p | --project) shift; addProject "${1}" ;;
-            --verbose) flags+=(["verbose"]=1) ;;
+            -q | --quiet) flags+=(["quiet"]=1) ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions='clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
+            --repo) shift; gitHubRepo="${1}";;
             -*) args+=("${1}") ;;
-            *) isRayvnExecutable "${1}" && addProject "${1}" || args+=("${1}")
+            *) addIfRayvnExecutable "${1}" || args+=("${1}") ;;
         esac
         shift
     done
-    [[ "${#projects[@]}" == 0 ]] && projects+=(rayvn)
 }
 
-addProject() {
-    local projectName="${1#*/}"
-    projects+=("${projectName}")
-    [[ ${projectName} == rayvn ]] && return 0
-    upOptions+=("--add ${projectName}")
-}
-
-isRayvnExecutable() {
+addIfRayvnExecutable() {
     local name="${1}"
-    local path rayvnPkgFile
+    local path root rayvnPkgFile
     path="$(which "${name}")"
     if [[ -n "${path}" ]]; then
 
@@ -112,55 +105,78 @@ isRayvnExecutable() {
         path="$(realpath "${path}")"
         path="${path%/}"  # normalize trailing slash
         path="${path%/*}" # strip last component
-        path="${path%/*}" # and again
+        root="${path%/*}" # and again to reach root
 
         # See if there is a rayvn.pkg file
 
-        rayvnPkgFile="${path}/rayvn.pkg"
-        [[ -f ${rayvnPkgFile} ]] && return 0
+        rayvnPkgFile="${root}/rayvn.pkg"
+        if [[ -f ${rayvnPkgFile} ]]; then
+            addProject "${name}=${root}"
+            return 0
+        fi
     fi
     return 1
 }
 
+addProject() {
+    local projectName="${1%%=*}"
+    local project="${1}"
+    projects+=("${projectName}")
+    [[ ${projectName} == rayvn ]] && return 0
+    upOptions+=("--add ${project}")
+}
+
 assertSingleProject() {
-    [[ ${#projects[@]} == 1 ]] || fail "only one project name is supported"
+    (( ${#projects[@]} > 1 )) && fail "only one project name is supported"
+}
+
+ensureAtFront() {
+    local -n arrRef="${1}"
+    local value="${2}"
+    local newArray=("${value}")
+    declare -i seen=0
+
+    for element in "${arrRef[@]}"; do
+        if [[ "${element}" == "${value}" ]] && (( ! seen )); then
+            seen=1
+            continue
+        fi
+        newArray+=("${element}")
+    done
+
+    arrRef=("${newArray[@]}")
 }
 
 assertDependencies() {
-    assertSingleProject
     require 'rayvn/dependencies'
-    assertProjectDependencies "${projects[0]}" flags["verbose"]
+    ensureAtFront projects rayvn
+    assertProjectDependencies projects flags["quiet"]
 }
 
 releaseProject() {
-    assertSingleProject
-    local ghRepo="${projects[0]}"
+    local ghRepo="${gitHubRepo}"
     local version="${args[0]}"
     [[ -n ${version} ]] || fail "version required"
 
-    case "${ghRepo}" in
-        */*) ;; # expected format
-        rayvn) ghRepo='phoggy/rayvn' ;;
-        valt) ghRepo='phoggy/valt' ;;
-        wardn) ghRepo='phoggy/wardn' ;;
-        *) fail "unknown GitHub repo '${ghRepo}', please specify in accountName/repoName format."
-    esac
+    if [[ -z ${ghRepo} ]]; then
+        assertSingleProject
+        local project="${projects[0]}"
+        case "${project}" in
+            rayvn) ghRepo='phoggy/rayvn' ;;
+            valt) ghRepo='phoggy/valt' ;;
+            wardn) ghRepo='phoggy/wardn' ;;
+            *) fail "please specify GitHub repo using --repo account/repo."
+        esac
+    fi
 
     require 'rayvn/release'
     release "${ghRepo}" "${version}"
 }
 
 brewDependencies() {
-    assertSingleProject
+    ensureAtFront projects rayvn
     require 'rayvn/dependencies'
-    listBrewDependencies "${projects[0]}"
-}
-
-trim() {
-    local value="${1}"
-    value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
-    value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
-    echo "${value}"
+    listBrewDependencies projects
 }
 
 forEachProject() {

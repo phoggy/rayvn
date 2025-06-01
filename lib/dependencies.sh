@@ -6,10 +6,13 @@
 require 'rayvn/core' 'rayvn/safe-env'
 
 listBrewDependencies() {
-    local projectName="${1:-}"
+    local -n projectsArrayRef="${1}"
     (
-        if [[ -n "${projectName}" ]]; then
-            _listProjectBrewDependencies "${projectName}"
+        if (( ${#projectsArrayRef[@]} )) ; then
+            local projectName
+            for projectName in "${projectsArrayRef[@]}"; do
+                _listProjectBrewDependencies "${projectName}"
+            done
         else
             local key
             for key in "${!_rayvnProjects[@]}"; do
@@ -23,17 +26,20 @@ listBrewDependencies() {
 }
 
 assertProjectDependencies() {
-    local projectName="${1}"
-    declare -i verbose="${2:-0}"
+    local -n projectsArrayRef="${1}"
+    declare -i quiet="${2:-0}"
     (
-        if [[ -n "${projectName}" ]]; then
-            _assertProjectDependencies "${projectName}" "${verbose}"
+        if (( ${#projectsArrayRef[@]} )) ; then
+            local projectName
+            for projectName in "${projectsArrayRef[@]}"; do
+                _assertProjectDependencies "${projectName}" "${quiet}"
+            done
         else
             local key
             for key in "${!_rayvnProjects[@]}"; do
                 if [[ ${key} == *::project ]]; then
                     projectName="${key%%::*}"
-                    _assertProjectDependencies "${projectName}" "${verbose}"
+                    _assertProjectDependencies "${projectName}" "${quiet}"
                 fi
             done
         fi
@@ -44,15 +50,15 @@ UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)
 
 _assertProjectDependencies() {
     local projectName="${1}"
-    declare -i verbose="${2:-0}"
-    (( verbose )) && echo -n "checking project '${projectName}' dependencies "
+    declare -i quiet="${2:-0}"
+    (( ! quiet )) && echo -n "Checking $(ansi bold ${projectName}) project dependencies "
     _setProjectDependencies "${projectName}"
     for key in "${!projectDependencies[@]}"; do
         if [[ ${key} == *_extract$ ]]; then
             _assertExecutable "${key%_extract}"
         fi
     done
-    (( verbose )) && echo "${_greenCheckMark}"
+    (( ! quiet )) && echo "${_greenCheckMark}"
 }
 
 _listProjectBrewDependencies() {

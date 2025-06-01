@@ -114,10 +114,10 @@ _configure() {
     # Now, process arguments in two passes: add projects, then load any required libraries
 
     local required=()
-    local projects project name path
+    local projects=() split=()  project name path
     while (( ${#} > 0 )); do
         case "${1}" in
-            -a | --add) shift; IFS=',' read -r -a projects <<< "${1}" ;;
+            -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
             *) required+=("${1}") ;;
         esac
         shift
