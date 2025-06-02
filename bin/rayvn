@@ -29,6 +29,7 @@ usage() {
 main() {
     init "${@}"
     ${command} "${args[@]}"
+    echo
 }
 
 init() {
@@ -194,7 +195,7 @@ runTests() {
         require 'rayvn/spinner'
         local testLogDir="$(configDirPath tests)" || fail
         ensureDir "${testLogDir}" || fail
-        rm "${testLogDir:?}"/*
+        rm "${testLogDir:?}"/* 2> /dev/null
         (( ${#projects[@]} )) || projects+=(rayvn)
         forEachProject runProjectTests
     fi
@@ -244,14 +245,14 @@ runProjectTests() {
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
     if [[ -d "${testDir}" ]]; then
-        pushd "${testDir}" > /dev/null
+        pushd "${testDir}" &> /dev/null
         local testFiles=(test-*.sh)
+        popd &> /dev/null
         sortArrayLongestFirst testFiles
         declare -i maxLength=$(( $? -8 ))
         for testFile in "${testFiles[@]}"; do
-            runTest "${projectRoot}" "${testFile}" ${maxLength}
+            runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength}
         done
-        popd > /dev/null
     else
         echo "$(ansi bold ${project}) (no tests)"
     fi
@@ -305,6 +306,7 @@ runTest() {
 
                     export rayvnInstallHome="${rayvnHome}"
                     export rayvnInstallBinary="${rayvnHome}/bin/rayvn"
+                    removeVars+="-u rayvnHome"
 
                     # Third, export a list of the function names within the test itself so
                     # that it can ensure that no other functions are present, e.g. require
@@ -318,15 +320,14 @@ runTest() {
                     # TODO: only works if library loaded, so add a flag to
                     #  debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
 
-                    # Create any args we need for the test
+                    # Don't add an empty line at exit
 
-                    local args
-                    [[ ${_debug} ]] && args='--debug'
+                    declare -grx _noEchoOnExit=1
 
                     # Finally, run the test without functions or rayvn vars in its env, and without sourcing
-                    # any init files
+                    # any init files.
 
-                    env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}" ${args}
+                    env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}"
 
                 ) &> "${testLogFile}"
 
@@ -337,16 +338,13 @@ runTest() {
             fi
 
             declare -i result="${?}"
-            set -x
             stopSpinner || fail
             padSpaces ${padLength}
-            set +x
             if (( ${result} == 0 )); then
-                echo " ${_greenCheckMark} $(ansi dim log at ${testLogFileName} in ${testLogDir})"
+                echo " ${_greenCheckMark} $(ansi dim log at ${testLogFile})"
             else
-                echo " ${_redCrossMark} $(ansi dim log at ${testLogFileName} in ${testLogDir})"
+                echo " ${_redCrossMark} $(ansi dim log at ${testLogFile})"
             fi
-
         else
             warn "Skipping ${testFile}: not executable"
         fi
