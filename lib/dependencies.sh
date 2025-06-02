@@ -5,26 +5,6 @@
 
 require 'rayvn/core' 'rayvn/safe-env'
 
-listBrewDependencies() {
-    local -n projectsArrayRef="${1}"
-    (
-        if (( ${#projectsArrayRef[@]} )) ; then
-            local projectName
-            for projectName in "${projectsArrayRef[@]}"; do
-                _listProjectBrewDependencies "${projectName}"
-            done
-        else
-            local key
-            for key in "${!_rayvnProjects[@]}"; do
-                if [[ ${key} == *::project ]]; then
-                    projectName="${key%%::*}"
-                    _listProjectBrewDependencies "${projectName}"
-                fi
-            done
-        fi
-    )
-}
-
 assertProjectDependencies() {
     local -n projectsArrayRef="${1}"
     declare -i quiet="${2:-0}"
@@ -51,7 +31,7 @@ UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)
 _assertProjectDependencies() {
     local projectName="${1}"
     declare -i quiet="${2:-0}"
-    (( ! quiet )) && echo -n "Checking $(ansi bold ${projectName}) project dependencies "
+    (( ! quiet )) && echo -n "Checking $(ansi bold ${projectName}) project dependencies: "
     _setProjectDependencies "${projectName}"
     for key in "${!projectDependencies[@]}"; do
         if [[ ${key} == *_extract$ ]]; then

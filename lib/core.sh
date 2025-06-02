@@ -63,8 +63,10 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
 
         # Set misc constants
 
-        declare -grx _checkMark="✔"
+        declare -grx _checkMark='✔'
+        declare -grx _crossMark='✗'
         declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
+        declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_normal}"
 
         # Ensure debug flag is set and off by default
 

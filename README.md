@@ -3,7 +3,7 @@
 # rayvn
 /ˈreɪ.vən/
 
-A simple bash shared library manager and a set of shared libraries.
+A simple bash shared library manager and a collection of shared libraries.
 
 ### Installation
 
@@ -16,7 +16,7 @@ $ brew install rayvn
 
 ## Using rayvn within scripts
 
-The following line in your script will activate rayvn
+The following line in your script will activate rayvn:
 ```bash
 source rayvn.up
 ```
@@ -27,8 +27,7 @@ Nearly all scripts will want to include the `rayvn/core` library:
 require 'rayvn/core'
 ```
 
-For convenience, `rayvn.up` accepts a list library names to immediately `require`, so, for example
-the separate steps will normally be combined:
+For convenience, `rayvn.up` accepts a list of library names to immediately `require`:
 ```bash
 source rayvn.up 'rayvn/core'
 ```
@@ -36,7 +35,6 @@ source rayvn.up 'rayvn/core'
 The `require` function can be called lazily, e.g. within a function.
 
 Calling `require` multiple times for the same library will only load it on the first call, subsequent calls will just count the request.
-
 
 To see the set of public functions available in a library: 
 ```bash

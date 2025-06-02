@@ -1,38 +1,27 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-
-# TODO: do we need this script at all any more?
-# TODO: if so, update script to implement new usage and commands in README.md
-
 usage() {
     echo
     echo "$(ansi bold Manage shared bash libraries and executables)."
     echo
-    echo "Usage: $(ansi bold rayvn) COMMAND <options>"
+    echo "Usage: $(ansi bold rayvn) COMMAND [PROJECT] [PROJECT...] <options>"
     echo
-    echo "User Commands"
+    echo "Commands"
     echo
-    echo "    list   List all projects in the local or global repository."
-    echo "    help                  Display usage (same as -h or --help)."
+    echo "    libraries         List libraries."
+    echo "    functions         List public functions."
+    echo "    test              Run tests."
+    echo "    dependencies      Assert that dependencies are satisfied."
+    echo "    release           Create a new release."
     echo
-    echo "Developer Commands"
-    echo
-    echo "    admin PATH          Writes a new rayvn.admin template file to the PATH directory."
-    echo "    guid                Return a new rayvn GUID."
+    echo "Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified."
     echo
     echo "Options:"
     echo
-    echo "    -h, --help          Display usage."
-    echo "    -v                  Display version."
-    echo "    --version           Display verbose version."
-    echo
-    echo "The 'rayvn.pkg' may contain the following key=value declarations:"
-    echo
-    echo "  'namespace = <name>'  Declares the namespace name for shared libraries in the \${PATH}/lib directory."
-    echo
-    echo "  'binaries = <names>'  Declares one or more binaries int the \${PATH}/bin directory that should be included"
-    echo "                        in the search path. Can be a comma separated list or '*' to add all."
+    echo "    -h, --help        Print this help message and exit."
+    echo "    -v                Print the version and exit."
+    echo "    --version         Print the version plus release date and exit."
     echo
     bye "${@}"
 }
@@ -53,20 +42,18 @@ init() {
 
     # process arguments
 
-    while (( ${#} > 0 )); do
-        case "${1}" in
-            test) command=runAllTests ;;    # TODO!!
-            libs) command=forEachLibrary; args+=('_printLibrary') ;; # TODO  ??
-            assert) parseArgs assertDependencies "${@:2}"; break ;;
-            brew) parseArgs brewDependencies "${@:2}"; break ;;
-            release) parseArgs releaseProject "${@:2}"; break ;;
-            -h | --help) usage ;;
-            -v) printVersion; exit 0 ;;
-            --version) printVersion true; exit 0 ;;
-            -*) usage "Unknown option: ${1}" ;;
-        esac
-        shift
-    done
+    case "${1}" in
+        test) parseArgs runTests "${@:2}" ;;
+        libraries) parseArgs listLibraries "${@:2}" ;;
+        functions) parseArgs listFunctions "${@:2}" ;;
+        dependencies) parseArgs assertDependencies "${@:2}" ;;
+        release) parseArgs releaseProject "${@:2}" ;;
+        -v) printVersion; exit 0 ;;
+        --version) printVersion true; exit 0 ;;
+        -h | --help | help) command='usage' ;;
+        -*) command='usage'; args=("Unknown option:" "${1}") ;;
+        *) command='usage'; args=("Unknown command:" "${1}") ;;
+    esac
 
     # Boot rayvn, adding any additional projects, then load core and debug
     source rayvn.up ${upOptions[*]} 'rayvn/core' 'rayvn/debug'
@@ -77,12 +64,15 @@ init() {
     debug "command: ${command} ${args[*]}"
 }
 
+SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
+
 parseArgs() {
     command="${1}"
     shift
     while (( ${#} > 0 )); do
         case "${1}" in
-            -q | --quiet) flags+=(["quiet"]=1) ;;
+            -h | --help) flags+=(['help']=1) ;;
+            -q | --quiet) flags+=(['quiet']=1) ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions='clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
@@ -131,76 +121,106 @@ assertSingleProject() {
 }
 
 ensureAtFront() {
-    local -n arrRef="${1}"
-    local value="${2}"
-    local newArray=("${value}")
+    local -n arrayRef="${1}"
+    local first="${2}"
+    local newArray=("${first}")
     declare -i seen=0
 
-    for element in "${arrRef[@]}"; do
-        if [[ "${element}" == "${value}" ]] && (( ! seen )); then
+    for element in "${arrayRef[@]}"; do
+        if [[ "${element}" == "${first}" ]] && (( ! seen )); then
             seen=1
-            continue
+        else
+            newArray+=("${element}")
         fi
-        newArray+=("${element}")
     done
 
-    arrRef=("${newArray[@]}")
+    arrayRef=("${newArray[@]}")
+}
+
+SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
+
+printUsage() {
+    usage
 }
 
 assertDependencies() {
-    require 'rayvn/dependencies'
-    ensureAtFront projects rayvn
-    assertProjectDependencies projects flags["quiet"]
+    if (( flags['help'] )); then
+        echo "rayvn dependencies [PROJECT] [-q | --quiet]"
+    else
+        require 'rayvn/dependencies'
+        ensureAtFront projects rayvn
+        assertProjectDependencies projects flags['quiet']
+    fi
 }
 
 releaseProject() {
-    local ghRepo="${gitHubRepo}"
-    local version="${args[0]}"
-    [[ -n ${version} ]] || fail "version required"
+    if (( flags['help'] )); then
+        echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION "
+    else
+        local version=
+        if (( ${#projects[@]} )); then
+            assertSingleProject
+            version="${args[0]}"
+        elif (( ${#args[@]} == 1 )); then
+            projects=(rayvn)
+            version="${args[0]}"
+        else
+            projects=("${args[0]}")
+            version="${args[1]}"
+        fi
 
-    if [[ -z ${ghRepo} ]]; then
-        assertSingleProject
-        local project="${projects[0]}"
-        case "${project}" in
-            rayvn) ghRepo='phoggy/rayvn' ;;
-            valt) ghRepo='phoggy/valt' ;;
-            wardn) ghRepo='phoggy/wardn' ;;
-            *) fail "please specify GitHub repo using --repo account/repo."
-        esac
+        [[ -n ${version} ]] || fail "version required"
+
+        local ghRepo="${gitHubRepo}"
+        if [[ -z ${ghRepo} ]]; then
+            local project="${projects[0]}"
+            case "${project}" in
+                rayvn) ghRepo='phoggy/rayvn' ;;
+                valt) ghRepo='phoggy/valt' ;;
+                wardn) ghRepo='phoggy/wardn' ;;
+                *) fail "Please specify project using GitHub repo format: --repo 'my-account/my-repo'."
+            esac
+        fi
+
+        require 'rayvn/release'
+        release "${ghRepo}" "${version}"
     fi
-
-    require 'rayvn/release'
-    release "${ghRepo}" "${version}"
 }
 
-brewDependencies() {
-    ensureAtFront projects rayvn
-    require 'rayvn/dependencies'
-    listBrewDependencies projects
+runTests() {
+    if (( flags['help'] )); then
+        echo "rayvn test [PROJECT]"
+    else
+        require 'rayvn/spinner'
+        local testLogDir="$(configDirPath tests)" || fail
+        ensureDir "${testLogDir}" || fail
+        rm "${testLogDir:?}"/*
+        (( ${#projects[@]} )) || projects+=(rayvn)
+        forEachProject runProjectTests
+    fi
 }
 
 forEachProject() {
-    for key in "${!_rayvnProjects[@]}"; do
-        if [[ ${key} == *::library ]]; then
-            local projectName="${key%%::*}"
-            local libraryRoot="${_rayvnProjects[${key}]}"
-            "${*}" "${projectName}" "${libraryRoot}"
-        fi
+    local command="${1}"
+    local args=("${@:2}")
+    local projectRoot
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        "${command}" "${project}" "${projectRoot}" "${args}"
     done
 }
 
 forEachLibrary() {
-    for key in "${!_rayvnProjects[@]}"; do
-        if [[ ${key} == *::library ]]; then
-            local project="${key%%::*}"  # remove everything from :: onward
-            local libraryRoot="${_rayvnProjects[${key}]}"
-            for file in "${libraryRoot}"/*.sh; do
-                [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
-                local fileName="$(basename "${file}")"
-                local library="${fileName%.*}"
-                "${*}" "${project}" "${library}" "${file}"
-            done
-        fi
+    local project="${1}"
+    local command="${2}"
+    local args=("${@:3}")
+    local libraryRoot="${_rayvnProjects[${project}::library]}"
+    [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
+    for file in "${libraryRoot}"/*.sh; do
+        [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
+        local fileName="$(basename "${file}")"
+        local library="${fileName%.*}"
+        "${command}" "${project}" "${library}" "${file}" "${args}"
     done
 }
 
@@ -219,51 +239,49 @@ _printLibrary() {
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
-_projectNames() {
-    local -n resultArray="${1}"
-    local entry
-    resultArray=()
-    for entry in "${!_rayvnProjects[@]}"; do
-        if [[ "${entry}" == *::project ]]; then
-            resultArray+=("${entry%::*}")
-        fi
-    done
-}
-
-runAllTests() {
-    local entry projectDir
-    for entry in "${!_rayvnProjects[@]}"; do
-        if [[ "${entry}" == *::project ]]; then
-            projectDir=${_rayvnProjects[${entry}]}
-            runProjectTests "${projectDir}"
-        fi
-    done
-}
-
 runProjectTests() {
-    local projectDir="${1}"
-    local testDir="${projectDir}/test"
+    local project="${1}"
+    local projectRoot="${2}"
+    local testDir="${projectRoot}/test"
     if [[ -d "${testDir}" ]]; then
-        local tests=("${testDir}"/test-*.sh)
-        for testFile in "${tests[@]}"; do
-            runTest "${projectDir}" "${testFile}"
+        pushd "${testDir}" > /dev/null
+        local testFiles=(test-*.sh)
+        sortArrayLongestFirst testFiles
+        declare -i maxLength=$(( $? -8 ))
+        for testFile in "${testFiles[@]}"; do
+            runTest "${projectRoot}" "${testFile}" ${maxLength}
         done
+        popd > /dev/null
+    else
+        echo "$(ansi bold ${project}) (no tests)"
     fi
+}
+
+padSpaces() {
+    local count="${1:-0}"
+    (( count > 0 )) && printf '%*s' "${count}" ''
 }
 
 runTest() {
     local projectDir="${1}"
     local testFile="${2}"
+    declare -i maxTestNameLength=${3}
     local projectName=$(basename "${projectDir}")
     assertFileExists "${testFile}"
     local fileName="$(basename ${testFile})"
     local testName="${fileName#test-}"
     testName="${testName%.sh}"
+    local testLogFileName="${projectName}-${testName}.log"
+    local testLogFile="${testLogDir}/${testLogFileName}"
+
+    local status="$(ansi bold ${projectName}) test $(ansi cyan ${testName})"
+    local padLength=$(( ${maxTestNameLength} - ${#testName} ))
+
+    echo -n "${status}"
+
     (
         if [[ -x "${testFile}" ]]; then
-            echo
-            echo "--- Project $(ansi bold ${projectName}): $(ansi cyan ${testName}) test ------------------------------"
-            echo
+            startSpinner || fail
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
                     # debugEnvironment "rayvn env, prior to running ${testFile}" "rayvn-subshell"
@@ -309,22 +327,44 @@ runTest() {
                     # any init files
 
                     env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}" ${args}
-                )
+
+                ) &> "${testLogFile}"
+
             else
                 (
                     "${SHELL}" "${testFile}"
-                )
+                ) &> "${testLogFile}"
             fi
-            if [[ ${?} == 0 ]]; then
-                echo "$(ansi bold_green PASSED)"
+
+            declare -i result="${?}"
+            set -x
+            stopSpinner || fail
+            padSpaces ${padLength}
+            set +x
+            if (( ${result} == 0 )); then
+                echo " ${_greenCheckMark} $(ansi dim log at ${testLogFileName} in ${testLogDir})"
             else
-                echo "$(ansi bold_red FAILED)"
+                echo " ${_redCrossMark} $(ansi dim log at ${testLogFileName} in ${testLogDir})"
             fi
+
         else
             warn "Skipping ${testFile}: not executable"
         fi
     )
 }
+
+sortArrayLongestFirst() {
+    local -n arrayRef="${1}"
+    IFS=$'\n' arrayRef=($(printf "%s\n" "${arrayRef[@]}" | sort -r -n -k1,1 --key=1.1,1.1 --key=1.1,1.1 | awk '{ print length, $0 }' | sort -r -n | cut -d' ' -f2-))
+    IFS=' '
+
+    if (( ${#arrayRef[@]} > 0 )); then
+        return "${#arrayRef[0]}"
+    else
+         return 0
+    fi
+}
+
 
 printFunction() {
     local key="${1}"

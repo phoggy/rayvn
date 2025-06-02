@@ -45,6 +45,7 @@ replaceSpinnerAndRestart() {
 stopSpinnerAndEraseLine() {
     stopSpinner "${spinnerEraseLineCommand}" "${1}"
 }
+
 stopSpinner() {
     local command message
     if [[ ${1} =~ ${spinnerCommandPrefix} ]]; then
@@ -170,10 +171,11 @@ _spinExit() {
 _killSpinner() {
     if [[ ${spinnerPid} ]]; then
         kill -INT ${spinnerPid} 2> /dev/null
-        wait "${spinnerPid}"   # Wait for the process to exit
+        wait "${spinnerPid}" 2> /dev/null  # Wait for the process to exit
         spinnerPid=
     fi
 }
+
 _testSpinner() {
     local punctuation='.'
     local doneCheck="${_greenCheckMark}"
