@@ -335,11 +335,12 @@ _updateBrewFormulaDependencies() {
     local formulaFile="${2}"
     local tempFile="$(makeTempFile "${project}.rb")" || fail
     local dependencies=()
+    local minVersions=()
     declare -i found=0
 
     # Get dependencies
 
-    _collectBrewDependencies "${project}" dependencies
+    _collectProjectDependencies "${project}" dependencies minVersions true
 
     # Update using temp file
 

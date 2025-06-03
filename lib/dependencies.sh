@@ -8,21 +8,36 @@ require 'rayvn/core' 'rayvn/safe-env'
 assertProjectDependencies() {
     local -n projectsArrayRef="${1}"
     declare -i quiet="${2:-0}"
+    local projectName
     (
-        if (( ${#projectsArrayRef[@]} )) ; then
-            local projectName
-            for projectName in "${projectsArrayRef[@]}"; do
-                _assertProjectDependencies "${projectName}" "${quiet}"
+        for projectName in "${projectsArrayRef[@]}"; do
+            _assertProjectDependencies "${projectName}" "${quiet}"
+        done
+    )
+}
+
+listProjectDependencies() {
+    local -n projectsArrayRef="${1}"
+    local dependencies=()
+    local minVersions=()
+    local projectName i source name tap minVersion line
+    (
+        for projectName in "${projectsArrayRef[@]}"; do
+            _collectProjectDependencies "${projectName}" dependencies minVersions
+            echo
+            echo "$(ansi bold ${projectName})"
+            echo
+            for (( i = 0; i < ${#dependencies[@]}; i++ )); do
+                source="${dependencies[i]}"
+                name="${source##*/}"
+                tap="${source%/*}"
+                minVersion=${minVersions[i]}
+                line="${name} ${minVersion}"
+                [[ ${tap} == */* ]] && line+=" (tap '${tap}')"
+
+                echo "${line}"
             done
-        else
-            local key
-            for key in "${!_rayvnProjects[@]}"; do
-                if [[ ${key} == *::project ]]; then
-                    projectName="${key%%::*}"
-                    _assertProjectDependencies "${projectName}" "${quiet}"
-                fi
-            done
-        fi
+        done
     )
 }
 
@@ -34,45 +49,44 @@ _assertProjectDependencies() {
     (( ! quiet )) && echo -n "Checking $(ansi bold ${projectName}) project dependencies: "
     _setProjectDependencies "${projectName}"
     for key in "${!projectDependencies[@]}"; do
-        if [[ ${key} == *_extract$ ]]; then
+        if [[ ${key} == *_extract ]]; then
             _assertExecutable "${key%_extract}"
         fi
     done
     (( ! quiet )) && echo "${_greenCheckMark}"
 }
 
-_listProjectBrewDependencies() {
+_collectProjectDependencies() {
+    local key executable brew tap url dep brewName depName
     local projectName="${1}"
-    local dependencies=()
-    _collectBrewDependencies "${projectName}" dependencies
-    echo "$(ansi bold ${projectName}) ${dependencies[*]}"
-}
-
-_collectBrewDependencies() {
-    local key executable brew tap url dep
-    local projectName="${1}"
-    local -n resultVar="${2}"
+    local -n dependenciesRef="${2}"
+    local -n minVersionsRef="${3}"
+    local useBrewName="${4:-false}"
     local rayvnDeps=()
     local nonRayvnDeps=()
+    local minVers=()
     _setProjectDependencies "${projectName}"
 
-    # Collect rayvn and non-rayvn rayvnDeps then append to keep rayvn dependencies first
+    # Collect rayvn and non-rayvn dependencies then append to keep rayvn dependencies first
 
     for key in "${!projectDependencies[@]}"; do
         if [[ ${key} == *_min ]]; then
             executable="${key%_min}"
+            brewName=${projectDependencies[${executable}_brew_name]:-${executable}}
             brew=${projectDependencies[${executable}_brew]}
             tap=${projectDependencies[${executable}_brew_tap]}
             url=${projectDependencies[${executable}_url]}
+            minVers+=("${projectDependencies[${executable}_min]}")
 
+            [[ ${useBrewName} == true ]] && depName="${brewName}" || depName="${executable}"
             if [[ -n "${tap}" ]]; then
-                dep="${tap}/${executable}"
+                dep="${tap}/${depName}"
             elif [[ ${brew} == true ]]; then
-                dep="${executable}"
-            elif brew which-formula "${executable}" &> /dev/null; then
-                dep="${executable}"
+                dep="${depName}"
+            elif brew which-formula "${depName}" &> /dev/null; then
+                dep="${depName}"
             else
-                fail "${executable} is not available from brew. Maybe there is a tap? See ${url}"
+                fail "${depName} is not available from brew. Maybe there is a tap? See ${url}"
             fi
 
             if [[ ${url} == */github.com/phoggy/* ]]; then
@@ -83,7 +97,8 @@ _collectBrewDependencies() {
         fi
     done
 
-    resultVar+=("${rayvnDeps[@]}" "${nonRayvnDeps[@]}")
+    dependenciesRef=("${rayvnDeps[@]}" "${nonRayvnDeps[@]}")
+    minVersionsRef=("${minVers[@]}")
 }
 
 _setProjectDependencies() {
@@ -123,7 +138,8 @@ _assertExecutable() {
             local version=$(_extractVersion ${executable} ${extractMethod})
             local errMsg=":"
             if [[ ${brewIsInstalled} && ${projectDependencies[${executable}_brew]} == true ]]; then
-                errMsg+=" try 'brew update ${executable}' or see"
+                local brewName=${projectDependencies[${executable}_brew_name]:-${executable}}
+                errMsg+=" try 'brew update ${brewName}' or see"
             else
                 errMsg+=" see"
             fi
@@ -132,7 +148,7 @@ _assertExecutable() {
             _assertMinimumVersion ${minVersion} ${version} "${executable}" "${errMsg}"
         fi
     else
-        assertFail "unregistered dependency: ${executable}"
+        fail "unregistered dependency: ${executable}"
     fi
 }
 
@@ -151,7 +167,7 @@ _assertExecutableFound() {
             errMsg+=" See"
         fi
         errMsg+=" ${projectDependencies[${executable}_url]} "
-        assertFail "${errMsg}"
+        fail "${errMsg}"
     fi
 }
 

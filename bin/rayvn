@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
+# shellcheck disable=SC2120
 usage() {
     echo
     echo "$(ansi bold Manage shared bash libraries and executables)."
@@ -47,7 +48,7 @@ init() {
         test) parseArgs runTests "${@:2}" ;;
         libraries) parseArgs listLibraries "${@:2}" ;;
         functions) parseArgs listFunctions "${@:2}" ;;
-        dependencies) parseArgs assertDependencies "${@:2}" ;;
+        dependencies) parseArgs projectDependencies "${@:2}" ;;
         release) parseArgs releaseProject "${@:2}" ;;
         -v) printVersion; exit 0 ;;
         --version) printVersion true; exit 0 ;;
@@ -74,6 +75,7 @@ parseArgs() {
         case "${1}" in
             -h | --help) flags+=(['help']=1) ;;
             -q | --quiet) flags+=(['quiet']=1) ;;
+            --assert) flags+=(['assert']=1) ;;
             --debug) debugOptions='showOnExit' ;;
             --debug-new) debugOptions='clearLog showOnExit' ;;
             --debug-out) debugOptions='noLog' ;;
@@ -144,13 +146,17 @@ printUsage() {
     usage
 }
 
-assertDependencies() {
+projectDependencies() {
     if (( flags['help'] )); then
-        echo "rayvn dependencies [PROJECT] [-q | --quiet]"
+        echo "rayvn dependencies [PROJECT] [--assert] [-q | --quiet]"
     else
         require 'rayvn/dependencies'
         ensureAtFront projects rayvn
-        assertProjectDependencies projects flags['quiet']
+        if (( flags['assert'] )); then
+            assertProjectDependencies projects flags['quiet']
+        else
+            listProjectDependencies projects flags['quiet']
+        fi
     fi
 }
 
