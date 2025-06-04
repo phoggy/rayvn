@@ -4,28 +4,30 @@
 # Library supporting progress spinner
 # Intended for use via: require 'rayvn/spinner'
 
-require 'rayvn/core'
+require 'rayvn/core' 'rayvn/terminal'
 
 _init_rayvn_spinner() {
-    configureSpinner
+    if (( terminalSupportsAnsi )); then
+        declare -grx spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟'
+        declare -grx spinnerDefaultCharsColor='bold_blue'
+        declare -grx spinnerCommandPrefix="::"
+        declare -grx spinnerEraseCommand="${spinnerCommandPrefix}eraseSpinner"
+        declare -grx spinnerEraseLineCommand="${spinnerCommandPrefix}eraseLine"
+
+        declare -ga spinnerArray=
+        declare -g spinnerArraySize=
+        declare -g spinnerMaxIndex=
+        declare -g spinnerIndex=
+        declare -g spinnerForward=
+        declare -g spinnerPid=
+        declare -g spinnerCleanupRegistered
+
+        configureSpinner
+    fi
 }
 
-declare -grx spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟'
-declare -grx spinnerDefaultCharsColor='bold_blue'
-declare -grx spinnerCommandPrefix="::"
-declare -grx spinnerEraseCommand="${spinnerCommandPrefix}eraseSpinner"
-declare -grx spinnerEraseLineCommand="${spinnerCommandPrefix}eraseLine"
-
-declare -ga spinnerArray=
-declare -g spinnerArraySize=
-declare -g spinnerMaxIndex=
-declare -g spinnerIndex=
-declare -g spinnerForward=
-declare -g spinnerPid=
-declare -g spinnerCleanupRegistered
-
 startSpinner() {
-    if [[ ! ${spinnerPid} ]]; then
+    if (( terminalSupportsAnsi )) && [[ ! ${spinnerPid} ]]; then
         _ensureStopOnExit
         _spinServerMain "${1}" &
         spinnerPid=${!}
@@ -33,54 +35,66 @@ startSpinner() {
 }
 
 restartSpinner() {
-    stopSpinner "${1}"
-    startSpinner "${2}"
+    if (( terminalSupportsAnsi )); then
+        stopSpinner "${1}"
+        startSpinner "${2}"
+    fi
 }
 
 replaceSpinnerAndRestart() {
-    stopSpinner "${spinnerEraseLineCommand}" "${1}"
-    startSpinner "${2}"
+    if (( terminalSupportsAnsi )); then
+        stopSpinner "${spinnerEraseLineCommand}" "${1}"
+        startSpinner "${2}"
+    fi
 }
 
 stopSpinnerAndEraseLine() {
-    stopSpinner "${spinnerEraseLineCommand}" "${1}"
+    if (( terminalSupportsAnsi )); then
+        stopSpinner "${spinnerEraseLineCommand}" "${1}"
+    fi
 }
 
 stopSpinner() {
-    local command message
-    if [[ ${1} =~ ${spinnerCommandPrefix} ]]; then
-        command="${1}"
-        message="${2}"
-    else
-        command="${spinnerEraseCommand}"
-        message="${1}"
+    if (( terminalSupportsAnsi )); then
+        local command message
+        if [[ ${1} =~ ${spinnerCommandPrefix} ]]; then
+            command="${1}"
+            message="${2}"
+        else
+            command="${spinnerEraseCommand}"
+            message="${1}"
+        fi
+        _endSpin "${command}" "${message}"
     fi
-    _endSpin "${command}" "${message}"
 }
 
 failSpin() {
-    _spinExit
+    if (( terminalSupportsAnsi )); then
+       _spinExit
+    fi
     fail "${@}"
 }
 
 # shellcheck disable=SC2120
 configureSpinner() {
-    local color="${1:-${spinnerDefaultCharsColor}}"
-    local chars="${2:-${spinnerDefaultChars}}"
-    local count="${#chars}"
-    local i c
-    spinnerArray=()
-    for (( i=0; i < ${count}; i++ )); do
-        c="${chars:i:1}"
-        c="$(printf "$(ansi ${color} ${chars:${i}:1})${ansi_normal}")"
-        spinnerArray[${i}]="${c}"
-    done
-    spinnerArraySize=${count}
-    spinnerMaxIndex=$(( ${count} -1))
-    unset spinnerPid
+    if (( terminalSupportsAnsi )); then
+        local color="${1:-${spinnerDefaultCharsColor}}"
+        local chars="${2:-${spinnerDefaultChars}}"
+        local count="${#chars}"
+        local i c
+        spinnerArray=()
+        for (( i=0; i < ${count}; i++ )); do
+            c="${chars:i:1}"
+            c="$(printf "$(ansi ${color} ${chars:${i}:1})${ansi_normal}")"
+            spinnerArray[${i}]="${c}"
+        done
+        spinnerArraySize=${count}
+        spinnerMaxIndex=$(( ${count} -1))
+        unset spinnerPid
+    fi
 }
 
-## Implementation only below -----------------------------------
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _ensureStopOnExit() {
     if [[ ! ${spinnerCleanupRegistered} ]]; then
@@ -110,7 +124,7 @@ _beginSpin() {
 
 _nextSpin() {
     if [[ ${spinnerForward} ]]; then
-        if ((${spinnerIndex} < ${spinnerMaxIndex})); then
+        if (( spinnerIndex < spinnerMaxIndex )); then
             spinnerIndex=$((spinnerIndex + 1))
             _printProgressChar
         else
@@ -118,7 +132,7 @@ _nextSpin() {
             spinnerForward=   # reverse direction
             printf '\b \b' # backup and erase 1 character
         fi
-    elif ((${spinnerIndex} > 0)); then
+    elif (( spinnerIndex > 0 )); then
         spinnerIndex=$((spinnerIndex - 1))
         printf '\b \b' # backup 1 character
     else

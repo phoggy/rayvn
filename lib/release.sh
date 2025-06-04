@@ -42,7 +42,7 @@ release () {
     echo
 }
 
-UNSUPPORTED_CODE_BELOW="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _checkExistingRelease() {
     local ghRepo="${1}"

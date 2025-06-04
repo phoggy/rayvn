@@ -4,7 +4,7 @@
 # Library supporting common functionality
 # Intended for use via: require 'rayvn/core'
 
-if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
+if (( ! _rayvnCoreGlobalsSet )); then
 
     trap '_onExit' EXIT
     declare -grx newline=$'\n'
@@ -14,23 +14,44 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
     declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
 
+    # We need to set ${terminal} so that it can be used as a redirect/
     # Are stdout and stderr both terminals?
 
     if [[ -t 1 && -t 2 ]]; then
 
-        # Yes, so remember and export the TTY so we can redirect from within
-        # child processes
+        # Yes, so set terminal to the tty and remember that ANSI is supported.
 
-        declare -grx terminal=$(tty)
+        declare -grx terminal="/dev/tty"
+        declare -grxi terminalSupportsAnsi=1
 
-        # Set constant ANSI codes for some cursor and erase operations
+    else
+
+        # No. Ensure FD 3 exists and points to original stdout, then set terminal
+        # to use it and remember that ANSI is not supported.
+
+        [[ -t 3 ]] || exec 3>&1
+        declare -grx terminal="&3"
+        declare -grxi terminalSupportsAnsi=0
+    fi
+
+    # Set misc constants
+
+    declare -grx _checkMark='✔'
+    declare -grx _crossMark='✗'
+    declare -gxi _debug=0
+
+    # Set ANSI related constants
+
+    if (( terminalSupportsAnsi)); then
+
+        # Set ANSI constants for some cursor and erase operations
 
         declare -grx _eraseToEndOfLine=$(printf $'\x1b[0K')
         declare -grx _eraseCurrentLine=$(printf '\x1b[2K\r')
         declare -grx _cursorUpOneAndEraseLine=$(printf $'\x1b[1F\x1b[0K')
         declare -grx _cursorLeftOne=$(printf '\x1b[1D')
 
-        # Set ansi colors if terminal supports colors
+        # Set ANSI colors if terminal supports them
 
         if (($(tput colors) >= 8)); then
             declare -grx ansi_normal="$(tput sgr0)"
@@ -61,31 +82,13 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
             declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
         fi
 
-        # Set misc constants
-
-        declare -grx _checkMark='✔'
-        declare -grx _crossMark='✗'
         declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
         declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_normal}"
 
-        # Ensure debug flag is set and off by default
-
-        declare -gxi _debug=0
-
-    elif [[ ${RAYVN_NO_TERMINAL} == true ]]; then
-
-        # No terminal, so ensure we define terminal as empty.
-        # Any code that truly requires the terminal should call assertTerminal
-
-        declare -grx terminal=
-
     else
-        echo "🔺 Must be run in a terminal."
-        echo
-        echo "   This requirement can be bypassed by exporting RAYVN_NO_TERMINAL=true"
-        echo "   but be aware that some functionality may not work correctly."
-        echo
-        exit 1
+
+        declare -grx _greenCheckMark="${_checkMark}"
+        declare -grx _redCrossMark="${_crossMark}"
     fi
 
     # Is this a mac?
@@ -97,7 +100,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         if command -v brew > /dev/null ; then
             declare -grx brewIsInstalled=true
         fi
-    elif [[ ! ${RAYVN_NO_OS_CHECK} ]]; then
+    elif [[ ! -v RAYVN_NO_OS_CHECK ]]; then
 
         # No, so warn that not tested here!
 
@@ -108,7 +111,7 @@ if [[ ! ${CORE_GLOBALS_DECLARED} ]]; then
         echo
     fi
 
-    declare -grx CORE_GLOBALS_DECLARED=true
+    declare -grxi _rayvnCoreGlobalsSet=1
 fi
 
 allNewFilesUserOnly() {
@@ -191,21 +194,26 @@ makeDir() {
     echo "${dir}"
 }
 
-assertTerminal() {
-    [[ ${terminal} ]] || assertionFailed "must be run in a terminal"
-}
-
-_resetTerminal() {
-    if [[ ${terminal} ]]; then
-        tput cnorm
-        stty echo 2> /dev/null
-        stty -f ${terminal} echo 2> /dev/null
-    fi
+assertAnsiSupported() {
+    (( terminalSupportsAnsi )) || assertionFailed "must be run in a terminal"
 }
 
 _onExit() {
-    [[ ${terminal} && -n ${_noEchoOnExit} ]] && echo
-    _resetTerminal
+    if (( terminalSupportsAnsi )); then
+
+        # Reset terminal
+
+        tput cnorm
+        stty echo 2> /dev/null
+        stty -f ${terminal} echo 2> /dev/null
+
+        # Add a line unless disabled
+
+        [[ -n ${noEchoOnExit} ]] && echo
+    fi
+
+    # Delete temp dir if we created it
+
     if [[ ${_rayvnTempDir} ]]; then
         # The "--" option below stops option parsing and allows filenames starting with "-"
         rm -rf -- "${_rayvnTempDir}"
@@ -336,62 +344,10 @@ secureEraseVars() {
     done
 }
 
-saveCursor() {
-    assertTerminal
-    tput sc
-}
-
-restoreCursor() {
-    assertTerminal
-    tput rc
-}
-
-eraseToEndOfLine() {
-    assertTerminal
-    echo -n "${_eraseToEndOfLine}"
-}
-
-eraseCurrentLine() {
-    assertTerminal
-    echo -n "${_eraseCurrentLine}"
-}
-
-cursorUpOneAndEraseLine() {
-    assertTerminal
-    echo -n "${_cursorUpOneAndEraseLine}"
-}
-
-cursorPosition() {
-    assertTerminal
-    local position
-    read -sdR -p $'\E[6n' position
-    position=${position#*[} # Strip decoration characters <ESC>[
-    echo "${position}"    # Return position in "row;col" format
-}
-
-cursorRow() {
-    assertTerminal
-    local row column
-    IFS=';' read -sdR -p $'\E[6n' row column
-    echo "${row#*[}"
-}
-
-cursorColumn() {
-    assertTerminal
-    local row column
-    IFS=';' read -sdR -p $'\E[6n' row column
-    echo "${column}"
-}
-
-moveCursor() {
-    assertTerminal
-    tput cup "${1}" "${2}"
-}
-
 ansi() {
     local color="ansi_${1}"
     shift
-    [[ ${terminal} ]] && echo -n "${!color}${*}${ansi_normal}" || echo -n "${*}"
+    (( terminalSupportsAnsi )) && echo -n "${!color}${*}${ansi_normal}" || echo -n "${*}"
 }
 
 printRed() {
