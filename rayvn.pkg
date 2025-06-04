@@ -2,7 +2,7 @@
 
 projectName='rayvn'
 projectVersion='0.1.8'
-projectReleaseDate='2025-06-04 09:14:47 PDT'
+projectReleaseDate=''
 
 declare -A projectDependencies=(
     [bash_min]='5.2.0'
