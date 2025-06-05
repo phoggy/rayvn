@@ -8,7 +8,7 @@ require 'rayvn/core' 'rayvn/terminal'
 
 _init_rayvn_spinner() {
     if (( terminalSupportsAnsi )); then
-        declare -grx spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟'
+        declare -grx spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
         declare -grx spinnerDefaultCharsColor='bold_blue'
         declare -grx spinnerCommandPrefix="::"
         declare -grx spinnerEraseCommand="${spinnerCommandPrefix}eraseSpinner"
