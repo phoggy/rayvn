@@ -9,8 +9,8 @@ if (( ! _rayvnCoreGlobalsSet )); then
     trap '_onExit' EXIT
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
-    declare -grx macOS=$( [[ ${osName} == Darwin ]] && echo true )
-    declare -grx linux=$( [[ ${osName} == Linux ]] && echo true )
+    declare -grxi onMacOS=$(( osName == "Darwin" ))
+    declare -grxi onLinux=$(( osName == "Linux" ))
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
     declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
 
