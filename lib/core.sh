@@ -148,25 +148,31 @@ rootDirPath() {
 }
 
 tempDirPath() {
+    ensureTempDir
     local fileName="${1:-}"
+    [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
+}
+
+ensureTempDir() {
     if [[ -z ${_rayvnTempDir:-} ]]; then
         declare -grx _rayvnTempDir="$(withUmask 0077 mktemp -d)" || fail "could not create temp directory"
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi
-    [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
 makeTempFile() {
-    local file="$(tempDirPath "${1}")"
-    touch "${file}" || fail "could not create temp file: ${file}"
-    chmod 600 "${file}" || fail "chmod failed on ${file}"
+    ensureTempDir
+    local fileName="${1:-XXXXXXXXXXX}" # create random file name if not present
+    local file="$(mktemp "${_rayvnTempDir}/${fileName}")"
+   # chmod 600 "${file}" || fail "chmod failed on ${file}"
     echo "${file}"
 }
 
 makeTempDir() {
-   local dirPath="$(tempDirPath ${1:-})"
-   ensureDir "${dirPath}"
-   echo "${dirPath}"
+    ensureTempDir
+    local dirName="${1:-XXXXXXXXXXX}" # create random dir name if not present
+    local directory="$(mktemp "${_rayvnTempDir}/${dirName}")"
+    echo "${directory}"
 }
 
 configDirPath() {
