@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # rayvn package
 
 projectName='rayvn'
@@ -12,4 +14,8 @@ declare -A projectDependencies=(
     [awk_min]='20250116'
     [awk_extract]=2
     [awk_brew]=true
+
+    [gh_min]='2.74.1'
+    [gh_extract]=2
+    [gh_brew]=true
 )

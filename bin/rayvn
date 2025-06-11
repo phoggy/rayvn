@@ -10,6 +10,7 @@ usage() {
     echo
     echo "Commands"
     echo
+    echo "    new TYPE NAME     Create a new project/script/library with the specified NAME."
     echo "    libraries         List libraries."
     echo "    functions         List public functions."
     echo "    test              Run tests."
@@ -22,7 +23,7 @@ usage() {
     echo
     echo "    -h, --help        Print this help message and exit."
     echo "    -v                Print the version and exit."
-    echo "    --version         Print the version plus release date and exit."
+    echo "    --version         Print the version with release date and exit."
     echo
     bye "${@}"
 }
@@ -45,6 +46,7 @@ init() {
     # process arguments
 
     case "${1}" in
+        new | create) parseArgs create "${@:2}" ;;
         test) parseArgs runTests "${@:2}" ;;
         libraries) parseArgs listLibraries "${@:2}" ;;
         functions) parseArgs listFunctions "${@:2}" ;;
@@ -375,65 +377,102 @@ printFunction() {
     printf "%s() {\n%s\n" "${name}" "$(declare -f "${name}" | tail -n +3)"
 }
 
-
 ensureInPath() {
     local executable="${1}"
     local executableDir="${2}"
     command -v ${executable} &> /dev/null || declare -gx PATH="${PATH:+$PATH:}${executableDir}"
 }
 
-# createProjectFile test bob/test robert robert@foo.com ${HOME}/dev/rayvn-registry
-createProjectFile() {
-    local projectName="${1}"
-    local projectRepo="${2}"
-    local adminName="${3}"
-    local adminEmail="${4}"
-    local registryRepoDir="${5}"
-    local projectsDir="${registryRepoDir}/projects"
-    local projectFile="${projectsDir}/${projectName}"
+create() {
+    local type=${args[0]}
+    local name=${args[1]}
+    local command=
+    [[ -n "${type}" ]] || bye "one of 'project', 'script' or 'library' required"
+    [[ -n "${name}" ]] || bye "name required"
+    local gitRoot=$(git rev-parse --show-toplevel 2>/dev/null) || gitRoot=''
+    local templateDir="${rayvnHome}/templates"
 
-    # make sure repo is valid
+    case ${type} in
+        project) createProject ${args:3} ;;
+        script) createScript ${args:3} ;;
+        library) createLibrary ${args:3} ;;
+        *) bye "unknown create type: ${type}"
+    esac
+}
 
-    if [[ "${projectRepo}" =~ ^[a-zA-Z0-9-]+/[a-zA-Z0-9-]+$ ]]; then
-        if ! git ls-remote https://github.com/${projectRepo} &> /dev/null; then
-            fail "${projectRepo} not found on GitHub"
-        fi
+createProject() {
+    [[ -n ${gitRoot} ]] && fail "${PWD} is within an existing project/git repo"
+    local projectRoot="${PWD}/${name}"
+    assertFileDoesNotExist "${projectRoot}"
+    local binDir="${projectRoot}/bin"
+    local libDir="${projectRoot}/lib"
+
+    echo "Creating project '${name}' in '${PWD}'"
+
+    declare -i createdRepo=0
+    local response
+    read -p "Create new GitHub repo? (y/n) " response
+    if [[ "${response}" == "y" ]]; then
+        gh repo create "${name}" --add-readme --private --clone || fail
+        createdRepo=1
+        cd "${projectRoot}" || fail
     else
-        fail "Invalid GitHub username/repository name: ${projectRepo}"
+        makeDir "${projectRoot}" > /dev/null
+        cd "${projectRoot}" || fail
+        git init --initial-branch=main || fail
     fi
+    makeDir "${binDir}" > /dev/null
+    makeDir "${libDir}" > /dev/null
 
-    # make sure email is valid
+    # Ok, directories are ready, copy and substitute files
 
-    if [[ ! "${adminEmail}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$ ]]; then
-        fail "Email address ${adminEmail} is invalid."
+    export quotedName="'${name}'"
+    export qualifiedName="'${name}/core'"
+    export rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
+    envsubst '${quotedName} ${rayvnVersion}' < "${templateDir}/package-template.sh" >"./rayvn.pkg" || fail
+    envsubst '${quotedName} ${qualifiedName}' < "${templateDir}/script-template.sh" >"./bin/${name}" || fail
+    envsubst '${quotedName} ${qualifiedName}' < "${templateDir}/library-template.sh" >"./lib/core.sh" || fail
+    chmod +x "./bin/${name}" || fail
+
+    # Add and commit
+
+    git add --all
+    git commit -m "initial commit"
+
+    # And push if we created the repo
+
+    if (( createdRepo )); then
+        git push -u origin main || fail
+        echo "New project files pushed."
+    else
+        echo "Once you create a repo on GitHub, use the following commands to push it:"
+        echo
+        echo "   git remote add origin https://github.com/YOUR_USER_NAME/${name}.git"
+        echo "   git push -u origin main"
+        echo
     fi
+    echo "Done."
+}
 
-    # make sure the repo directory exists
+createScript() {
+    [[ -n ${gitRoot} ]] || fail "${PWD} is not within a project/git repo"
+    local projectRoot="${gitRoot}"
+    local projectName="$(baseName ${projectRoot})"
+    local binDir="${projectRoot}/bin"
+    assertDirectoryv"${binDir}"
 
-    [[ -d "${registryRepoDir}" ]] || fail "${registryRepoDir} not found"
+    echo "create script '${name}' in '${binDir}' for project '${projectName}' (args: ${args[*]})"
+}
 
-    # make sure the projects directory exists
+createLibrary() {
+    [[ -n ${projectRoot} ]] || fail "${PWD} is not within a project/git repo"
+    local projectRoot="${gitRoot}"
+    local projectName="$(baseName ${projectRoot})"
+    local libDir="${projectRoot}/lib"
+    assertDirectoryv"${libDir}"
 
-    mkdir -p "${projectsDir}"
 
-    # we're good, so write it out
-
-    (
-        echo "# rayvn project registration"
-        echo
-        echo "project.name = ${projectName}"
-        echo "project.repo = ${projectRepo}"
-        echo
-        echo "admin.name = ${adminName}"
-        echo "admin.email = ${adminEmail}"
-
-    ) > "${projectFile}"
-
-    echo
-    echo "Created project file ${projectFile}:"
-    echo
-    cat "${projectFile}"
-    echo
+    echo "create library '${name}' in '${libDir}' for project '${projectName}' (args: ${args[*]})"
 }
 
 main "${@}"

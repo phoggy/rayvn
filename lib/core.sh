@@ -236,6 +236,16 @@ addExitHandler() {
     trap -- "${newCommand}" EXIT
 }
 
+dirName() {
+    local path=${1%/}
+    echo "${path%/*}"
+}
+
+baseName() {
+    local path=${1%/}
+    echo "${path##*/}"
+}
+
 trim() {
     local value="${1}"
     value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
@@ -247,6 +257,7 @@ projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
     local pkgFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/rayvn.pkg"
+    assertFileExists "${pkgFile}"
     (
         require 'rayvn/safe-env'
         sourceSafeStaticVars "${pkgFile}" project
