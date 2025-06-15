@@ -90,6 +90,7 @@ parseArgs() {
 }
 
 addIfRayvnExecutable() {
+    [[ ${command} == 'create' ]] && return 1
     local name="${1}"
     local path root rayvnPkgFile
     path="$(which "${name}")"
@@ -146,6 +147,28 @@ SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+
 
 printUsage() {
     usage
+}
+
+create() {
+    if (( flags['help'] )); then
+        echo "rayvn new project|script|library NAME"
+    else
+        local type=${args[0]}
+        local name=${args[1]}
+        local command=
+        [[ -n "${type}" ]] || bye "one of 'project', 'script' or 'library' required"
+        [[ -n "${name}" ]] || bye "name required"
+        local gitRoot=$(git rev-parse --show-toplevel 2>/dev/null) || gitRoot=''
+        local templateDir="${rayvnHome}/templates"
+        args=("${args[@]:3}")
+
+        case ${type} in
+            project) createProject;;
+            script) createScript ;;
+            library) createLibrary ;;
+            *) bye "unknown create type: ${type}"
+        esac
+    fi
 }
 
 projectDependencies() {
@@ -371,35 +394,6 @@ sortArrayLongestFirst() {
     fi
 }
 
-
-printFunction() {
-    local key="${1}"
-    printf "%s() {\n%s\n" "${name}" "$(declare -f "${name}" | tail -n +3)"
-}
-
-ensureInPath() {
-    local executable="${1}"
-    local executableDir="${2}"
-    command -v ${executable} &> /dev/null || declare -gx PATH="${PATH:+$PATH:}${executableDir}"
-}
-
-create() {
-    local type=${args[0]}
-    local name=${args[1]}
-    local command=
-    [[ -n "${type}" ]] || bye "one of 'project', 'script' or 'library' required"
-    [[ -n "${name}" ]] || bye "name required"
-    local gitRoot=$(git rev-parse --show-toplevel 2>/dev/null) || gitRoot=''
-    local templateDir="${rayvnHome}/templates"
-
-    case ${type} in
-        project) createProject ${args:3} ;;
-        script) createScript ${args:3} ;;
-        library) createLibrary ${args:3} ;;
-        *) bye "unknown create type: ${type}"
-    esac
-}
-
 createProject() {
     [[ -n ${gitRoot} ]] && fail "${PWD} is within an existing project/git repo"
     local projectRoot="${PWD}/${name}"
@@ -407,12 +401,22 @@ createProject() {
     local binDir="${projectRoot}/bin"
     local libDir="${projectRoot}/lib"
 
-    echo "Creating project '${name}' in '${PWD}'"
+    echo
+    echo "$(ansi bold Creating project "'${name}'" in) $(ansi blue "'${PWD}'")"
+    echo
 
     declare -i createdRepo=0
     local response
     read -p "Create new GitHub repo? (y/n) " response
     if [[ "${response}" == "y" ]]; then
+        if ! gh auth status --active &> /dev/null; then
+            read -p "Need to authenticate. Do you have a GitHub account? (y/n) " response
+            if [[ "${response}" == "y" ]]; then
+                gh auth login || exit
+            else
+                bye "Please go to https://github.com/ and create an account first."
+            fi
+        fi
         gh repo create "${name}" --add-readme --private --clone || fail
         createdRepo=1
         cd "${projectRoot}" || fail
@@ -429,9 +433,12 @@ createProject() {
     export quotedName="'${name}'"
     export qualifiedName="'${name}/core'"
     export rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
+    export libraryCall='myCoreLibraryFunction'
+    export libraryName="Core"
+
     envsubst '${quotedName} ${rayvnVersion}' < "${templateDir}/package-template.sh" >"./rayvn.pkg" || fail
-    envsubst '${quotedName} ${qualifiedName}' < "${templateDir}/script-template.sh" >"./bin/${name}" || fail
-    envsubst '${quotedName} ${qualifiedName}' < "${templateDir}/library-template.sh" >"./lib/core.sh" || fail
+    envsubst '${quotedName} ${qualifiedName} ${libraryName}' < "${templateDir}/library-template.sh" >"./lib/core.sh" || fail
+    envsubst '${quotedName} ${qualifiedName} ${libraryCall}' < "${templateDir}/script-template.sh" >"./bin/${name}" || fail
     chmod +x "./bin/${name}" || fail
 
     # Add and commit
@@ -444,35 +451,65 @@ createProject() {
     if (( createdRepo )); then
         git push -u origin main || fail
         echo "New project files pushed."
+        echo
     else
-        echo "Once you create a repo on GitHub, use the following commands to push it:"
+        echo
+        echo "$(ansi bold Once you create a repo on GitHub, use the following commands to push it):"
         echo
         echo "   git remote add origin https://github.com/YOUR_USER_NAME/${name}.git"
         echo "   git push -u origin main"
         echo
     fi
-    echo "Done."
+    echo "Done. Remember to add $(ansi blue ${binDir}) to your PATH."
 }
 
 createScript() {
-    [[ -n ${gitRoot} ]] || fail "${PWD} is not within a project/git repo"
-    local projectRoot="${gitRoot}"
-    local projectName="$(baseName ${projectRoot})"
-    local binDir="${projectRoot}/bin"
-    assertDirectoryv"${binDir}"
+    local projectRoot projectName
+    getProjectRoot projectRoot projectName
 
-    echo "create script '${name}' in '${binDir}' for project '${projectName}' (args: ${args[*]})"
+    local binDir="${projectRoot}/bin"
+    local scriptFile="${binDir}/${name}"
+    ensureDir "${binDir}"
+    assertFileDoesNotExist "${scriptFile}"
+
+    export quotedName="'${projectName}'"
+    export qualifiedName=
+    export libraryCall='# ...'
+    envsubst '${quotedName} ${qualifiedName} ${libraryCall}' < "${templateDir}/script-template.sh" > "${scriptFile}" || fail
+    chmod +x "${scriptFile}" || fail
+
+    echo "Created $(ansi blue ${scriptFile})"
+    echo "Don't forget to add $(ansi blue ${binDir}) to your PATH."
 }
 
 createLibrary() {
-    [[ -n ${projectRoot} ]] || fail "${PWD} is not within a project/git repo"
-    local projectRoot="${gitRoot}"
-    local projectName="$(baseName ${projectRoot})"
+    local projectRoot projectName
+    getProjectRoot projectRoot projectName
+
     local libDir="${projectRoot}/lib"
-    assertDirectoryv"${libDir}"
+    local libraryFile="${libDir}/${name}.sh"
+    ensureDir "${libDir}"
+    assertFileDoesNotExist "${libraryFile}"
 
+    export quotedName="'${projectName}'"
+    export qualifiedName="'${projectName}/${name}'"
+    export libraryName="${name^}"
+    envsubst '${quotedName} ${qualifiedName} ${libraryName}' < "${templateDir}/library-template.sh" > "${libraryFile}" || fail
 
-    echo "create library '${name}' in '${libDir}' for project '${projectName}' (args: ${args[*]})"
+    echo "Created $(ansi blue ${libraryFile})"
+}
+
+getProjectRoot() {
+    local -n projectRootRef="${1}"
+    local -n projectNameRef="${2}"
+
+    [[ -n ${gitRoot} ]] || bye "${PWD} is not within a project/git repo"
+    local _projectRoot="${gitRoot}"
+    local packageFile="${_projectRoot}/rayvn.pkg"
+    [[ -f "${packageFile}" ]] || bye "${_projectRoot} does not appear to be a rayvn project: no rayvn.pkg file"
+    local _projectName="$(baseName ${_projectRoot})"
+    projectRootRef="${_projectRoot}"
+    projectNameRef="${_projectName}"
 }
 
 main "${@}"

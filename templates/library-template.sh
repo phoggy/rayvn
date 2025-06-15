@@ -6,14 +6,14 @@
 require 'rayvn/core'
 
 # TODO replace me!
-myCoreLibraryFunction () {
-    _myPrivateFunction
+my${libraryName}LibraryFunction () {
+    _my${libraryName}PrivateFunction
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 # TODO remove/replace me!
-_myPrivateFunction() {
-    echo "$(ansi bold _myPrivateFunction here!)"
+_my${libraryName}PrivateFunction() {
+    echo "$(ansi bold _my${libraryName}PrivateFunction here!)"
 }
 

@@ -18,7 +18,7 @@ usage() {
 main() {
     init "${@}"
     doSomething
-    myCoreLibraryFunction
+    ${libraryCall}
 }
 
 # shellcheck disable=SC2155
