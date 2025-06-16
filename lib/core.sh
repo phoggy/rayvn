@@ -97,8 +97,8 @@ if (( ! _rayvnCoreGlobalsSet )); then
 
         # Yes, remember if brew is available
 
-        if command -v brew > /dev/null ; then
-            declare -grx brewIsInstalled=true
+        if command -v brew > /dev/null; then
+            declare -grxi _brewIsInstalled=1
         fi
     elif [[ ! -v RAYVN_NO_OS_CHECK ]]; then
 

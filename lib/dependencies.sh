@@ -46,18 +46,41 @@ UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)
 _assertProjectDependencies() {
     local projectName="${1}"
     declare -i quiet="${2:-0}"
+    local errMsg
     (( ! quiet )) && echo -n "Checking $(ansi bold ${projectName}) project dependencies: "
 
     # Load project dependencies and assert that all projects referenced in require calls are present
 
     _assertRequiredProjects "${projectName}"
 
+    # Check all
     for key in "${!projectDependencies[@]}"; do
-        if [[ ${key} == *_extract ]]; then
-            _assertExecutable "${key%_extract}"
+        if [[ ${key} == *_url ]]; then
+            local name="${key%_url}"
+            local extract=${projectDependencies[${name}_extract]}
+            local brew=${projectDependencies[${name}_brew]}
+
+            if [[ -n "${extract}" ]]; then
+                _assertExecutable "${name}"
+            elif [[ ${brew} == true ]]; then
+                _assertBrewInstall "${name}"
+            else
+                fail "unknown dependency: ${key}"
+            fi
         fi
     done
     (( ! quiet )) && echo "${_greenCheckMark}"
+}
+
+_assertBrewInstall() {
+    local name="${1}"
+    if (( _brewIsInstalled )); then
+        if ! brew info ${name} &> /dev/null; then
+            _failNotFound "${name}"
+        fi
+    else
+        _failNotFound "${name}"
+    fi
 }
 
 _collectProjectDependencies() {
@@ -88,12 +111,8 @@ _collectProjectDependencies() {
             [[ ${useBrewName} == true ]] && depName="${brewName}" || depName="${executable}"
             if [[ -n "${tap}" ]]; then
                 dep="${tap}/${depName}"
-            elif [[ ${brew} == true ]]; then
-                dep="${depName}"
-            elif brew which-formula "${depName}" &> /dev/null; then
-                dep="${depName}"
             else
-                fail "${depName} is not available from brew. Maybe there is a tap? See ${url}"
+                dep="${depName}"
             fi
 
             if [[ ${url} == */github.com/phoggy/* ]]; then
@@ -216,50 +235,30 @@ _extractVersion() {
         3) ${command} -version 2>&1 | tail -n 1 | cut -d' ' -f3 ;;
         4) ${command} --version 2>&1 | tail -n 1 | cut -d'-' -f2 ;;
         5) ${command} -ver 2>&1 ;;
+        6) brew info ${command} 2>&1 | tail -n 1 | cut -d' ' -f3 ;;
         *) fail "unknown version extract method: ${method}" ;;
     esac
 }
 
 _assertExecutable() {
-    local executable="${1}"
-    local minVersion="${projectDependencies[${executable}_min]}"
+    local name="${1}"
+    local minVersion="${projectDependencies[${name}_min]}"
     if [[ -n "${minVersion}" ]]; then
-        _assertExecutableFound "${executable}"
-        local extractMethod="${projectDependencies[${executable}_extract]}"
+        _assertExecutableFound "${name}"
+        local extractMethod="${projectDependencies[${name}_extract]}"
         if [[ ${minVersion} != 0 ]]; then
-            local version=$(_extractVersion ${executable} ${extractMethod})
-            local errMsg=":"
-            if [[ ${brewIsInstalled} && ${projectDependencies[${executable}_brew]} == true ]]; then
-                local brewName=${projectDependencies[${executable}_brew_name]:-${executable}}
-                errMsg+=" try 'brew update ${brewName}' or see"
-            else
-                errMsg+=" see"
-            fi
-            errMsg+=" ${projectDependencies[${executable}_url]}"
-
-            _assertMinimumVersion ${minVersion} ${version} "${executable}" "${errMsg}"
+            local version=$(_extractVersion ${name} ${extractMethod})
+            _assertMinimumVersion ${minVersion} ${version} "${name}"
         fi
     else
-        fail "unregistered dependency: ${executable}"
+        fail "unknown dependency: ${name}"
     fi
 }
 
 _assertExecutableFound() {
     local executable="${1}"
-    if ! command -v ${executable} &>/dev/null; then
-        local errMsg="${executable} not found."
-        if [[ ${brewIsInstalled} && ${projectDependencies[${executable}_brew]} == true ]]; then
-            local tap="${projectDependencies[${executable}_brew_tap]}"
-            if [[ ${tap} ]]; then
-                errMsg+=" Try 'brew tap ${tap} && brew install ${executable}' or see"
-            else
-                errMsg+=" Try 'brew install ${executable}' or see"
-            fi
-        else
-            errMsg+=" See"
-        fi
-        errMsg+=" ${projectDependencies[${executable}_url]} "
-        fail "${errMsg}"
+    if ! command -v ${executable} &> /dev/null; then
+        _failNotFound "${executable}"
     fi
 }
 
@@ -267,8 +266,52 @@ _assertMinimumVersion() {
     local minimum="${1}"
     local version="${2}"
     local targetName="${3}"
-    local errorSuffix="${4}"
     local lowest=$(printf '%s\n%s\n' "${version}" "${minimum}" | sort -V | head -n 1)
-    [[ "${lowest}" != "${minimum}" ]] && assertionFailed "requires ${targetName} version >= ${minimum}, found ${lowest} ${errorSuffix}"
+    if [[ "${lowest}" != "${minimum}" ]]; then
+        local errMsg="requires ${targetName} version >= ${minimum}, found ${lowest}"
+        _dependencyFailed "${targetName}" "${errMsg}" 1
+    fi
     return 0
+}
+
+_failNotFound() {
+    local target="${1}"
+    local errMsg="${target} not found"
+    _dependencyFailed "${1}" "${errMsg}" 0
+}
+
+_dependencyFailed() {
+    local target="${1}"
+    local errMsg="${2}."
+    declare -i update=${3:-0}
+    local url="${projectDependencies[${target}_url]}"
+    local brew="${projectDependencies[${target}_brew]}"
+    local tap="${projectDependencies[${target}_tap]}"
+    declare -i appendedMsg=0
+
+    if [[ ${brew} == true ]]; then
+        if (( _brewIsInstalled )); then
+            local command=
+            if (( update )); then
+                command="brew update ${target} && brew install ${target}"
+            elif [[ -n ${tap} ]]; then
+                command="brew tap ${tap} && brew install ${target}"
+            else
+                command="brew install ${target}"
+            fi
+            errMsg+=" Try '${command}'"
+            appendedMsg=1
+        else
+            fail "Homebrew is required, see https://brew.sh/"
+        fi
+    fi
+    if [[ -n ${url} ]]; then
+        if (( appendedMsg )); then
+            errMsg+=" or see ${url}"
+        else
+            errMsg+=" See ${url}"
+        fi
+    fi
+
+    fail "${errMsg}"
 }
