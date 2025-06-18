@@ -157,6 +157,10 @@ create() {
         local name=${args[1]}
         local command=
         [[ -n "${type}" ]] || bye "one of 'project', 'script' or 'library' required"
+        case ${type} in
+            project | script | library) ;;
+            *) bye "unknown type: ${type}"
+        esac
         [[ -n "${name}" ]] || bye "name required"
         local gitRoot=$(git rev-parse --show-toplevel 2>/dev/null) || gitRoot=''
         local templateDir="${rayvnHome}/templates"
@@ -166,7 +170,6 @@ create() {
             project) createProject;;
             script) createScript ;;
             library) createLibrary ;;
-            *) bye "unknown create type: ${type}"
         esac
     fi
 }
@@ -400,6 +403,9 @@ createProject() {
     assertFileDoesNotExist "${projectRoot}"
     local binDir="${projectRoot}/bin"
     local libDir="${projectRoot}/lib"
+    local packageTemplate="${templateDir}/package-template.sh"
+    local scriptTemplate="${templateDir}/script-template.sh"
+    local libraryTemplate="${templateDir}/library-template.sh"
 
     echo
     echo "$(ansi bold Creating project "'${name}'" in) $(ansi blue "'${PWD}'")"
@@ -430,15 +436,15 @@ createProject() {
 
     # Ok, directories are ready, copy and substitute files
 
-    export quotedName="'${name}'"
-    export qualifiedName="'${name}/core'"
-    export rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
-    export libraryCall='myCoreLibraryFunction'
-    export libraryName="Core"
+    local quotedName="'${name}'"
+    local qualifiedName="'${name}/core'"
+    local rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
+    local libraryCall='myCoreLibraryFunction'
+    local libraryName="Core"
 
-    envsubst '${quotedName} ${rayvnVersion}' < "${templateDir}/package-template.sh" >"./rayvn.pkg" || fail
-    envsubst '${quotedName} ${qualifiedName} ${libraryName}' < "${templateDir}/library-template.sh" >"./lib/core.sh" || fail
-    envsubst '${quotedName} ${qualifiedName} ${libraryCall}' < "${templateDir}/script-template.sh" >"./bin/${name}" || fail
+    substituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
+    substituteVars "${libraryTemplate}" './lib/core.sh' quotedName qualifiedName libraryName || fail
+    substituteVars "${scriptTemplate}" "./bin/${name}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${name}" || fail
 
     # Add and commit
@@ -460,11 +466,19 @@ createProject() {
         echo "   git push -u origin main"
         echo
     fi
-    echo "Done. Remember to add $(ansi blue ${binDir}) to your PATH."
+    remindIfNotInPath "${binDir}"
+}
+
+remindIfNotInPath() {
+    local binDir="${1}"
+    if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
+        echo "Remember to add $(ansi blue ${binDir}) to your PATH."
+    fi
 }
 
 createScript() {
     local projectRoot projectName
+    local templateFile="${templateDir}/script-template.sh"
     getProjectRoot projectRoot projectName
 
     local binDir="${projectRoot}/bin"
@@ -472,18 +486,21 @@ createScript() {
     ensureDir "${binDir}"
     assertFileDoesNotExist "${scriptFile}"
 
-    export quotedName="'${projectName}'"
-    export qualifiedName=
-    export libraryCall='# ...'
-    envsubst '${quotedName} ${qualifiedName} ${libraryCall}' < "${templateDir}/script-template.sh" > "${scriptFile}" || fail
-    chmod +x "${scriptFile}" || fail
+    local quotedName="'${projectName}'"
+    local qualifiedName=
+    local libraryCall='# ...'
+    substituteVars "${templateFile}" "${scriptFile}" quotedName qualifiedName libraryCall || fail
 
-    echo "Created $(ansi blue ${scriptFile})"
-    echo "Don't forget to add $(ansi blue ${binDir}) to your PATH."
+    chmod +x "${scriptFile}" || fail
+    git add "${scriptFile}" || fail
+
+    echo "Created $(ansi blue bin/${name})"
+    remindIfNotInPath "${binDir}"
 }
 
 createLibrary() {
     local projectRoot projectName
+    local templateFile="${templateDir}/library-template.sh"
     getProjectRoot projectRoot projectName
 
     local libDir="${projectRoot}/lib"
@@ -491,12 +508,15 @@ createLibrary() {
     ensureDir "${libDir}"
     assertFileDoesNotExist "${libraryFile}"
 
-    export quotedName="'${projectName}'"
-    export qualifiedName="'${projectName}/${name}'"
-    export libraryName="${name^}"
-    envsubst '${quotedName} ${qualifiedName} ${libraryName}' < "${templateDir}/library-template.sh" > "${libraryFile}" || fail
+    local quotedName="'${projectName}'"
+    local qualifiedName="'${projectName}/${name}'"
+    local libraryName="${name^}"
 
-    echo "Created $(ansi blue ${libraryFile})"
+    substituteVars "${templateFile}" "${libraryFile}" quotedName qualifiedName libraryName || fail
+
+    git add "${libraryFile}" || fail
+
+    echo "Created $(ansi blue lib/${name}.sh)"
 }
 
 getProjectRoot() {
@@ -510,6 +530,27 @@ getProjectRoot() {
     local _projectName="$(baseName ${_projectRoot})"
     projectRootRef="${_projectRoot}"
     projectNameRef="${_projectName}"
+}
+
+substituteVars() {
+    local inputFile=${1}
+    local outputFile=${2}
+    local varList=("${@:3}")
+
+    [[ -z ${inputFile} || -z ${outputFile} || ${#varList[@]} -eq 0 ]] &&
+        fail "Usage: substituteVars inputFile outputFile <varName> [<varName> ...]"
+
+    local sedExprs=()
+    for varName in "${varList[@]}"; do
+        local value=${!varName}
+        # Escape for sed: backslash, ampersand, and delimiter /
+        value=${value//\\/\\\\}
+        value=${value//&/\\&}
+        value=${value//\//\\/}
+        sedExprs+=("-e" "s/\${${varName}}/${value}/g")
+    done
+
+    sed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
 
 main "${@}"
