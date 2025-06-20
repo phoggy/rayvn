@@ -362,7 +362,6 @@ runTest() {
                     # any init files.
 
                     env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}"
-
                 ) &> "${testLogFile}"
 
             else
@@ -371,10 +370,10 @@ runTest() {
                 ) &> "${testLogFile}"
             fi
 
-            declare -i result="${?}"
+            declare -i testResult="${?}"
             stopSpinner || fail
             padSpaces ${padLength}
-            if (( ${result} == 0 )); then
+            if (( ${testResult} == 0 )); then
                 echo " ${_greenCheckMark} $(ansi dim log at ${testLogFile})"
             else
                 echo " ${_redCrossMark} $(ansi dim log at ${testLogFile})"
