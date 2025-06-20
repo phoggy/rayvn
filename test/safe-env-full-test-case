@@ -46,13 +46,13 @@ projectVersion='0.1.0'    # blah
 projectReleaseDate=''     # blah
 projectHasNoSuchVariable=true
 
-userDetails1=(
+user1Details=(
     "John"
     "Doe"
     "25"
 )
 
-declare -a userDetails2=(John Doe 25)
+declare -a user2Details=(Billy Bob 17)
 
 declare -rA projectDependencies=(
     [awk_min]='20250116'
@@ -76,15 +76,15 @@ just continue with backslashes inside the same quoted string. \
 This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, \
 but a test nonetheless.")
 
-#{
-    name=fred
+{
+    nickname=freddy
     declare -g greeting='hello'
-#}
+}
 
 safe='$(evilFunction)'  # single quoted so is not evaluated
 
-expectedVars=(projectName projectVersion projectReleaseDate userDetails1 userDetails2
-              projectDependencies count userBio notes name greeting)
+expectedSafeVars=(projectName projectVersion projectReleaseDate projectDependencies projectHasNoSuchVariable
+                  user1Details user2Details count userBio notes name greeting)
 
 #----------------------------------------
 # Unsafe variables: all must be discarded

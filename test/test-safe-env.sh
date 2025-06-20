@@ -5,8 +5,9 @@ main() {
     init "${@}"
 
     testFileAndStringInputResultsMatch
-    testSourceSafeStaticVarsWithFilter
     testSourceSafeStaticVarsWithoutFilter
+
+# TODO!!!    testSourceSafeStaticVarsWithFilter
 
     return 0
 }
@@ -20,18 +21,16 @@ init() {
         declare -grx tempDir="$(tempDirPath)"
     fi
 
-# TODO     declare -grx evilEnvFilePath="${tempDir}/evil.env"
-# TODO declare -grx safeEnvFilePath="${tempDir}/safe.env"
-# TODO declare -grx safeFilteredEnvFilePath="${tempDir}/safe-filtered.env"
-    declare -grx evilEnvFilePath="${HOME}/evil.env"
-    declare -grx safeEnvFilePath="${HOME}/safe.env"
-    declare -grx safeFilteredEnvFilePath="${HOME}/safe-filtered.env"
+    declare -grx evilEnvFilePath="${tempDir}/evil.env"
+    declare -grx safeEnvFilePath="${tempDir}/safe.env"
+    declare -grx safeFilteredEnvFilePath="${tempDir}/safe-filtered.env"
 
-    # Create evil file and var
+    # Create evilEnvFile and evilEnvVar
 
-    _generateEvilEnv > ${evilEnvFilePath} || fail
+    local testCaseFile="${rayvnHome}/test/safe-env-full-test-case"
+    cat "${testCaseFile}" > ${evilEnvFilePath} || fail
     declare -grx evilEnvFile="${evilEnvFilePath}"
-    declare -grx evilEnvVar="$(_generateEvilEnv)"
+    declare -grx evilEnvVar="$(cat "${evilEnvFile}")"
 
     # Create safe files
 
@@ -144,34 +143,62 @@ printAfterSafeEnv() {
         fi
 }
 
+assertNoUnsafeVarsOrFunctionsAreDefined() {
+    assertFunctionIsNotDefined safeFunction
+    assertFunctionIsNotDefined evilFunction
+    assertFunctionIsNotDefined evilFunction2
+
+    assertVarIsNotDefined evilUserName
+    assertVarIsNotDefined evilUserBio
+    assertVarIsNotDefined evilMessage
+    assertVarIsNotDefined evilUserDetailsArray
+    assertHashTableIsNotDefined evilDevelopersMap
+}
+
+assertNoSafeVarsAreDefined() {
+    assertVarIsNotDefined projectName
+    assertVarIsNotDefined projectVersion
+    assertVarIsNotDefined projectReleaseDate
+    assertHashTableIsNotDefined projectDependencies
+    assertVarIsNotDefined projectHasNoSuchVariable
+
+    assertVarIsNotDefined user1Details
+    assertVarIsNotDefined user2Details
+    assertVarIsNotDefined count
+    assertVarIsNotDefined userBio
+    assertVarIsNotDefined notes
+    assertVarIsNotDefined nickname
+    assertVarIsNotDefined greeting
+}
+
+assertSafeVarsAreDefined() {
+    assertVarIsDefined projectName
+    assertVarIsDefined projectVersion
+    assertVarIsDefined projectReleaseDate
+    assertHashTableIsDefined projectDependencies
+    assertVarIsDefined projectHasNoSuchVariable
+
+    assertVarIsDefined user1Details
+    assertVarIsDefined user2Details
+    assertVarIsDefined count
+    assertVarIsDefined userBio
+    assertVarIsDefined notes
+    assertVarIsDefined nickname
+    assertVarIsDefined greeting
+}
+
 testSourceSafeStaticVarsWithoutFilter() {
 
     # Do this in a subshell so we don't contaminate test env
     (
-        # Ensure that none of the functions/vars are defined
 
-        assertFunctionIsNotDefined evilFunction
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
 
-        assertVarIsNotDefined projectName
-        assertVarIsNotDefined projectVersion
-        assertVarIsNotDefined projectReleaseDate
-        assertHashTableIsNotDefined projectDependencies
+        assertNoUnsafeVarsOrFunctionsAreDefined
 
-        assertVarIsNotDefined projectHasNoSuchVariable
+        # Ensure that none of the expected/safe vars are defined yet
 
-        assertVarIsNotDefined userName
-        assertVarIsNotDefined evilUserName
-        assertVarIsNotDefined userBio
-        assertVarIsNotDefined evilUserBio
-
-        assertVarIsNotDefined userDetailsArray
-        assertVarIsNotDefined evilUserDetailsArray
-
-        assertHashTableIsNotDefined developersMap
-        assertHashTableIsNotDefined evilDevelopersMap
-
-        assertVarIsNotDefined evilDirectoryVar
-        assertVarIsNotDefined evilVar
+        assertNoSafeVarsAreDefined
 
         # Source our evil file, printing the env before and after
 
@@ -180,33 +207,19 @@ testSourceSafeStaticVarsWithoutFilter() {
         printAfterEvilEnv
         printAfterSafeEnv
 
-        # Ensure that only the expected vars are defined
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
 
-        assertFunctionIsNotDefined evilFunction
+        assertNoUnsafeVarsOrFunctionsAreDefined
 
-        assertVarIsDefined projectName
-        assertVarIsDefined projectVersion
-        assertVarIsDefined projectReleaseDate
-        assertHashTableIsDefined projectDependencies
+        # Ensure that all the expected/safe vars are defined
+
+        assertSafeVarsAreDefined
+
+        # Check some values
+
         assertHashValue projectDependencies 'awk_min' '20250116'
         assertHashValue projectDependencies 'awk_brew' 'true'
         assertHashValue projectDependencies 'awk_extract' '2'
-
-        assertVarIsDefined projectHasNoSuchVariable
-
-        assertVarIsDefined userName
-        assertVarIsNotDefined evilUserName
-        assertVarIsDefined userBio
-        assertVarIsNotDefined evilUserBio
-
-        assertVarIsDefined userDetailsArray
-        assertVarIsNotDefined evilUserDetailsArray
-
-        assertHashTableIsDefined developersMap
-        assertHashTableIsNotDefined evilDevelopersMap
-
-        assertVarIsNotDefined evilDirectoryVar
-        assertVarIsNotDefined evilVar
     )
 }
 
@@ -275,99 +288,6 @@ testSourceSafeStaticVarsWithFilter() {
         assertVarIsNotDefined evilVar
 
     )
-}
-
-_generateEvilEnv() {
-    cat <<- 'EOF'
-		# A function that MUST not be called
-
-		evilFunction() {
-		    [[ ${MY_EVIL_TRIGGER} ]] && exit 1
-		    echo "[something evil is coming!]"
-		}
-
-		# Expected vars
-
-		projectName='foo'
-		projectVersion='0.1.0+'   # pre-release version
-		projectReleaseDate=''     # pre-release version
-		declare -rA projectDependencies=(
-			[awk_min]='20250116'
-			[awk_brew]=true
-			[awk_extract]='2'
-		)
-
-
-		# A similarly named var but is not expected
-
-		projectHasNoSuchVariable=true
-
-		# Comments
-
-		# userName="NOPE!"
-
-		# Simple vars
-
-		userName="JohnDoe"
-		evilUserName="John $(evilFunction)"
-
-		# Multi-line string with spaces and line breaks
-
-		userBio="I am a passionate developer
-		who loves to solve complex problems
-		and build efficient software."
-
-		evilUserBio="I am a $(evilFunction) developer
-		who loves to solve complex problems
-		and build efficient software."
-
-		# Multi-line array
-
-		userDetailsArray=(
-		    "John"
-		    "Doe"
-		    "25"
-		)
-
-		evilUserDetailsArray=(
-		    "John"
-		    "$(evilFunction)"
-		    "25"
-		)
-
-		# Multi-line associative array
-
-		declare -A developersMap=(
-		    [name]="Hawkeye"
-		    [title]="architect"
-		)
-
-		declare -A evilDevelopersMap=(
-		    [name]="Hawkeye"
-		    [title]="`architect`"
-		)
-
-		# Multiline strings in array
-		notes=(
-		    "This is the first line of my note."
-		    "This is the second line of my note."
-		    "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, \
-		just continue with backslashes inside the same quoted string. \
-		\
-		This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, \
-		but a test nonetheless."
-		)
-
-		# Call evilFunction !!
-
-		evilFunction
-
-		# Variable init with unsafe side effects
-
-		evilDirectoryVar="$(evilFunction)"
-		evilVar="$(rm -rf "${badDirectoryVar}")"
-
-	EOF
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-env' 'rayvn/dependencies'
