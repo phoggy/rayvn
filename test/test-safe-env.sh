@@ -347,6 +347,17 @@ _generateEvilEnv() {
 		    [title]="`architect`"
 		)
 
+		# Multiline strings in array
+		notes=(
+		    "This is the first line of my note."
+		    "This is the second line of my note."
+		    "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, \
+		just continue with backslashes inside the same quoted string. \
+		\
+		This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, \
+		but a test nonetheless."
+		)
+
 		# Call evilFunction !!
 
 		evilFunction

@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+
+# Test case for extractSafeStaticVars() parser.
+#
+# The goal of the parser is to support 'config' style files with any valid top-level
+# variable declarations while guaranteeing that no side effects occur.
+#
+# The parser is used to transform an input file into a safe string that can then be
+# sourced, e.g.
+#
+#    safeEnvFile="$(extractSafeStaticVars "${configFile)"
+#    source <(echo "${safeEnvFile}")
+#
+# The parser:
+#
+#  - MUST discard all functions
+#  - MUST discard all top level function calls
+#  - MUST discard all variable declarations that invoke code, e.g. var="Hello $(getName)"
+#  - MUST retail all remaining valid bash 5.2 variable declarations
+#  - SHOULD discard all comments
+
+
+#---------------------------------
+# Functions: all must be discarded
+#---------------------------------
+
+safeFunction() { echo 'hello'; }
+
+evilFunction() {
+    [[ ${MY_EVIL_TRIGGER} ]] && exit 1
+    echo "[something evil is coming!]"
+}
+
+evilFunction2() { exit 1; }
+
+safeFunction() { echo 'hello'; }
+
+evilFunction1 # function call
+
+#--------------------------------------
+# Valid variables: all must be retained
+#--------------------------------------
+
+projectName='foo'
+projectVersion='0.1.0'    # blah
+projectReleaseDate=''     # blah
+projectHasNoSuchVariable=true
+
+userDetails1=(
+    "John"
+    "Doe"
+    "25"
+)
+
+declare -a userDetails2=(John Doe 25)
+
+declare -rA projectDependencies=(
+    [awk_min]='20250116'
+    [awk_brew]=true       # Hmm...
+    [awk_extract]='2'
+)
+
+declare -gxi count=17
+declare -rgxi count # make it readonly
+
+userBio="I am a passionate developer
+who loves to solve complex problems
+and build efficient software."
+
+notes=(
+    "This is the first line of my note."
+    "This is the second line of my note."
+    "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, \
+just continue with backslashes inside the same quoted string. \
+\
+This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, \
+but a test nonetheless.")
+
+#{
+    name=fred
+    declare -g greeting='hello'
+#}
+
+safe='$(evilFunction)'  # single quoted so is not evaluated
+
+expectedVars=(projectName projectVersion projectReleaseDate userDetails1 userDetails2
+              projectDependencies count userBio notes name greeting)
+
+#----------------------------------------
+# Unsafe variables: all must be discarded
+#----------------------------------------
+
+evilUserName="John $(evilFunction)"
+
+evilUserBio="I am a $(evilFunction) developer
+who loves to solve complex problems
+and build efficient software."
+
+evilMessage="hello `which cat`"
+
+evilUserDetailsArray=(   # remove me!
+    "John"
+    "$(evilFunction)"
+    "25"
+)
+
+declare -A -r evilDevelopersMap=(
+    [name]="Hawkeye"
+    [title]="`architect`"
+)
+
+evilDirectoryVar="$(getUserConfigDir)"
+evilVar="$(rm -rf "${evilDirectoryVar}")"
+
