@@ -6,8 +6,7 @@ main() {
 
     testFileAndStringInputResultsMatch
     testSourceSafeStaticVarsWithoutFilter
-
-# TODO!!!    testSourceSafeStaticVarsWithFilter
+    testSourceSafeStaticVarsWithFilter
 
     return 0
 }
@@ -187,6 +186,22 @@ assertSafeVarsAreDefined() {
     assertVarIsDefined greeting
 }
 
+assertOnlySafeProjectVarsAreDefined() {
+    assertVarIsDefined projectName
+    assertVarIsDefined projectVersion
+    assertVarIsDefined projectReleaseDate
+    assertHashTableIsDefined projectDependencies
+    assertVarIsDefined projectHasNoSuchVariable
+
+    assertVarIsNotDefined user1Details
+    assertVarIsNotDefined user2Details
+    assertVarIsNotDefined count
+    assertVarIsNotDefined userBio
+    assertVarIsNotDefined notes
+    assertVarIsNotDefined nickname
+    assertVarIsNotDefined greeting
+}
+
 testSourceSafeStaticVarsWithoutFilter() {
 
     # Do this in a subshell so we don't contaminate test env
@@ -227,30 +242,13 @@ testSourceSafeStaticVarsWithFilter() {
 
     # Do this in a subshell so we don't contaminate test env
     (
-        # Ensure that none of the functions/vars are defined
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
 
-        assertFunctionIsNotDefined evilFunction
+        assertNoUnsafeVarsOrFunctionsAreDefined
 
-        assertVarIsNotDefined projectName
-        assertVarIsNotDefined projectVersion
-        assertVarIsNotDefined projectReleaseDate
-        assertHashTableIsNotDefined projectDependencies
+        # Ensure that none of the expected/safe vars are defined yet
 
-        assertVarIsNotDefined projectHasNoSuchVariable
-
-        assertVarIsNotDefined userName
-        assertVarIsNotDefined evilUserName
-        assertVarIsNotDefined userBio
-        assertVarIsNotDefined evilUserBio
-
-        assertVarIsNotDefined userDetailsArray
-        assertVarIsNotDefined evilUserDetailsArray
-
-        assertHashTableIsNotDefined developersMap
-        assertHashTableIsNotDefined evilDevelopersMap
-
-        assertVarIsNotDefined evilDirectoryVar
-        assertVarIsNotDefined evilVar
+        assertNoSafeVarsAreDefined
 
         # Source our evil file, printing the env before and after
 
@@ -259,34 +257,19 @@ testSourceSafeStaticVarsWithFilter() {
         printAfterEvilEnv
         printAfterSafeEnv
 
-        # Ensure that only the expected vars are defined
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
 
-        assertFunctionIsNotDefined evilFunction
+        assertNoUnsafeVarsOrFunctionsAreDefined
 
-        assertVarIsDefined projectName
-        assertVarIsDefined projectVersion
-        assertVarIsDefined projectReleaseDate
-        assertHashTableIsDefined projectDependencies
+        # Ensure that all the expected/safe project vars are defined and none of the non project vars are
+
+        assertOnlySafeProjectVarsAreDefined
+
+        # Check some values
+
         assertHashValue projectDependencies 'awk_min' '20250116'
-        assertHashValue projectDependencies 'awk_brew' true
+        assertHashValue projectDependencies 'awk_brew' 'true'
         assertHashValue projectDependencies 'awk_extract' '2'
-
-        assertVarIsDefined projectHasNoSuchVariable
-
-        assertVarIsNotDefined userName
-        assertVarIsNotDefined evilUserName
-        assertVarIsNotDefined userBio
-        assertVarIsNotDefined evilUserBio
-
-        assertVarIsNotDefined userDetailsArray
-        assertVarIsNotDefined evilUserDetailsArray
-
-        assertHashTableIsNotDefined developersMap
-        assertHashTableIsNotDefined evilDevelopersMap
-
-        assertVarIsNotDefined evilDirectoryVar
-        assertVarIsNotDefined evilVar
-
     )
 }
 
