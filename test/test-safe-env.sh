@@ -14,7 +14,6 @@ main() {
 init() {
     if [[ ${1} == --debug ]]; then
         setDebug showOnExit
-        shift
         declare -grx tempDir="$(debugDir)"
     else
         declare -grx tempDir="$(tempDirPath)"
@@ -37,10 +36,6 @@ init() {
     extractSafeStaticVars "${evilEnvFile}" project > "${safeFilteredEnvFilePath}"
     declare -grx safeEnvFile="${safeEnvFilePath}"
     declare -grx safeFilteredEnvFile="${safeFilteredEnvFilePath}"
-
-    # Print them
-
- #   printFiles
 }
 
 testFileAndStringInputResultsMatch() {
@@ -61,85 +56,66 @@ testFileAndStringInputResultsMatch() {
      assertEqual "${safeFilteredFromFile}" "${safeFilteredFromString}"
 }
 
-printFiles() {
-    if isDebug; then
-        echo
-        echo "EVIL FILE: ${evilEnvFilePath} -----------------------------------------"
-        echo
-        cat "${evilEnvFile}"
-        echo
-        echo "SAFE FILE: ${safeEnvFilePath} -----------------------------------------"
-        echo
-        cat "${safeEnvFile}"
-        echo
-        echo "SAFE FILTERED FILE : ${safeFilteredEnvFilePath} -----------------------------------------"
-        echo
-        cat "${safeFilteredEnvFile}"
-    fi
+testSourceSafeStaticVarsWithoutFilter() {
+
+    # Do this in a subshell so we don't contaminate test env
+    (
+
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
+
+        assertNoUnsafeVarsOrFunctionsAreDefined
+
+        # Ensure that none of the expected/safe vars are defined yet
+
+        assertNoSafeVarsAreDefined
+
+        # Source our evil file
+
+        sourceSafeStaticVars "${evilEnvFile}"
+
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
+
+        assertNoUnsafeVarsOrFunctionsAreDefined
+
+        # Ensure that all the expected/safe vars are defined
+
+        assertSafeVarsAreDefined
+
+        # Check values
+
+        assertProjectValues
+        assertNonProjectValues
+    )
 }
 
-printBeforeEnv() {
-    if isDebug; then
-        echo
-        echo "BEFORE VARS -----------------------------------------"
-        echo
+testSourceSafeStaticVarsWithFilter() {
 
-        declare -f evilFunction
-        declare -p projectName
-        declare -p projectVersion
-        declare -p projectReleaseDate
-        declare -p projectHasLibraries
-        declare -p projectHasNoSuchVariable
-        declare -p userName
-        declare -p evilUserName
-        declare -p userBio
-        declare -p evilUserBio
-        declare -p userDetailsArray
-        declare -p evilUserDetailsArray
-        declare -p developersMap
-        declare -p evilDevelopersMap
-        declare -p evilDirectoryVar
-        declare -p evilVar
-    fi
-}
+    # Do this in a subshell so we don't contaminate test env
+    (
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
 
-printAfterEvilEnv() {
-    if isDebug; then
-        echo
-        echo "AFTER: evil ------------------------------------------"
-        echo
-        declare -f evilFunction
-        declare -p evilUserName
-        declare -p evilUserBio
-        declare -p evilUserDetailsArray
-        declare -p evilDevelopersMap
-        declare -p evilDirectoryVar
-        declare -p evilVar
-    fi
-}
+        assertNoUnsafeVarsOrFunctionsAreDefined
 
-printAfterSafeEnv() {
-        if isDebug; then
-            echo
-            echo "AFTER: safe ------------------------------------------"
-            echo
-            declare -p projectName
-            declare -p projectVersion
-            declare -p projectReleaseDate
-            declare -p projectHasLibraries
+        # Ensure that none of the expected/safe vars are defined yet
 
-            declare -p projectHasNoSuchVariable
+        assertNoSafeVarsAreDefined
 
-            declare -p userName
-            declare -p userBio
+        # Source our evil file
 
-            declare -p userDetailsArray
+        sourceSafeStaticVars "${evilEnvFile}" project
 
-            declare -p developersMap
+        # Ensure that none of the unexpected/unsafe functions and vars are defined
 
-            echo
-            echo "------------------------------------------------------"
-        fi
+        assertNoUnsafeVarsOrFunctionsAreDefined
+
+        # Ensure that all the expected/safe project vars are defined and none of the non project vars are
+
+        assertOnlySafeProjectVarsAreDefined
+
+        # Check values
+
+        assertProjectValues
+    )
 }
 
 assertNoUnsafeVarsOrFunctionsAreDefined() {
@@ -163,7 +139,7 @@ assertNoSafeVarsAreDefined() {
 
     assertVarIsNotDefined user1Details
     assertVarIsNotDefined user2Details
-    assertVarIsNotDefined count
+    assertVarIsNotDefined userCount
     assertVarIsNotDefined userBio
     assertVarIsNotDefined notes
     assertVarIsNotDefined nickname
@@ -179,11 +155,13 @@ assertSafeVarsAreDefined() {
 
     assertVarIsDefined user1Details
     assertVarIsDefined user2Details
-    assertVarIsDefined count
+    assertVarIsDefined userCount
     assertVarIsDefined userBio
     assertVarIsDefined notes
     assertVarIsDefined nickname
     assertVarIsDefined greeting
+
+    assertVarIsDefined expectedSafeVars
 }
 
 assertOnlySafeProjectVarsAreDefined() {
@@ -195,82 +173,36 @@ assertOnlySafeProjectVarsAreDefined() {
 
     assertVarIsNotDefined user1Details
     assertVarIsNotDefined user2Details
-    assertVarIsNotDefined count
+    assertVarIsNotDefined userCount
     assertVarIsNotDefined userBio
     assertVarIsNotDefined notes
     assertVarIsNotDefined nickname
     assertVarIsNotDefined greeting
+
+    assertVarIsNotDefined expectedSafeVars
 }
 
-testSourceSafeStaticVarsWithoutFilter() {
-
-    # Do this in a subshell so we don't contaminate test env
-    (
-
-        # Ensure that none of the unexpected/unsafe functions and vars are defined
-
-        assertNoUnsafeVarsOrFunctionsAreDefined
-
-        # Ensure that none of the expected/safe vars are defined yet
-
-        assertNoSafeVarsAreDefined
-
-        # Source our evil file, printing the env before and after
-
-        printBeforeEnv
-        sourceSafeStaticVars "${evilEnvFile}"
-        printAfterEvilEnv
-        printAfterSafeEnv
-
-        # Ensure that none of the unexpected/unsafe functions and vars are defined
-
-        assertNoUnsafeVarsOrFunctionsAreDefined
-
-        # Ensure that all the expected/safe vars are defined
-
-        assertSafeVarsAreDefined
-
-        # Check some values
-
-        assertHashValue projectDependencies 'awk_min' '20250116'
-        assertHashValue projectDependencies 'awk_brew' 'true'
-        assertHashValue projectDependencies 'awk_extract' '2'
-    )
+assertProjectValues() {
+    assertVarEquals projectName foo
+    assertVarEquals projectVersion '0.1.0'
+    assertVarEquals projectReleaseDate ''
+    assertVarEquals projectHasNoSuchVariable true
+    assertHashValue projectDependencies 'awk_min' '20250116'
+    assertHashValue projectDependencies 'awk_brew' 'true'
+    assertHashValue projectDependencies 'awk_extract' '2'
 }
 
-testSourceSafeStaticVarsWithFilter() {
-
-    # Do this in a subshell so we don't contaminate test env
-    (
-        # Ensure that none of the unexpected/unsafe functions and vars are defined
-
-        assertNoUnsafeVarsOrFunctionsAreDefined
-
-        # Ensure that none of the expected/safe vars are defined yet
-
-        assertNoSafeVarsAreDefined
-
-        # Source our evil file, printing the env before and after
-
-        printBeforeEnv
-        sourceSafeStaticVars "${evilEnvFile}" project
-        printAfterEvilEnv
-        printAfterSafeEnv
-
-        # Ensure that none of the unexpected/unsafe functions and vars are defined
-
-        assertNoUnsafeVarsOrFunctionsAreDefined
-
-        # Ensure that all the expected/safe project vars are defined and none of the non project vars are
-
-        assertOnlySafeProjectVarsAreDefined
-
-        # Check some values
-
-        assertHashValue projectDependencies 'awk_min' '20250116'
-        assertHashValue projectDependencies 'awk_brew' 'true'
-        assertHashValue projectDependencies 'awk_extract' '2'
-    )
+assertNonProjectValues() {
+    assertArrayEquals user1Details John Doe 25
+    assertArrayEquals user2Details Billy Bob 17
+    assertVarEquals userCount 17
+    assertVarType userCount rxi
+    assertVarEquals userBio "I am a passionate developer who loves to solve complex problems and build efficient software."
+    assertVarEquals nickname freddy
+    assertVarEquals greeting hello
+    assertArrayEquals notes "This is the first line of my note." \
+                            "This is the second line of my note." \
+                            "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, just continue with backslashes inside the same quoted string. This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, but a test nonetheless."
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-env' 'rayvn/dependencies'

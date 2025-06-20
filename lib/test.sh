@@ -52,22 +52,71 @@ assertInPath() {
 
 assertFunctionIsNotDefined() {
     local name="${1}"
-    [[ $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} is set: $(declare -f ${name})"
+    [[ $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} is defined: $(declare -f ${name})"
 }
 
 assertFunctionIsDefined() {
     local name="${1}"
-    [[ ! $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} not set"
+    [[ ! $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} is not defined"
 }
 
 assertVarIsDefined() {
     local name="${1}"
-    [[ ! $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} not set"
+    [[ ! $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} is not defined"
 }
 
 assertVarIsNotDefined() {
     local name="${1}"
-    [[ $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} is set"
+    [[ $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} is defined"
+}
+
+assertVarType() {
+    local varName="${1}"
+    local expectedFlags="${2}"  # e.g. "ir", "r", "arx", "A"
+
+    local declaration
+    if ! declaration="$(declare -p "${varName}" 2> /dev/null)"; then
+        assertionFailed "${varName} is not defined"
+    fi
+
+    local actualFlags="${declaration#*-}"
+    actualFlags="${actualFlags% *}"
+
+    local sortedExpected sortedActual
+    sortedExpected="$(echo "${expectedFlags}" | grep -o . | sort | tr -d '\n')"
+    sortedActual="$(echo "${actualFlags}" | grep -o . | sort | tr -d '\n')"
+
+    if [[ "${sortedExpected}" != "${sortedActual}" ]]; then
+        assertionFailed "${varName} has -${sortedActual}, expected -${sortedExpected}"
+    fi
+}
+
+assertVarEquals() {
+    local varName="${1}"
+    local expected="${2}"
+    local -n varRef="${varName}"
+    assertVarIsDefined "${varName}"
+    if [[ ${varRef} != "${expected}" ]]; then
+        assertionFailed "${varName}=${varRef}, expected ${expected}"
+    fi
+}
+
+assertArrayEquals() {
+    local varName="${1}"
+    local expected=("${@:2}")
+    local -n arrayRef="${varName}"
+    assertVarIsDefined "${varName}"
+    local arrayLen=${#arrayRef[@]}
+    local expectedLen=${#expected[@]}
+    if (( arrayLen == expectedLen )); then
+        for (( i=0; i < arrayLen; i++ )); do
+            if [[ ${arrayRef[${i}]} != "${expected[${i}]}" ]]; then
+                assertionFailed "${varName}[${i}]=${arrayRef[${i}]}, expected ${expected[${i}]}"
+            fi
+        done
+    else
+        assertionFailed "${varName} length=${arrayLen}, expected ${expectedLen}"
+    fi
 }
 
 assertHashTableIsDefined() {
@@ -156,6 +205,6 @@ printPath() {
         echo $PATH | tr ':' '\n' | nl
         echo
     else
-        echo "'${pathVariable}' not set"
+        echo "'${pathVariable}' is not defined"
     fi
 }

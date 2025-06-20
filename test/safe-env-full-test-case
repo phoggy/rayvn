@@ -60,11 +60,11 @@ declare -rA projectDependencies=(
     [awk_extract]='2'
 )
 
-declare -gxi count=17
-declare -rgxi count # make it readonly
+declare -gxi userCount=17
+declare -rgxi userCount # make it readonly
 
-userBio="I am a passionate developer
-who loves to solve complex problems
+userBio="I am a passionate developer \
+who loves to solve complex problems \
 and build efficient software."
 
 notes=(
@@ -84,7 +84,7 @@ but a test nonetheless.")
 safe='$(evilFunction)'  # single quoted so is not evaluated
 
 expectedSafeVars=(projectName projectVersion projectReleaseDate projectDependencies projectHasNoSuchVariable
-                  user1Details user2Details count userBio notes name greeting)
+                  user1Details user2Details count userBio notes name greeting expectedSafeVars)
 
 #----------------------------------------
 # Unsafe variables: all must be discarded

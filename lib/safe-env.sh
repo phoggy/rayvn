@@ -5,6 +5,12 @@
 
 # require 'rayvn/core'
 
+# Source only safe variable declarations from a bash config file or string, optionally filtered
+# by prefix. See extractSafeStaticVars.
+#
+# Usage: sourceSafeStaticVars <file_or_string> [prefix_filter]
+# Output: variables are defined in current env
+
 sourceSafeStaticVars() {
     local safeEnv
     local input="${1}"
@@ -13,14 +19,17 @@ sourceSafeStaticVars() {
     source <(echo "${safeEnv}")
 }
 
-# extractSafeStaticVars() - Parse bash config files and extract only safe variable declarations
+# Parse a bash config file or string and extract only safe variable declarations.
 #
 # This function processes bash files to extract variable declarations while ensuring
 # no side effects can occur by filtering out:
+#
 # - All function definitions
 # - All function calls
 # - All variable declarations containing command substitutions
-# - All comments
+#
+# It also filters out comments, but wraps the result with
+# begin/end comments.
 #
 # Usage: extractSafeStaticVars <file_or_string> [prefix_filter]
 # Output: Safe variable declarations that can be sourced
@@ -42,6 +51,7 @@ extractSafeStaticVars() {
 
 UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
+# Written by Claude Sonnet 4
 _extractSafeStaticVarsOnly() {
     local input="${1}"
     local buffer=""
@@ -214,7 +224,7 @@ _extractSafeStaticVarsOnly() {
     printf "\n%s\n" "# ---- end safe static variables"
 }
 
-
+# Written by ChatGPT 4o
 _globalizeDeclarations() {
     sed -E '
         /^(declare[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*)-g([a-zA-Z]*[[:space:]]+)?/b end
@@ -229,6 +239,7 @@ _globalizeDeclarations() {
     '
 }
 
+# Written by ChatGPT 4o
 _filterStaticVarsByPrefix() {
     local input="${1}"
     local prefix="${2}"
