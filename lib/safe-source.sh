@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Library supporting sanitizing and sourcing env style files.
-# Intended for use via: require 'rayvn/safe-env'
+# Intended for use via: require 'rayvn/safe-source'
 
 # require 'rayvn/core'
 

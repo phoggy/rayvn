@@ -25,7 +25,7 @@ init() {
 
     # Create evilEnvFile and evilEnvVar
 
-    local testCaseFile="${rayvnHome}/test/safe-env-full-test-case"
+    local testCaseFile="${rayvnHome}/test/safe-source-test-case"
     cat "${testCaseFile}" > ${evilEnvFilePath} || fail
     declare -grx evilEnvFile="${evilEnvFilePath}"
     declare -grx evilEnvVar="$(cat "${evilEnvFile}")"
@@ -205,6 +205,6 @@ assertNonProjectValues() {
                             "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, just continue with backslashes inside the same quoted string. This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, but a test nonetheless."
 }
 
-source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-env' 'rayvn/dependencies'
+source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-source' 'rayvn/dependencies'
 
 main "${@}"

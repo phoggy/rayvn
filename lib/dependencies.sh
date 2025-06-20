@@ -3,7 +3,7 @@
 # Library for dependency management.
 # Intended for use via: require 'rayvn/dependency'
 
-require 'rayvn/core' 'rayvn/safe-env'
+require 'rayvn/core' 'rayvn/safe-source'
 
 assertProjectDependencies() {
     local -n projectsArrayRef="${1}"
