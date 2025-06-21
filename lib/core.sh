@@ -368,14 +368,14 @@ ansi() {
 }
 
 printRed() {
-    print "$(ansi red "${*}")" > ${terminal}
+    print "$(ansi red "${*}")"
 }
 
 printRepeat() {
     local msg="${1}"
     local count=${2}
     for ((i = 0; i < ${count}; ++i)); do
-        echo -n "${msg}" > ${terminal}
+        echo -n "${msg}"
     done
 }
 
@@ -390,15 +390,15 @@ printVars() {
             fi
             shift
         done
-    ) > ${terminal}
+    )
 }
 
 printFormatted() {
-    printf "${1}\n" "${@:2}" > ${terminal}
+    printf "${1}\n" "${@:2}"
 }
 
 print() {
-    echo -e "${*}" > ${terminal}
+    echo -e "${*}"
 }
 
 warn() {
@@ -472,7 +472,7 @@ debugDir() { :; }
 debugEnvironment() { :; }
 debugFile() { :; }
 debugJson() { :; }
-debugStatus() { :; }
+debugStatus() { echo 'debug disabled'; }
 debugVarIsNotSet() { :; }
 debugVarIsSet() { :; }
 debugVars() { :; }

@@ -20,7 +20,7 @@ restoreCursor() {
 }
 
 eraseToEndOfLine() {
-    (( terminalSupportsAnsi )) && echo -n "${_eraseToEndOfLine}" > ${terminal}
+    (( terminalSupportsAnsi )) && echo -n "${_eraseToEndOfLine}"
 }
 
 eraseCurrentLine() {

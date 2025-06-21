@@ -91,6 +91,10 @@ debugJson() {
     fi
 }
 
+debugStack() {
+    printStack >&3
+}
+
 debugEnvironment() {
     if (( _debug )); then
         local fileName="${1}.env"
@@ -111,6 +115,12 @@ declare -gx _debugOut=log
 declare -gx _showLogOnExit=false
 
 _setDebug() {
+    (( _debug)) && {
+        debug '_setDebug() but called previously.'
+        printStack
+        return 0
+    }
+
     local clearLog=false
     local status=true
 
@@ -207,6 +217,6 @@ _printDebugLog() {
 
             echo "$(ansi bold_blue ____________________________________________________________________________)"
             printf "${closing}\n"
-        } > ${terminal}
+        }
     fi
 }
