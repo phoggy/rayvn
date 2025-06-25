@@ -511,7 +511,7 @@ createLibrary() {
     local qualifiedName="'${projectName}/${name}'"
     local libraryName="${name^}"
 
-    substituteVars "${templateFile}" "${libraryFile}" quotedName qualifiedName libraryName || fail
+    substituteVars "${templateFile}" "${libraryFile}" quotedName qualifiedName projectName name libraryName || fail
 
     git add "${libraryFile}" || fail
 
