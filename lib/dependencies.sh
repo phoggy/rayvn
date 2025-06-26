@@ -91,7 +91,9 @@ _collectProjectDependencies() {
     local useBrewName="${4:-false}"
     local rayvnDeps=()
     local nonRayvnDeps=()
-    local minVers=()
+    local rayvnMinVers=()
+    local nonRayvnMinVers=()
+    local minVersion
 
     # Load project dependencies and assert that all projects referenced in require calls are present
 
@@ -106,7 +108,7 @@ _collectProjectDependencies() {
             brew=${projectDependencies[${executable}_brew]}
             tap=${projectDependencies[${executable}_brew_tap]}
             url=${projectDependencies[${executable}_url]}
-            minVers+=("${projectDependencies[${executable}_min]}")
+            minVersion=${projectDependencies[${executable}_min]}
 
             [[ ${useBrewName} == true ]] && depName="${brewName}" || depName="${executable}"
             if [[ -n "${tap}" ]]; then
@@ -117,14 +119,17 @@ _collectProjectDependencies() {
 
             if [[ ${url} == */github.com/phoggy/* ]]; then
                 rayvnDeps+=("${dep}")
+                rayvnMinVers+=("${minVersion}")
+
             else
                 nonRayvnDeps+=("${dep}")
+                nonRayvnMinVers+=("${minVersion}")
             fi
         fi
     done
 
     dependenciesRef=("${rayvnDeps[@]}" "${nonRayvnDeps[@]}")
-    minVersionsRef=("${minVers[@]}")
+    minVersionsRef=("${rayvnMinVers[@]}" "${nonRayvnMinVers[@]}")
 }
 
 _getProjectPath() {
@@ -143,6 +148,7 @@ _getProjectPath() {
 _setProjectDependenciesVar() {
     local projectName="${1}"
     local pkgFile
+    projectDependencies=
     _getProjectPath "${projectName}" pkgFile 'rayvn.pkg'
     assertFileExists "${pkgFile}"
     sourceSafeStaticVars "${pkgFile}" project
@@ -236,6 +242,7 @@ _extractVersion() {
         4) ${command} --version 2>&1 | tail -n 1 | cut -d'-' -f2 ;;
         5) ${command} -ver 2>&1 ;;
         6) brew info ${command} 2>&1 | tail -n 1 | cut -d' ' -f3 ;;
+        7) ${command} --version | cut -d'v' -f2 ;;
         *) fail "unknown version extract method: ${method}" ;;
     esac
 }
