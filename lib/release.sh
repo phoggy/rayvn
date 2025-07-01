@@ -44,6 +44,28 @@ release () {
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
+_init_rayvn_release() {
+
+    # Setup rayvn-central/homebrew_tap repo for project formula publication
+
+    declare -gr tapRepoRootDir="$(configDirPath brew)"
+    declare -gr tapRepoDir="${tapRepoRootDir}/homebrew-tap"
+    declare -gr formulaDir="${tapRepoDir}/Formula"
+    ensureDir "${tapRepoRootDir}"
+
+    if [[ ! -d "${tapRepoDir}" ]]; then
+        (
+            cd "${tapRepoRootDir}" || fail
+            echo "Cloning rayvn-central tap repo"
+            git clone "https://github.com/rayvn-central/homebrew-tap" || fail
+
+            local hash='11BTUSZRA0lkxlpC7ZZXyf_19ivHU7zBuSHBvjzDiqoduoSgHvlAldVi8ZDH4okAsqUAGRMSSZ1ifF2bxm'
+            cd "${tapRepoDir}" || fail
+            git remote set-url origin https://github_pat_${hash}@github.com/rayvn-central/homebrew-tap.git || fail
+        )
+    fi
+}
+
 _checkExistingRelease() {
     local ghRepo="${1}"
     local version="${2}"
@@ -132,7 +154,7 @@ _updateFormula() {
     local releaseDate="${4}"
     local versionTag="v${version}"
     local formulaFileName="${project}.rb"
-    local formulaFile="${brewFormulaDir}/${formulaFileName}"
+    local formulaFile="${formulaDir}/${formulaFileName}"
     local formulaBackupFile="${formulaFile}.bak"
 
     # update the version, releaseDate, url and sha256
@@ -148,8 +170,9 @@ _updateFormula() {
         _printHeader "Formula updated, doing commit and push"
         (
             cd "${brewFormulaDir}" || fail "cd ${brewFormulaDir} failed!"
+
             git commit -q -m "Update for ${versionTag} release." "${formulaFileName}" || fail "commit failed!"
-            git push || fail "push failed!"
+            git push || fail
             rm "${formulaBackupFile}" || fail
         )
 
