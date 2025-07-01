@@ -6,7 +6,9 @@
 
 if (( ! _rayvnCoreGlobalsSet )); then
 
-    trap '_onExit' EXIT
+    declare -g _rayvnExitTasks=()
+    trap '_onExit' EXIT INT TERM
+
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
     declare -grxi onMacOS=$(( osName == "Darwin" ))
@@ -71,6 +73,7 @@ if (( ! _rayvnCoreGlobalsSet )); then
             declare -grx ansi_white="$(tput setaf 7)"
 
             declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
+            declare -grx ansi_italic_red="${ansi_italic}${ansi_red}"
 
             declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
             declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
@@ -209,9 +212,8 @@ _onExit() {
 
         # Reset terminal
 
-        tput cnorm
-        stty echo 2> /dev/null
-        stty -f ${terminal} echo 2> /dev/null
+        stty sane
+        printf '\e[?25h'  # Show cursor in case sane does not
 
         # Add a line unless disabled
 
@@ -224,16 +226,16 @@ _onExit() {
         # The "--" option below stops option parsing and allows filenames starting with "-"
         rm -rf -- "${_rayvnTempDir}"
     fi
+
+    # Run any added tasks
+
+    for task in "${_rayvnExitTasks[@]}"; do
+        eval "${task}"
+    done
 }
 
 addExitHandler() {
-    local newCommand
-    getTrapCommand() { printf '%s\n' "${3}"; }
-    newCommand="$(
-        eval "getTrapCommand $(trap -p EXIT)"
-        printf '%s\n' "${1}"
-        )"
-    trap -- "${newCommand}" EXIT
+    _rayvnExitTasks+=("${1}")
 }
 
 dirName() {
