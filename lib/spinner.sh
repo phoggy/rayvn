@@ -117,7 +117,7 @@ _printProgressChar() {
 
 _beginSpin() {
     [[ ${1} ]] && echo -n "${1}"
-    saveCursor
+    cursorSave
     printf ' '
     _init_Spinner
 }
@@ -146,7 +146,7 @@ _nextSpin() {
 _endSpin() {
     local command="${1}"
     local message="${2}"
-    restoreCursor
+    cursorRestore
     case ${command} in
         "${spinnerEraseCommand}") eraseToEndOfLine ;;
         "${spinnerEraseLineCommand}") eraseCurrentLine ;;
@@ -155,7 +155,7 @@ _endSpin() {
     tput cnorm
     [[ ${message} != '' ]] && echo "${message}"
 
-    _killSpinner
+    _killSpinner # TODO move above cursorRestore??
 }
 
 _spinServerMain() {

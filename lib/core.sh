@@ -48,10 +48,10 @@ if (( ! _rayvnCoreGlobalsSet )); then
 
         # Set ANSI constants for some cursor and erase operations
 
-        declare -grx _eraseToEndOfLine=$(printf $'\x1b[0K')
-        declare -grx _eraseCurrentLine=$(printf '\x1b[2K\r')
-        declare -grx _cursorUpOneAndEraseLine=$(printf $'\x1b[1F\x1b[0K')
-        declare -grx _cursorLeftOne=$(printf '\x1b[1D')
+        declare -grx _eraseToEndOfLine=$'\x1b[0K'
+        declare -grx _eraseCurrentLine=$'\x1b[2K\r'
+        declare -grx _cursorUpOneAndEraseLine=$'\x1b[1F\x1b[0K'
+        declare -grx _cursorLeftOne=$'\x1b[1D'
 
         # Set ANSI colors if terminal supports them
 
@@ -60,9 +60,9 @@ if (( ! _rayvnCoreGlobalsSet )); then
 
             declare -grx ansi_bold="$(tput bold)"
             declare -grx ansi_underline="$(tput smul)"
-            declare -grx ansi_italic="$(printf '\e[3m')"
+            declare -grx ansi_italic=$'\e[3m'
             declare -grx ansi_black="$(tput setaf 0)"
-            declare -grx ansi_dim="$(printf '\e[2m')"
+            declare -grx ansi_dim=$'\e[2m'
 
             declare -grx ansi_red="$(tput setaf 1)"
             declare -grx ansi_green="$(tput setaf 2)"

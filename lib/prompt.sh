@@ -18,19 +18,22 @@ request() {
     fi
 }
 
-hideCursor() {
+cursorHide() {
     echo -n ${_cursorHide}
 }
 
-showCursor() {
+cursorShow() {
     echo -n ${_cursorShow}
 }
 
-saveCursor() {
+cursorSave() {
     echo -n ${_cursorSave}
 }
 
-restoreCursor() {
+# TODO: This will fail if scrolling occurs.
+# Consider saving position to _savedCursorRows / _savedCursorColumns + _savedCursorCount
+# and adding cursorPush() cursorPop() functions.
+cursorRestore() {
     echo -n ${_cursorRestore}
 }
 
@@ -38,24 +41,28 @@ cursorUp() {
     echo -n ${_cursorUp}
 }
 
+cursorTo() {
+    printf '\e[%i;%iH' ${1} ${2}
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_prompt() {
-    if ((terminalSupportsAnsi)); then
+    if (( terminalSupportsAnsi )); then
         declare -gr _questionPrefix="${ansi_bold_green}?${ansi_normal} "
         declare -gr _promptPrefix="${ansi_bold_blue}>${ansi_normal} "
-        declare -gr _cursorHide="$(printf '\e[?25l')"
-        declare -gr _cursorShow="$(printf '\e[?25h')"
-        declare -gr _cursorUp="$(printf '\e[A')"
-        declare -gr _cursorPosition="$(printf '\e[6n')"
-        declare -gr _cursorSave="$(printf '\e[s')"
-        declare -gr _cursorRestore="$(printf '\e[u')"
+        declare -gr _cursorHide=$'\e[?25l'
+        declare -gr _cursorShow=$'\e[?25h'
+        declare -gr _cursorUp=$'\e[A'
+        declare -gr _cursorPosition=$'\e[6n'
+        declare -gr _cursorSave=$'\e[s'
+        declare -gr _cursorRestore=$'\e[u'  # NOTE! assumes no scrolling! See TODO on cursorRestore
 
         # Shared global state (safe since bash is single threaded!).
         # Only valid during execution of public functions.
 
         declare -g _prompt
-        declare -g _promptLength
+        declare -g _requiredLines
         declare -g _input
         declare -g _timeout
         declare -gi _inputRow
@@ -68,8 +75,23 @@ _init_rayvn_prompt() {
 }
 
 _setPrompt() {
-    _prompt="${_questionPrefix}${ansi_bold}${1}${ansi_normal} "
+    local prompt="${1}"
+    _requiredLines="${2:-2}"
+    _prompt="${_questionPrefix}${ansi_bold}${prompt}${ansi_normal} "
+    echo -n "${_prompt}"
+    _ensureLinesAvailable
+}
+
+_ensureLinesAvailable() {
     _getCursorPosition
+    declare -i terminalHeight=$(tput lines)
+    declare -i remainingLines=$(( terminalHeight - _inputRow ))
+    if (( remainingLines < _requiredLines )); then
+        declare -i addLines=$(( _requiredLines - remainingLines ))
+        printf '\n%.0s' $( seq 1 ${addLines} )
+        # move to saved position, adjusting for added lines
+        printf '\e[%i;%iH' $(( _inputRow - addLines )) "${_inputColumn}"
+    fi
 }
 
 _getCursorPosition() {
@@ -98,7 +120,6 @@ _getCursorPosition() {
 
 _readInput() {
     local cancelledMsg=
-    printf '%s' "${_prompt}"
     echo -n "${_cursorSave}"
 
     if ! read -t ${_timeout} -r _input; then
@@ -112,7 +133,6 @@ _readInput() {
     fi
 
     _updateInput _input "${ansi_cyan}"
-    return 0
 }
 
 _updateInput() {
@@ -120,4 +140,5 @@ _updateInput() {
     local color="${2}"
     echo -n "${_cursorRestore}"
     echo "${color}${inputVarRef}${ansi_normal}"
+    return 0
 }
