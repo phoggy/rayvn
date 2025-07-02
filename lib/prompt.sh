@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2155
 
 # Library of user input functions.
 # Intended for use via: require 'rayvn/prompt'
@@ -18,15 +19,15 @@ request() {
 }
 
 hideCursor() {
-    printf '\e[?25l'
- }
+    echo -n ${_cursorHide}
+}
 
 showCursor() {
-    printf '\e[?25h'
+    echo -n ${_cursorShow}
 }
 
 cursorUp() {
-    printf "\e[A"
+    echo -n ${_cursorUp}
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -35,6 +36,10 @@ _init_rayvn_prompt() {
     if ((terminalSupportsAnsi)); then
         declare -gr _questionPrefix="${ansi_bold_green}?${ansi_normal} "
         declare -gr _promptPrefix="${ansi_bold_blue}>${ansi_normal} "
+        declare -gr _cursorHide="$(printf '\e[?25l')"
+        declare -gr _cursorShow="$(printf '\e[?25h')"
+        declare -gr _cursorUp="$(printf '\e[A')"
+        declare -gr _cursorPosition="$(printf '\e[6n')"
 
         # Shared global state (safe since bash is single threaded!).
         # Only valid during execution of public function.
@@ -55,7 +60,7 @@ _init_rayvn_prompt() {
 _setPrompt() {
     _prompt="${_questionPrefix}${ansi_bold}${1}${ansi_normal} "
     _promptLength="${#1}"
-    (( _promptLength+=3 ))
+    (( _promptLength+= 3 ))
 
     _getCursorPosition
     (( _inputStartColumn+=${_promptLength} ))
@@ -64,13 +69,13 @@ _setPrompt() {
 _getCursorPosition() {
     _origStty=$(stty -g)
     stty raw -echo
-    printf '\e[6n' >/dev/tty
+    echo -n ${_cursorPosition} > /dev/tty
 
     # Read the response character by character until we get 'R'
-    local response="" char
-    while IFS= read -r -n1 char </dev/tty; do
+    local response='' char
+    while IFS= read -r -n1 char < /dev/tty; do
         response+="${char}"
-        [[ "${char}" == "R" ]] && break
+        [[ "${char}" == 'R' ]] && break
     done
 
     stty "${_origStty}"
