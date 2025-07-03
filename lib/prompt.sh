@@ -57,6 +57,11 @@ _init_rayvn_prompt() {
         declare -gr _cursorPosition=$'\e[6n'
         declare -gr _cursorSave=$'\e[s'
         declare -gr _cursorRestore=$'\e[u'  # NOTE! assumes no scrolling! See TODO on cursorRestore
+        declare -gr _origStty=$(stty -g)
+        declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
+        declare -gr _cancelledMsgEmpty='cancelled (no input)'
+        declare -gr _cancelledMsgEsc='cancelled (escape)'
+        declare -gr _cancelledMsgTimeout='cancelled (timeout)'
 
         # Shared global state (safe since bash is single threaded!).
         # Only valid during execution of public functions.
@@ -68,7 +73,7 @@ _init_rayvn_prompt() {
         declare -gi _inputRow
         declare -gi _inputColumn
         declare -gi _inputPositionValid=0
-        declare -g _origStty
+
     else
         fail "'rayvn/prompts' library requires a terminal"
     fi
@@ -95,7 +100,6 @@ _ensureLinesAvailable() {
 }
 
 _getCursorPosition() {
-    _origStty=$(stty -g)
     stty raw -echo
     echo -n ${_cursorPosition} > /dev/tty
 
@@ -119,26 +123,90 @@ _getCursorPosition() {
 }
 
 _readInput() {
-    local cancelledMsg=
-    echo -n "${_cursorSave}"
 
-    if ! read -t ${_timeout} -r _input; then
-        cancelledMsg='cancelled (timeout)'
-        _updateInput cancelledMsg "${ansi_italic_red}"
+    _updateInput() {
+        local color
+        local -n inputVarRef="${1}"
+        declare -i result=${2}
+        if (( monitorPid > 0 )); then
+            kill ${monitorPid} 2> /dev/null
+            wait ${monitorPid} 2> /dev/null
+        fi
+
+        (( result == 0 )) && color="${ansi_cyan}" || color="${ansi_italic_red}"
+        echo -n "${_cursorRestore}"
+        echo "${color}${inputVarRef}${ansi_normal}"
+        stty "${_origStty}"
+        return ${result}
+    }
+
+    _startCancelMonitor() {
+        (
+            trap 'exit 130' INT
+            sleep "${_timeout}"
+            exit 124
+        ) &
+        monitorPid=$!
+    }
+
+    _isCanceled() {
+        if ! kill -0 ${monitorPid} 2> /dev/null; then
+            wait ${monitorPid}
+            exitCode=$?
+            case ${exitCode} in
+                130) _updateInput _cancelledMsgINT 1 ;;
+                124) _updateInput _cancelledMsgTimeout 1 ;;
+                *) local msg="cancelled (error ${exitCode})"; _updateInput msg 1 ;;
+            esac
+            return 0
+        fi
         return 1
-    elif [[ -z "${_input// /}" ]]; then
-        cancelledMsg='cancelled (no input)'
-        _updateInput cancelledMsg "${ansi_italic_red}"
-        return 1 # empty
-    fi
+    }
 
-    _updateInput _input "${ansi_cyan}"
-}
+    local key monitorPid=0 exitCode
+    declare -i checkCount=0
+    echo -n "${_cursorSave}"
+    stty cbreak -echo
+     _input=''
 
-_updateInput() {
-    local -n inputVarRef="${1}"
-    local color="${2}"
-    echo -n "${_cursorRestore}"
-    echo "${color}${inputVarRef}${ansi_normal}"
-    return 0
+    _startCancelMonitor
+
+    while true; do
+        if (( ++checkCount >= 4 )); then
+            checkCount=0
+            if _isCanceled; then
+                return 1
+            fi
+        fi
+
+        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+            case "${key}" in
+                '' | $'\n' | $'\r')  # Enter
+                    if [[ -z "${_input// /}" ]]; then
+                        _updateInput _cancelledMsgEmpty 1
+                        return 1
+                    else
+                        _updateInput _input 0
+                        return 0
+                    fi
+                    ;;
+                $'\177'| $'\b')  # Backspace
+                    if [[ -n "${_input}" ]]; then
+                        _input="${_input%?}"
+                        printf '\b \b'
+                    fi
+                    ;;
+                 $'\e')  # Escape
+                    _updateInput _cancelledMsgEsc 1
+                    return 1
+                    ;;
+                *)
+                    if [[ "${key}" =~ [[:print:]] ]]; then
+                        _input+="${key}"
+                        printf '%s' "${key}"
+                    fi
+                    ;;
+            esac
+        fi
+    done
 }
