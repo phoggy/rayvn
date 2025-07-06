@@ -7,7 +7,9 @@
 if (( ! _rayvnCoreGlobalsSet )); then
 
     declare -g _rayvnExitTasks=()
-    trap '_onExit' EXIT INT TERM
+    trap '_onExit' EXIT
+    trap '_onTerm' TERM
+    trap '_onInt' INT
 
     declare -grx newline=$'\n'
     declare -grx osName="$(uname)"
@@ -16,7 +18,7 @@ if (( ! _rayvnCoreGlobalsSet )); then
     declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
     declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
 
-    # We need to set ${terminal} so that it can be used as a redirect/
+    # We need to set ${terminal} so that it can be used as a redirect.
     # Are stdout and stderr both terminals?
 
     if [[ -t 1 && -t 2 ]]; then
@@ -46,16 +48,9 @@ if (( ! _rayvnCoreGlobalsSet )); then
 
     if (( terminalSupportsAnsi)); then
 
-        # Set ANSI constants for some cursor and erase operations
-
-        declare -grx _eraseToEndOfLine=$'\x1b[0K'
-        declare -grx _eraseCurrentLine=$'\x1b[2K\r'
-        declare -grx _cursorUpOneAndEraseLine=$'\x1b[1F\x1b[0K'
-        declare -grx _cursorLeftOne=$'\x1b[1D'
-
         # Set ANSI colors if terminal supports them
 
-        if (($(tput colors) >= 8)); then
+        if (( $(tput colors) >= 8 )); then
             declare -grx ansi_normal="$(tput sgr0)"
 
             declare -grx ansi_bold="$(tput bold)"
@@ -105,9 +100,9 @@ if (( ! _rayvnCoreGlobalsSet )); then
         fi
     elif [[ ! -v RAYVN_NO_OS_CHECK ]]; then
 
-        # No, so warn that not tested here!
+        # No, so warn!
 
-        echo "⚠️ This code has only been tested on MacOS. Please report any issues at https://github.com/phoggy/rayvn/issues"
+        echo "⚠️ This code contains MacOS specific functionality and likely will not work here."
         echo
         echo "   This warning can be bypassed by exporting RAYVN_NO_OS_CHECK=true"
         echo "   but be aware that some functionality may not work correctly."
@@ -207,24 +202,36 @@ assertAnsiSupported() {
     (( terminalSupportsAnsi )) || assertionFailed "must be run in a terminal"
 }
 
-_onExit() {
+_restoreTerminal() {
     if (( terminalSupportsAnsi )); then
-
-        # Reset terminal
-
         stty sane
         printf '\e[?25h'  # Show cursor in case sane does not
-
-        # Add a line unless disabled
-
-        [[ -n ${noEchoOnExit} ]] && echo
     fi
+}
+
+_onTerm() {
+    _restoreTerminal
+    echo "🔺 $(ansi italic_red killed)"
+    exit 1
+}
+
+_onInt() {
+    _restoreTerminal
+    echo "$(ansi italic_red "exiting (ctrl-c)")"
+    exit 1
+}
+
+_onExit() {
+    _restoreTerminal
+
+    # Add a line unless disabled
+
+    [[ -n ${noEchoOnExit} ]] && echo
 
     # Delete temp dir if we created it
 
     if [[ ${_rayvnTempDir} ]]; then
-        # The "--" option below stops option parsing and allows filenames starting with "-"
-        rm -rf -- "${_rayvnTempDir}"
+        rm -rf -- "${_rayvnTempDir}" &> /dev/null
     fi
 
     # Run any added tasks
