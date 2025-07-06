@@ -9,6 +9,7 @@ if (( ! _rayvnCoreGlobalsSet )); then
     declare -g _rayvnExitTasks=()
     trap '_onExit' EXIT
     trap '_onTerm' TERM
+    trap '_onHup' HUP
     trap '_onInt' INT
 
     declare -grx newline=$'\n'
@@ -212,6 +213,12 @@ _restoreTerminal() {
 _onTerm() {
     _restoreTerminal
     echo "🔺 $(ansi italic_red killed)"
+    exit 1
+}
+
+_onHup() {
+    _restoreTerminal
+    echo "🔺 $(ansi italic_red "killed (SIGHUP)")"
     exit 1
 }
 
