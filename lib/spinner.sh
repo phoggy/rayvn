@@ -4,141 +4,124 @@
 # Library supporting progress spinner
 # Intended for use via: require 'rayvn/spinner'
 
-require 'rayvn/core' 'rayvn/terminal'
-
-_init_rayvn_spinner() {
-    if (( terminalSupportsAnsi )); then
-        declare -grx spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
-        declare -grx spinnerDefaultCharsColor='bold_blue'
-        declare -grx spinnerCommandPrefix="::"
-        declare -grx spinnerEraseCommand="${spinnerCommandPrefix}eraseSpinner"
-        declare -grx spinnerEraseLineCommand="${spinnerCommandPrefix}eraseLine"
-
-        declare -ga spinnerArray=
-        declare -g spinnerArraySize=
-        declare -g spinnerMaxIndex=
-        declare -g spinnerIndex=
-        declare -g spinnerForward=
-        declare -g spinnerPid=
-        declare -g spinnerCleanupRegistered
-
-        configureSpinner
-    fi
-}
+require 'rayvn/core' 'rayvn/terminal' 'rayvn/process'
 
 startSpinner() {
-    if (( terminalSupportsAnsi )) && [[ ! ${spinnerPid} ]]; then
+    if [[ ! ${_spinnerPid} ]]; then
         _ensureStopOnExit
         _spinServerMain "${1}" &
-        spinnerPid=${!}
+        _spinnerPid=${!}
     fi
 }
 
 restartSpinner() {
-    if (( terminalSupportsAnsi )); then
-        stopSpinner "${1}"
-        startSpinner "${2}"
-    fi
+    stopSpinner "${1}"
+    startSpinner "${2}"
 }
 
 replaceSpinnerAndRestart() {
-    if (( terminalSupportsAnsi )); then
-        stopSpinner "${spinnerEraseLineCommand}" "${1}"
-        startSpinner "${2}"
-    fi
+    stopSpinner "${_spinnerEraseLineCommand}" "${1}"
+    startSpinner "${2}"
 }
 
 stopSpinnerAndEraseLine() {
-    if (( terminalSupportsAnsi )); then
-        stopSpinner "${spinnerEraseLineCommand}" "${1}"
-    fi
+    stopSpinner "${_spinnerEraseLineCommand}" "${1}"
 }
 
 stopSpinner() {
-    if (( terminalSupportsAnsi )); then
-        local command message
-        if [[ ${1} =~ ${spinnerCommandPrefix} ]]; then
-            command="${1}"
-            message="${2}"
-        else
-            command="${spinnerEraseCommand}"
-            message="${1}"
-        fi
-        _endSpin "${command}" "${message}"
+    local command message
+    if [[ ${1} =~ ${_spinnerCommandPrefix} ]]; then
+        command="${1}"
+        message="${2}"
+    else
+        command="${_spinnerEraseCommand}"
+        message="${1}"
     fi
+    _endSpin "${command}" "${message}"
 }
 
 failSpin() {
-    if (( terminalSupportsAnsi )); then
-       _spinExit
-    fi
+    _spinExit
     fail "${@}"
 }
 
 # shellcheck disable=SC2120
 configureSpinner() {
-    if (( terminalSupportsAnsi )); then
-        local color="${1:-${spinnerDefaultCharsColor}}"
-        local chars="${2:-${spinnerDefaultChars}}"
-        local count="${#chars}"
-        local i c
-        spinnerArray=()
-        for (( i=0; i < ${count}; i++ )); do
-            c="${chars:i:1}"
-            c="$(printf "$(ansi ${color} ${chars:${i}:1})${ansi_normal}")"
-            spinnerArray[${i}]="${c}"
-        done
-        spinnerArraySize=${count}
-        spinnerMaxIndex=$(( ${count} -1))
-        unset spinnerPid
-    fi
+    local color="${1:-${_spinnerDefaultCharsColor}}"
+    local chars="${2:-${_spinnerDefaultChars}}"
+    local count="${#chars}"
+    local i c
+    _spinnerArray=()
+    for ((i = 0; i < ${count}; i++)); do
+        c="${chars:i:1}"
+        c="$(printf "$(ansi ${color} ${chars:${i}:1})${ansi_normal}")"
+        _spinnerArray[${i}]="${c}"
+    done
+    _spinnerArraySize=${count}
+    _spinnerMaxIndex=$((${count} - 1))
+    unset _spinnerPid
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
+declare -grx _spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
+declare -grx _spinnerDefaultCharsColor='bold_blue'
+declare -grx _spinnerCommandPrefix="::"
+declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
+declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
+declare -grx _spinnerDelayInterval='0.25'
+
+declare -ga _spinnerArray=
+declare -g _spinnerArraySize=
+declare -g _spinnerMaxIndex=
+declare -g _spinnerIndex=
+declare -g _spinnerForward=
+declare -g _spinnerPid=
+declare -gi _spinnerCleanupRegistered=0
+
+_init_rayvn_spinner() {
+    configureSpinner
+}
+
 _ensureStopOnExit() {
-    if [[ ! ${spinnerCleanupRegistered} ]]; then
+    if (( ! _spinnerCleanupRegistered )); then
         addExitHandler _spinExit
-        spinnerCleanupRegistered=true
+        _spinnerCleanupRegistered=1
     fi
 }
 
-_init_Spinner() {
-    [[ ${spinnerArraySize} ]] || configureSpinner
-    tput civis
-    spinnerIndex=0
-    spinnerForward=true
-    _printProgressChar
-}
-
 _printProgressChar() {
-    printf "${spinnerArray[${spinnerIndex}]}"
+    echo -n "${_spinnerArray[${_spinnerIndex}]}"
 }
 
 _beginSpin() {
     [[ ${1} ]] && echo -n "${1}"
     cursorSave
     printf ' '
-    _init_Spinner
+    [[ ${_spinnerArraySize} ]] || configureSpinner
+    tput civis
+    _spinnerIndex=0
+    _spinnerForward=true
+    _printProgressChar
 }
 
 _nextSpin() {
-    if [[ ${spinnerForward} ]]; then
-        if (( spinnerIndex < spinnerMaxIndex )); then
-            spinnerIndex=$((spinnerIndex + 1))
+    if [[ ${_spinnerForward} ]]; then
+        if ((_spinnerIndex < _spinnerMaxIndex)); then
+            _spinnerIndex=$((_spinnerIndex + 1))
             _printProgressChar
         else
-            spinnerIndex=$((spinnerIndex - 1))
-            spinnerForward=   # reverse direction
-            printf '\b \b' # backup and erase 1 character
+            _spinnerIndex=$((_spinnerIndex - 1))
+            _spinnerForward= # reverse direction
+            printf '\b \b'   # backup and erase 1 character
         fi
-    elif (( spinnerIndex > 0 )); then
-        spinnerIndex=$((spinnerIndex - 1))
+    elif ((_spinnerIndex > 0)); then
+        _spinnerIndex=$((_spinnerIndex - 1))
         printf '\b \b' # backup 1 character
     else
-        spinnerIndex=0
-        spinnerForward=true # reverse
-        printf '\b \b'   # backup 1 character
+        _spinnerIndex=0
+        _spinnerForward=true # reverse
+        printf '\b \b'       # backup 1 character
         _printProgressChar
     fi
 }
@@ -146,16 +129,15 @@ _nextSpin() {
 _endSpin() {
     local command="${1}"
     local message="${2}"
+    _stopSpinner
     cursorRestore
     case ${command} in
-        "${spinnerEraseCommand}") eraseToEndOfLine ;;
-        "${spinnerEraseLineCommand}") eraseCurrentLine ;;
-        *) fail "unknown command: ${command}"
+    "${_spinnerEraseCommand}") eraseToEndOfLine ;;
+    "${_spinnerEraseLineCommand}") eraseCurrentLine ;;
+    *) fail "unknown command: ${command}" ;;
     esac
     tput cnorm
     [[ ${message} != '' ]] && echo "${message}"
-
-    _killSpinner # TODO move above cursorRestore??
 }
 
 _spinServerMain() {
@@ -164,7 +146,7 @@ _spinServerMain() {
         exit 0
     }
 
-    trap "onServerExit" INT
+    trap "onServerExit" TERM INT HUP
 
     _beginSpin "${message}"
 
@@ -175,18 +157,24 @@ _spinServerMain() {
 }
 
 _spinExit() {
-    if [[ ${spinnerPid} ]]; then
+    if [[ ${_spinnerPid} ]]; then
         # Abnormal exit, clean up
         stopSpinnerAndEraseLine
-        _killSpinner
+        _stopSpinner
     fi
 }
 
-_killSpinner() {
-    if [[ ${spinnerPid} ]]; then
-        kill -INT ${spinnerPid} 2> /dev/null
-        wait "${spinnerPid}" 2> /dev/null  # Wait for the process to exit
-        spinnerPid=
+_stopSpinner() {
+    if [[ ${_spinnerPid} ]]; then
+        kill -INT "${_spinnerPid}" 2> /dev/null
+
+        # Wait for exit with 4 second total timeout, checking every 10ms, with
+        # 500ms between TERM and KILL.
+
+        if ! waitForProcessExit ${_spinnerPid} 4000 10 500; then
+            fail "spinner process didn't respond to signals"
+        fi
+        _spinnerPid=
     fi
 }
 
@@ -194,19 +182,19 @@ _testSpinner() {
     local punctuation='.'
     local doneCheck="${_greenCheckMark}"
     local periodCheck="${punctuation} ${doneCheck}"
-    startSpinner "Working 1"
-    sleep 2
+    startSpinner "Working 1, expect '${periodCheck}' after 10 seconds"
+    sleep 10
     stopSpinner "${periodCheck}"
 
-    startSpinner "Working 2"
-    sleep 2
-    replaceSpinnerAndRestart "Work completed ${doneCheck}" "Working 3"
+    startSpinner "Working 2, expect REPLACEMENT with 'Work completed ${doneCheck}' after 4 seconds"
+    sleep 4
+    replaceSpinnerAndRestart "Work completed ${doneCheck}" "Working 3, expect '${punctuation}' after 2 seconds"
     sleep 2
     stopSpinner "${punctuation}"
 
-    startSpinner "Working 4"
+    startSpinner "Working 4, expect '${periodCheck}' after 2 seconds"
     sleep 2
-    restartSpinner "${periodCheck}" "Working 5"
+    restartSpinner "${periodCheck}" "Working 5, expect '${punctuation}' after 2 seconds"
     sleep 2
     stopSpinner "${punctuation}"
 }
