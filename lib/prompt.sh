@@ -48,45 +48,15 @@ _readInput() {
         local color
         local -n inputVarRef="${1}"
         declare -i result=${2}
-#        if (( monitorPid > 0 )); then
-#            kill ${monitorPid} 2> /dev/null
-#            wait ${monitorPid} 2> /dev/null
-#        fi
-
         (( result == 0 )) && color="${ansi_cyan}" || color="${ansi_italic_red}"
         cursorTo ${_cursorRow} ${_cursorCol}
-      #  echo -n "${_cursorRestore}"
         echo "${color}${inputVarRef}${ansi_normal}"
         stty "${_originalStty}"
         return ${result}
     }
 
-#    _startCancelMonitor() {
-#        (
-#            trap 'exit 130' INT
-#            sleep "${_timeout}"
-#            exit 124
-#        ) &
-#        monitorPid=$!
-#    }
-#
-#    _isCanceled() {
-#        if ! kill -0 ${monitorPid} 2> /dev/null; then
-#            wait ${monitorPid}
-#            exitCode=$?
-#            case ${exitCode} in
-#                130) _updateInput _cancelledMsgINT 1 ;;
-#                124) _updateInput _cancelledMsgTimeout 1 ;;
-#                *) local msg="cancelled (error ${exitCode})"; _updateInput msg 1 ;;
-#            esac
-#            return 0
-#        fi
-#        return 1
-#    }
-
     local key monitorPid=0 exitCode
     declare -i checkCount=0
-#    echo -n "${_cursorSave}"
     stty cbreak -echo
     _input=''
     SECONDS=0
