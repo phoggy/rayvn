@@ -7,15 +7,50 @@
 require 'rayvn/core' 'rayvn/terminal'
 
 request() {
+    local prompt="${1}"
+    local -n resultRef="${2}"
+    local cancelOnEmpty="${3:-true}"
+    _timeoutSeconds="${4:-30}"
     _setPrompt "${1}" 4
-    local -n resultRef="${2:?'missing argument'}"
-    _timeout="${3:-30}"
-    if _readInput; then
-        resultRef="${_input}"
+    if _readInput ${cancelOnEmpty}; then
+        resultRef="${_userInput}"
         return 0
     else
         return 1
     fi
+}
+
+choose() {
+    echo # TODO!
+}
+
+confirm() {
+    local prompt="${1}"
+    local answerOne="${2}"
+    local answerTwo="${3}"
+    local -n resultRef="${4}"
+    _timeoutSeconds="${5:-30}"
+    local hint=" ${ansi_dim}["${answerOne}/${answerTwo}"]${ansi_normal}"
+    _setPrompt "${prompt}" 3 "${hint}"
+    while (( SECONDS < _timeoutSeconds )); do
+        if _readInput false; then
+            local result="${_userInput,,}"
+            if [[ ${result} == "${answerOne,,}" || ${result} == "${answerTwo,,}" ]]; then
+                resultRef="${result}"
+                return 0
+            else
+
+                # Update hint and retry
+
+                hint="${ansi_bold_green}[${answerOne}/${answerTwo}]${ansi_normal}"
+                cursorTo ${_cursorRow} ${_promptEnd}
+                echo -n "${hint} "
+                continue # retry
+            fi
+        else
+            return 1
+        fi
+    done
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -31,40 +66,43 @@ declare -gr _cancelledMsgTimeout='cancelled (timeout)'
 # Only valid during execution of public functions.
 
 declare -g _prompt
-declare -g _input
-declare -g _timeout
+declare -gi _promptEnd
+declare -g _userInput
+declare -g _timeoutSeconds
 
 _setPrompt() {
     local prompt="${1}"
-    local requiredLines="${2:-3}"
-    _prompt="${_questionPrefix}${ansi_bold}${prompt}${ansi_normal} "
+    local requiredLines="${2}"
+    local hint="${3}"
+    _prompt="${_questionPrefix}${ansi_bold}${prompt}${ansi_normal}${hint} "
+    _promptEnd="${#prompt} + 4"
     echo -n "${_prompt}"
     reserveRows "${requiredLines}"
+    SECONDS=0 # Reset bash seconds counter
 }
 
 _readInput() {
+    local cancelOnEmpty=${1}
 
-    _updateInput() {
-        local color
+    _finalizeInput() {
         local -n inputVarRef="${1}"
-        declare -i result=${2}
-        (( result == 0 )) && color="${ansi_cyan}" || color="${ansi_italic_red}"
-        cursorTo ${_cursorRow} ${_cursorCol}
-        echo "${color}${inputVarRef}${ansi_normal}"
+        local colorName="ansi_${2}"
+        cursorTo ${_cursorRow} ${_promptEnd}
+        eraseToEndOfLine
+        echo "${!colorName}${inputVarRef}${ansi_normal}"
         stty "${_originalStty}"
-        return ${result}
     }
 
-    local key monitorPid=0 exitCode
+    local key escSequence
     declare -i checkCount=0
     stty cbreak -echo
-    _input=''
+    _userInput=''
     SECONDS=0
 
     while true; do
         if (( ++checkCount >= 10 )); then
-            if (( SECONDS >= _timeout )); then
-                _updateInput _cancelledMsgTimeout 1
+            if (( SECONDS >= _timeoutSeconds )); then
+                _finalizeInput _cancelledMsgTimeout italic_red
                 return 1
             fi
             checkCount=0
@@ -73,27 +111,53 @@ _readInput() {
         if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
             case "${key}" in
                 '' | $'\n' | $'\r')  # Enter
-                    if [[ -z "${_input// /}" ]]; then
-                        _updateInput _cancelledMsgEmpty 1
-                        return 1
+                    if [[ -z "${_userInput// /}" ]]; then
+                       if [[ ${cancelOnEmpty} == true ]]; then
+                            _finalizeInput _cancelledMsgEmpty red
+                            return 1
+                        fi
+                        # ignore
                     else
-                        _updateInput _input 0
+                        _finalizeInput _userInput cyan
                         return 0
                     fi
                     ;;
                 $'\177'| $'\b')  # Backspace
-                    if [[ -n "${_input}" ]]; then
-                        _input="${_input%?}"
+                    if [[ -n "${_userInput}" ]]; then
+                        _userInput="${_userInput%?}"
                         printf '\b \b'
                     fi
                     ;;
                  $'\e')  # Escape
-                    _updateInput _cancelledMsgEsc 1
-                    return 1
+                    # If there's follow-up input, it's an escape sequence (e.g. up arrow) so just ignore it
+                    if read -n1 -t 0.1 escSequence; then
+                        # Consume the rest of the escape sequence
+                        case "${escSequence}" in
+                            '[')
+                                # CSI sequence - read up to 3 more characters max
+                                for ((i=0; i<3; i++)); do
+                                    if ! read -n1 -t 0.1 key; then
+                                        break  # Timeout
+                                    fi
+                                    # Break on typical final characters
+                                    [[ "${key}" =~ [A-Za-z~] ]] && break
+                                done
+                                ;;
+                            *)
+                                # Other escape sequences might have different patterns
+                                # For now just consume one more character
+                                read -n1 -t 0.1 >/dev/null
+                                ;;
+                        esac
+                    else
+                        # No follow-up sp ESC key
+                        _finalizeInput cancelledMsgEsc red
+                        return 1
+                    fi
                     ;;
                 *)
                     if [[ "${key}" =~ [[:print:]] ]]; then
-                        _input+="${key}"
+                        _userInput+="${key}"
                         printf '%s' "${key}"
                     fi
                     ;;
