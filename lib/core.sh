@@ -484,6 +484,8 @@ setDebug() {
 # Placeholder debug functions, replaced in setDebug()
 
 debug() { :; }
+debugEnabled() { return 1; }
+debugBinary() { :; }
 debugDir() { :; }
 debugEnvironment() { :; }
 debugFile() { :; }

@@ -10,8 +10,8 @@ request() {
     local prompt="${1}"
     local -n resultRef="${2}"
     local cancelOnEmpty="${3:-true}"
-    _timeoutSeconds="${4:-30}"
-    _setPrompt "${1}" 4
+    local timeout="${4:-30}"
+    _preparePrompt "${prompt}" ${timeout} 4
     if _readInput ${cancelOnEmpty}; then
         resultRef="${_userInput}"
         return 0
@@ -23,12 +23,13 @@ request() {
 choose() {
     local prompt="${1}"
     local -n choiceRef="${2}"
-    _timeoutSeconds="${3}"
+    local timeout="${3}"
     local choices=("${@:4}")
     local max=$(( ${#choices[@]} - 1 ))
     local reserve=$(( max + 3 ))
     local current=0
-    local i
+    local failed=0
+    local key i
     local hint=" ${ansi_dim}[use arrows to move]${ansi_normal}"
 
     paint() {
@@ -60,30 +61,53 @@ choose() {
         paint
     }
 
-    # Set prompt and move down a line, adjusting cursor
+    # Set prompt, hide cursor and move down a line, adjusting cursor
 
-    _setPrompt "${prompt}"  ${reserve} "${hint}"
-    promptRow="${_cursorRow}"
-    echo
+    _preparePrompt "${prompt}" ${timeout} ${reserve} "${hint}"
+    cursorHide
     (( _cursorRow++ ))
+    echo
+
+    # Paint and turn off buffering & input echo
+
+    paint
+    stty cbreak -echo
 
     # Loop
-    paint
-    sleep 1
-    down
-    paint
-    sleep 1
-    down
-    paint
-    sleep 1
-    up
-    paint
-    sleep 1
-    up
-    paint
-    sleep 1
-    up
-    sleep 1
+
+    while true; do
+
+        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+            case "${key}" in
+                '' | $'\n' | $'\r')
+
+                    break ;; # enter
+
+                $'\e') # Escape
+
+                    if _readEscSequence key; then
+                        case "${key}" in
+                            'u') up ;;   # up arrow
+                            'd') down ;; # down arrow
+                             *) ;;       # ignore
+                        esac
+                    else
+                        # ESC pressed
+                        failed=2
+                        break
+                    fi
+                    ;;
+
+                *) # ignore anything else
+                    ;;
+            esac
+        fi
+
+        if _hasPromptTimerExpired; then
+             failed=1
+             break
+        fi
+    done
 
     # Clear up
 
@@ -91,16 +115,16 @@ choose() {
         cursorUpOneAndEraseLine
     done
 
+    # Handle expired
+
+    (( failed )) && return 1
+
     # Finalize the response
 
     local description="${choices[${current}]}"
-    _finalizeInput description cyan
+    _finalizePrompt description cyan
 
-choiceRef="${current}"; return 0
-
-    while ((SECONDS < _timeoutSeconds)); do
-        :
-    done
+    # Return choice
 
     choiceRef=${current}
     return 0
@@ -111,12 +135,15 @@ confirm() {
     local answerOne="${2}"
     local answerTwo="${3}"
     local -n resultRef="${4}"
-    _timeoutSeconds="${5:-30}"
+    local timeout="${5:-30}"
     local hint=" ${ansi_dim}["${answerOne}/${answerTwo}"]${ansi_normal}"
-    _setPrompt "${prompt}" 3 "${hint}"
-    while ((SECONDS < _timeoutSeconds)); do
+    _preparePrompt "${prompt}" ${timeout} 3 "${hint}"
+
+    while true; do
         if _readInput false; then
+
             local result="${_userInput,,}"
+            debug "_userInput=${_userInput}"
             if [[ ${result} == "${answerOne,,}" || ${result} == "${answerTwo,,}" ]]; then
                 resultRef="${result}"
                 return 0
@@ -125,9 +152,9 @@ confirm() {
                 # Update hint and retry
 
                 hint="${ansi_bold_green}[${answerOne}/${answerTwo}]${ansi_normal}"
-                cursorTo ${_cursorRow} ${_promptEnd}
+                cursorTo ${_cursorRow} ${_promptCol}
                 echo -n "${hint} "
-                continue # retry
+              #  continue
             fi
         else
             return 1
@@ -148,60 +175,58 @@ declare -gr _cancelledMsgTimeout='cancelled (timeout)'
 # Only valid during execution of public functions.
 
 declare -g _prompt
-declare -gi _promptRow
-declare -gi _promptEnd
-declare -g _userInput
+declare -g _promptRow
+declare -gi _promptCol
 declare -g _timeoutSeconds
+declare -gi _timeoutCheckCount
+declare -g _userInput
 
-_setPrompt() {
+_preparePrompt() {
     local prompt="${1}"
-    local requiredLines="${2}"
-    local hint="${3}"
+    local timeout="${2}"
+    local requiredLines="${3}"
+    local hint="${4}"
     _prompt="${_questionPrefix}${ansi_bold}${prompt}${ansi_normal}${hint} "
     echo -n "${_prompt}"
     reserveRows "${requiredLines}"
     _promptRow=${_cursorRow}
-    _promptEnd="${#prompt} + 4"
+    _promptCol="${#prompt} + 4" # exclude hint, include prefix & trailing space
+    _timeoutSeconds=${timeout}
+    _timeoutCheckCount=0
+    _userInput=
     SECONDS=0 # Reset bash seconds counter
 }
 
-_finalizeInput() {
-    local -n inputVarRef="${1}"
-    local colorName="ansi_${2}"
-    cursorTo ${_promptRow} ${_promptEnd}
-    eraseToEndOfLine
-    echo "${!colorName}${inputVarRef}${ansi_normal}"
-    stty "${_originalStty}"
+_hasPromptTimerExpired() {
+    if (( ++_timeoutCheckCount >= 10 )); then
+        if (( SECONDS >= _timeoutSeconds )); then
+            _finalizePrompt _cancelledMsgTimeout italic_red
+            return 0
+        fi
+        _timeoutCheckCount=0
+    fi
+    return 1
 }
 
 _readInput() {
     local cancelOnEmpty=${1}
-    local key escSequence
-    declare -i checkCount=0
-    stty cbreak -echo
-    _userInput=''
-    SECONDS=0
+    local key esc
+    stty cbreak -echo # turn off buffering and input echo
+    _userInput=
+    cursorShow
 
     while true; do
-        if ((++checkCount >= 10)); then
-            if ((SECONDS >= _timeoutSeconds)); then
-                _finalizeInput _cancelledMsgTimeout italic_red
-                return 1
-            fi
-            checkCount=0
-        fi
-
-        if IFS= read -t 0.1 -r -n1 key 2>/dev/null; then
+        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
             case "${key}" in
             '' | $'\n' | $'\r') # Enter
                 if [[ -z "${_userInput// /}" ]]; then
                     if [[ ${cancelOnEmpty} == true ]]; then
-                        _finalizeInput _cancelledMsgEmpty red
+                        _finalizePrompt _cancelledMsgEmpty red
                         return 1
                     fi
                     # ignore
                 else
-                    _finalizeInput _userInput cyan
+                    _finalizePrompt _userInput cyan
                     return 0
                 fi
                 ;;
@@ -212,31 +237,7 @@ _readInput() {
                 fi
                 ;;
             $'\e') # Escape
-                # If there's follow-up input, it's an escape sequence (e.g. up arrow) so just ignore it
-                if read -n1 -t 0.1 escSequence; then
-                    # Consume the rest of the escape sequence
-                    case "${escSequence}" in
-                    '[')
-                        # CSI sequence - read up to 3 more characters max
-                        for ((i = 0; i < 3; i++)); do
-                            if ! read -n1 -t 0.1 key; then
-                                break # Timeout
-                            fi
-                            # Break on typical final characters
-                            [[ "${key}" =~ [A-Za-z~] ]] && break
-                        done
-                        ;;
-                    *)
-                        # Other escape sequences might have different patterns
-                        # For now just consume one more character
-                        read -n1 -t 0.1 >/dev/null
-                        ;;
-                    esac
-                else
-                    # No follow-up sp ESC key
-                    _finalizeInput cancelledMsgEsc red
-                    return 1
-                fi
+                _readEscSequence esc || return 1
                 ;;
             *)
                 if [[ "${key}" =~ [[:print:]] ]]; then
@@ -246,5 +247,68 @@ _readInput() {
                 ;;
             esac
         fi
+
+        _hasPromptTimerExpired && return 1
+
     done
+}
+
+_readEscSequence() {
+    local -n resultVar="${1}"
+    local c
+
+    # Is there more input?
+
+    if read -n1 -t 0.1 c; then
+
+        # Yes, it is an escape sequence
+
+        case "${c}" in
+
+            '[') # CSI sequence, read up to 3 more characters and process last
+
+                for (( i = 0; i < 3; i++ )); do
+                    if ! read -n1 -t 0.1 c; then
+                        break # timeout, assume we already read the last char
+                    fi
+
+                    case "${c}" in
+                        'A') resultVar='u'; break ;;  # Up
+                        'B') resultVar='d'; break ;;  # Down
+                        'C') resultVar='r'; break ;;  # Right
+                        'D') resultVar='l'; break ;;  # Left
+                          *) resultVar='?'; break ;;  # Unknown/don't care
+                    esac
+                done
+                ;;
+
+            *)  # Non-CSI escape sequence, just log the character if debug is enabled.
+                # We cannot just blindly consume more characters here since there are a lot
+                # of weird sequences and we don't want to accidentally consume any valid
+                # input after this (especially not enter). So, it is certainly possible that
+                # this will break subsequent input, but ctrl-c is always available.
+
+                # TODO consider failing here?
+
+                debugBinary "Ignored ESC sequence: " "${c}"
+                resultVar='?'
+            ;;
+        esac
+        return 0
+    else
+
+        # No, so ESC
+
+        _finalizePrompt _cancelledMsgEsc red
+        return 1
+    fi
+}
+
+_finalizePrompt() {
+    local -n inputVarRef="${1}"
+    local colorName="ansi_${2}"
+    cursorTo ${_promptRow} ${_promptCol}
+    eraseToEndOfLine
+    echo "${!colorName}${inputVarRef}${ansi_normal}"
+    stty "${_originalStty}"
 }

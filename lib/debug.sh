@@ -14,6 +14,10 @@ debug() {
     (( _debug )) && echo "${@}" >&3; return 0
 }
 
+debugEnabled() {
+    (( _debug )) && return 0 || return 1
+}
+
 debugDir() {
     (( _debug )) && echo "${_debugDir}"; return 0
 }
@@ -27,6 +31,18 @@ debugStatus() {
         else
             echo "$(ansi italic_cyan debug enabled) -> terminal"
         fi
+    fi
+}
+
+debugBinary() {
+    if (( _debug )); then
+        local prompt="${1}"
+        local binary="${2}"
+        echo -n "${prompt}" >&3
+        for (( i=0; i < ${#binary}; i++ )); do
+            printf '%02X ' "'${binary:i:1}" >&3
+        done
+        echo >&3
     fi
 }
 

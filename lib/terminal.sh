@@ -78,14 +78,14 @@ reserveRows() {
     local remainingRows
 
     cursorPosition _cursorRow _cursorCol
-    remainingRows=$((terminalHeight - _cursorRow))
+    remainingRows=$(( terminalHeight - _cursorRow ))
 
     if (( requiredRows > remainingRows )); then
 
         # Need to scroll. Determine how many lines and adjust the
         # row we need to go back to
 
-        local scrollRows=$((requiredRows - remainingRows))
+        local scrollRows=$(( requiredRows - remainingRows ))
         (( _cursorRow -= scrollRows ))
 
         # Move to the last line and force scrolling
@@ -95,7 +95,7 @@ reserveRows() {
 
         # Restore cursor to adjusted row and original column
 
-        printf '\e[%i;%iH' ${_cursorRow} "${_cursorCol}"
+        cursorTo ${_cursorRow} ${_cursorCol}
     fi
 }
 
