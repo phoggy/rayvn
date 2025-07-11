@@ -466,7 +466,7 @@ fail() {
 
 bye() {
     [[ ${1} ]] && printRed "${*}"
-    isDebug && printStack
+    debugStack
     exit 0
 }
 
@@ -485,12 +485,13 @@ setDebug() {
 
 debug() { :; }
 debugEnabled() { return 1; }
-debugBinary() { :; }
 debugDir() { :; }
-debugEnvironment() { :; }
+debugStatus() { echo 'debug disabled'; }
+debugBinary() { :; }
+debugVars() { :; }
+debugVarIsSet() { :; }
+debugVarIsNotSet() { :; }
 debugFile() { :; }
 debugJson() { :; }
-debugStatus() { echo 'debug disabled'; }
-debugVarIsNotSet() { :; }
-debugVarIsSet() { :; }
-debugVars() { :; }
+debugStack() { :; }
+debugEnvironment() { :; }
