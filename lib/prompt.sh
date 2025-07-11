@@ -36,9 +36,9 @@ choose() {
         cursorTo ${_cursorRow} 0
         for (( i=0; i <= max; i++ )); do
             if (( i == current)); then
-                echo "  > ${ansi_bold_blue}${choices[${i}]}${ansi_normal}"
+                echo "${ansi_bold}> ${ansi_cyan}${choices[${i}]}${ansi_normal}"
             else
-                echo "    ${ansi_blue}${choices[${i}]}${ansi_normal}"
+                echo "  ${ansi_cyan}${choices[${i}]}${ansi_normal}"
             fi
         done
     }
@@ -61,59 +61,59 @@ choose() {
         paint
     }
 
-    # Set prompt, hide cursor and move down a line, adjusting cursor
+    loop() {
+        paint
+        stty cbreak -echo
+        while true; do
+            if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+                case "${key}" in
+                    '' | $'\n' | $'\r')
+
+                        break ;; # enter
+
+                    $'\e') # Escape
+
+                        if _readEscapeSequence key; then
+                            case "${key}" in
+                                'u') up ;;   # up arrow
+                                'd') down ;; # down arrow
+                                 *) ;;       # ignore
+                            esac
+                        else
+                            # ESC pressed
+                            failed=2
+                            break
+                        fi
+                        ;;
+
+                    *) # ignore anything else
+                        ;;
+                esac
+            fi
+
+            if _hasPromptTimerExpired; then
+                 failed=1
+                 break
+            fi
+        done
+    }
+
+    _clearPrompt() {
+        cursorTo ${_promptRow} ${_promptCol}
+        for (( i=0; i <= max; i++ )); do
+            cursorDownOneAndEraseLine
+        done
+        cursorTo $(( _promptRow+1 )) 0
+    }
+
+    # Set prompt, hide cursor and move down a line (adjusting cursor) and loop
 
     _preparePrompt "${prompt}" ${timeout} ${reserve} "${hint}"
     cursorHide
     (( _cursorRow++ ))
     echo
-
-    # Paint and turn off buffering & input echo
-
-    paint
-    stty cbreak -echo
-
-    # Loop
-
-    while true; do
-
-        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-            case "${key}" in
-                '' | $'\n' | $'\r')
-
-                    break ;; # enter
-
-                $'\e') # Escape
-
-                    if _readEscSequence key; then
-                        case "${key}" in
-                            'u') up ;;   # up arrow
-                            'd') down ;; # down arrow
-                             *) ;;       # ignore
-                        esac
-                    else
-                        # ESC pressed
-                        failed=2
-                        break
-                    fi
-                    ;;
-
-                *) # ignore anything else
-                    ;;
-            esac
-        fi
-
-        if _hasPromptTimerExpired; then
-             failed=1
-             break
-        fi
-    done
-
-    # Clear up
-
-    for (( i=0; i <= max; i++ )); do
-        cursorUpOneAndEraseLine
-    done
+    loop
+    _clearPrompt
 
     # Handle expired
 
@@ -237,7 +237,7 @@ _readInput() {
                 fi
                 ;;
             $'\e') # Escape
-                _readEscSequence esc || return 1
+                _readEscapeSequence esc || return 1
                 ;;
             *)
                 if [[ "${key}" =~ [[:print:]] ]]; then
@@ -253,7 +253,7 @@ _readInput() {
     done
 }
 
-_readEscSequence() {
+_readEscapeSequence() {
     local -n resultVar="${1}"
     local c
 
@@ -282,15 +282,17 @@ _readEscSequence() {
                 done
                 ;;
 
-            *)  # Non-CSI escape sequence, just log the character if debug is enabled.
-                # We cannot just blindly consume more characters here since there are a lot
-                # of weird sequences and we don't want to accidentally consume any valid
-                # input after this (especially not enter). So, it is certainly possible that
-                # this will break subsequent input, but ctrl-c is always available.
+            *)  # Non-CSI escape sequence, consume and log it if debug is enabled.
+                #
+                # NOTE: it is certainly possible that reading these extra characters will
+                # break subsequent input, but ctrl-c is always available. Could simply
+                # fail here if it becomes an issue.
 
-                # TODO consider failing here?
-
-                debugBinary "Ignored ESC sequence: " "${c}"
+                local debugBuffer="${c}"
+                while read -n1 -t 0.05 c; do
+                    debugBuffer+="${c}"
+                done
+                debugBinary "Unknown keyboard ESC sequence: " "${debugBuffer}"
                 resultVar='?'
             ;;
         esac

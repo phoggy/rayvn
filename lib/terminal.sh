@@ -64,6 +64,10 @@ cursorUpOneAndEraseLine() {
     echo -n "${_cursorUpOneAndEraseLine}"
 }
 
+cursorDownOneAndEraseLine() {
+    echo -n "${_cursorDownOneAndEraseLine}"
+}
+
 eraseToEndOfLine() {
     echo -n "${_eraseToEndOfLine}"
 }
@@ -101,18 +105,20 @@ reserveRows() {
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-declare -grx _eraseToEndOfLine=$'\x1b[0K'
-declare -grx _eraseCurrentLine=$'\x1b[2K\r'
-declare -grx _cursorUpOneAndEraseLine=$'\x1b[1F\x1b[0K'
+declare -grx _eraseToEndOfLine=$'\e[0K'
+declare -grx _eraseCurrentLine=$'\e[2K\r' # \r leaves cursor ar line start
+declare -grx _cursorUpOneAndEraseLine=$'\e[A\e[2K\r'
+declare -grx _cursorDownOneAndEraseLine=$'\e[B\e[2K\r'
 
 declare -gr _cursorHide=$'\e[?25l'
 declare -gr _cursorShow=$'\e[?25h'
 declare -gr _cursorUp=$'\e[A'
+declare -gr _cursorDown=$'\e[B'
 declare -gr _cursorPosition=$'\e[6n'
 declare -gr _cursorSave=$'\e[s'
 declare -gr _cursorRestore=$'\e[u'
 declare -gr _originalStty="$(stty -g)"
-declare -gr _cursorParsePattern=$'\x1b\\[([0-9]+);([0-9]+)R'
+declare -gr _cursorParsePattern=$'\e\\[([0-9]+);([0-9]+)R'
 declare -gi _cursorRow=
 declare -gi _cursorCol=
 
