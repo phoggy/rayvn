@@ -11,7 +11,7 @@ require 'rayvn/core'
 # within core. If you add a new function here, add a NO-OP at the bottom of core.sh
 
 debug() {
-    (( _debug )) && echo "${@}" >&3; return 0
+    (( _debug )) && _debugEcho "${@}" >&3; return 0
 }
 
 debugEnabled() {
@@ -19,18 +19,24 @@ debugEnabled() {
 }
 
 debugDir() {
-    (( _debug )) && echo "${_debugDir}"; return 0
+    (( _debug )) && _debugEcho "${_debugDir}"; return 0
 }
 
 debugStatus() {
     if (( _debug )); then
-        if [[ ${_debugOut} == log ]]; then
+        local prefix="${_debugPrefixColor}${ansi_italic}debug enabled ->${ansi_normal}"
+        local suffix=
+        if [[ -n ${_debugLogFile} ]]; then
             local show=
-            [[ ${_showLogOnExit} ]] && show=" $(ansi dim [show on exit])"
-            echo "$(ansi italic_cyan debug enabled) -> $(ansi blue "${_debugLogFile}")${show}"
+            [[ ${_debugShowLogOnExit} ]] && show=" $(ansi dim [show on exit])"
+            suffix="$(ansi bold_blue "${_debugLogFile}")${show}"
+        elif [[ ${_debugOut} == "${terminal}" ]]; then
+            suffix="$(ansi bold_blue terminal)"
         else
-            echo "$(ansi italic_cyan debug enabled) -> terminal"
+            suffix="$(ansi bold_blue ${_debugOut})"
         fi
+        echo "${prefix} ${suffix}"
+        echo
     fi
 }
 
@@ -38,7 +44,7 @@ debugBinary() {
     if (( _debug )); then
         local prompt="${1}"
         local binary="${2}"
-        echo -n "${prompt}" >&3
+        _debugEchoNoNewline "${prompt}"
         for (( i=0; i < ${#binary}; i++ )); do
             printf '%02X ' "'${binary:i:1}" >&3
         done
@@ -47,7 +53,11 @@ debugBinary() {
 }
 
 debugVars() {
-    (( _debug )) && declare -p "${@}" >&3 2> /dev/null; return 0
+    if (( _debug )); then
+        _debugEchoNoNewline
+        declare -p "${@}" >&3 2> /dev/null;
+    fi
+    return 0
 }
 
 debugVarIsSet() {
@@ -56,7 +66,7 @@ debugVarIsSet() {
         local prefix="${2}"
         [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
         (
-            echo -n "${prefix}$(ansi blue expect \'${var}\' is set -\>) "
+            _debugEchoNoNewline "${prefix}$(ansi blue expect \'${var}\' is set -\>) "
             if _varIsSet ${var}; then
                 declare -p ${var}
             else
@@ -75,7 +85,7 @@ debugVarIsNotSet() {
         [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
         (
             local var="${1}"
-            echo -n "${prefix}$(ansi blue expect \'${var}\' is not set -\>) "
+            _debugEchoNoNewline "${prefix}$(ansi blue expect \'${var}\' is not set -\>) "
             if _varIsSet ${var}; then
                 echo "$(ansi red=${!var})"
                 printStack
@@ -108,6 +118,7 @@ debugJson() {
 }
 
 debugStack() {
+    _debugEcho
     printStack >&3
 }
 
@@ -125,43 +136,58 @@ debugEnvironment() {
     fi
 }
 
-## private data and functions ----------------------------------------
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-declare -gx _debugOut=log
-declare -gx _showLogOnExit=false
+declare -gx _debugOut=
+declare -gx _debugPrefix=
+declare -gx _debugShowLogOnExit=0
+declare -gx _debugPrefixColor="${ansi_magenta}"
+
+_debugEcho() {
+    echo "${_debugPrefix}${*}" >&3
+}
+
+_debugEchoNoNewline() {
+    echo -n "${_debugPrefix}${*}" >&3
+}
 
 _setDebug() {
     (( _debug)) && {
-        debug '_setDebug() but called previously.'
+        debug '_setDebug(), but called previously.'
         printStack
         return 0
     }
 
-    local clearLog=false
-    local status=true
+    local clearLog=0
+    local status=1
 
     _debug=1
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            noLog) _debugOut=terminal ;;
-            showOnExit) _showLogOnExit=true ;;
-            clearLog) clearLog=true ;;
-            noStatus) status=false ;;
+            tty) shift; _debugOut="${1}";;
+            showOnExit) _debugShowLogOnExit=1 ;;
+            clearLog) clearLog=1 ;;
+            noStatus) status=0 ;;
             *) fail "Unknown setDebug() option: ${1}" ;;
         esac
         shift
     done
 
-    if [[ ${_debugOut} == terminal ]]; then
-        exec 3>> "${terminal}"
+    if [[ -n ${_debugOut} ]]; then
+        exec 3>> "${_debugOut}"
+        if (( terminalSupportsAnsi )); then
+            _debugPrefix="${_debugPrefixColor}debug: ${ansi_normal}"
+        else
+            _debugPrefix="debug: "
+        fi
     else
-        _prepareLogFile "${clearLog}"
+        _prepareLogFile ${clearLog}
     fi
 
     addExitHandler _debugExit
 
-    [[ ${status} == true ]] && debugStatus
+    (( status )) && debugStatus
 }
 
 _varIsSet() {
@@ -169,7 +195,7 @@ _varIsSet() {
 }
 
 _prepareLogFile() {
-    local clearLog="${1}" configDir
+    local clearLog=${1}
     configDir="$(configDirPath)" || fail
     declare -grx _debugDir="${configDir}/debug"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
@@ -180,7 +206,7 @@ _prepareLogFile() {
     fi
 
     if [[ -e "${_debugLogFile}" ]]; then
-        if [[ ${clearLog} == true ]]; then
+        if (( clearLog )); then
             echo > "${_debugLogFile}"
         else
             echo >> "${_debugLogFile}"
@@ -198,12 +224,12 @@ _prepareLogFile() {
 
 _debugExit() {
     exec 3>&- # close it
-    [[ ${_showLogOnExit} == true ]] && _printDebugLog
+    (( _debugShowLogOnExit )) && _printDebugLog
 }
 
 _printDebugLog() {
     local startLine
-    declare -i endLine
+    local endLine
 
     # did we log anything?
 
