@@ -203,7 +203,7 @@ _hasPromptTimerExpired() {
     if (( ++_timeoutCheckCount >= 10 )); then
         if (( SECONDS >= _timeoutSeconds )); then
             _finalizePrompt _cancelledMsgTimeout italic_red
-            debug "${_timeoutSeconds} second timeout: ${_plainPrompt}"
+            debug "${_timeoutSeconds} second timeout for prompt '${_plainPrompt}'"
             return 0
         fi
         _timeoutCheckCount=0
