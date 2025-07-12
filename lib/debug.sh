@@ -142,6 +142,7 @@ declare -gx _debugOut=
 declare -gx _debugPrefix=
 declare -gx _debugShowLogOnExit=0
 declare -gx _debugPrefixColor="${ansi_magenta}"
+declare -gx _debugRemote=0
 
 _debugEcho() {
     echo "${_debugPrefix}${*}" >&3
@@ -180,6 +181,13 @@ _setDebug() {
             _debugPrefix="${_debugPrefixColor}debug: ${ansi_normal}"
         else
             _debugPrefix="debug: "
+        fi
+
+        if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
+            _debugRemote=1
+            echo -n $'\e[2J\e[H' > ${_debugOut} # clear remote terminal
+            printf "${ansi_bold_green}BEGIN ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_normal}\n\n" \
+                ${BASHPID} > ${_debugOut}
         fi
     else
         _prepareLogFile ${clearLog}
@@ -225,6 +233,10 @@ _prepareLogFile() {
 _debugExit() {
     exec 3>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
+    if (( _debugRemote )); then
+        printf "\n${ansi_bold_green}END   ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_normal}\n\n" \
+                ${BASHPID} > ${_debugOut}
+    fi
 }
 
 _printDebugLog() {

@@ -12,7 +12,7 @@ request() {
     local cancelOnEmpty="${3:-true}"
     local timeout="${4:-30}"
     _preparePrompt "${prompt}" ${timeout} 4
-    if _readInput ${cancelOnEmpty}; then
+    if _readPromptInput ${cancelOnEmpty}; then
         resultRef="${_userInput}"
         return 0
     else
@@ -22,15 +22,15 @@ request() {
 
 choose() {
     local prompt="${1}"
-    local -n choiceRef="${2}"
+    local -n choiceIndexRef="${2}"
     local timeout="${3}"
     local choices=("${@:4}")
     local max=$(( ${#choices[@]} - 1 ))
     local reserve=$(( max + 3 ))
     local current=0
-    local failed=0
     local key i
     local hint=" ${ansi_dim}[use arrows to move]${ansi_normal}"
+    local selected=
 
     paint() {
         cursorTo ${_cursorRow} 0
@@ -61,7 +61,7 @@ choose() {
         paint
     }
 
-    loop() {
+    pick() {
         paint
         stty cbreak -echo
         while true; do
@@ -69,20 +69,22 @@ choose() {
                 case "${key}" in
                     '' | $'\n' | $'\r')
 
-                        break ;; # enter
+                        # Enter
+                        selected="${choices[${current}]}"
+                        choiceIndexRef=${current}
+                        break ;;
 
-                    $'\e') # Escape
+                    $'\e') # Escape, maybe a sequence
 
-                        if _readEscapeSequence key; then
+                        if _readPromptEscapeSequence key; then
                             case "${key}" in
                                 'u') up ;;   # up arrow
                                 'd') down ;; # down arrow
-                                 *) ;;       # ignore
+                                 *) ;;       # ignore others
                             esac
                         else
-                            # ESC pressed
-                            failed=2
-                            break
+                            finalize 1 # ESC
+                            return 1
                         fi
                         ;;
 
@@ -92,41 +94,40 @@ choose() {
             fi
 
             if _hasPromptTimerExpired; then
-                 failed=1
-                 break
+                finalize 1
+                return 1
             fi
         done
     }
 
-    _clearPrompt() {
+    prepare() {
+        _preparePrompt "${prompt}" ${timeout} ${reserve} "${hint}"
+        cursorHide
+        echo
+        (( _cursorRow++ )) # adjust for echo
+    }
+
+    finalize() {
+        local failed="${1}"
+
+        # Clear choices
+
         cursorTo ${_promptRow} ${_promptCol}
         for (( i=0; i <= max; i++ )); do
             cursorDownOneAndEraseLine
         done
         cursorTo $(( _promptRow+1 )) 0
+
+        # Finalize the prompt if success (already done if failed).
+
+        (( ! failed )) && _finalizePrompt selected cyan
     }
 
-    # Set prompt, hide cursor and move down a line (adjusting cursor) and loop
+    # Run it
 
-    _preparePrompt "${prompt}" ${timeout} ${reserve} "${hint}"
-    cursorHide
-    (( _cursorRow++ ))
-    echo
-    loop
-    _clearPrompt
-
-    # Handle expired
-
-    (( failed )) && return 1
-
-    # Finalize the response
-
-    local description="${choices[${current}]}"
-    _finalizePrompt description cyan
-
-    # Return choice
-
-    choiceRef=${current}
+    prepare
+    pick || return 1
+    finalize 0
     return 0
 }
 
@@ -140,10 +141,10 @@ confirm() {
     _preparePrompt "${prompt}" ${timeout} 3 "${hint}"
 
     while true; do
-        if _readInput false; then
+        if _readPromptInput false; then
 
             local result="${_userInput,,}"
-            debug "_userInput=${_userInput}"
+            debug "confirm answer: ${_userInput}"
             if [[ ${result} == "${answerOne,,}" || ${result} == "${answerTwo,,}" ]]; then
                 resultRef="${result}"
                 return 0
@@ -177,20 +178,21 @@ declare -gr _cancelledMsgTimeout='cancelled (timeout)'
 declare -g _prompt
 declare -g _promptRow
 declare -gi _promptCol
+declare -g _plainPrompt
 declare -g _timeoutSeconds
 declare -gi _timeoutCheckCount
 declare -g _userInput
 
 _preparePrompt() {
-    local prompt="${1}"
+    _plainPrompt="${1}"
     local timeout="${2}"
     local requiredLines="${3}"
     local hint="${4}"
-    _prompt="${_questionPrefix}${ansi_bold}${prompt}${ansi_normal}${hint} "
+    _prompt="${_questionPrefix}${ansi_bold}${_plainPrompt}${ansi_normal}${hint} "
     echo -n "${_prompt}"
     reserveRows "${requiredLines}"
     _promptRow=${_cursorRow}
-    _promptCol="${#prompt} + 4" # exclude hint, include prefix & trailing space
+    _promptCol="${#_plainPrompt} + 4" # exclude hint, include prefix & trailing space
     _timeoutSeconds=${timeout}
     _timeoutCheckCount=0
     _userInput=
@@ -201,6 +203,7 @@ _hasPromptTimerExpired() {
     if (( ++_timeoutCheckCount >= 10 )); then
         if (( SECONDS >= _timeoutSeconds )); then
             _finalizePrompt _cancelledMsgTimeout italic_red
+            debug "${_timeoutSeconds} second timeout: ${_plainPrompt}"
             return 0
         fi
         _timeoutCheckCount=0
@@ -208,7 +211,7 @@ _hasPromptTimerExpired() {
     return 1
 }
 
-_readInput() {
+_readPromptInput() {
     local cancelOnEmpty=${1}
     local key esc
     stty cbreak -echo # turn off buffering and input echo
@@ -237,7 +240,7 @@ _readInput() {
                 fi
                 ;;
             $'\e') # Escape
-                _readEscapeSequence esc || return 1
+                _readPromptEscapeSequence esc || return 1
                 ;;
             *)
                 if [[ "${key}" =~ [[:print:]] ]]; then
@@ -253,7 +256,7 @@ _readInput() {
     done
 }
 
-_readEscapeSequence() {
+_readPromptEscapeSequence() {
     local -n resultVar="${1}"
     local c
 
@@ -300,7 +303,6 @@ _readEscapeSequence() {
     else
 
         # No, so ESC
-
         _finalizePrompt _cancelledMsgEsc red
         return 1
     fi

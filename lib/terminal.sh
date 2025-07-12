@@ -76,6 +76,10 @@ eraseCurrentLine() {
     echo -n "${_eraseCurrentLine}"
 }
 
+clearTerminal() {
+    echo -n "${_clearTerminal}"
+}
+
 reserveRows() {
     local requiredRows="${1:-2}"
     local terminalHeight=$(tput lines)
@@ -109,6 +113,7 @@ declare -grx _eraseToEndOfLine=$'\e[0K'
 declare -grx _eraseCurrentLine=$'\e[2K\r' # \r leaves cursor ar line start
 declare -grx _cursorUpOneAndEraseLine=$'\e[A\e[2K\r'
 declare -grx _cursorDownOneAndEraseLine=$'\e[B\e[2K\r'
+declare -grx _clearTerminal=$'\e[2J\e[H'
 
 declare -gr _cursorHide=$'\e[?25l'
 declare -gr _cursorShow=$'\e[?25h'
