@@ -6,18 +6,13 @@
 
 if (( ! _rayvnCoreGlobalsSet )); then
 
+    # Setup exit handling
+
     declare -g _rayvnExitTasks=()
     trap '_onExit' EXIT
     trap '_onTerm' TERM
     trap '_onHup' HUP
     trap '_onInt' INT
-
-    declare -grx newline=$'\n'
-    declare -grx osName="$(uname)"
-    declare -grxi onMacOS=$(( osName == "Darwin" ))
-    declare -grxi onLinux=$(( osName == "Linux" ))
-    declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
-    declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
 
     # We need to set ${terminal} so that it can be used as a redirect.
     # Are stdout and stderr both terminals?
@@ -39,8 +34,13 @@ if (( ! _rayvnCoreGlobalsSet )); then
         declare -grxi terminalSupportsAnsi=0
     fi
 
-    # Set misc constants
+    # Set some constants
 
+    declare -grx osName="$(uname)"
+    declare -grxi onMacOS=$(( osName == "Darwin" ))
+    declare -grxi onLinux=$(( osName == "Linux" ))
+    declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
+    declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
     declare -grx _checkMark='✔'
     declare -grx _crossMark='✗'
     declare -gxi _debug=0
@@ -212,19 +212,19 @@ _restoreTerminal() {
 
 _onTerm() {
     _restoreTerminal
-    echo "🔺 $(ansi italic_red killed)"
+    ansi italic_red "🔺 killed\n"
     exit 1
 }
 
 _onHup() {
     _restoreTerminal
-    echo "🔺 $(ansi italic_red "killed (SIGHUP)")"
+    ansi italic_red "🔺 killed (SIGHUP)\n"
     exit 1
 }
 
 _onInt() {
     _restoreTerminal
-    echo "$(ansi italic_red "exiting (ctrl-c)")"
+    ansi italic_red "🔺 exiting (ctrl-c)\n"
     exit 1
 }
 
@@ -380,12 +380,9 @@ secureEraseVars() {
 ansi() {
     local color="ansi_${1}"
     shift
-    (( terminalSupportsAnsi )) && echo -n "${!color}${*}${ansi_normal}" || echo -n "${*}"
+    (( terminalSupportsAnsi )) && echo -ne "${!color}${*}${ansi_normal}" || echo -ne "${*}"
 }
 
-printRed() {
-    print "$(ansi red "${*}")"
-}
 
 printRepeat() {
     local msg="${1}"
@@ -417,12 +414,16 @@ print() {
     echo -e "${*}"
 }
 
+printRed() {
+    ansi red "${*}\n"
+}
+
 warn() {
-    print "⚠️ $(ansi yellow "${*}")" >&2
+    ansi yellow "⚠️ ${*}\n" >&2
 }
 
 error() {
-    print "🔺 $(ansi red "${*}")" >&2
+    ansi red "🔺 ${*}\n" >&2
 }
 
 redStream() {
@@ -477,6 +478,7 @@ isDebug() {
 }
 
 setDebug() {
+    echo "SETTING DEBUG!" # TODO REMOVE!
     require 'rayvn/debug'
     _setDebug "${@}"
 }

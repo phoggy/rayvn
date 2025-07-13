@@ -7,7 +7,7 @@ projectVersion='0.1.9'
 projectReleaseDate=''
 
 declare -A projectDependencies=(
-    [bash_min]='5.2.0'
+    [bash_min]='5.3.0'
     [bash_extract]=0
     [bash_brew]=true
 
