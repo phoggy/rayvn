@@ -11,6 +11,7 @@ request() {
     local -n resultRef="${2}"
     local cancelOnEmpty="${3:-true}"
     local timeout="${4:-30}"
+    _prepareHint '  ' 'type your answer here' 1
     _preparePrompt "${prompt}" ${timeout} 4
     if _readPromptInput ${cancelOnEmpty}; then
         resultRef="${_userInput}"
@@ -29,8 +30,15 @@ choose() {
     local reserve=$(( max + 3 ))
     local current=0
     local key i
-    local hint=" ${ansi_dim}[use arrows to move]${ansi_normal}"
     local selected=
+
+    prepare() {
+        _prepareHint ' ' 'use arrows to move'
+        _preparePrompt "${prompt}" ${timeout} ${reserve}
+        cursorHide
+        echo
+        (( _cursorRow++ )) # adjust for echo
+    }
 
     paint() {
         cursorTo ${_cursorRow} 0
@@ -100,13 +108,6 @@ choose() {
         done
     }
 
-    prepare() {
-        _preparePrompt "${prompt}" ${timeout} ${reserve} "${hint}"
-        cursorHide
-        echo
-        (( _cursorRow++ )) # adjust for echo
-    }
-
     finalize() {
         local failed="${1}"
 
@@ -137,8 +138,8 @@ confirm() {
     local answerTwo="${3}"
     local -n resultRef="${4}"
     local timeout="${5:-30}"
-    local hint=" ${ansi_dim}["${answerOne}/${answerTwo}"]${ansi_normal}"
-    _preparePrompt "${prompt}" ${timeout} 3 "${hint}"
+    _prepareHint ' ' "${answerOne}/${answerTwo}"
+    _preparePrompt "${prompt}" ${timeout} 3
 
     while true; do
         if _readPromptInput false; then
@@ -175,27 +176,37 @@ declare -gr _cancelledMsgTimeout='cancelled (timeout)'
 # Shared global state (safe since bash is single threaded!).
 # Only valid during execution of public functions.
 
+declare -g _hint
 declare -g _prompt
 declare -g _promptRow
 declare -gi _promptCol
 declare -g _plainPrompt
+declare -g _overwriteHint
 declare -g _timeoutSeconds
 declare -gi _timeoutCheckCount
 declare -g _userInput
+
+_prepareHint() {
+    local initialSpace="${1}"
+    local hint="${2}"
+    _overwriteHint="${3:0}"
+    _hint="${initialSpace}${ansi_dim}${ansi_italic}[${hint}]${ansi_normal}"
+}
 
 _preparePrompt() {
     _plainPrompt="${1}"
     local timeout="${2}"
     local requiredLines="${3}"
-    local hint="${4}"
-    _prompt="${_questionPrefix}${ansi_bold}${_plainPrompt}${ansi_normal}${hint} "
+    _prompt="${_questionPrefix}${ansi_bold}${_plainPrompt}${ansi_normal}${_hint} "
     echo -n "${_prompt}"
     reserveRows "${requiredLines}"
     _promptRow=${_cursorRow}
     _promptCol="${#_plainPrompt} + 4" # exclude hint, include prefix & trailing space
+    (( _overwriteHint)) && printf '\e[%dG' ${_promptCol} # move cursor before hint
     _timeoutSeconds=${timeout}
     _timeoutCheckCount=0
     _userInput=
+    (())
     SECONDS=0 # Reset bash seconds counter
 }
 
@@ -220,6 +231,7 @@ _readPromptInput() {
 
     while true; do
         if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+            (( _overwriteHint )) && _clearHint
             case "${key}" in
             '' | $'\n' | $'\r') # Enter
                 if [[ -z "${_userInput// /}" ]]; then
@@ -254,6 +266,11 @@ _readPromptInput() {
         _hasPromptTimerExpired && return 1
 
     done
+}
+
+_clearHint() {
+    _overwriteHint=0
+    printf '\e[%dG\e[K' ${_promptCol}
 }
 
 _readPromptEscapeSequence() {
