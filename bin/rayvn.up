@@ -11,13 +11,14 @@ require() {
         local libraryName="${qualifiedName#*/}"
         local libraryKey="${projectName}_${libraryName}"
 
-        # Keep a count of requests for this project
+        # Keep a count of requests for the project and library
 
         (( _rayvnRequireCounts["${projectName}"]+=1 )) # under errexit, using ++ fails but +=1 does not
+        (( _rayvnRequireCounts["${libraryKey}"]+=1 ))
 
         # Have we previously loaded this library?
 
-        if [[ ! -v ${_rayvnRequireCounts[${libraryKey}]} ]]; then
+        if (( _rayvnRequireCounts[${libraryKey}] == 1 )); then
 
             # Nope, validate the request
 
@@ -39,12 +40,9 @@ require() {
             local initFunction="_init_${projectName}_${libraryName}"
             if [[ $(type -t "${initFunction}") == function ]]; then
                 ${initFunction} || fail "${initFunction}() failed"
+                unset -f "${initFunction}" # remove it
             fi
         fi
-
-        # Count the request
-
-        (( _rayvnRequireCounts["${libraryKey}"]+=1 )) # under errexit, using ++ fails but +=1 does not
 
         shift
     done
