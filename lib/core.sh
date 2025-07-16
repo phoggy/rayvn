@@ -1,117 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Library supporting common functionality
+# Core library.
 # Intended for use via: require 'rayvn/core'
-
-if (( ! _rayvnCoreGlobalsSet )); then
-
-    # Setup exit handling
-
-    declare -g _rayvnExitTasks=()
-    trap '_onExit' EXIT
-    trap '_onTerm' TERM
-    trap '_onHup' HUP
-    trap '_onInt' INT
-
-    # We need to set ${terminal} so that it can be used as a redirect.
-    # Are stdout and stderr both terminals?
-
-    if [[ -t 1 && -t 2 ]]; then
-
-        # Yes, so set terminal to the tty and remember that ANSI is supported.
-
-        declare -grx terminal="/dev/tty"
-        declare -grxi terminalSupportsAnsi=1
-
-    else
-
-        # No. Ensure FD 3 exists and points to original stdout, then set terminal
-        # to use it and remember that ANSI is not supported.
-
-        [[ -t 3 ]] || exec 3>&1
-        declare -grx terminal="&3"
-        declare -grxi terminalSupportsAnsi=0
-    fi
-
-    # Set some constants
-
-    declare -grx osName="$(uname)"
-    declare -grxi onMacOS=$(( osName == "Darwin" ))
-    declare -grxi onLinux=$(( osName == "Linux" ))
-    declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
-    declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
-    declare -grx _checkMark='✔'
-    declare -grx _crossMark='✗'
-    declare -gxi _debug=0
-
-    # Set ANSI related constants
-
-    if (( terminalSupportsAnsi)); then
-
-        # Set ANSI colors if terminal supports them
-
-        if (( $(tput colors) >= 8 )); then
-            declare -grx ansi_normal="$(tput sgr0)"
-
-            declare -grx ansi_bold="$(tput bold)"
-            declare -grx ansi_underline="$(tput smul)"
-            declare -grx ansi_italic=$'\e[3m'
-            declare -grx ansi_black="$(tput setaf 0)"
-            declare -grx ansi_dim=$'\e[2m'
-
-            declare -grx ansi_red="$(tput setaf 1)"
-            declare -grx ansi_green="$(tput setaf 2)"
-            declare -grx ansi_yellow="$(tput setaf 3)"
-            declare -grx ansi_blue="$(tput setaf 4)"
-            declare -grx ansi_magenta="$(tput setaf 5)"
-            declare -grx ansi_cyan="$(tput setaf 6)"
-            declare -grx ansi_white="$(tput setaf 7)"
-
-            declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
-            declare -grx ansi_italic_red="${ansi_italic}${ansi_red}"
-
-            declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
-            declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
-            declare -grx ansi_bold_yellow="${ansi_bold}${ansi_yellow}"
-            declare -grx ansi_bold_blue="${ansi_bold}${ansi_blue}"
-            declare -grx ansi_bold_magenta="${ansi_bold}${ansi_magenta}"
-            declare -grx ansi_bold_cyan="${ansi_bold}${ansi_cyan}"
-            declare -grx ansi_bold_white="${ansi_bold}${ansi_white}"
-            declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
-        fi
-
-        declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
-        declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_normal}"
-
-    else
-
-        declare -grx _greenCheckMark="${_checkMark}"
-        declare -grx _redCrossMark="${_crossMark}"
-    fi
-
-    # Is this a mac?
-
-    if [[ ${osName,,} == "darwin" ]]; then
-
-        # Yes, remember if brew is available
-
-        if command -v brew > /dev/null; then
-            declare -grxi _brewIsInstalled=1
-        fi
-    elif [[ ! -v RAYVN_NO_OS_CHECK ]]; then
-
-        # No, so warn!
-
-        echo "⚠️ This code contains MacOS specific functionality and likely will not work here."
-        echo
-        echo "   This warning can be bypassed by exporting RAYVN_NO_OS_CHECK=true"
-        echo "   but be aware that some functionality may not work correctly."
-        echo
-    fi
-
-    declare -grxi _rayvnCoreGlobalsSet=1
-fi
 
 allNewFilesUserOnly() {
     # Ensure that all new files are accessible by the current user only
@@ -163,7 +54,7 @@ makeTempFile() {
     ensureTempDir
     local fileName="${1:-XXXXXXXXXXX}" # create random file name if not present
     local file="$(mktemp "${_rayvnTempDir}/${fileName}")"
-   # chmod 600 "${file}" || fail "chmod failed on ${file}"
+    # chmod 600 "${file}" || fail "chmod failed on ${file}"
     echo "${file}"
 }
 
@@ -188,7 +79,7 @@ configDirPath() {
 ensureDir() {
     local dir="${1}"
     if [[ ! -d ${dir} ]]; then
-        makeDir "${dir}" > /dev/null
+        makeDir "${dir}" >/dev/null
     fi
 }
 
@@ -200,52 +91,7 @@ makeDir() {
 }
 
 assertAnsiSupported() {
-    (( terminalSupportsAnsi )) || assertionFailed "must be run in a terminal"
-}
-
-_restoreTerminal() {
-    if (( terminalSupportsAnsi )); then
-        stty sane
-        printf '\e[?25h'  # Show cursor in case sane does not
-    fi
-}
-
-_onTerm() {
-    _restoreTerminal
-    ansi italic_red "🔺 killed\n"
-    exit 1
-}
-
-_onHup() {
-    _restoreTerminal
-    ansi italic_red "🔺 killed (SIGHUP)\n"
-    exit 1
-}
-
-_onInt() {
-    _restoreTerminal
-    ansi italic_red "🔺 exiting (ctrl-c)\n"
-    exit 1
-}
-
-_onExit() {
-    _restoreTerminal
-
-    # Add a line unless disabled
-
-    [[ -n ${noEchoOnExit} ]] && echo
-
-    # Delete temp dir if we created it
-
-    if [[ ${_rayvnTempDir} ]]; then
-        rm -rf -- "${_rayvnTempDir}" &> /dev/null
-    fi
-
-    # Run any added tasks
-
-    for task in "${_rayvnExitTasks[@]}"; do
-        eval "${task}"
-    done
+    ((terminalSupportsAnsi)) || assertionFailed "must be run in a terminal"
 }
 
 addExitHandler() {
@@ -264,8 +110,8 @@ baseName() {
 
 trim() {
     local value="${1}"
-    value="${value#"${value%%[![:space:]]*}"}"  # remove leading whitespace
-    value="${value%"${value##*[![:space:]]}"}"  # remove trailing whitespace
+    value="${value#"${value%%[![:space:]]*}"}" # remove leading whitespace
+    value="${value%"${value##*[![:space:]]}"}" # remove trailing whitespace
     echo "${value}"
 }
 
@@ -310,19 +156,19 @@ assertValidFileName() {
     local name="${1}"
 
     # Reject empty, ".", or ".."
-    [[ -z ${name} || ${name} == "." || ${name} == ".." ]] && \
+    [[ -z ${name} || ${name} == "." || ${name} == ".." ]] &&
         fail "Invalid filename: '${name}' is reserved or empty"
 
     # Reject slash
-    [[ ${name} == *"/"* ]] && \
+    [[ ${name} == *"/"* ]] &&
         fail "Invalid filename: '${name}' contains forbidden character '/'"
 
     # Reject control characters
-    [[ ${name} =~ [[:cntrl:]] ]] && \
+    [[ ${name} =~ [[:cntrl:]] ]] &&
         fail "Invalid filename: '${name}' contains control characters"
 
     # Reject reserved characters (Windows-unsafe or problematic cross-platform)
-    [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] && \
+    [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] &&
         fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
 }
 
@@ -351,7 +197,7 @@ _setFileSystemVar() {
     else
         [[ -f ${file} ]] || assretFailed "${file} is not a file"
     fi
-    local realFile="$(realpath "${file}" 2> /dev/null)"
+    local realFile="$(realpath "${file}" 2>/dev/null)"
     resultVar="${realFile}"
 }
 
@@ -365,7 +211,7 @@ epochSeconds() {
 
 secureEraseVars() {
     local varName value length
-    while (( ${#} > 0 )); do
+    while ((${#} > 0)); do
         varName="${1}"
         if [[ -n ${!varName+x} ]]; then
             value="${!varName}"
@@ -380,9 +226,8 @@ secureEraseVars() {
 ansi() {
     local color="ansi_${1}"
     shift
-    (( terminalSupportsAnsi )) && echo -ne "${!color}${*}${ansi_normal}" || echo -ne "${*}"
+    ((terminalSupportsAnsi)) && echo -ne "${!color}${*}${ansi_normal}" || echo -ne "${*}"
 }
-
 
 printRepeat() {
     local msg="${1}"
@@ -394,9 +239,9 @@ printRepeat() {
 
 printVars() {
     (
-        while (( ${#} > 0 )); do
+        while ((${#} > 0)); do
             local var=${1}
-            if declare -p ${var} &> /dev/null; then
+            if declare -p ${var} &>/dev/null; then
                 declare -p ${var}
             else
                 echo "${var} is not set"
@@ -434,15 +279,16 @@ redStream() {
 }
 
 printStack() {
+    local message="${1}"
     local caller=${FUNCNAME[1]}
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
 
-    if (( depth > 2 )); then
+    [[ -n ${message} ]] && error "${*}\n"
+
+    if ((depth > 2)); then
         [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
-
-    [[ ${1} ]] && { error "${*}"; echo; }
 
     for ((i = start; i < depth; i++)); do
         local function="${FUNCNAME[${i}]}"
@@ -450,7 +296,7 @@ printStack() {
         local arrow="$(ansi cyan -\>)"
         local called=${FUNCNAME[${i} - 1]}
         local script="$(ansi dim "${BASH_SOURCE[${i}]}")"
-        (( i == start )) && function="$(ansi red "${function}"\(\))" || function="$(ansi blue "${function}"\(\))"
+        ((i == start)) && function="$(ansi red "${function}"\(\))" || function="$(ansi blue "${function}"\(\))"
         echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
 }
@@ -474,7 +320,7 @@ bye() {
 # Debug control functions
 
 isDebug() {
-    (( _debug ))
+    ((_debug))
 }
 
 setDebug() {
@@ -497,3 +343,157 @@ debugFile() { :; }
 debugJson() { :; }
 debugStack() { :; }
 debugEnvironment() { :; }
+
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_core() {
+
+    # Setup exit handling
+
+    declare -g _rayvnExitTasks=()
+    trap '_onRayvnExit' EXIT
+    trap '_onRayvnTerm' TERM
+    trap '_onRayvnHup' HUP
+    trap '_onRayvnInt' INT
+
+    # We need to set ${terminal} so that it can be used as a redirect.
+    # Are stdout and stderr both terminals?
+
+    if [[ -t 1 && -t 2 ]]; then
+
+        # Yes, so set terminal to the tty and remember that ANSI is supported.
+
+        declare -grx terminal="/dev/tty"
+        declare -grxi terminalSupportsAnsi=1
+
+    else
+
+        # No. Ensure FD 3 exists and points to original stdout, then set terminal
+        # to use it and remember that ANSI is not supported.
+
+        [[ -t 3 ]] || exec 3>&1
+        declare -grx terminal="&3"
+        declare -grxi terminalSupportsAnsi=0
+    fi
+
+    # Set some constants
+
+    declare -grx osName="$(uname)"
+    declare -grxi onMacOS=$((osName == "Darwin"))
+    declare -grxi onLinux=$((osName == "Linux"))
+    declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
+    declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
+    declare -grx _checkMark='✔'
+    declare -grx _crossMark='✗'
+    declare -gxi _debug=0
+
+    # Set ANSI related constants
+
+    if ((terminalSupportsAnsi)); then
+
+        # Set ANSI colors if terminal supports them
+
+        if (($(tput colors) >= 8)); then
+            declare -grx ansi_normal="$(tput sgr0)"
+
+            declare -grx ansi_bold="$(tput bold)"
+            declare -grx ansi_underline="$(tput smul)"
+            declare -grx ansi_italic=$'\e[3m'
+            declare -grx ansi_black="$(tput setaf 0)"
+            declare -grx ansi_dim=$'\e[2m'
+
+            declare -grx ansi_red="$(tput setaf 1)"
+            declare -grx ansi_green="$(tput setaf 2)"
+            declare -grx ansi_yellow="$(tput setaf 3)"
+            declare -grx ansi_blue="$(tput setaf 4)"
+            declare -grx ansi_magenta="$(tput setaf 5)"
+            declare -grx ansi_cyan="$(tput setaf 6)"
+            declare -grx ansi_white="$(tput setaf 7)"
+
+            declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
+            declare -grx ansi_italic_red="${ansi_italic}${ansi_red}"
+
+            declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
+            declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
+            declare -grx ansi_bold_yellow="${ansi_bold}${ansi_yellow}"
+            declare -grx ansi_bold_blue="${ansi_bold}${ansi_blue}"
+            declare -grx ansi_bold_magenta="${ansi_bold}${ansi_magenta}"
+            declare -grx ansi_bold_cyan="${ansi_bold}${ansi_cyan}"
+            declare -grx ansi_bold_white="${ansi_bold}${ansi_white}"
+            declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
+        fi
+
+        declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
+        declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_normal}"
+
+    else
+
+        declare -grx _greenCheckMark="${_checkMark}"
+        declare -grx _redCrossMark="${_crossMark}"
+    fi
+
+    # Is this a mac?
+
+    if [[ ${osName,,} == "darwin" ]]; then
+
+        # Yes, remember if brew is available
+
+        if command -v brew >/dev/null; then
+            declare -grxi _brewIsInstalled=1
+        fi
+    elif [[ ! -v RAYVN_NO_OS_CHECK ]]; then
+
+        # No, so warn!
+
+        echo "⚠️ This code contains MacOS specific functionality and likely will not work here."
+        echo
+        echo "   This warning can be bypassed by exporting RAYVN_NO_OS_CHECK=true"
+        echo "   but be aware that some functionality may not work correctly."
+        echo
+    fi
+}
+
+_restoreTerminal() {
+    if ((terminalSupportsAnsi)); then
+        stty sane
+        printf '\e[?25h' # Show cursor in case sane does not
+    fi
+}
+
+_onRayvnTerm() {
+    _restoreTerminal
+    ansi italic_red "🔺 killed\n"
+    exit 1
+}
+
+_onRayvnHup() {
+    _restoreTerminal
+    ansi italic_red "🔺 killed (SIGHUP)\n"
+    exit 1
+}
+
+_onRayvnInt() {
+    _restoreTerminal
+    ansi italic_red "🔺 exiting (ctrl-c)\n"
+    exit 1
+}
+
+_onRayvnExit() {
+    _restoreTerminal
+
+    # Add a line unless disabled
+
+    [[ -n ${noEchoOnExit} ]] && echo
+
+    # Delete temp dir if we created it
+
+    if [[ ${_rayvnTempDir} ]]; then
+        rm -rf -- "${_rayvnTempDir}" &>/dev/null
+    fi
+
+    # Run any added tasks
+
+    for task in "${_rayvnExitTasks[@]}"; do
+        eval "${task}"
+    done
+}
