@@ -4,8 +4,6 @@
 # Library of user input functions.
 # Intended for use via: require 'rayvn/prompt'
 
-require 'rayvn/core' 'rayvn/terminal'
-
 request() {
     local prompt="${1}"
     local -n resultRef="${2}"
@@ -164,7 +162,11 @@ confirm() {
     done
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/prompt' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_prompt() {
+    require 'rayvn/core' 'rayvn/terminal'
+}
 
 declare -gr _questionPrefix="${ansi_bold_green}?${ansi_normal} "
 declare -gr _promptPrefix="${ansi_bold_blue}>${ansi_normal} "

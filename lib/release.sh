@@ -3,8 +3,6 @@
 # Library for creating GitHub releases.
 # Intended for use via: require 'rayvn/release'
 
-require 'rayvn/core'
-
 release () {
     local ghRepo="${1}"
     local version="${2}"
@@ -42,9 +40,10 @@ release () {
     echo
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_release() {
+    require 'rayvn/core'
 
     # Setup rayvn-central/homebrew_tap repo for project formula publication
 

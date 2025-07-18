@@ -64,8 +64,6 @@ init() {
 
     [[ -n ${command} ]] || usage
     [[ -n ${debugOptions} ]] && setDebug ${debugOptions}
-
-    debug "command: ${command} ${args[*]}"
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"

@@ -324,7 +324,6 @@ isDebug() {
 }
 
 setDebug() {
-    echo "SETTING DEBUG!" # TODO REMOVE!
     require 'rayvn/debug'
     _setDebug "${@}"
 }
@@ -344,9 +343,11 @@ debugJson() { :; }
 debugStack() { :; }
 debugEnvironment() { :; }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_core() {
+
+    (( _rayvnCoreInitialized )) && return 0 # Should not occur, but... just in case
 
     # Setup exit handling
 
@@ -451,6 +452,8 @@ _init_rayvn_core() {
         echo "   but be aware that some functionality may not work correctly."
         echo
     fi
+
+    declare -grx _rayvnCoreInitialized=1
 }
 
 _restoreTerminal() {

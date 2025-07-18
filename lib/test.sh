@@ -4,8 +4,6 @@
 # Test case support library.
 # Intended for use via: require 'rayvn/test'
 
-require 'rayvn/core'
-
 ### assert functions ----------------------------------------------------------------------------------------
 
 assertNotInFile() {
@@ -208,3 +206,10 @@ printPath() {
         echo "'${pathVariable}' is not defined"
     fi
 }
+
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_test() {
+    require 'rayvn/core'
+}
+

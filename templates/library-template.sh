@@ -3,17 +3,16 @@
 # Library of common functions.
 # Intended for use via: require ${qualifiedName}
 
-require 'rayvn/core'
-
 # TODO replace me!
 my${libraryName}LibraryFunction () {
     _my${libraryName}PrivateFunction
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN '${projectName}/${name}' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_${projectName}_${name}() {
-    echo "library init_${projectName}_${name}() called"
+    require 'rayvn/core' # Add other required library names here.
+    echo "library init_${projectName}_${name}() called" # TODO remove/replace me!
 }
 
 # TODO remove/replace me!

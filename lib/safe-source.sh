@@ -3,8 +3,6 @@
 # Library supporting sanitizing and sourcing env style files.
 # Intended for use via: require 'rayvn/safe-source'
 
-# require 'rayvn/core'
-
 # Source only safe variable declarations from a bash config file or string, optionally filtered
 # by prefix. See extractSafeStaticVars.
 #
@@ -49,7 +47,11 @@ extractSafeStaticVars() {
     echo "${result}"
 }
 
-UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/safe-source' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_safe-source() {
+    require 'rayvn/core'
+}
 
 # Written by Claude Sonnet 4
 _extractSafeStaticVarsOnly() {

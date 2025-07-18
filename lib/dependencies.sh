@@ -3,8 +3,6 @@
 # Library for dependency management.
 # Intended for use via: require 'rayvn/dependency'
 
-require 'rayvn/core' 'rayvn/safe-source'
-
 assertProjectDependencies() {
     local -n projectsArrayRef="${1}"
     declare -i quiet="${2:-0}"
@@ -41,7 +39,11 @@ listProjectDependencies() {
     )
 }
 
-UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/dependencies' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_dependencies() {
+    require 'rayvn/core' 'rayvn/safe-source'
+}
 
 _assertProjectDependencies() {
     local projectName="${1}"

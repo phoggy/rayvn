@@ -3,8 +3,6 @@
 # Library supporting debug logging.
 # Intended for use via: require 'rayvn/debug'
 
-require 'rayvn/core'
-
 # IMPORTANT!
 #
 # Each of the following public functions MUST have a corresponding NO-OP declaration
@@ -24,7 +22,7 @@ debugDir() {
 
 debugStatus() {
     if (( _debug )); then
-        local prefix="${_debugPrefixColor}${ansi_italic}debug enabled ->${ansi_normal}"
+        local prefix="${_debugPrefixColor}${ansi_italic}debug ⮕ ${ansi_normal}"
         local suffix=
         if [[ -n ${_debugLogFile} ]]; then
             local show=
@@ -136,13 +134,17 @@ debugEnvironment() {
     fi
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/debug' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 declare -gx _debugOut=
 declare -gx _debugPrefix=
 declare -gx _debugShowLogOnExit=0
 declare -gx _debugPrefixColor="${ansi_magenta}"
 declare -gx _debugRemote=0
+
+_init_rayvn_debug() {
+    require 'rayvn/core'
+}
 
 _debugEcho() {
     echo "${_debugPrefix}${*}" >&3

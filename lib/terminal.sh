@@ -5,8 +5,6 @@
 # Library supporting terminal operations
 # Intended for use via: require 'rayvn/terminal'
 
-require 'rayvn/core'
-
 cursorHide() {
     echo -n "${_cursorHide}"
 }
@@ -107,7 +105,12 @@ reserveRows() {
     fi
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_terminal() {
+    require 'rayvn/core'
+    (( terminalSupportsAnsi )) || fail "'rayvn/terminal' library can only operate in a terminal"
+}
 
 declare -grx _eraseToEndOfLine=$'\e[0K'
 declare -grx _eraseCurrentLine=$'\e[2K\r' # \r leaves cursor ar line start
@@ -126,10 +129,6 @@ declare -gr _originalStty="$(stty -g)"
 declare -gr _cursorParsePattern=$'\e\\[([0-9]+);([0-9]+)R'
 declare -gi _cursorRow=
 declare -gi _cursorCol=
-
-_init_rayvn_terminal() {
-    (( terminalSupportsAnsi )) || fail "'rayvn/terminal' library can only operate in a terminal"
-}
 
 
 # Untested, probably not needed

@@ -49,5 +49,8 @@ waitForProcessExit() {
     return 1 # fail, timeout
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/process' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
+_init_rayvn_process() {
+    require 'rayvn/core'
+}

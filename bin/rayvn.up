@@ -4,6 +4,19 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
+# TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#
+# Copy some of the refactorings from rayvn.up.bak, EXCLUDING anything trying to
+# deal with recursion.
+#
+# Test if recursion ever actually happens now.
+# If does NOT: use simple before->source->after collection to determine new functions and remember owner or COLLIDE
+#
+# If DOES: consider keeping a global _rayvnBeforeSourceFunctionNames ARRAY which must be initially empty. On recursion,
+# the 'before' collection will see that this var is not empty and can diff/remember (also need _rayvnBeforeQualifiedName!)
+#
+# TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 require() {
      while (( ${#} > 0 )); do
         local qualifiedName="${1}"
@@ -43,7 +56,6 @@ require() {
                 unset -f "${initFunction}" # remove it
             fi
         fi
-
         shift
     done
     return 0
@@ -51,11 +63,11 @@ require() {
 
 # bashsupport disable=BP3002
 _configure() {
-    declare -gx currentProjectName=
     declare -gAx _rayvnProjects=()
     declare -gAix _rayvnRequireCounts=()
     declare -grx _projectRootSuffix='::project'
     declare -grx _libraryRootSuffix='::library'
+    declare -gx currentProjectName=
 
     local keySuffix projectName projectRoot key executable path libraryRoot
 
@@ -64,12 +76,14 @@ _configure() {
         keySuffix="${2}"
         projectRoot="${3}"
         key="${projectName}${keySuffix}"
-        [[ -v _rayvnProjects[${key}] ]] && fail "'${key}' already set"
-        projectRoot="$(realpath "${projectRoot}")" || fail "Could not resolve real path of: ${projectRoot}"
-        _rayvnProjects[${key}]="${projectRoot}"
 
-        # Define a ${project}Home var for project self reference
-        [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName}Home"="${projectRoot}"
+        if  [[ ! -v _rayvnProjects[${key}] ]]; then
+            projectRoot="$(realpath "${projectRoot}")" || fail "Could not resolve real path of: ${projectRoot}"
+            _rayvnProjects[${key}]="${projectRoot}"
+
+            # Define a ${project}Home var for project self reference
+            [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName}Home"="${projectRoot}"
+        fi
         return 0
     }
 
@@ -102,6 +116,25 @@ _configure() {
         fi
     }
 
+    traceOn() {
+        [[ -v traceOut ]] || return 1
+        [[ -v _traceStarted ]] || echo -e "\n\nBOOT rayvn.up --------- ${ date; } ----------------\n" > "${traceOut}"
+        _traceStarted=1
+        return 0
+    }
+
+    trace() {
+        traceOn && echo -e "TRACE: ${*}" > "${traceOut}"
+    }
+
+    traceVar() {
+        traceOn && declare -p "${@}" > "${traceOut}" 2> /dev/null;
+    }
+
+    traceStack() {
+        traceOn && printStack "TRACE: ${*}" > "${traceOut}"
+    }
+
     # Add rayvn using *our* path to ensure we do not find a different install.
     # This is important when this file is sourced using a file path.
 
@@ -112,7 +145,7 @@ _configure() {
     # Now, process arguments in two passes: add projects, then load any required libraries
 
     local required=()
-    local projects=() split=()  project name path
+    local projects=() split=() project name path
     while (( ${#} > 0 )); do
         case "${1}" in
             -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
@@ -129,21 +162,19 @@ _configure() {
         addProject "${name}" "${path}"
     done
 
-    for (( i=0; i < ${#required[@]}; i++ )); do
-        require "${required[i]}"
-    done
+    require "${required[@]}"
 
-    # Lock down the map and ensure it is both global and exported
+    # Lock down the map
 
-    declare -grx _rayvnProjects
+    declare -r _rayvnProjects
 
     # Prevent the require function from being replaced
 
     declare -rf require
 
-    # Set the project name
+    # Set the project name (not readonly, in case of child rayvn process)
 
-    declare -grx currentProjectName="$(basename "${BASH_SOURCE[2]}")" || fail
+    declare -gx currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
 
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 
@@ -162,6 +193,7 @@ fail() { printStack "${*}"; exit 1; }
 # And so will this one
 
 printStack() {
+    [[ -n ${1} ]] && echo -e "${*}\n"
     local caller=${FUNCNAME[1]}
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
@@ -173,6 +205,6 @@ printStack() {
     done
 }
 
-# Configure and then remove the function
+# Configure and then remove the function.
 
 _configure "${@}"; unset _configure

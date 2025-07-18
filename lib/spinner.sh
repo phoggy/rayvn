@@ -4,8 +4,6 @@
 # Library supporting progress spinner
 # Intended for use via: require 'rayvn/spinner'
 
-require 'rayvn/core' 'rayvn/terminal' 'rayvn/process'
-
 startSpinner() {
     if [[ ! ${_spinnerPid} ]]; then
         _ensureStopOnExit
@@ -62,7 +60,12 @@ configureSpinner() {
     unset _spinnerPid
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_init_rayvn_spinner() {
+    require 'rayvn/core' 'rayvn/terminal' 'rayvn/process'
+    configureSpinner
+}
 
 declare -grx _spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
 declare -grx _spinnerDefaultCharsColor='bold_blue'
@@ -78,10 +81,6 @@ declare -g _spinnerIndex=
 declare -g _spinnerForward=
 declare -g _spinnerPid=
 declare -gi _spinnerCleanupRegistered=0
-
-_init_rayvn_spinner() {
-    configureSpinner
-}
 
 _ensureStopOnExit() {
     if (( ! _spinnerCleanupRegistered )); then
