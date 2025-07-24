@@ -318,8 +318,6 @@ runTest() {
             startSpinner || fail
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
-                    # debugEnvironment "rayvn env, prior to running ${testFile}" "rayvn-subshell"
-
                     # We must create special conditions for this test so that the process it runs in does
                     # NOT contain any functions from this process (esp. rayvn.up and core.sh) and that all
                     # rayvn variables are excluded.
@@ -327,10 +325,12 @@ runTest() {
                     # These preconditions for the test are required so that rayvn init acts exactly as it
                     # would the first time a user invokes it.
 
+                    debugEnvironment "rayvn-up-before-env"
+
                     # First, collect the names of all existing vars whose names start with 'rayvn', ignoring case so
                     # we can remove them.
 
-                    local removeVars var
+                    local removeVars='-u rootDirPath\n' var
                     for var in $(compgen -v | grep -i 'rayvn'); do
                         removeVars+="-u ${var} "
                     done
@@ -350,8 +350,7 @@ runTest() {
 
                     # Log vars if in debug mode
 
-                    # TODO: only works if library loaded, so add a flag to
-                    #  debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
+                    debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
 
                     # Don't add an empty line at exit
 
@@ -370,7 +369,7 @@ runTest() {
             fi
 
             declare -i testResult="${?}"
-            stopSpinner || fail
+            stopSpinner
             padSpaces ${padLength}
             if (( ${testResult} == 0 )); then
                 echo " ${_greenCheckMark} $(ansi dim log at ${testLogFile})"

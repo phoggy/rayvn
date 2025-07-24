@@ -6,7 +6,11 @@
 # IMPORTANT!
 #
 # Each of the following public functions MUST have a corresponding NO-OP declaration
-# within core. If you add a new function here, add a NO-OP at the bottom of core.sh
+# within core. If you add a new function here:
+#
+#    1. add it to the list in _init_rayvn_debug below
+#    2. add a NO-OP function at the bottom of core.sh
+#    3. add it to _rayvnFunctionOwners in rayvn.up
 
 debug() {
     (( _debug )) && _debugEcho "${@}" >&3; return 0
@@ -130,7 +134,7 @@ debugEnvironment() {
             printf "\n\n%s\n\n" '--- FUNCTIONS ---------------'
             declare -f
         ) > "${destFile}"
-        debug "Wrote ${fileName} to ${destFile}"
+        debug "Wrote process environment to ${destFile}"
     fi
 }
 
@@ -143,7 +147,11 @@ declare -gx _debugPrefixColor="${ansi_magenta}"
 declare -gx _debugRemote=0
 
 _init_rayvn_debug() {
-    require 'rayvn/core'
+
+    # Make our public functions readonly since rayvn.up treats these as a special case.
+
+    declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
+                debugFile debugJson debugStack debugEnvironment
 }
 
 _debugEcho() {
