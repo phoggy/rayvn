@@ -325,12 +325,12 @@ runTest() {
                     # These preconditions for the test are required so that rayvn init acts exactly as it
                     # would the first time a user invokes it.
 
-                    debugEnvironment "rayvn-up-before-env"
+                    #    debugEnvironment "rayvn-up-before-env"
 
                     # First, collect the names of all existing vars whose names start with 'rayvn', ignoring case so
                     # we can remove them.
 
-                    local removeVars='-u rootDirPath\n' var
+                    local removeVars var
                     for var in $(compgen -v | grep -i 'rayvn'); do
                         removeVars+="-u ${var} "
                     done
@@ -350,7 +350,7 @@ runTest() {
 
                     # Log vars if in debug mode
 
-                    debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
+                 #   debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
 
                     # Don't add an empty line at exit
 
@@ -368,7 +368,7 @@ runTest() {
                 ) &> "${testLogFile}"
             fi
 
-            declare -i testResult="${?}"
+            declare testResult="${?}"
             stopSpinner
             padSpaces ${padLength}
             if (( ${testResult} == 0 )); then

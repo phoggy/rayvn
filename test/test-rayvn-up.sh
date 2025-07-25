@@ -215,7 +215,7 @@ testRayvnUp() {
 
     [[ "$(find "${HOME}" -mindepth 1 -print -quit)" ]] && _failed "test HOME dir '${HOME}' is not empty"
 
-    # Double check to ensure we do not yet hove the boot functions and vars
+    # Double check to ensure we do not yet hove the rayvn.up functions and vars
 
     _assertFunctionIsNotDefined require
     _assertFunctionIsNotDefined _configure
