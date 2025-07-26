@@ -48,6 +48,7 @@ init() {
     case "${1}" in
         new | create) parseArgs create "${@:2}" ;;
         test) parseArgs runTests "${@:2}" ;;
+        projects) parseArgs listProjects "${@:2}" ;;
         libraries) parseArgs listLibraries "${@:2}" ;;
         functions) parseArgs listFunctions "${@:2}" ;;
         dependencies) parseArgs projectDependencies "${@:2}" ;;
@@ -234,17 +235,84 @@ runTests() {
     fi
 }
 
-forEachProject() {
-    local command="${1}"
-    local args=("${@:2}")
-    local projectRoot
-    for project in "${projects[@]}"; do
-        projectRoot="${_rayvnProjects[${project}::project]}"
-        "${command}" "${project}" "${projectRoot}" "${args}"
+listProjects() {
+    forEachProject _printProject "${args[@]}"
+}
+
+_printProject() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    echo "project '${projectName}' -> ${projectRoot}"
+}
+
+listLibraries() {
+    forEachProject _printLibraries "${1}"
+}
+
+_printLibraries() {
+    local project="${1}"
+    echo "project '${project}'"
+    forEachLibrary "${project}" _printProjectLibrary
+}
+
+_printProjectLibrary() {
+    local library="${2}"
+    local file="${3}"
+    echo "    ${library} -> ${file}"
+}
+
+listFunctions() {
+    local sourceName
+    local functions=()
+    local function
+    for sourceName in "${_rayvnSources[@]}"; do
+        echo
+        echo "${sourceName} functions"
+        echo
+        getFunctions functions "${sourceName}"
+        functions=($(printf '%s\n' "${functions[@]}" | sort))
+        for function in "${functions[@]}"; do
+            if declare -pF "${functionName}" 2> /dev/null | grep -q "declare -fr"; then
+                echo "    ${function}"
+            else
+                echo "    ${function} [NOT READONLY!]"
+            fi
+        done
+        functions=()
     done
 }
 
-forEachLibrary() {
+getFunctions() {
+    local -n arrayRef="${1}"
+    local filter="${2:-''}"
+    local applyFilter=${ [[ ${filter} == '' ]] && echo 0 || echo 1; }
+    local source
+    for functionName in "${!_rayvnFunctionSources[@]}"; do
+        source="${_rayvnFunctionSources[${functionName}]}"
+        if (( applyFilter )); then
+            if [[ ${source} == "${filter}" ]]; then
+                arrayRef+=("${functionName}")
+            fi
+        else
+            arrayRef+=("${functionName}")
+        fi
+    done
+}
+
+forEachProject() {              # TODO: this pattern is a pain. Replace with getProjects()
+    local command="${1}"
+    local args=("${@:2}")
+    local projectRoot
+    for project in "${!_rayvnProjects[@]}"; do
+        if [[ "${project}" == *"::project"  ]]; then
+            project="${project%::project}"
+            projectRoot="${_rayvnProjects[${project}::project]}"
+            "${command}" "${project}" "${projectRoot}" "${args}"
+        fi
+    done
+}
+
+forEachLibrary() {              # TODO: this pattern is a pain. Replace with getLibraries() with optional project filter.
     local project="${1}"
     local command="${2}"
     local args=("${@:3}")

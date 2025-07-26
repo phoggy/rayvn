@@ -10,7 +10,7 @@
 #
 #    1. add it to the list in _init_rayvn_debug below
 #    2. add a NO-OP function at the bottom of core.sh
-#    3. add it to _rayvnFunctionOwners in rayvn.up
+#    3. add it to _rayvnFunctionSources in rayvn.up
 
 debug() {
     (( _debug )) && _debugEcho "${@}" >&3; return 0

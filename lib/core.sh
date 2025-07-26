@@ -453,6 +453,10 @@ _init_rayvn_core() {
         echo
     fi
 
+    # Force these readonly since we have to handle them specially in rayvn.up
+
+    declare -fr fail printStack
+
     declare -grx _rayvnCoreInitialized=1
 }
 

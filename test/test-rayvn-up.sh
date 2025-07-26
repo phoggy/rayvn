@@ -245,8 +245,9 @@ testRayvnUp() {
     _prependPath "${rayvnInstallHome}/bin"
     [[ "$(which rayvn.up)" ]] || _failed "rayvn.up NOT found after PATH removals"
 
-    # Finally, we're ready to boot, so do it
+    # Finally, we're ready to boot, so do it but suppress forced inclusion of 'rayvn/core'
 
+    declare -gx _doNotForceRayvnCore=1
     source rayvn.up &> /dev/null || _failed 'source rayvn.up failed'
 
     # Check that it set the expected vars and functions

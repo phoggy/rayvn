@@ -4,21 +4,9 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-# TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#
-# Copy some of the refactorings from rayvn.up.bak, EXCLUDING anything trying to
-# deal with recursion.
-#
-# Test if recursion ever actually happens now.
-# If does NOT: use simple before->source->after collection to determine new functions and remember owner or COLLIDE
-#
-# If DOES: consider keeping a global _rayvnBeforeSourceFunctionNames ARRAY which must be initially empty. On recursion,
-# the 'before' collection will see that this var is not empty and can diff/remember (also need _rayvnBeforeQualifiedName!)
-#
-# TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 require() {
-     while (( ${#} > 0 )); do
+    while (( ${#} > 0 )); do
+#trace "require('${1}')..."
         local qualifiedName="${1}"
         local projectName="${qualifiedName%/*}"
         local libraryName="${qualifiedName#*/}"
@@ -26,7 +14,7 @@ require() {
 
         # Keep a count of requests for the project and library
 
-        (( _rayvnRequireCounts["${projectName}"]+=1 )) # under errexit, using ++ fails but +=1 does not
+        (( _rayvnRequireCounts["${projectName}"]+=1 )) # note: under errexit, using ++ fails but +=1 does not!
         (( _rayvnRequireCounts["${libraryKey}"]+=1 ))
 
         # Have we previously loaded this library?
@@ -36,157 +24,110 @@ require() {
             # Nope, validate the request
 
             local libraryRootKey="${projectName}${_libraryRootSuffix}"
+            [[ -v _rayvnProjects[${libraryRootKey}] ]] || fail "require '${qualifiedName}': no library root configured for rayvn project '${projectName}'"
             local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
-            [[ ${libraryRoot} ]] || fail "require '${qualifiedName}': no library root configured for rayvn project '${projectName}'"
-
             local libraryFile="${libraryRoot}/${libraryName}.sh"
             [[ -f ${libraryFile} ]] || fail "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
 
-            # Load the library. We can recurse here!
+            # Load the library; we can recurse here.
 
-            source "${libraryFile}" || fail "failed to load rayvn shared library '${qualifiedName}'"
-
-            # TODO: make all sourced functions readonly so that collisions will cause error??
-
-            # Call its init function, if present
-
-            local initFunction="_init_${projectName}_${libraryName}"
-            if [[ $(type -t "${initFunction}") == function ]]; then
-                ${initFunction} || fail "${initFunction}() failed"
-                unset -f "${initFunction}" # remove it
-            fi
+            _loadRayvnLibrary
         fi
         shift
     done
     return 0
 }
 
-# bashsupport disable=BP3002
-_configure() {
-    declare -gAx _rayvnProjects=()
-    declare -gAix _rayvnRequireCounts=()
-    declare -grx _projectRootSuffix='::project'
-    declare -grx _libraryRootSuffix='::library'
-    declare -gx currentProjectName=
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN rayvn.up PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-    local keySuffix projectName projectRoot key executable path libraryRoot
+_loadRayvnLibrary() { # note: relies on local vars set by caller
+    local initFunction="_init_${projectName}_${libraryName}"
+    local loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
+    local hasInitFunction=0
 
-    addRoot() {
-        projectName="${1}"
-        keySuffix="${2}"
-        projectRoot="${3}"
-        key="${projectName}${keySuffix}"
+#trace "loading '${qualifiedName}'"
 
-        if  [[ ! -v _rayvnProjects[${key}] ]]; then
-            projectRoot="$(realpath "${projectRoot}")" || fail "Could not resolve real path of: ${projectRoot}"
-            _rayvnProjects[${key}]="${projectRoot}"
+    # Load the library and add it to our list of sources
 
-            # Define a ${project}Home var for project self reference
-            [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName}Home"="${projectRoot}"
-        fi
-        return 0
-    }
+    # TODO to capture collisions? local errOut=$(set -eE 2>&1; source "${libraryFile}")
+    source "${libraryFile}" || fail "failed to load rayvn shared library '${qualifiedName}'"
+    _rayvnSources+=("${qualifiedName}")
 
-    addProjectFromExecutable() {
-        projectName="${1}"
-        executable="${2}"
-        path="$(type -p "${executable}")" || fail "'${executable}' not found for project '${projectName}'"
-        path="$(realpath "${path}")" || fail # handle symlinks, e.g. brew style
-        projectRoot="$(dirname "${path}")/.."
-        addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
-    }
+    # For any previously unknown function, add this library name as it's source in our map
 
-    addProject() {
-        projectName="${1}"
-        projectRoot="${2}"
+    _updateFunctionSources hasInitFunction
 
-        # Add project root
+    # If we found the init function, call and remove it.
 
-        if [[ -d ${projectRoot} ]]; then
-            addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
-        else
-            addProjectFromExecutable "${projectName}" "${projectRoot}"
-        fi
-
-        # Add library root if it exists
-
-        libraryRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/lib"
-        if [[ -d "${libraryRoot}" ]]; then
-            addRoot "${projectName}" ${_libraryRootSuffix} "${libraryRoot}"
-        fi
-    }
-
-    traceOn() {
-        [[ -v traceOut ]] || return 1
-        [[ -v _traceStarted ]] || echo -e "\n\nBOOT rayvn.up --------- ${ date; } ----------------\n" > "${traceOut}"
-        _traceStarted=1
-        return 0
-    }
-
-    trace() {
-        traceOn && echo -e "TRACE: ${*}" > "${traceOut}"
-    }
-
-    traceVar() {
-        traceOn && declare -p "${@}" > "${traceOut}" 2> /dev/null;
-    }
-
-    traceStack() {
-        traceOn && printStack "TRACE: ${*}" > "${traceOut}"
-    }
-
-    # Add rayvn using *our* path to ensure we do not find a different install.
-    # This is important when this file is sourced using a file path.
-
-    local rayvnBinary="${BASH_SOURCE[0]}"
-    rayvnBinary="$(realpath ${rayvnBinary}/..)"
-    addProject rayvn "$(dirname "${rayvnBinary}")"
-
-    # Now, process arguments in two passes: add projects, then load any required libraries
-
-    local required=()
-    local projects=() split=() project name path
-    while (( ${#} > 0 )); do
-        case "${1}" in
-            -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
-            *) required+=("${1}") ;;
-        esac
-        shift
-    done
-
-    for project in "${projects[@]}"; do
-        project="${project#"${project%%[![:space:]]*}"}"  # remove leading whitespace
-        project="${project%"${project##*[![:space:]]}"}"  # remove trailing whitespace
-        name="${project%%=*}"
-        path="${project#*=}"
-        addProject "${name}" "${path}"
-    done
-
-    require "${required[@]}"
-
-    # Lock down the map
-
-    declare -r _rayvnProjects
-
-    # Prevent the require function from being replaced
-
-    declare -rf require
-
-    # Set the project name (not readonly, in case of child rayvn process)
-
-    declare -gx currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
-
-    # Disable and warn if any 'Unofficial Strict Mode' options are set
-
-    if [[ -o errexit || -o pipefail || -o nounset ]]; then
-        set +o errexit
-        set +o pipefail
-        set +o nounset
-        echo "errexit, pipefail and nounset have been disabled, see https://www.reddit.com/r/bash/comments/mivbcm/comment/gt8harr/"
+    if (( hasInitFunction )); then
+#trace "calling ${initFunction}"
+        ${initFunction} || fail "${initFunction}() failed"
+        unset -f "${initFunction}" # remove it
     fi
 }
 
-# This function will be replaced when rayvn/core is loaded
+_updateFunctionSources() {
+    local -n hasInitFunctionRef="${1}"
+    local -A newFunctions functionName
+    _collectFunctionNames newFunctions
+
+    for functionName in ${!newFunctions[@]}; do
+
+        # Does this name collide with a known function?
+
+        # TODO: This check is here only as a sanity check and should be removed once verified: collision
+        #       detection should occur before we get here as the original should be marked readonly!
+
+        if [[ -v _rayvnFunctionSources[${functionName}] ]]; then
+
+            # Yes!
+
+            local source="${_rayvnFunctionSources[${functionName}]}"
+            fail "Function '${functionName}' from library '${qualifiedName}' collides with function from library '${source}'"
+        else
+
+            # No, remember it
+
+            _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
+
+            # If the init function set the return flag. If it is NOT a debug function in
+            # rayvn/core mark it readonly. The debug functions in core are placeholders
+            # expected to be overridden if the debug library is loaded.
+
+            if [[ ${functionName} == "${initFunction}" ]]; then
+                hasInitFunctionRef=1
+ #trace "   ${qualifiedName} now owns ${functionName}"
+            else
+                declare -fr "${functionName}"
+#trace "   ${qualifiedName} now owns ${functionName} (readonly)"
+            fi
+        fi
+    done
+}
+
+_collectFunctionNames() {
+    local -n mapRef="${1}"
+    local value="${2:-1}"
+
+    for functionName in ${ compgen -A function; }; do
+        # Ignore specific functions when loading rayvn/core
+        if (( loadingRayvnCore )) && [[ ${_ignoreRayvnUpFunctions[${functionName}]} != '' ]]; then
+#trace "   IGNORING collected function ${functionName}, in _ignoreRayvnUpFunctions"
+            continue
+        fi
+        # Ignore it if it is already known
+        if [[ -v _rayvnFunctionSources[${functionName}] ]]; then
+#trace "   SKIPPING function ${functionName}, source=${_rayvnFunctionSources[${functionName}]}"
+             continue
+        fi
+#trace "   collected ${functionName}"
+        mapRef["${functionName}"]="${value}"
+    done
+}
+
+TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTIONS ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+# --- These functions will be REPLACED when rayvn/core is loaded -----------------------------------
 
 fail() { printStack "${*}"; exit 1; }
 
@@ -205,6 +146,201 @@ printStack() {
     done
 }
 
-# Configure and then remove the function.
+# --- These will be kept IFF the traceOut var is set, e.g. to another terminal or a file ----------
 
-_configure "${@}"; unset _configure
+trace() {
+    (( _tracing )) && echo -e "[trace] ${*}" > "${traceOut}"
+}
+
+traceVar() {
+    if (( _tracing )) ; then
+        echo > "${traceOut}"
+        echo -n "[trace] " > "${traceOut}"
+        declare -p "${@}" > "${traceOut}" 2> /dev/null;
+        echo > "${traceOut}"
+    fi
+}
+
+traceStack() {
+    (( _tracing )) && printStack "[trace] ${*}" > "${traceOut}"
+}
+
+traceInit() {
+    if [[ ! -v _tracing ]]; then
+        if [[ -v traceOut ]]; then
+            echo -e "\n\n[trace] BOOT rayvn.up --------- ${ date; } ----------------\n" > "${traceOut}"
+            declare -g _tracing=1
+            _rayvnFunctionSources+=([trace]='rayvn.up' [traceVar]='rayvn.up' [traceStack]='rayvn.up' [traceInit]='rayvn.up')
+            trace "${1}"
+        else
+            declare -g _tracing=0
+            _rayvnUpUnsetIds+=(trace traceVar traceStack traceInit) # remove these later
+            _ignoreRayvnUpFunctions+=([trace]=1 [traceVar]=1 [traceStack]=1 [traceInit]=1)
+        fi
+    fi
+}
+
+# --- All the following will be UNSET once configuration completes --------------------------------
+
+# bashsupport disable=BP3002
+configure() {
+    declare -gAx _rayvnProjects=()
+    declare -gAix _rayvnRequireCounts=()
+    declare -grx _projectRootSuffix='::project'
+    declare -grx _libraryRootSuffix='::library'
+    declare -gax _rayvnSources=() # in addition order
+    declare -gA _rayvnFunctionSources=() # function name -> source map
+    declare -gA _ignoreRayvnUpFunctions=()
+    declare -ga _rayvnUpUnsetIds=()
+    declare -g _required=()
+    declare -gx currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+    local projects=() split=() project key
+
+    # Init tracing if traceOut is set
+
+    traceInit "Configuring rayvn.up for project '${currentProjectName}', args: ${*}"
+
+    # Disable and warn if any 'Unofficial Strict Mode' options are set
+
+    if [[ -o errexit || -o pipefail || -o nounset ]]; then
+        set +o errexit
+        set +o pipefail
+        set +o nounset
+        echo "errexit, pipefail and nounset have been disabled, see https://www.reddit.com/r/bash/comments/mivbcm/comment/gt8harr/"
+    fi
+
+    # Add rayvn using *our* path to ensure we do not find a different install.
+    # This is important when this file is sourced using a file path.
+
+    local rayvnUpBinary="${BASH_SOURCE[0]}"
+    rayvnUpBinary="${ realpath ${rayvnUpBinary}/..; }"
+    addProject rayvn "${ dirname "${rayvnUpBinary}"; }"
+
+    # Unless requested, ensure that 'rayvn/core' is loaded first
+
+    [[ -v _doNotForceRayvnCore ]] || _required+=('rayvn/core')
+
+    # Parse args
+
+    while (( ${#} > 0 )); do
+        case "${1}" in
+            -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
+            *) [[ "${1}" != 'rayvn/core' || -v _doNotForceRayvnCore ]] && _required+=("${1}") ;;
+        esac
+        shift
+    done
+
+    # Add projects, if any
+
+    for project in "${projects[@]}"; do
+        project="${project#"${project%%[![:space:]]*}"}"  # remove leading whitespace
+        project="${project%"${project##*[![:space:]]}"}"  # remove trailing whitespace
+        addProject "${project%%=*}" "${project#*=}"
+    done
+
+    # Lock down the projects map
+
+    declare -gArx _rayvnProjects
+
+    # Set our persistent public/private functions readonly
+
+    declare -fr require _loadRayvnLibrary _collectFunctionNames _detectFunctionCollisions
+
+    # Instead of enforcing library namespaces, we just mark all functions in each library as readonly to prevent
+    # collisions. This is far from perfect, but is reasonable for now given the very small expected user base.
+    #
+    # We also label each function with its source, using a map. The map enables identifying new functions after
+    # sourcing a library, and only new functions are set to readonly. In addition, when loading rayvn/core, we
+    # need to avoid setting temporary functions as readonly.
+    #
+    # First, prepare the initial set of function sources, which are a combination of the initial environment,
+    # the project that invoked us AND rayvn.up. We can't (quickly) distinguish the env from the project,
+    # so we just lump them together/
+
+    # Collect all existing functions and assign as the project source.
+
+    _rayvnSources+=('rayvn.up' "${currentProjectName}")
+    _collectFunctionNames _rayvnFunctionSources "${currentProjectName}"
+
+    # Now replace with known sources: our persistent and replaced functions plus the debug API
+
+    _rayvnFunctionSources+=([require]='rayvn.up' [_loadRayvnLibrary]='rayvn.up' [_collectFunctionNames]='rayvn.up'
+                            [_detectFunctionCollisions]='rayvn.up'
+                            [fail]='rayvn/core' [printStack]='rayvn/core'
+                            [debug]='rayvn/debug' [debugEnabled]='rayvn/debug' [debugDir]='rayvn/debug' [debugStatus]='rayvn/debug'
+                            [debugBinary]='rayvn/debug' [debugVars]='rayvn/debug' [debugVarIsSet]='rayvn/debug'
+                            [debugVarIsNotSet]='rayvn/debug' [debugFile]='rayvn/debug' [debugJson]='rayvn/debug'
+                            [debugStack]='rayvn/debug' [debugEnvironment]='rayvn/debug' [debug]='rayvn/debug')
+
+    # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
+
+    local rayvnUpTemporaryFunctions=(configure addRoot addProjectFromExecutable addProject)
+    _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _rayvnUpUnsetIds _required)
+
+    # Collect all of our temporary functions in a map so we can ignore them when core is loaded: we do not want them
+    # to become owned or readonly.
+    #
+    # Remove all of them from the initial set of sources since they will be unset.
+
+    for key in "${rayvnUpTemporaryFunctions[@]}"; do
+        _ignoreRayvnUpFunctions["${key}"]=1
+        unset "_rayvnFunctionSources[${key}]"
+    done
+
+    trace "Configuration completed"
+}
+
+addRoot() {
+    local projectName="${1}"
+    local keySuffix="${2}"
+    local projectRoot="${3}"
+    local key="${projectName}${keySuffix}"
+
+    if  [[ ! -v _rayvnProjects[${key}] ]]; then
+        projectRoot="${ realpath "${projectRoot}"; }" || fail "Could not resolve real path of: ${projectRoot}"
+        _rayvnProjects[${key}]="${projectRoot}"
+
+        # Define a ${project}Home var for project self reference
+        [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName}Home"="${projectRoot}"
+    fi
+    return 0
+}
+
+addProjectFromExecutable() {
+    local projectName="${1}"
+    local executable="${2}"
+    local path="${ type -p "${executable}"; }" || fail "'${executable}' not found for project '${projectName}'"
+    path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
+    projectRoot="${ dirname "${path}"; }/.."
+    addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+}
+
+addProject() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+#trace "ADDING PROJECT: ${projectName} @ ${projectRoot}"
+    # Add project root
+
+    if [[ -d ${projectRoot} ]]; then
+        addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
+    else
+        addProjectFromExecutable "${projectName}" "${projectRoot}"
+    fi
+
+    # Add library root if it exists
+
+    local libraryRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/lib"
+    if [[ -d "${libraryRoot}" ]]; then
+        addRoot "${projectName}" ${_libraryRootSuffix} "${libraryRoot}"
+    fi
+}
+
+# Configure, require specified libraries, then remove all temp functions and vars
+
+configure "${@}"
+require "${_required[@]}"
+unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
+
+
+
+
