@@ -42,7 +42,7 @@ listProjectDependencies() {
 UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/dependencies' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_dependencies() {
-    require 'rayvn/core' 'rayvn/safe-source'
+    require 'rayvn/core' 'rayvn/config'
 }
 
 _assertProjectDependencies() {
@@ -153,7 +153,7 @@ _setProjectDependenciesVar() {
     projectDependencies=
     _getProjectPath "${projectName}" pkgFile 'rayvn.pkg'
     assertFileExists "${pkgFile}"
-    sourceSafeStaticVars "${pkgFile}" project
+    sourceConfigFile "${pkgFile}" project
     if ! declare -p projectDependencies &> /dev/null; then
         fail "No projectDependencies found in '${pkgFile}'"
     fi

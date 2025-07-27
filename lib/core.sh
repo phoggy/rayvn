@@ -121,8 +121,8 @@ projectVersion() {
     local pkgFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/rayvn.pkg"
     assertFileExists "${pkgFile}"
     (
-        require 'rayvn/safe-source'
-        sourceSafeStaticVars "${pkgFile}" project
+        require 'rayvn/config'
+        sourceConfigFile "${pkgFile}" project
         if [[ ${projectReleaseDate} ]]; then
             [[ ${verbose} ]] && description=" (released ${projectReleaseDate})"
         else

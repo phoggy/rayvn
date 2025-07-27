@@ -25,7 +25,7 @@ init() {
 
     # Create evilEnvFile and evilEnvVar
 
-    local testCaseFile="${rayvnHome}/test/safe-source-test-case"
+    local testCaseFile="${rayvnHome}/test/files/config-test-case"
     cat "${testCaseFile}" > ${evilEnvFilePath} || fail
     declare -grx evilEnvFile="${evilEnvFilePath}"
     declare -grx evilEnvVar="$(cat "${evilEnvFile}")"
@@ -71,7 +71,7 @@ testSourceSafeStaticVarsWithoutFilter() {
 
         # Source our evil file
 
-        sourceSafeStaticVars "${evilEnvFile}"
+        sourceConfigFile "${evilEnvFile}"
 
         # Ensure that none of the unexpected/unsafe functions and vars are defined
 
@@ -102,7 +102,7 @@ testSourceSafeStaticVarsWithFilter() {
 
         # Source our evil file
 
-        sourceSafeStaticVars "${evilEnvFile}" project
+        sourceConfigFile "${evilEnvFile}" project
 
         # Ensure that none of the unexpected/unsafe functions and vars are defined
 
@@ -205,6 +205,6 @@ assertNonProjectValues() {
                             "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, just continue with backslashes inside the same quoted string. This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, but a test nonetheless."
 }
 
-source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/safe-source' 'rayvn/dependencies'
+source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/config' 'rayvn/dependencies'
 
 main "${@}"

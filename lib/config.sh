@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
 # Library supporting sanitizing and sourcing env style files.
-# Intended for use via: require 'rayvn/safe-source'
+# Intended for use via: require 'rayvn/config'
 
 # Source only safe variable declarations from a bash config file or string, optionally filtered
 # by prefix. See extractSafeStaticVars.
 #
-# Usage: sourceSafeStaticVars <file_or_string> [prefix_filter]
+# Usage: sourceConfigFile <file_or_string> [prefix_filter]
 # Output: variables are defined in current env
 
-sourceSafeStaticVars() {
+sourceConfigFile() {
     local safeEnv
     local input="${1}"
     local prefixFilter="${2}"
@@ -47,9 +47,9 @@ extractSafeStaticVars() {
     echo "${result}"
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/safe-source' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/config' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_rayvn_safe-source() {
+_init_rayvn_config() {
     require 'rayvn/core'
 }
 
