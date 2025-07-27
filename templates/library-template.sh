@@ -4,8 +4,8 @@
 # Intended for use via: require ${qualifiedName}
 
 # TODO replace me!
-my${libraryName}LibraryFunction () {
-    _my${libraryName}PrivateFunction
+my${libraryNameInitialCap}LibraryFunction () {
+    _my${libraryNameInitialCap}PrivateFunction
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN '${projectName}/${libraryName}' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -16,7 +16,7 @@ _init_${projectName}_${libraryName}() {
 }
 
 # TODO remove/replace me!
-_my${libraryName}PrivateFunction() {
-    echo "$(ansi bold _my${libraryName}PrivateFunction here!)"
+_my${libraryNameInitialCap}PrivateFunction() {
+    echo "$(ansi bold _my${libraryNameInitialCap}PrivateFunction here!)"
 }
 

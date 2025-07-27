@@ -509,10 +509,11 @@ createProject() {
     local qualifiedName="'${name}/example'"
     local rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
     local libraryCall='myExampleLibraryFunction'
-    local libraryName="Example"
+    local libraryName="example"
+    local libraryNameInitialCap="Example"
 
     substituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
-    substituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName || fail
+    substituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
     substituteVars "${scriptTemplate}" "./bin/${name}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${name}" || fail
 
