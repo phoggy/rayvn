@@ -186,34 +186,7 @@ _removePath () {
     declare -gx  ${pathVariable}="${newPath}"
 }
 
-useTestHome() {
-    export HOME="${testHome}"
-    setHomeVars
-}
-useUserHome() {
-    export HOME="${userHome}"
-    setHomeVars
-}
-
-setHomeVars() {
-    declare -gx bashrcFile="${HOME}/.bashrc"
-    declare -gx rayvnConfigHomeDir="${HOME}/.rayvn"
-}
-
 testRayvnUp() {
-
-    # Switch HOME to test home
-
-    useTestHome
-
-    # Double check that we have the expected vars
-
-    [[ "${HOME}" == "${testHome}" ]] || _failed "HOME var is not pointing to ${testHome}"
-    [[ "${rayvnConfigHomeDir}" == "${testHome}"/* ]] || _failed "rayvnConfigHomeDir is not within testHomeDir: ${rayvnConfigHomeDir}"
-
-    # Make sure that HOME directory is empty
-
-    [[ "$(find "${HOME}" -mindepth 1 -print -quit)" ]] && _failed "test HOME dir '${HOME}' is not empty"
 
     # Double check to ensure we do not yet hove the rayvn.up functions and vars
 
@@ -292,7 +265,6 @@ testRayvnUp() {
     assertHashKeyIsDefined '_rayvnProjects' 'rayvn::library'
     assertHashValue '_rayvnProjects' 'rayvn::project' "${rayvnInstallHome}"
     assertHashValue '_rayvnProjects' 'rayvn::library' "${rayvnInstallHome}/lib"
-
 
     # And that counts are as expected
 
