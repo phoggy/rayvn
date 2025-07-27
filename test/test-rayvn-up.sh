@@ -15,22 +15,9 @@ init() {
 
     assertEnvPreconditions
 
-    # Create a temp directory to use as HOME and ensure we remove it on exit
-
-    readonly testHome="$(mktemp -d)" || _failed
-    trap '_onExit' EXIT
-
-    # Save the current HOME so we can switch
-
-    declare -grx userHome="${HOME}"
-
     # Keep a copy of PATH so we can restore it
 
     declare -gr origPath="${PATH}"
-}
-
-_onExit() {
-    rm -rf "${testHome}" &> /dev/null
 }
 
 assertEnvPreconditions() {
