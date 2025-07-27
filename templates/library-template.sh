@@ -8,11 +8,11 @@ my${libraryName}LibraryFunction () {
     _my${libraryName}PrivateFunction
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN '${projectName}/${name}' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN '${projectName}/${libraryName}' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_${projectName}_${name}() {
+_init_${projectName}_${libraryName}() {
     require 'rayvn/core' # Add other required library names here.
-    echo "library init_${projectName}_${name}() called" # TODO remove/replace me!
+    echo "library init_${projectName}_${libraryName}() called" # TODO remove/replace me!
 }
 
 # TODO remove/replace me!

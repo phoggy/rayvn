@@ -463,6 +463,7 @@ sortArrayLongestFirst() {
 }
 
 createProject() {
+    [[ "${name}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || fail "sorry, '${name}' is not a valid bash identifier"
     [[ -n ${gitRoot} ]] && fail "${PWD} is within an existing project/git repo"
     local projectRoot="${PWD}/${name}"
     assertFileDoesNotExist "${projectRoot}"
@@ -476,13 +477,15 @@ createProject() {
     echo "$(ansi bold Creating project "'${name}'" in) $(ansi blue "'${PWD}'")"
     echo
 
+    require 'rayvn/prompt'
+
     declare -i createdRepo=0
-    local response
-    read -p "Create new GitHub repo? (y/n) " response
-    if [[ "${response}" == "y" ]]; then
+    local answer
+    confirm "Create new GitHub repo?" y n answer
+    if [[ "${answer}" == "y" ]]; then
         if ! gh auth status --active &> /dev/null; then
-            read -p "Need to authenticate. Do you have a GitHub account? (y/n) " response
-            if [[ "${response}" == "y" ]]; then
+            read -p "Need to authenticate. Do you have a GitHub account? (y/n) " answer
+            if [[ "${answer}" == "y" ]]; then
                 gh auth login || exit
             else
                 bye "Please go to https://github.com/ and create an account first."
@@ -501,14 +504,15 @@ createProject() {
 
     # Ok, directories are ready, copy and substitute files
 
+    local projectName="${name}"
     local quotedName="'${name}'"
-    local qualifiedName="'${name}/core'"
+    local qualifiedName="'${name}/example'"
     local rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
-    local libraryCall='myCoreLibraryFunction'
-    local libraryName="Core"
+    local libraryCall='myExampleLibraryFunction'
+    local libraryName="Example"
 
     substituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
-    substituteVars "${libraryTemplate}" './lib/core.sh' quotedName qualifiedName libraryName || fail
+    substituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName || fail
     substituteVars "${scriptTemplate}" "./bin/${name}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${name}" || fail
 
