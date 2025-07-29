@@ -3,7 +3,8 @@
 
 main() {
     init "${@}"
-    testRayvnUp
+    testSourceRayvnUp
+    testFunctionCollision
 }
 
 init() {
@@ -173,7 +174,7 @@ _removePath () {
     declare -gx  ${pathVariable}="${newPath}"
 }
 
-testRayvnUp() {
+testSourceRayvnUp() {
 
     # Double check to ensure we do not yet hove the rayvn.up functions and vars
 
@@ -268,6 +269,24 @@ testRayvnUp() {
     # Finally, restore PATH in case other test functions need it
 
     export PATH="${origPath}"
+}
+
+testFunctionCollision() {
+    local testProjectsDir="${rayvnHome}/test/files/projects"
+    local project="collision"
+    local projectRoot="${testProjectsDir}/${project}"
+
+    # Add project
+
+    addRayvnProject "${project}" "${projectRoot}"
+
+    # Load example lib which is expected to succeed.
+
+    require "${project}/example"
+
+    # Require our collides library and assert that it fails as expected
+
+    requireAndAssertFailureContains "${project}/collides" "myExampleLibraryFunction() previously defined by library 'collision/example'"
 }
 
 main "${@}"

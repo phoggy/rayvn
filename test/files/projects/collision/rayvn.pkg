@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# rayvn package
+
+projectName='function_collision'
+projectVersion='0.1.0'
+projectReleaseDate=''
+
+declare -A projectDependencies=(
+    [rayvn_min]='0.1.9'
+    [rayvn_extract]=1
+    [rayvn_brew]=true
+    [rayvn_brew_tap]='phoggy/rayvn'
+    [rayvn_url]='https://github.com/phoggy/rayvn'
+)

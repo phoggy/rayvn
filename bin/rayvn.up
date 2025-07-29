@@ -6,7 +6,6 @@
 
 require() {
     while (( ${#} > 0 )); do
-#trace "require('${1}')..."
         local qualifiedName="${1}"
         local projectName="${qualifiedName%/*}"
         local libraryName="${qualifiedName#*/}"
@@ -23,13 +22,14 @@ require() {
 
             # Nope, validate the request
 
+            local failed=${_rayvnRequireFailHandler:-fail}
             local libraryRootKey="${projectName}${_libraryRootSuffix}"
-            [[ -v _rayvnProjects[${libraryRootKey}] ]] || fail "require '${qualifiedName}': no library root configured for rayvn project '${projectName}'"
+            [[ -v _rayvnProjects[${libraryRootKey}] ]] || ${failed} "require '${qualifiedName}': no library root configured for rayvn project '${projectName}'"
             local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
             local libraryFile="${libraryRoot}/${libraryName}.sh"
-            [[ -f ${libraryFile} ]] || fail "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
+            [[ -f ${libraryFile} ]] || ${failed} "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
 
-            # Load the library; we can recurse here.
+            # Load the library (we can recurse here).
 
             _loadRayvnLibrary
         fi
@@ -43,84 +43,72 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN rayvn.up PRIVATE ⚠
 _loadRayvnLibrary() { # note: relies on local vars set by caller
     local initFunction="_init_${projectName}_${libraryName}"
     local loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
-    local hasInitFunction=0
+    local sourceOut sourceFailed
+    local -A newFunctions functionName hasInitFunction=0
 
-#trace "loading '${qualifiedName}'"
+    (( _loadLibraryDepth++ ))
 
-    # Load the library and add it to our list of sources
+ #trace "loading ${qualifiedName} [depth ${_loadLibraryDepth}]"
+    # Load the library, capturing output so that we can process any error.
 
-    # TODO to capture collisions? local errOut=$(set -eE 2>&1; source "${libraryFile}")
-    source "${libraryFile}" || fail "failed to load rayvn shared library '${qualifiedName}'"
-    _rayvnSources+=("${qualifiedName}")
+    sourceOut=${ source "${libraryFile}" 2>&1; sourceFailed=$?; }
+    if (( sourceFailed )); then
+        local reason=": ${sourceOut}"
+        if [[ "${sourceOut}" =~ ([a-zA-Z_][a-zA-Z0-9_]*):[[:space:]]*readonly[[:space:]]+function ]]; then
+            local functionName="${BASH_REMATCH[1]}"
+            local source=${_rayvnFunctionSources[${functionName}]}
+            if [[ ${source} != '' ]]; then
+                reason=": ${ansi_italic}${functionName}() previously defined by library '${source}'"
+            fi
+        fi
+        ${failed} "failed to load rayvn shared library '${qualifiedName}'${reason}"
 
-    # For any previously unknown function, add this library name as it's source in our map
+    else
+        # Add it to our list of sources
 
-    _updateFunctionSources hasInitFunction
+        _rayvnSources+=("${qualifiedName}")
 
-    # If we found the init function, call and remove it.
+        # Collect new functions
 
-    if (( hasInitFunction )); then
-#trace "calling ${initFunction}"
-        ${initFunction} || fail "${initFunction}() failed"
-        unset -f "${initFunction}" # remove it
+        _collectUnknownFunctionNames newFunctions
+
+        # Process them
+
+        for functionName in ${!newFunctions[@]}; do
+            _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
+            if [[ ${functionName} == "${initFunction}" ]]; then
+                hasInitFunction=1
+            else
+trace "    setting ${qualifiedName} function readonly: ${functionName}"
+                declare -fr "${functionName}"
+            fi
+        done
+
+        # If we found an init function, invoke (which may recurse) and remove it.
+
+        if (( hasInitFunction )); then
+            ${initFunction} || ${failed} "${initFunction}() failed"
+            unset _rayvnFunctionSources["${initFunction}"]
+            unset -f "${initFunction}" || fail
+        fi
+
+        (( _loadLibraryDepth-- ))
     fi
 }
 
-_updateFunctionSources() {
-    local -n hasInitFunctionRef="${1}"
-    local -A newFunctions functionName
-    _collectFunctionNames newFunctions
-
-    for functionName in ${!newFunctions[@]}; do
-
-        # Does this name collide with a known function?
-
-        # TODO: This check is here only as a sanity check and should be removed once verified: collision
-        #       detection should occur before we get here as the original should be marked readonly!
-
-        if [[ -v _rayvnFunctionSources[${functionName}] ]]; then
-
-            # Yes!
-
-            local source="${_rayvnFunctionSources[${functionName}]}"
-            fail "Function '${functionName}' from library '${qualifiedName}' collides with function from library '${source}'"
-        else
-
-            # No, remember it
-
-            _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
-
-            # If the init function set the return flag. If it is NOT a debug function in
-            # rayvn/core mark it readonly. The debug functions in core are placeholders
-            # expected to be overridden if the debug library is loaded.
-
-            if [[ ${functionName} == "${initFunction}" ]]; then
-                hasInitFunctionRef=1
- #trace "   ${qualifiedName} now owns ${functionName}"
-            else
-                declare -fr "${functionName}"
-#trace "   ${qualifiedName} now owns ${functionName} (readonly)"
-            fi
-        fi
-    done
-}
-
-_collectFunctionNames() {
+_collectUnknownFunctionNames() {
     local -n mapRef="${1}"
     local value="${2:-1}"
 
     for functionName in ${ compgen -A function; }; do
         # Ignore specific functions when loading rayvn/core
         if (( loadingRayvnCore )) && [[ ${_ignoreRayvnUpFunctions[${functionName}]} != '' ]]; then
-#trace "   IGNORING collected function ${functionName}, in _ignoreRayvnUpFunctions"
             continue
         fi
         # Ignore it if it is already known
         if [[ -v _rayvnFunctionSources[${functionName}] ]]; then
-#trace "   SKIPPING function ${functionName}, source=${_rayvnFunctionSources[${functionName}]}"
              continue
         fi
-#trace "   collected ${functionName}"
         mapRef["${functionName}"]="${value}"
     done
 }
@@ -193,6 +181,7 @@ configure() {
     declare -gA _ignoreRayvnUpFunctions=()
     declare -ga _rayvnUpUnsetIds=()
     declare -g _required=()
+    declare -g _loadLibraryDepth=0
     declare -gx currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
     local projects=() split=() project key
 
@@ -238,13 +227,9 @@ configure() {
         addProject "${project%%=*}" "${project#*=}"
     done
 
-    # Lock down the projects map
-
-    declare -gArx _rayvnProjects
-
     # Set our persistent public/private functions readonly
 
-    declare -fr require _loadRayvnLibrary _collectFunctionNames _detectFunctionCollisions
+    declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
 
     # Instead of enforcing library namespaces, we just mark all functions in each library as readonly to prevent
     # collisions. This is far from perfect, but is reasonable for now given the very small expected user base.
@@ -260,12 +245,11 @@ configure() {
     # Collect all existing functions and assign as the project source.
 
     _rayvnSources+=('rayvn.up' "${currentProjectName}")
-    _collectFunctionNames _rayvnFunctionSources "${currentProjectName}"
+    _collectUnknownFunctionNames _rayvnFunctionSources "${currentProjectName}"
 
     # Now replace with known sources: our persistent and replaced functions plus the debug API
 
-    _rayvnFunctionSources+=([require]='rayvn.up' [_loadRayvnLibrary]='rayvn.up' [_collectFunctionNames]='rayvn.up'
-                            [_detectFunctionCollisions]='rayvn.up'
+    _rayvnFunctionSources+=([require]='rayvn.up' [_loadRayvnLibrary]='rayvn.up' [_collectUnknownFunctionNames]='rayvn.up'
                             [fail]='rayvn/core' [printStack]='rayvn/core'
                             [debug]='rayvn/debug' [debugEnabled]='rayvn/debug' [debugDir]='rayvn/debug' [debugStatus]='rayvn/debug'
                             [debugBinary]='rayvn/debug' [debugVars]='rayvn/debug' [debugVarIsSet]='rayvn/debug'
@@ -284,10 +268,10 @@ configure() {
 
     for key in "${rayvnUpTemporaryFunctions[@]}"; do
         _ignoreRayvnUpFunctions["${key}"]=1
-        unset "_rayvnFunctionSources[${key}]"
+        unset _rayvnFunctionSources[${key}]
     done
 
-    trace "Configuration completed"
+#    trace "Configuration completed"
 }
 
 addRoot() {

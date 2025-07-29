@@ -99,6 +99,16 @@ assertVarEquals() {
     fi
 }
 
+assertVarContains() {
+    local varName="${1}"
+    local expected="${2}"
+    local -n varRef="${varName}"
+    assertVarIsDefined "${varName}"
+    if [[ ${varRef} != *"${expected}"* ]]; then
+        assertionFailed "${varName}=${varRef}, expected ${expected}"
+    fi
+}
+
 assertArrayEquals() {
     local varName="${1}"
     local expected=("${@:2}")
@@ -207,9 +217,31 @@ printPath() {
     fi
 }
 
+addRayvnProject() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    assertDirectory "${projectRoot}"
+    _rayvnProjects[${projectName}${_projectRootSuffix}]="${projectRoot}"
+    _rayvnProjects[${projectName}${_libraryRootSuffix}]="${projectRoot}/lib"
+}
+
+requireAndAssertFailureContains() {
+    local library="${1}"
+    local expected="${2}"
+    unset _requireFailure 2> /dev/null
+    declare -g _rayvnRequireFailHandler='_captureRequireFailure'
+    require "${library}"
+    assertVarContains _requireFailure "${expected}"
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_test() {
     require 'rayvn/core'
+}
+
+_captureRequireFailure() {
+    declare -g _requireFailure="${1}"
+    unset _rayvnRequireFailHandler
 }
 

@@ -30,7 +30,7 @@ usage() {
 
 main() {
     init "${@}"
-    ${command} "${args[@]}"
+    ${command} "${args[*]}"
     echo
 }
 
@@ -224,7 +224,7 @@ releaseProject() {
 
 runTests() {
     if (( flags['help'] )); then
-        echo "rayvn test [PROJECT]"
+        echo "rayvn test [PROJECT] [TEST-NAME]"
     else
         require 'rayvn/spinner'
         local testLogDir="$(configDirPath tests)" || fail
@@ -301,13 +301,13 @@ getFunctions() {
 
 forEachProject() {              # TODO: this pattern is a pain. Replace with getProjects()
     local command="${1}"
-    local args=("${@:2}")
+    local arguments=("${@:2}")
     local projectRoot
     for project in "${!_rayvnProjects[@]}"; do
         if [[ "${project}" == *"::project"  ]]; then
             project="${project%::project}"
             projectRoot="${_rayvnProjects[${project}::project]}"
-            "${command}" "${project}" "${projectRoot}" "${args}"
+            "${command}" "${project}" "${projectRoot}" "${arguments}"
         fi
     done
 }
@@ -315,14 +315,14 @@ forEachProject() {              # TODO: this pattern is a pain. Replace with get
 forEachLibrary() {              # TODO: this pattern is a pain. Replace with getLibraries() with optional project filter.
     local project="${1}"
     local command="${2}"
-    local args=("${@:3}")
+    local arguments=("${@:3}")
     local libraryRoot="${_rayvnProjects[${project}::library]}"
     [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
     for file in "${libraryRoot}"/*.sh; do
         [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
         local fileName="$(basename "${file}")"
         local library="${fileName%.*}"
-        "${command}" "${project}" "${library}" "${file}" "${args}"
+        "${command}" "${project}" "${library}" "${file}" "${arguments}"
     done
 }
 
@@ -345,15 +345,30 @@ runProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
+    local testName testFile descriptor
+
     if [[ -d "${testDir}" ]]; then
         pushd "${testDir}" &> /dev/null
-        local testFiles=(test-*.sh)
+        local testFiles=()
+        if (( ${#args[@]} > 0 )); then
+            for testName in "${args[@]}"; do
+                testFile="test-${testName}.sh"
+                [[ -f "${testFile}" ]] && testFiles+=("${testFile}")
+            done
+            descriptor="matching "
+        else
+            testFiles=(test-*.sh)
+        fi
         popd &> /dev/null
-        sortArrayLongestFirst testFiles
-        declare -i maxLength=$(( $? -8 ))
-        for testFile in "${testFiles[@]}"; do
-            runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength}
-        done
+        if (( ${#testFiles[@]} > 0 )); then
+            sortArrayLongestFirst testFiles
+            declare -i maxLength=$(( $? -8 ))
+            for testFile in "${testFiles[@]}"; do
+                runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength}
+            done
+        else
+            echo "$(ansi bold ${project}) (no ${descriptor}tests found)"
+        fi
     else
         echo "$(ansi bold ${project}) (no tests)"
     fi
