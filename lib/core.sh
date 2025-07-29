@@ -463,7 +463,7 @@ _init_rayvn_core() {
 _restoreTerminal() {
     if ((terminalSupportsAnsi)); then
         stty sane
-        printf '\e[?25h' # Show cursor in case sane does not
+        printf '\e[0K\e[?25h' # Clear to end of line and show cursor in case sane does not
     fi
 }
 
