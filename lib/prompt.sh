@@ -30,7 +30,7 @@ choose() {
     local key i
     local selected=
 
-    prepare() {
+    _prepare() {
         _prepareHint ' ' 'use arrows to move'
         _preparePrompt "${prompt}" ${timeout} ${reserve}
         cursorHide
@@ -38,7 +38,7 @@ choose() {
         (( _cursorRow++ )) # adjust for echo
     }
 
-    paint() {
+    _paint() {
         cursorTo ${_cursorRow} 0
         for (( i=0; i <= max; i++ )); do
             if (( i == current)); then
@@ -49,26 +49,26 @@ choose() {
         done
     }
 
-    up() {
+    _up() {
         if (( current == 0 )); then
             current=${max}
         else
             (( current-- ))
         fi
-        paint
+        _paint
     }
 
-    down() {
+    _down() {
         if (( current == ${max} )); then
             current=0
         else
             (( current++ ))
         fi
-        paint
+        _paint
     }
 
-    pick() {
-        paint
+    _pick() {
+        _paint
         stty cbreak -echo
         while true; do
             if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
@@ -84,12 +84,12 @@ choose() {
 
                         if _readPromptEscapeSequence key; then
                             case "${key}" in
-                                'u') up ;;   # up arrow
-                                'd') down ;; # down arrow
-                                 *) ;;       # ignore others
+                                'u') _up ;;   # up arrow
+                                'd') _down ;; # down arrow
+                                 *) ;;        # ignore others
                             esac
                         else
-                            finalize 1 # ESC
+                            _finalize 1 # ESC
                             return 1
                         fi
                         ;;
@@ -100,13 +100,13 @@ choose() {
             fi
 
             if _hasPromptTimerExpired; then
-                finalize 1
+                _finalize 1
                 return 1
             fi
         done
     }
 
-    finalize() {
+    _finalize() {
         local failed="${1}"
 
         # Clear choices
@@ -124,9 +124,9 @@ choose() {
 
     # Run it
 
-    prepare
-    pick || return 1
-    finalize 0
+    _prepare
+    _pick || return 1
+    _finalize 0
     return 0
 }
 
@@ -135,17 +135,38 @@ confirm() {
     local answerOne="${2}"
     local answerTwo="${3}"
     local -n resultRef="${4}"
-    local timeout="${5:-30}"
-    _prepareHint ' ' "${answerOne}/${answerTwo}"
+    local timeout="${6:-30}"
+    local defaultAnswer=
+    local returnOnEmpty=''
+
+    if [[ ${answerOne} == *'=default' ]]; then
+        answerOne="${answerOne%=default}"
+        defaultAnswer=${answerOne}
+        _overwriteHint=0
+        returnOnEmpty=true
+        _hint=" ${_ansi_hint}[${_ansi_hint_selected}${answerOne}${_ansi_hint_normal}/${answerTwo}]${ansi_normal}"
+    elif [[ ${answerTwo} == *'=default' ]]; then
+        answerTwo="${answerTwo%=default}"
+        defaultAnswer=${answerTwo}
+        _overwriteHint=0
+        returnOnEmpty=true
+        _hint=" ${_ansi_hint}[${answerOne}/${_ansi_hint_selected}${answerTwo}${_ansi_hint_normal}]${ansi_normal}"
+    else
+        _prepareHint ' ' "${answerOne}/${answerTwo}"
+    fi
+
     _preparePrompt "${prompt}" ${timeout} 3
 
     while true; do
-        if _readPromptInput false; then
+        if _readPromptInput false ${returnOnEmpty}; then
 
             local result="${_userInput,,}"
-            debug "confirm answer: ${_userInput}"
             if [[ ${result} == "${answerOne,,}" || ${result} == "${answerTwo,,}" ]]; then
                 resultRef="${result}"
+                return 0
+            elif [[ -n ${defaultAnswer} && ${result} == '' ]]; then
+                _finalizePrompt defaultAnswer cyan
+                resultRef="${defaultAnswer}"
                 return 0
             else
 
@@ -169,6 +190,9 @@ _init_rayvn_prompt() {
 }
 
 declare -gr _questionPrefix="${ansi_bold_green}?${ansi_normal} "
+declare -gr _ansi_hint="${ansi_italic}${ansi_dim}"
+declare -gr _ansi_hint_normal="${ansi_normal}${_ansi_hint}"
+declare -gr _ansi_hint_selected="${ansi_normal}${ansi_italic}${ansi_cyan}"
 declare -gr _promptPrefix="${ansi_bold_blue}>${ansi_normal} "
 declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
 declare -gr _cancelledMsgEmpty='cancelled (no input)'
@@ -192,7 +216,7 @@ _prepareHint() {
     local initialSpace="${1}"
     local hint="${2}"
     _overwriteHint="${3:0}"
-    _hint="${initialSpace}${ansi_dim}${ansi_italic}[${hint}]${ansi_normal}"
+    _hint="${initialSpace}${_ansi_hint}[${hint}]${ansi_normal}"
 }
 
 _preparePrompt() {
@@ -226,6 +250,7 @@ _hasPromptTimerExpired() {
 
 _readPromptInput() {
     local cancelOnEmpty=${1}
+    local returnOnEmpty="${2:-''}"
     local key esc
     stty cbreak -echo # turn off buffering and input echo
     _userInput=
@@ -240,6 +265,8 @@ _readPromptInput() {
                     if [[ ${cancelOnEmpty} == true ]]; then
                         _finalizePrompt _cancelledMsgEmpty red
                         return 1
+                    elif [[ ${returnOnEmpty} == true ]]; then
+                        return 0
                     fi
                     # ignore
                 else
