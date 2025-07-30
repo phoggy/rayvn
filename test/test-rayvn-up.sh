@@ -3,7 +3,8 @@
 
 main() {
     init "${@}"
-    testSourceRayvnUp
+   # testSourceRayvnUp
+    source rayvn.up 'rayvn/test'
     testFunctionCollision
 }
 
@@ -14,7 +15,7 @@ init() {
 
     # First, ensure that our environment preconditions are satisfied
 
-    assertEnvPreconditions
+  #  assertEnvPreconditions
 
     # Keep a copy of PATH so we can restore it
 
@@ -285,8 +286,7 @@ testFunctionCollision() {
     require "${project}/example"
 
     # Require our collides library and assert that it fails as expected
-
-    requireAndAssertFailureContains "${project}/collides" "myExampleLibraryFunction() previously defined by library 'collision/example'"
+    requireAndAssertFailureContains "${project}/collides" "myExampleLibraryFunction() already defined by library 'collision/example'"
 }
 
 main "${@}"

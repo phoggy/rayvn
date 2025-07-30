@@ -43,24 +43,28 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN rayvn.up PRIVATE ⚠
 _loadRayvnLibrary() { # note: relies on local vars set by caller
     local initFunction="_init_${projectName}_${libraryName}"
     local loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
-    local sourceOut sourceFailed
+    local sourceOut
     local -A newFunctions functionName hasInitFunction=0
 
-    (( _loadLibraryDepth++ ))
+    (( _loadLibraryDepth++ ))  # ;trace "loading '${qualifiedName}' [depth ${_loadLibraryDepth}]"
 
- #trace "loading ${qualifiedName} [depth ${_loadLibraryDepth}]"
-    # Load the library, capturing output so that we can process any error.
+    # Load the library, capturing any output. Many of the errors that can occur here will NOT return an
+    # error code, as they are considered definition-time errors rather than command execution failures, so
+    # here we treat any output as an error. This means that libraries that execute code on load *and* print
+    # anything will fail. They should not execute code on load, that is what the init function is for.
 
-    sourceOut=${ source "${libraryFile}" 2>&1; sourceFailed=$?; }
-    if (( sourceFailed )); then
+    sourceOut=${ source "${libraryFile}" 2>&1; }
+
+    if [[ -n ${sourceOut} ]]; then
         local reason=": ${sourceOut}"
         if [[ "${sourceOut}" =~ ([a-zA-Z_][a-zA-Z0-9_]*):[[:space:]]*readonly[[:space:]]+function ]]; then
             local functionName="${BASH_REMATCH[1]}"
             local source=${_rayvnFunctionSources[${functionName}]}
             if [[ ${source} != '' ]]; then
-                reason=": ${ansi_italic}${functionName}() previously defined by library '${source}'"
+                reason=": ${ansi_italic}${functionName}() already defined by library '${source}'"
             fi
         fi
+        # TODO: improve this?
         ${failed} "failed to load rayvn shared library '${qualifiedName}'${reason}"
 
     else
@@ -74,13 +78,12 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         # Process them
 
-        for functionName in ${!newFunctions[@]}; do
+        for functionName in "${!newFunctions[@]}"; do
             _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
             if [[ ${functionName} == "${initFunction}" ]]; then
                 hasInitFunction=1
             else
-trace "    setting ${qualifiedName} function readonly: ${functionName}"
-                declare -fr "${functionName}"
+                declare -rf "${functionName}"
             fi
         done
 
@@ -88,7 +91,7 @@ trace "    setting ${qualifiedName} function readonly: ${functionName}"
 
         if (( hasInitFunction )); then
             ${initFunction} || ${failed} "${initFunction}() failed"
-            unset _rayvnFunctionSources["${initFunction}"]
+            unset "_rayvnFunctionSources[${initFunction}]"
             unset -f "${initFunction}" || fail
         fi
 
@@ -182,7 +185,8 @@ configure() {
     declare -ga _rayvnUpUnsetIds=()
     declare -g _required=()
     declare -g _loadLibraryDepth=0
-    declare -gx currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+    declare -gx currentProjectName
+    currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
     local projects=() split=() project key
 
     # Init tracing if traceOut is set
@@ -202,7 +206,7 @@ configure() {
     # This is important when this file is sourced using a file path.
 
     local rayvnUpBinary="${BASH_SOURCE[0]}"
-    rayvnUpBinary="${ realpath ${rayvnUpBinary}/..; }"
+    rayvnUpBinary="${ realpath "${rayvnUpBinary}/.."; }"
     addProject rayvn "${ dirname "${rayvnUpBinary}"; }"
 
     # Unless requested, ensure that 'rayvn/core' is loaded first
@@ -262,16 +266,12 @@ configure() {
     _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _rayvnUpUnsetIds _required)
 
     # Collect all of our temporary functions in a map so we can ignore them when core is loaded: we do not want them
-    # to become owned or readonly.
-    #
-    # Remove all of them from the initial set of sources since they will be unset.
+    # to become owned or readonly. Remove all of them from the initial set of sources since they will be unset.
 
     for key in "${rayvnUpTemporaryFunctions[@]}"; do
         _ignoreRayvnUpFunctions["${key}"]=1
-        unset _rayvnFunctionSources[${key}]
+        unset "_rayvnFunctionSources[${key}]"
     done
-
-#    trace "Configuration completed"
 }
 
 addRoot() {
@@ -293,7 +293,8 @@ addRoot() {
 addProjectFromExecutable() {
     local projectName="${1}"
     local executable="${2}"
-    local path="${ type -p "${executable}"; }" || fail "'${executable}' not found for project '${projectName}'"
+    local path
+    path="${ type -p "${executable}"; }" || fail "'${executable}' not found for project '${projectName}'"
     path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
     projectRoot="${ dirname "${path}"; }/.."
     addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
@@ -302,7 +303,7 @@ addProjectFromExecutable() {
 addProject() {
     local projectName="${1}"
     local projectRoot="${2}"
-#trace "ADDING PROJECT: ${projectName} @ ${projectRoot}"
+
     # Add project root
 
     if [[ -d ${projectRoot} ]]; then
