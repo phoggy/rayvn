@@ -120,8 +120,10 @@ debugJson() {
 }
 
 debugStack() {
-    _debugEcho
-    printStack >&3
+    if (( _debug )); then
+        _debugEcho
+        printStack >&3
+    fi
 }
 
 debugEnvironment() {
