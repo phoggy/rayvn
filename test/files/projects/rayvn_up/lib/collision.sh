@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-myExampleLibraryFunction () {
+testMainLibraryFunction () {
     echo "SHOULD COLLIDE"
 }
 

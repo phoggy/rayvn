@@ -225,6 +225,12 @@ addRayvnProject() {
     _rayvnProjects[${projectName}${_libraryRootSuffix}]="${projectRoot}/lib"
 }
 
+removeRayvnProject() {
+    local projectName="${1}"
+    unset "_rayvnProjects[${projectName}${_projectRootSuffix}]"
+    unset "_rayvnProjects[${projectName}${_libraryRootSuffix}]"
+}
+
 requireAndAssertFailureContains() {
     local library="${1}"
     local expected="${2}"

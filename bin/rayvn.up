@@ -264,7 +264,9 @@ configure() {
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 
     local rayvnUpTemporaryFunctions=(configure addRoot addProjectFromExecutable addProject)
-    _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _rayvnUpUnsetIds _required)
+    _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _required)
+    [[ -v _rayvnUpKeepUnsetIds ]] || _rayvnUpUnsetIds+=(_rayvnUpUnsetIds) # keep this only if test requests
+
 
     # Collect all of our temporary functions in a map so we can ignore them when core is loaded: we do not want them
     # to become owned or readonly. Remove all of them from the initial set of sources since they will be unset.
@@ -321,7 +323,7 @@ addProject() {
     fi
 }
 
-# Configure, require specified libraries, then remove all temp functions and vars
+# Configure, require specified libraries, then remove all temp functions and vars.
 
 configure "${@}"
 require "${_required[@]}"

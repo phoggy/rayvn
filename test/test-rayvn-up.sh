@@ -3,9 +3,9 @@
 
 main() {
     init "${@}"
-   # testSourceRayvnUp
-    source rayvn.up 'rayvn/test'
-    testFunctionCollision
+    testSourceRayvnUp # MUST be first test
+    testLibraryFunctionCollision
+    testLibrarySyntaxError
 }
 
 init() {
@@ -15,7 +15,11 @@ init() {
 
     # First, ensure that our environment preconditions are satisfied
 
-  #  assertEnvPreconditions
+    assertEnvPreconditions
+
+    # Tell rayvn.up up not to unset _rayvnUpUnsetIds
+
+    _rayvnUpKeepUnsetIds=true
 
     # Keep a copy of PATH so we can restore it
 
@@ -212,6 +216,10 @@ testSourceRayvnUp() {
     declare -gx _doNotForceRayvnCore=1
     source rayvn.up &> /dev/null || _failed 'source rayvn.up failed'
 
+    # Ensure that all of the rayvn.up temporary functions and vars no longer exist
+
+    assertRayvnUpTempFunctionsAndVarsAreNotDefined
+
     # Check that it set the expected vars and functions
 
     _assertFunctionIsDefined require
@@ -272,21 +280,41 @@ testSourceRayvnUp() {
     export PATH="${origPath}"
 }
 
-testFunctionCollision() {
-    local testProjectsDir="${rayvnHome}/test/files/projects"
-    local project="collision"
-    local projectRoot="${testProjectsDir}/${project}"
+assertRayvnUpTempFunctionsAndVarsAreNotDefined() {
+    _assertVarIsDefined _rayvnUpUnsetIds
+    for identifier in "${_rayvnUpUnsetIds[@]}"; do
+        # Since we don't know if identifier was a function or a var, test for both
+        _assertFunctionIsNotDefined "${identifier}"
+        _assertVarIsNotDefined "${identifier}"
+    done
 
-    # Add project
+}
 
-    addRayvnProject "${project}" "${projectRoot}"
+testLibraryFunctionCollision() {
+    assertLibraryLoadError "${rayvnHome}" 'collision' "testMainLibraryFunction() already defined by library 'rayvn_up/main'"
+}
 
-    # Load example lib which is expected to succeed.
+testLibrarySyntaxError() {
+    assertLibraryLoadError "${rayvnHome}" 'syntax' "line 3: syntax error near unexpected token \`{}'"
+}
 
-    require "${project}/example"
+assertLibraryLoadError() {
+    local projectHomeDir="${1}"
+    local libraryName="${2}"
+    local expectedError="${3}"
+    local project="rayvn_up"
+    local testProjectsDir="${projectHomeDir}/test/files/projects"
 
-    # Require our collides library and assert that it fails as expected
-    requireAndAssertFailureContains "${project}/collides" "myExampleLibraryFunction() already defined by library 'collision/example'"
+    # If we haven't loaded main yet, do it
+
+    if [[ -z "${_rayvnProjects["${project}::project"]}" ]]; then
+        addRayvnProject "${project}" "${testProjectsDir}/${project}"
+        require "${project}/main"
+    fi
+
+    # Require our 'collides; library and assert that it fails as expected
+
+    requireAndAssertFailureContains "${project}/${libraryName}" "${expectedError}"
 }
 
 main "${@}"
