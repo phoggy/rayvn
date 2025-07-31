@@ -47,7 +47,7 @@ doSomething() {
     echo "🌱 $(ansi bold_yellow doSomething here!) 🌱 "
 }
 
-source rayvn.up --add 'function_collision' 'rayvn/core' 'function_collision/example'
+source rayvn.up --add 'rayvn_up' 'rayvn/core' 'function_collision/example'
 
 main "${@}"
 
