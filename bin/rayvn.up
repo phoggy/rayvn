@@ -43,15 +43,15 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN rayvn.up PRIVATE ⚠
 _loadRayvnLibrary() { # note: relies on local vars set by caller
     local initFunction="_init_${projectName}_${libraryName}"
     local loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
-    local sourceOut
-    local -A newFunctions functionName hasInitFunction=0
+    local functionName hasInitFunction=0 sourceOut
+    local -A newFunctions
 
     (( _loadLibraryDepth++ ))  # ;trace "loading '${qualifiedName}' [depth ${_loadLibraryDepth}]"
 
     # Load the library, capturing any output. Many of the errors that can occur here will NOT return an
     # error code, as they are considered definition-time errors rather than command execution failures, so
     # here we treat any output as an error. This means that libraries that execute code on load *and* print
-    # anything will fail. They should not execute code on load, that is what the init function is for.
+    # anything will fail. Output from the init function will not fail.
 
     sourceOut=${ source "${libraryFile}" 2>&1; }
 
@@ -64,8 +64,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
                 reason=": ${ansi_italic}${functionName}() already defined by library '${source}'"
             fi
         fi
-        # TODO: improve this?
-        ${failed} "failed to load rayvn shared library '${qualifiedName}'${reason}"
+        ${failed} "failed to load shared library '${qualifiedName}'${reason}"
 
     else
         # Add it to our list of sources
@@ -89,13 +88,13 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         # If we found an init function, invoke (which may recurse) and remove it.
 
-        if (( hasInitFunction )); then
+        if ((hasInitFunction)); then
             ${initFunction} || ${failed} "${initFunction}() failed"
             unset "_rayvnFunctionSources[${initFunction}]"
             unset -f "${initFunction}" || fail
         fi
 
-        (( _loadLibraryDepth-- ))
+        ((_loadLibraryDepth--))
     fi
 }
 
@@ -120,7 +119,10 @@ TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTION
 
 # --- These functions will be REPLACED when rayvn/core is loaded -----------------------------------
 
-fail() { printStack "${*}"; exit 1; }
+fail() {
+    printStack "${*}"
+    exit 1
+}
 
 # And so will this one
 
@@ -171,7 +173,7 @@ traceInit() {
     fi
 }
 
-# --- All the following will be UNSET once configuration completes --------------------------------
+# --- All the following will be UNSET once configuration completes, *before* any libraries are loaded --------
 
 # bashsupport disable=BP3002
 configure() {
@@ -235,16 +237,15 @@ configure() {
 
     declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
 
-    # Instead of enforcing library namespaces, we just mark all functions in each library as readonly to prevent
-    # collisions. This is far from perfect, but is reasonable for now given the very small expected user base.
+    # Instead of enforcing library namespaces, we set all functions in each library as readonly to prevent
+    # collisions. This is not truly scalable, but is reasonable for now given the very small expected user base.
     #
     # We also label each function with its source, using a map. The map enables identifying new functions after
-    # sourcing a library, and only new functions are set to readonly. In addition, when loading rayvn/core, we
-    # need to avoid setting temporary functions as readonly.
+    # sourcing a library, and only new functions are set to readonly.
     #
     # First, prepare the initial set of function sources, which are a combination of the initial environment,
     # the project that invoked us AND rayvn.up. We can't (quickly) distinguish the env from the project,
-    # so we just lump them together/
+    # so we just lump them together.
 
     # Collect all existing functions and assign as the project source.
 
@@ -254,11 +255,11 @@ configure() {
     # Now replace with known sources: our persistent and replaced functions plus the debug API
 
     _rayvnFunctionSources+=([require]='rayvn.up' [_loadRayvnLibrary]='rayvn.up' [_collectUnknownFunctionNames]='rayvn.up'
-                            [fail]='rayvn/core' [printStack]='rayvn/core'
-                            [debug]='rayvn/debug' [debugEnabled]='rayvn/debug' [debugDir]='rayvn/debug' [debugStatus]='rayvn/debug'
-                            [debugBinary]='rayvn/debug' [debugVars]='rayvn/debug' [debugVarIsSet]='rayvn/debug'
-                            [debugVarIsNotSet]='rayvn/debug' [debugFile]='rayvn/debug' [debugJson]='rayvn/debug'
-                            [debugStack]='rayvn/debug' [debugEnvironment]='rayvn/debug' [debug]='rayvn/debug')
+        [fail]='rayvn/core' [printStack]='rayvn/core'
+        [debug]='rayvn/debug' [debugEnabled]='rayvn/debug' [debugDir]='rayvn/debug' [debugStatus]='rayvn/debug'
+        [debugBinary]='rayvn/debug' [debugVars]='rayvn/debug' [debugVarIsSet]='rayvn/debug' [debugVarIsNotSet]='rayvn/debug'
+        [debugFile]='rayvn/debug' [debugJson]='rayvn/debug' [debugStack]='rayvn/debug' [debugEnvironment]='rayvn/debug'
+        [debug]='rayvn/debug')
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 
