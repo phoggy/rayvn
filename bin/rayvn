@@ -499,7 +499,7 @@ createProject() {
     confirm "Create new GitHub repo?" y n answer
     if [[ "${answer}" == "y" ]]; then
         if ! gh auth status --active &> /dev/null; then
-            read -p "Need to authenticate. Do you have a GitHub account? (y/n) " answer
+            confirm "Need to authenticate. Do you have a GitHub account?" y n answer
             if [[ "${answer}" == "y" ]]; then
                 gh auth login || exit
             else

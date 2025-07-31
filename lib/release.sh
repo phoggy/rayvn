@@ -43,7 +43,7 @@ release () {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_release() {
-    require 'rayvn/core'
+    require 'rayvn/prompt'
 
     # Setup rayvn-central/homebrew_tap repo for project formula publication
 
@@ -69,12 +69,13 @@ _checkExistingRelease() {
     local ghRepo="${1}"
     local version="${2}"
     local versionTag="v${version}"
+    local answer
     _printHeader "Checking if release ${versionTag} already exists"
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
-        read -p "Release ${versionTag} exists. Delete it? (y/n) " response
-        if [[ "${response}" == "y" ]]; then
+        confirm "Release ${versionTag} exists. Delete it? " y n answer
+        if [[ "${answer}" == "y" ]]; then
             _deleteRelease ${version} || fail
             releaseDeleted=true
         fi
