@@ -433,7 +433,7 @@ runTest() {
 
                     # Log vars if in debug mode
 
-                 #   debugVars removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
+                 #   debugVar removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
 
                     # Don't add an empty line at exit
 
@@ -496,10 +496,10 @@ createProject() {
 
     declare -i createdRepo=0
     local answer
-    confirm "Create new GitHub repo?" y n answer
+    confirm "Create new GitHub repo?" y n answer || bye
     if [[ "${answer}" == "y" ]]; then
         if ! gh auth status --active &> /dev/null; then
-            confirm "Need to authenticate. Do you have a GitHub account?" y n answer
+            confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
             if [[ "${answer}" == "y" ]]; then
                 gh auth login || exit
             else
