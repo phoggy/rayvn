@@ -54,7 +54,7 @@ debugBinary() {
     fi
 }
 
-debugVars() {
+debugVar() {
     if (( _debug )); then
         _debugEchoNoNewline
         declare -p "${@}" >&3 2> /dev/null;
@@ -152,7 +152,7 @@ _init_rayvn_debug() {
 
     # Make our public functions readonly since rayvn.up treats these as a special case.
 
-    declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
+    declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVar debugVarIsSet debugVarIsNotSet \
                 debugFile debugJson debugStack debugEnvironment
 }
 

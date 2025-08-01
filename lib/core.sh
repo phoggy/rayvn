@@ -335,7 +335,7 @@ debugEnabled() { return 1; }
 debugDir() { :; }
 debugStatus() { echo 'debug disabled'; }
 debugBinary() { :; }
-debugVars() { :; }
+debugVar() { :; }
 debugVarIsSet() { :; }
 debugVarIsNotSet() { :; }
 debugFile() { :; }
