@@ -4,6 +4,12 @@
 # Library of user input functions.
 # Intended for use via: require 'rayvn/prompt'
 
+# Read user input.
+#
+# Usage: request <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds]
+# Output: resultVar set to input.
+# Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user cancelled (ESC pressed)
+
 request() {
     local prompt="${1}"
     local -n resultRef="${2}"
@@ -15,9 +21,15 @@ request() {
         resultRef="${_userInput}"
         return 0
     else
-        return 1
+        return $?
     fi
 }
+
+# Choose from a list of options, using the arrow keys.
+#
+# Usage: choose <prompt> <choiceIndexVarName>  <timeout seconds> choice0 choice1 ... choiceN
+# Output: choiceIndexVar set to index of selected choice.
+# Exit codes: 0 = success, 124 = timeout, 130 = user cancelled (ESC pressed)
 
 choose() {
     local prompt="${1}"
@@ -130,6 +142,14 @@ choose() {
     return 0
 }
 
+# Request that the user confirm one of two choices. By default, the user must type one of the two
+# answers. If one of the answers should be considered a default when only the <enter> key is pressed,
+# that answer should have '=default' appended to it (e.g. yes=default).
+#
+# Usage: choose <prompt> <answerOne> <answerTwo> <choiceVarName> [timeout seconds]
+# Output: choiceVar set to chosen answer.
+# Exit codes: 0 = success, 124 = timeout, 130 = user cancelled (ESC pressed)
+
 confirm() {
     local prompt="${1}"
     local answerOne="${2}"
@@ -198,6 +218,9 @@ declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
 declare -gr _cancelledMsgEmpty='cancelled (no input)'
 declare -gr _cancelledMsgEsc='cancelled (escape)'
 declare -gr _cancelledMsgTimeout='cancelled (timeout)'
+declare -gr _canceledOnEmpty=1
+declare -gr _canceledOnTimeout=124
+declare -gr _canceledOnEsc=130
 
 # Shared global state (safe since bash is single threaded!).
 # Only valid during execution of public functions.
@@ -232,7 +255,6 @@ _preparePrompt() {
     _timeoutSeconds=${timeout}
     _timeoutCheckCount=0
     _userInput=
-    (())
     SECONDS=0 # Reset bash seconds counter
 }
 
@@ -245,7 +267,7 @@ _hasPromptTimerExpired() {
         fi
         _timeoutCheckCount=0
     fi
-    return 1
+    return ${_canceledOnTimeout}
 }
 
 _readPromptInput() {
@@ -264,7 +286,7 @@ _readPromptInput() {
                 if [[ -z "${_userInput// /}" ]]; then
                     if [[ ${cancelOnEmpty} == true ]]; then
                         _finalizePrompt _cancelledMsgEmpty red
-                        return 1
+                        return ${_canceledOnEmpty}
                     elif [[ ${returnOnEmpty} == true ]]; then
                         return 0
                     fi
@@ -281,7 +303,7 @@ _readPromptInput() {
                 fi
                 ;;
             $'\e') # Escape
-                _readPromptEscapeSequence esc || return 1
+                _readPromptEscapeSequence esc || return ${_canceledOnEsc}
                 ;;
             *)
                 if [[ "${key}" =~ [[:print:]] ]]; then
@@ -292,7 +314,7 @@ _readPromptInput() {
             esac
         fi
 
-        _hasPromptTimerExpired && return 1
+        _hasPromptTimerExpired && return ${_canceledOnTimeout}
 
     done
 }
