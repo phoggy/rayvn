@@ -74,7 +74,7 @@ _checkExistingRelease() {
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
-        confirm "Release ${versionTag} exists. Delete it? " y n answer
+        confirm "Release ${versionTag} exists. Delete it? " y n answer || bye
         if [[ "${answer}" == "y" ]]; then
             _deleteRelease ${version} || fail
             releaseDeleted=true
@@ -144,7 +144,6 @@ _deleteRelease() {
     _printHeader "Deleting release ${versionTag}"
 
     gh release delete ${versionTag} --cleanup-tag || fail "failed to delete release ${versionTag}"
-    #  -y, --yes           Skip the confirmation prompt
 }
 
 _updateFormula() {
