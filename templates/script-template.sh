@@ -47,7 +47,7 @@ doSomething() {
     echo "🌱 $(ansi bold_yellow doSomething here!) 🌱 "
 }
 
-source rayvn.up --add ${quotedName} 'rayvn/core' ${qualifiedName}
+source rayvn.up --add ${quotedName} 'rayvn/core' ${qualifiedName} || exit
 
 main "${@}"
 
