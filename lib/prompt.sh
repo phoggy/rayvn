@@ -102,7 +102,7 @@ choose() {
                             esac
                         else
                             _finalize 1 # ESC
-                            return 1
+                            return ${_canceledOnEsc}
                         fi
                         ;;
 
@@ -113,7 +113,7 @@ choose() {
 
             if _hasPromptTimerExpired; then
                 _finalize 1
-                return 1
+                return ${_canceledOnTimeout}
             fi
         done
     }
@@ -137,7 +137,7 @@ choose() {
     # Run it
 
     _prepare
-    _pick || return 1
+    _pick || return $?
     _finalize 0
     return 0
 }
@@ -198,7 +198,7 @@ confirm() {
               #  continue
             fi
         else
-            return 1
+            return $?
         fi
     done
 }
