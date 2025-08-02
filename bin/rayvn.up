@@ -328,6 +328,7 @@ addProject() {
 configure "${@}"
 require "${_required[@]}"
 unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
+return 0
 
 
 
