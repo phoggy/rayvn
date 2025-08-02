@@ -85,7 +85,8 @@ ensureDir() {
 
 makeDir() {
     local dir="${1}"
-    [[ -z ${2:-} ]] && dir="${1}/${2}"
+    local subDir="${2:-}"
+    [[ -z ${subDir} ]] || dir="${dir}/${subDir}"
     mkdir -p "${dir}" || fail "could not create directory ${dir}"
     echo "${dir}"
 }
