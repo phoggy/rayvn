@@ -480,7 +480,8 @@ sortArrayLongestFirst() {
 createProject() {
     [[ "${name}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || fail "sorry, '${name}' is not a valid bash identifier"
     [[ -n ${gitRoot} ]] && fail "${PWD} is within an existing project/git repo"
-    local projectRoot="${PWD}/${name}"
+    local projectName="${name}"
+    local projectRoot="${PWD}/${projectName}"
     assertFileDoesNotExist "${projectRoot}"
     local binDir="${projectRoot}/bin"
     local libDir="${projectRoot}/lib"
@@ -489,15 +490,15 @@ createProject() {
     local libraryTemplate="${templateDir}/library-template.sh"
 
     echo
-    echo "$(ansi bold Creating project "'${name}'" in) $(ansi blue "'${PWD}'")"
+    echo "$(ansi bold Creating project "'${projectName}'" in) $(ansi blue "'${PWD}'")"
     echo
 
-    require 'rayvn/prompt'
+    require 'rayvn/prompt' 'rayvn/central'
 
     declare -i createdRepo=0
-    local answer
-    confirm "Create new GitHub repo?" y n answer || bye
-    if [[ "${answer}" == "y" ]]; then
+    local answer formulaFile repoUrl
+    confirm "Create new GitHub repo '${projectName}'?" yes=default no answer || bye
+    if [[ "${answer}" == "yes" ]]; then
         if ! gh auth status --active &> /dev/null; then
             confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
             if [[ "${answer}" == "y" ]]; then
@@ -506,9 +507,11 @@ createProject() {
                 bye "Please go to https://github.com/ and create an account first."
             fi
         fi
-        gh repo create "${name}" --add-readme --private --clone || fail
-        createdRepo=1
+        gh repo create "${projectName}" --add-readme --private --clone || fail
         cd "${projectRoot}" || fail
+        repoUrl="${ git remote get-url origin; }"
+        initNewProjectFormulaInRayvnCentral "${projectName}" formulaFile
+        createdRepo=1
     else
         makeDir "${projectRoot}" > /dev/null
         cd "${projectRoot}" || fail
@@ -519,9 +522,8 @@ createProject() {
 
     # Ok, directories are ready, copy and substitute files
 
-    local projectName="${name}"
-    local quotedName="'${name}'"
-    local qualifiedName="'${name}/example'"
+    local quotedName="'${projectName}'"
+    local qualifiedName="'${projectName}/example'"
     local rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
     local libraryCall='myExampleLibraryFunction'
     local libraryName="example"
@@ -529,29 +531,49 @@ createProject() {
 
     substituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
     substituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
-    substituteVars "${scriptTemplate}" "./bin/${name}" quotedName qualifiedName libraryCall || fail
-    chmod +x "./bin/${name}" || fail
+    substituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
+    chmod +x "./bin/${projectName}" || fail
 
     # Add and commit
 
     git add --all
     git commit -m "initial commit"
 
-    # And push if we created the repo
+    # Did we create the repo?
 
     if (( createdRepo )); then
+
+        # Yes, so we push the changes
+
         git push -u origin main || fail
+
+        # Now, generate the formula file and push it
+
+        _createAndPushFormula
+
         echo "New project files pushed."
         echo
     else
         echo
         echo "$(ansi bold Once you create a repo on GitHub, use the following commands to push it):"
         echo
-        echo "   git remote add origin https://github.com/YOUR_USER_NAME/${name}.git"
+        echo "   TODO: create a 'rayvn save-project' command, using initNewProjectFormulaInRayvnCentral + the following;"
+        echo "   cd ${projectRoot}"
+        echo "   git remote add origin https://github.com/YOUR_USER_NAME/${projectName}.git"
         echo "   git push -u origin main"
+        echo
         echo
     fi
     remindIfNotInPath "${binDir}"
+}
+
+_createAndPushFormula() {
+    local formulaTemplate="${templateDir}/formula-template.rb"
+    # vars set in caller
+    local projectNameInitialCap="${projectName^}"
+
+    substituteVars "${formulaTemplate}" "${formulaFile}" projectNameInitialCap repoUrl projectName || fail
+    commitAndPushFormulaToRayvnCentral "${projectName}" "claim project name '${projectName}'"
 }
 
 remindIfNotInPath() {
@@ -595,9 +617,10 @@ createLibrary() {
 
     local quotedName="'${projectName}'"
     local qualifiedName="'${projectName}/${name}'"
-    local libraryName="${name^}"
+    local libraryName="${name}"
+    local libraryNameInitialCap="${name^}"
 
-    substituteVars "${templateFile}" "${libraryFile}" quotedName qualifiedName projectName name libraryName || fail
+    substituteVars "${templateFile}" "${libraryFile}" projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
 
     git add "${libraryFile}" || fail
 
