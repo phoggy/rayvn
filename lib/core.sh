@@ -153,6 +153,15 @@ assertFileDoesNotExist() {
     [[ -e "${1}" ]] && assertionFailed "${1} already exists"
 }
 
+assertPathWithinDirectory() {
+    local filePath=${1}
+    local dirPath=${2}
+    local absoluteFile absoluteDir
+    absoluteFile=${ realpath "${filePath}" 2>/dev/null; } || fail
+    absoluteDir=${ realpath "${dirPath}" 2>/dev/null; } || fail
+    [[ "${absoluteFile}" == ${absoluteDir}/* ]] || assertionFailed "${filePath} is not within ${dirPath}"
+}
+
 assertValidFileName() {
     local name="${1}"
 

@@ -15,6 +15,7 @@ usage() {
     echo "    functions         List public functions."
     echo "    test              Run tests."
     echo "    dependencies      Assert that dependencies are satisfied."
+    echo "    register          Register a project."
     echo "    release           Create a new release."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified."
@@ -46,13 +47,14 @@ init() {
     # process arguments
 
     case "${1}" in
-        new | create) parseArgs create "${@:2}" ;;
-        test) parseArgs runTests "${@:2}" ;;
-        projects) parseArgs listProjects "${@:2}" ;;
-        libraries) parseArgs listLibraries "${@:2}" ;;
-        functions) parseArgs listFunctions "${@:2}" ;;
-        dependencies) parseArgs projectDependencies "${@:2}" ;;
-        release) parseArgs releaseProject "${@:2}" ;;
+        new | create) parseArgs false create "${@:2}" ;;
+        test) parseArgs true runTests "${@:2}" ;;
+        projects) parseArgs true listProjects "${@:2}" ;;
+        libraries) parseArgs true listLibraries "${@:2}" ;;
+        functions) parseArgs true listFunctions "${@:2}" ;;
+        dependencies) parseArgs true projectDependencies "${@:2}" ;;
+        register) parseArgs false registerProject "${@:2}" ;;
+        release) parseArgs true releaseProject "${@:2}" ;;
         -v) printVersion; exit 0 ;;
         --version) printVersion true; exit 0 ;;
         -h | --help | help) command='usage' ;;
@@ -70,8 +72,9 @@ init() {
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
 
 parseArgs() {
-    command="${1}"
-    shift
+    local add="${1}"
+    command="${2}"
+    shift; shift
     while (( ${#} > 0 )); do
         case "${1}" in
             -h | --help) flags+=(['help']=1) ;;
@@ -83,7 +86,11 @@ parseArgs() {
             --debug-tty) shift; debugOptions="tty ${1}" ;;
             --repo) shift; gitHubRepo="${1}";;
             -*) args+=("${1}") ;;
-            *) addIfRayvnExecutable "${1}" || args+=("${1}") ;;
+            *)  if [[ ${add} == true ]]; then
+                addIfRayvnExecutable "${1}" || args+=("${1}")
+            else
+                args+=("${1}")
+            fi ;;
         esac
         shift
     done
@@ -187,6 +194,23 @@ projectDependencies() {
         fi
     fi
 }
+
+registerProject() {
+    if (( flags['help'] )); then
+        echo "rayvn register PROJECT [--remove] "
+    else
+        require 'rayvn/central'
+        local projectName=${args[0]}
+        [[ -n ${projectName} ]] || fail "project name required"
+        local projectUrl repoName
+        projectUrl="${ git remote get-url origin; }" || fail
+        projectUrl="${projectUrl%.git}"
+        repoName=${ baseName ${projectUrl}; }
+        [[ ${projectName} == "${repoName}" ]]
+        registerProjectOnRayvnCentral "${projectName}" || fail
+    fi
+}
+
 
 releaseProject() {
     if (( flags['help'] )); then
@@ -497,7 +521,7 @@ createProject() {
 
     declare -i createdRepo=0
     local answer formulaFile repoUrl
-    confirm "Create new GitHub repo '${projectName}'?" yes=default no answer || bye
+    confirm "Create new GitHub repo for project '${projectName}'?" yes=default no answer || bye
     if [[ "${answer}" == "yes" ]]; then
         if ! gh auth status --active &> /dev/null; then
             confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
@@ -510,7 +534,7 @@ createProject() {
         gh repo create "${projectName}" --add-readme --private --clone || fail
         cd "${projectRoot}" || fail
         repoUrl="${ git remote get-url origin; }"
-        initNewProjectFormulaInRayvnCentral "${projectName}" formulaFile
+        registerProjectOnRayvnCentral "${projectName}" || fail
         createdRepo=1
     else
         makeDir "${projectRoot}" > /dev/null
@@ -546,11 +570,6 @@ createProject() {
         # Yes, so we push the changes
 
         git push -u origin main || fail
-
-        # Now, generate the formula file and push it
-
-        _createAndPushFormula
-
         echo "New project files pushed."
         echo
     else
