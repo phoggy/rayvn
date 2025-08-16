@@ -4,7 +4,7 @@
 # Intended for use via: require 'rayvn/central'
 
 registerProjectOnRayvnCentral() {
-    local registryFile entryFile projectUrl registeredDate
+    local registryFile entryFile projectUrl registeredDate title issueUrl
     local projectName="${1}"
     [[ -n ${projectName} ]] || fail "project name required"
     registryFile="${ getProjectRegistryPath ${projectName}; }"
@@ -43,7 +43,6 @@ registerProjectOnRayvnCentral() {
         echo
         echo "projectName=${projectName}"
         echo "projectUrl=${projectUrl}"
-        echo "projectName=${projectName}"
         echo "projectRegisteredDate='${registeredDate}'"
 
     ) > ${entryFile}
@@ -52,7 +51,9 @@ registerProjectOnRayvnCentral() {
 
     (
         cd "${_rayvnCentralRegistryRepoDir}" || fail
-        gh issue create --title "REGISTRATION REQUEST: project '${projectName}'" --body-file "${entryFile}" || fail
+        title="REGISTRATION REQUEST: project '${projectName}'"
+        issueUrl=${ gh issue create --title "${title}" --body-file "${entryFile}" | grep github.com; } || fail
+        echo "${ ansi bold Track your registration request here; }: ${ ansi blue "${issueUrl}"; }"
     )
 }
 
