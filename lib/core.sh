@@ -157,8 +157,8 @@ assertPathWithinDirectory() {
     local filePath=${1}
     local dirPath=${2}
     local absoluteFile absoluteDir
-    absoluteFile=${ realpath "${filePath}" 2>/dev/null; } || fail
-    absoluteDir=${ realpath "${dirPath}" 2>/dev/null; } || fail
+    absoluteFile=${ realpath "${filePath}" 2>/dev/null;} || fail
+    absoluteDir=${ realpath "${dirPath}" 2>/dev/null;} || fail
     [[ "${absoluteFile}" == ${absoluteDir}/* ]] || assertionFailed "${filePath} is not within ${dirPath}"
 }
 
@@ -233,10 +233,108 @@ secureEraseVars() {
     done
 }
 
+# New invocation model:         echo "${ ansi bold Some bold text!; }"
+# TODO explore costs of a more flexible model, e.g. nesting (from my Helidon code)?
 ansi() {
     local color="ansi_${1}"
     shift
     ((terminalSupportsAnsi)) && echo -ne "${!color}${*}${ansi_normal}" || echo -ne "${*}"
+}
+
+
+# TODO load dynamically!
+
+_theme_colors=( $'\e[38;2;52;208;88m'
+                $'\e[38;2;215;58;73m'
+                $'\e[38;2;251;188;5m'
+                $'\e[38;2;13;122;219m'
+                $'\e[38;2;138;43;226m'
+                $'\e[38;2;139;148;158m')
+
+declare -grAx formats=(
+
+    # None
+
+    ['body']=$'\e[0m'
+    ['plain']=$'\e[0m'
+    ['normal']=$'\e[0m'
+    ['reset']=$'\e[0m'
+
+    # Theme
+
+    ['success']=${_theme_colors[0]}
+    ['error']=${_theme_colors[1]}
+    ['warning']=${_theme_colors[2]}
+    ['info']=${_theme_colors[3]}
+    ['accent']=${_theme_colors[4]}
+    ['muted']=${_theme_colors[5]}
+
+    # Variants
+
+    ['bold']=$'\e[1m'
+    ['dim']=$'\e[2m'
+    ['italic']=$'\e[3m'
+    ['underline']=$'\e[4m'
+    ['blink']=$'\e[5m'
+    ['reverse']=$'\e[7m'
+    ['strikethrough']=$'\e[9m'
+
+    # Basic Colors
+
+    ['black']=$'\e[30m'
+    ['red']=$'\e[31m'
+    ['green']=$'\e[32m'
+    ['yellow']=$'\e[33m'
+    ['blue']=$'\e[34m'
+    ['magenta']=$'\e[35m'
+    ['cyan']=$'\e[36m'
+    ['white']=$'\e[37m'
+    ['bright-black']=$'\e[90m'
+    ['bright-red']=$'\e[91m'
+    ['bright-green']=$'\e[92m'
+    ['bright-yellow']=$'\e[93m'
+    ['bright-blue']=$'\e[94m'
+    ['bright-magenta']=$'\e[95m'
+    ['bright-cyan']=$'\e[96m'
+    ['bright-white']=$'\e[97m'
+)
+
+declare -grx resetWithNewline=$'\e[0m\n'
+declare -grx resetWithoutNewline=$'\e[0m'
+
+# TODO document
+echo() {
+    if (( ${#} == 0 )); then
+        builtin echo
+    else
+        local arg end format
+        if [[ ${1} == -* ]]; then
+            case ${1} in
+                -n)  arg='-n';  end=${resetWithoutNewline}; shift ;;
+                -ne) arg='-ne'; end=${resetWithoutNewline}; shift  ;;
+                -en) arg='-ne'; end=${resetWithoutNewline}; shift ;;
+                -nE) arg='-nE'; end=${resetWithoutNewline}; shift ;;
+                -En) arg='-nE'; end=${resetWithoutNewline}; shift ;;
+                -e)  arg='-e'; end=${resetWithNewline}; shift ;;
+                -E)  arg='-E'; end=${resetWithNewline}; shift ;;
+           #     [0-9]*) (( ${1} >= 0 && ${1} <= 256 )) && { format=$"\e[38;5;${1}m"; shift; } ;;
+                 *)  arg='-n'; end=${resetWithNewline} ;;
+            esac
+        else
+            arg='-n'; end=${resetWithNewline}
+        fi
+    # builtin echo "arg: ${arg} format=${format} text=${*}, end=${end}"
+
+        if [[ -v formats[${1}] ]]; then
+            format+=${formats[${1}]}; shift
+            while [[ -v formats[${1}] ]]; do
+                format+=${formats[${1}]}; shift
+            done
+            builtin echo ${arg} "${format}${*}${end}"
+        else
+            builtin echo ${arg} "${*}${end}"
+        fi
+    fi
 }
 
 printRepeat() {
@@ -357,7 +455,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE
 
 _init_rayvn_core() {
 
-    (( _rayvnCoreInitialized )) && return 0 # Should not occur, but... just in case
+    ((_rayvnCoreInitialized)) && return 0 # Should not occur, but... just in case
 
     # Setup exit handling
 
@@ -403,6 +501,16 @@ _init_rayvn_core() {
     if ((terminalSupportsAnsi)); then
 
         # Set ANSI colors if terminal supports them
+
+        # TODO theme
+        # See themes.sh showColor() and showFormatting
+        # and the colors, bgColors, formats hash tables.
+        #
+        # Note that there are 16 colors, not 8, because bright versions
+        # are included!
+        #
+        # Also, note that show256Colors() shows how to map the 16 colors
+        # to RGB: "\e[48;5;${i}m  %3d  \e[0m", where i = 0-15
 
         if (($(tput colors) >= 8)); then
             declare -grx ansi_normal="$(tput sgr0)"
