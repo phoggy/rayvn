@@ -22,8 +22,12 @@
 #    muted (gray variants)
 #    accent (purple/pink variants)
 #
-# May need to update category names to better reflect usage. May also want to expand the set,
-# and, if so, upload this script to Claude and use this prompt:
+# MUST support a fallback to basic colors for terminals that don't support RGB!!!
+#
+#  MUST SEE: https://htmlcolorcodes.com/color-chart/  Material Design!! Maybe Flat.
+#
+#
+# May also want to expand the set of category names, and, if so, upload this script to Claude and use this prompt:
 #
 #    I'm a retired software engineer working on a bash hobby project.
 #    I prefer lower camelCase for function names and variables and braces for bash variables.
@@ -34,6 +38,7 @@
 #
 
 
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_themes() {
@@ -41,7 +46,7 @@ _init_rayvn_themes() {
     warn "'rayvn/themes' is NOT YET FUNCTIONAL AS A LIBRARY, ONLY AN EXECUTABLE!" # TODO
 }
 
-# Global list of all available themes (dark:light pairs)
+# Global list of all available themes (displayName:darkThemeVarName:lightThemeVarName)
 
 declare -a allThemes=(
     "Vibrant:themeVibrant:themeVibrantLight"
@@ -75,6 +80,11 @@ declare -a allThemes=(
     "Pastel:themePastel:themePastelLight"
     "Earth:themeEarth:themeEarthLight"
 )
+
+# Color names
+
+#declare -a themeColors=(success error warning info muted accent)  # Original order.
+declare -a themeColors=(info muted accent warning error success)
 
 # Themes for dark backgrounds
 
@@ -627,7 +637,10 @@ declare -A themeEarthLight=(
 # Terminal Colors Display Script
 # Shows all available terminal colors and formatting options
 
-# Color codes
+declare -a basic8Colors=(black red green yellow blue magenta cyan white)
+declare -a basic16Colors=(black brightBlack red brightRed green brightGreen yellow brightYellow \
+                         blue brightBlue magenta brightMagenta cyan brightCyan white brightWhite)
+# Foreground color codes
 declare -A colors=(
     ["black"]="30"
     ["red"]="31"
@@ -668,7 +681,7 @@ declare -A bgColors=(
 )
 
 # Text formatting codes
-declare -A formats=(
+declare -A prntFormats=(
     ["reset"]="0"
     ["bold"]="1"
     ["dim"]="2"
@@ -679,6 +692,7 @@ declare -A formats=(
     ["strikethrough"]="9"
 )
 
+
 # Function to display color
 showColor() {
     local code="${1}"
@@ -688,7 +702,8 @@ showColor() {
     if [[ -n "${bgCode}" ]]; then
         printf "\e[${code};${bgCode}m${text}\e[0m"
     else
-        printf "\e[${code}m${text}\e[0m"
+#       printf "\e[${code}m${text}\e[0m"
+        echo -ne "\e[${code}m${text}\e[0m"
     fi
 }
 
@@ -791,8 +806,8 @@ showFormatting() {
     echo "Text Formatting Options:"
     echo
 
-    for format in "${!formats[@]}"; do
-        local code="${formats[${format}]}"
+    for format in "${!prntFormats[@]}"; do
+        local code="${prntFormats[${format}]}"
         printf "%-15s (ESC[%sm): " "${format}" "${code}"
         showColor "${code}" "Sample text with ${format} formatting" ""
         echo
@@ -806,21 +821,21 @@ showCombinations() {
 
     # Header
     printf "%12s" ""
-    for bg in black red green yellow blue magenta cyan white; do
+    for bg in "${basic8Colors[@]}"; do
         printf "%8s" "${bg}"
     done
     echo
 
     # Color combinations
-    for fgName in "${!colors[@]}"; do
-        if [[ "${fgName}" =~ ^bright ]]; then
-            continue  # Skip bright colors for this demo
-        fi
+    for fgName in "${basic8Colors[@]}"; do
+   #     if [[ "${fgName}" =~ ^bright ]]; then
+    #        continue  # Skip bright colors for this demo
+     #   fi
 
         local fgCode="${colors[${fgName}]}"
         printf "%12s" "${fgName}"
 
-        for bgName in black red green yellow blue magenta cyan white; do
+        for bgName in "${basic8Colors[@]}"; do
             local bgCode="${bgColors[${bgName}]}"
             printf " "
             showColor "${fgCode}" " Text " "${bgCode}"
@@ -1136,13 +1151,13 @@ displayTheme() {
     echo "=== ${themeName} Theme (${bgType} background) ==="
     echo
 
-    for colorName in success error warning info muted accent; do
-        if [[ -n "${theme[${colorName}]}" ]]; then
-            local color=(${theme[${colorName}]})
+    for color in "${themeColors[@]}"; do
+        if [[ -n "${theme[${color}]}" ]]; then
+            local color=(${theme[${color}]})
 
-            printf "%-10s " "${colorName}:"
+            printf "%-10s " "${color}:"
             printf "${color}●●●●●\e[0m "
-            printf "${color}Sample text with ${colorName} color\e[0m"
+            printf "${color}Sample text with ${color} color\e[0m"
             echo
         fi
     done
@@ -1181,11 +1196,14 @@ showThemeExamples() {
     fi
 
     echo "Total themes available: ${#allThemes[@]}"
-    echo "To see both light and dark versions, use: ${0} themes-compare"
+#    echo "To see both light and dark versions, use: ${0} themes-compare"
 }
 
 # Function to show theme comparison
 showThemeComparison() {
+    echo "not working!"
+    exit
+
     echo "=== Color Theme Comparison (Dark vs Light Backgrounds) ==="
     echo
 
@@ -1200,9 +1218,9 @@ showThemeComparison() {
 
         # Find the maximum width needed for the part before RGB
         local maxWidth=0
-        for colorName in success error warning info muted accent; do
-            # Calculate width: "colorName:   ●●●●● Sample colorName"
-            local width=$((10 + 1 + 5 + 1 + 6 + 1 + ${#colorName}))
+        for color in "${themeColors[@]}"; do
+            # Calculate width: "themeColor:   ●●●●● Sample themeColor"
+            local width=$((10 + 1 + 5 + 1 + 6 + 1 + ${#color}))
             if (( width > maxWidth )); then
                 maxWidth=${width}
             fi
@@ -1215,25 +1233,26 @@ showThemeComparison() {
         echo "$(printf '─%.0s' $(seq 1 $((rgbColumnStart + 20))))$(printf '─%.0s' $(seq 1 $((rgbColumnStart + 20))))"
 
         # Display each color with aligned RGB column
-        for colorName in success error warning info muted accent; do
+        for color in "${themeColors[@]}"; do
             # Use indirect reference to get dark theme colors
-            local darkColorVar="${darkThemeRef}[${colorName}]"
-            local darkRgb=(${!darkColorVar})
-            local darkR=${darkRgb[0]} darkG=${darkRgb[1]} darkB=${darkRgb[2]}
+            local darkColor="${darkThemeRef}[${color}]"
+#            local darkRgb=(${!darkColorVar})
+#            local darkR=${darkRgb[0]} darkG=${darkRgb[1]} darkB=${darkRgb[2]}
 
             # Use indirect reference to get light theme colors
-            local lightColorVar="${lightThemeRef}[${colorName}]"
-            local lightRgb=(${!lightColorVar})
-            local lightR=${lightRgb[0]} lightG=${lightRgb[1]} lightB=${lightRgb[2]}
+            local lightColor="${lightThemeRef}[${color}]"
+#           local lightRgb=(${!lightColorVar})
+#           local lightR=${lightRgb[0]} lightG=${lightRgb[1]} lightB=${lightRgb[2]}
 
             # Build the colored part before RGB for dark
             local darkPart
-            darkPart=$(printf "%-10s \e[38;2;%d;%d;%dm●●●●●\e[0m \e[38;2;%d;%d;%dmSample %s\e[0m" \
-                "${colorName}:" ${darkR} ${darkG} ${darkB} ${darkR} ${darkG} ${darkB} "${colorName}")
+#            darkPart=$(printf "%-10s \e[38;2;%d;%d;%dm●●●●●\e[0m \e[38;2;%d;%d;%dmSample %s\e[0m" \
+#            "${themeColor}:" ${darkR} ${darkG} ${darkB} ${darkR} ${darkG} ${darkB} "${themeColor}")
+            darkPart=$(printf "%-10s %s●●●●●\e[0m %sSample %s\e[0m" "${color}:" "${darkColor}" ${darkColor}" ${color}")
 
             # Calculate the actual display width (without ANSI codes)
             local darkPlainPart
-            darkPlainPart=$(printf "%-10s ●●●●● Sample %s" "${colorName}:" "${colorName}")
+            darkPlainPart=$(printf "%-10s ●●●●● Sample %s" "${color}:" "${color}")
             local darkPartWidth=${#darkPlainPart}
 
             # Calculate spaces needed to reach RGB column
@@ -1245,12 +1264,13 @@ showThemeComparison() {
 
             # Build the colored part before RGB for light
             local lightPart
-            lightPart=$(printf "%-10s \e[38;2;%d;%d;%dm●●●●●\e[0m \e[38;2;%d;%d;%dmSample %s\e[0m" \
-                "${colorName}:" ${lightR} ${lightG} ${lightB} ${lightR} ${lightG} ${lightB} "${colorName}")
+#            lightPart=$(printf "%-10s \e[38;2;%d;%d;%dm●●●●●\e[0m \e[38;2;%d;%d;%dmSample %s\e[0m" \
+#              "${themeColor}:" ${lightR} ${lightG} ${lightB} ${lightR} ${lightG} ${lightB} "${themeColor}")
+            lightPart=$(printf "%-10s %s●●●●●\e[0m %sSample %s\e[0m" "${color}:" "${lightColor}" ${lightColor}" ${color}")
 
             # Light version uses same spacing calculation
             local lightPlainPart
-            lightPlainPart=$(printf "%-10s ●●●●● Sample %s" "${colorName}:" "${colorName}")
+            lightPlainPart=$(printf "%-10s ●●●●● Sample %s" "${color}:" "${color}")
             local lightPartWidth=${#lightPlainPart}
             local lightSpaces=$((rgbColumnStart - lightPartWidth))
 
@@ -1351,9 +1371,9 @@ main() {
             echo "=== Basic 16 Colors ==="
             echo
             echo "Foreground Colors:"
-            for colorName in "${!colors[@]}"; do
-                local code="${colors[${colorName}]}"
-                colorBar "${code}" "${colorName}"
+            for color in "${basic16Colors[@]}"; do
+                local code="${colors[${color}]}"
+                colorBar "${code}" "${color}"
             done
             echo
             testCapabilities
@@ -1416,7 +1436,9 @@ main() {
             showThemeExamples
             ;;
         "themes-compare")
-            showThemeComparison
+            #showThemeComparison
+            echo "theme comparison not working"
+            exit
             ;;
         "examples")
             showExamples
@@ -1428,9 +1450,9 @@ main() {
 
             echo "=== Basic 16 Colors ==="
             echo
-            for colorName in "${!colors[@]}"; do
-                local code="${colors[${colorName}]}"
-                colorBar "${code}" "${colorName}"
+            for color in "${basic16Colors[@]}"; do
+                local code="${colors[${color}]}"
+                colorBar "${code}" "${color}"
             done
             echo
 
