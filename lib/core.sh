@@ -335,7 +335,7 @@ declare -grAx formats=(
 #
 echo() {
     # Fast path: plain text with no formatting or options
-    if (( $# > 0 )) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
+    if (( $# )) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
         builtin echo "${@}"
         return
     fi
@@ -349,7 +349,7 @@ echo() {
     while [[ -v formats[${1}] ]]; do
         format+=${formats[${1}]}; shift
     done
-    (( $# > 0 )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options} ${text}
+    (( $# )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options} ${text}
 }
 
 
