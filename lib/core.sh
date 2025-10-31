@@ -334,53 +334,24 @@ declare -grAx formats=(
 #   - Format keywords are consumed as formats, not printed as text unless no text follows the keywords
 #
 echo() {
+    # Fast path: plain text with no formatting or options
+    if (( $# > 0 )) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
+        builtin echo "${@}"
+        return
+    fi
+
+    # Standard path: handle formatting
     local options='' format=''
     while (( $# )) && [[ ${1} == -* ]]; do
         options=${options:+${options} }${1}; shift
     done
-    local text="${*}"
+    local text="${*}"  # Capture in case there is no remaining text
     while [[ -v formats[${1}] ]]; do
         format+=${formats[${1}]}; shift
     done
-    [[ -n ${*} ]] && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options} ${text}
+    (( $# > 0 )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options} ${text}
 }
 
-    #    declare -grx resetWithNewline=$'\e[0m\n'
-#    declare -grx resetWithoutNewline=$'\e[0m'
-
-#echo() {
-#    if (( ${#} == 0 )); then
-#        builtin echo
-#    else
-#        local arg end format
-#        if [[ ${1} == -* ]]; then
-#            case ${1} in
-#            -n)  arg='-n';  end=${resetWithoutNewline}; shift ;;
-#            -ne) arg='-ne'; end=${resetWithoutNewline}; shift  ;;
-#            -en) arg='-ne'; end=${resetWithoutNewline}; shift ;;
-#            -nE) arg='-nE'; end=${resetWithoutNewline}; shift ;;
-#            -En) arg='-nE'; end=${resetWithoutNewline}; shift ;;
-#            -e)  arg='-e'; end=${resetWithNewline}; shift ;;
-#            -E)  arg='-E'; end=${resetWithNewline}; shift ;;
-#            #     [0-9]*) (( ${1} >= 0 && ${1} <= 256 )) && { format=$"\e[38;5;${1}m"; shift; } ;;
-#            *)  arg='-n'; end=${resetWithNewline} ;;
-#            esac
-#        else
-#            arg='-n'; end=${resetWithNewline}
-#        fi
-#        # builtin echo "arg: ${arg} format=${format} text=${*}, end=${end}"
-#
-#        if [[ -v formats[${1}] ]]; then
-#            format+=${formats[${1}]}; shift
-#            while [[ -v formats[${1}] ]]; do
-#                format+=${formats[${1}]}; shift
-#            done
-#            builtin echo ${arg} "${format}${*}${end}"
-#        else
-#            builtin echo ${arg} "${*}${end}"
-#        fi
-#    fi
-#}
 
 printRepeat() {
     local msg="${1}"
