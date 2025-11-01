@@ -352,6 +352,34 @@ echo() {
     (( $# )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options} ${text}
 }
 
+# styled echo where format keywords can be at any position
+# use an array to collect and emit
+# TODO: call 'glow'?
+emit() {
+    if (( ! $# )); then
+        builtin echo
+    elif [[ ${1} == -* ]]; then
+        local options=${1}; shift
+        while (( $# )) && [[ ${1} == -* ]]; do
+            options="${options} ${1}"; shift
+        done
+    fi
+    local in=("${@}")
+    local inLength=${#in[@]}
+    local out=()
+    local outIndex=0
+    local i token
+    for (( i=0; i < ${inLength}; i++ )); do
+        token=${in[${i}]}
+        if [[ -v formats[${token}] ]]; then
+            out[${outIndex}]+=${formats[${token}]}
+        else
+            out[${outIndex}]+=${token}
+            (( outIndex++ ))
+        fi
+    done
+    builtin echo ${options} "${out[*]}"$'\e[0m'
+}
 
 printRepeat() {
     local msg="${1}"
