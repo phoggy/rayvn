@@ -333,12 +333,12 @@ declare -grAx formats=(
 #
 echo() {
     # Fast path: plain text with no formatting or options
-    if (($#)) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
+    if (( $# )) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
         builtin echo "${@}"
         return
     fi
 
-    # Standard path: handle formatting
+    # Standard path: handle options & formatting
     local options='' format=''
     while (($#)) && [[ ${1} == -* ]]; do
         options=${options:+${options} }${1}
@@ -348,7 +348,7 @@ echo() {
         format+=${formats[${1}]}
         shift
     done
-    (($#)) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options}
+    (( $# )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options}
 }
 
 # Same as echo but formats can be used at any argument position. Also supports 256 color codes
@@ -360,23 +360,21 @@ echo() {
 #    show 62 "256 color #62"
 #
 show() {
-    if ((!$#)); then
+    if (( ! $# )); then
         builtin echo
         return
     fi
 
     local options=''
     if [[ ${1} == -* ]]; then
-        options=${1}
-        shift
+        options=${1}; shift
         while (($#)) && [[ ${1} == -* ]]; do
-            options="${options} ${1}"
-            shift
+            options="${options} ${1}"; shift
         done
     fi
 
     local output='' currentFormat='' addSpace=0
-    while (($#)); do
+    while (( $# )); do
         if [[ -n ${1} ]]; then
             if [[ -v formats[${1}] ]]; then
                 currentFormat+=${formats[${1}]}
@@ -397,11 +395,12 @@ show() {
 }
 
 printRepeat() {
-    local msg="${1}"
+    local str=${1}
     local count=${2}
-    for ((i = 0; i < ${count}; ++i)); do
-        echo -n "${msg}"
-    done
+    local result
+    printf -v result "%*s" "${count}" ""
+    result=${result// /${str}}
+    builtin echo "${result}"
 }
 
 printVars() {
