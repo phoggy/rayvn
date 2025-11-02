@@ -241,11 +241,10 @@ ansi() {
     ((terminalSupportsAnsi)) && echo -ne "${!color}${*}${ansi_normal}" || echo -ne "${*}"
 }
 
-
 # TODO load from ~/rayvn/theme.sh
 
 _theme_name='Ocean'
-_theme_colors=( $'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
+_theme_colors=($'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
 
 declare -grAx formats=(
 
@@ -309,7 +308,7 @@ declare -grAx formats=(
 #   echo -n yellow "No newline"
 #   echo success "Operation completed"
 #   echo italic underline green "Multiple formats"
-#   echo bold green   # prints "bold green" since no text to format
+#   echo bold green   # only formats so prints nothing
 #
 # AVAILABLE FORMATS:
 #
@@ -331,54 +330,70 @@ declare -grAx formats=(
 #   - Options (-n, -e, -E) must come before format keywords
 #   - Multiple formats can be stacked: echo bold italic blue "text"
 #   - Automatically resets formatting after text to prevent color bleed
-#   - Format keywords are consumed as formats, not printed as text unless no text follows the keywords
 #
 echo() {
     # Fast path: plain text with no formatting or options
-    if (( $# )) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
+    if (($#)) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
         builtin echo "${@}"
         return
     fi
 
     # Standard path: handle formatting
     local options='' format=''
-    while (( $# )) && [[ ${1} == -* ]]; do
-        options=${options:+${options} }${1}; shift
+    while (($#)) && [[ ${1} == -* ]]; do
+        options=${options:+${options} }${1}
+        shift
     done
-    local text="${*}"  # Capture in case there is no remaining text
     while [[ -v formats[${1}] ]]; do
-        format+=${formats[${1}]}; shift
+        format+=${formats[${1}]}
+        shift
     done
-    (( $# )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options} ${text}
+    (($#)) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options}
 }
 
-# styled echo where format keywords can be at any position
-# use an array to collect and emit
-# TODO: call 'glow'?
-emit() {
-    if (( ! $# )); then
+# Same as echo but formats can be used at any argument position. Also supports 256 color codes
+# as decimals in the range 0-255 inclusive. Styles (e.g. bold, italic) continue if followed
+# by a color change or additional styles.
+#
+# EXAMPLES
+#    show "normal text" italic bold blue "italic bold blue text" red "italic bold red" # style continuation
+#    show 62 "256 color #62"
+#
+show() {
+    if ((!$#)); then
         builtin echo
-    elif [[ ${1} == -* ]]; then
-        local options=${1}; shift
-        while (( $# )) && [[ ${1} == -* ]]; do
-            options="${options} ${1}"; shift
+        return
+    fi
+
+    local options=''
+    if [[ ${1} == -* ]]; then
+        options=${1}
+        shift
+        while (($#)) && [[ ${1} == -* ]]; do
+            options="${options} ${1}"
+            shift
         done
     fi
-    local in=("${@}")
-    local inLength=${#in[@]}
-    local out=()
-    local outIndex=0
-    local i token
-    for (( i=0; i < ${inLength}; i++ )); do
-        token=${in[${i}]}
-        if [[ -v formats[${token}] ]]; then
-            out[${outIndex}]+=${formats[${token}]}
-        else
-            out[${outIndex}]+=${token}
-            (( outIndex++ ))
+
+    local output='' currentFormat='' addSpace=0
+    while (($#)); do
+        if [[ -n ${1} ]]; then
+            if [[ -v formats[${1}] ]]; then
+                currentFormat+=${formats[${1}]}
+            elif [[ -z "${1//[0-9]/}" ]] && ((${1} <= 255)); then
+                currentFormat+=$'\033[38;5;'"${1}m" # 256 color
+            else
+                if ((addSpace)); then
+                    output+=' '
+                fi
+                output+=${currentFormat}${1}
+                currentFormat=''
+                addSpace=1
+            fi
         fi
+        shift
     done
-    builtin echo ${options} "${out[*]}"$'\e[0m'
+    builtin echo ${options} "${output}"$'\e[0m'
 }
 
 printRepeat() {
