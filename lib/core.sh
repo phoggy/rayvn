@@ -246,11 +246,19 @@ ansi() {
 _theme_name='Ocean'
 _theme_colors=($'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
 
+# MacOS Terminal Compatibility
+#
+#  Terminal TERM=xterm-color256 COLORTERM=(not set) -> RGB & strikethrough not supported
+#  iTerm2   TERM=xterm-color256 COLORTERM=truecolor -> all supported
+#  Warp     TERM=xterm-color256 COLORTERM=truecolor -> all supported
+#  IntelliJ TERM=xterm-color256 COLORTERM=(not set) -> RGB IS supported, no strikethrough
+
+
 declare -grAx formats=(
 
     # None
 
-    ['body']=$'\e[0m'
+    ['none']=$'\e[0m'
     ['plain']=$'\e[0m'
     ['normal']=$'\e[0m'
     ['reset']=$'\e[0m'
@@ -264,7 +272,7 @@ declare -grAx formats=(
     ['accent']=${_theme_colors[4]}
     ['muted']=${_theme_colors[5]}
 
-    # Variants
+    # Effects on
 
     ['bold']=$'\e[1m'
     ['dim']=$'\e[2m'
@@ -272,7 +280,17 @@ declare -grAx formats=(
     ['underline']=$'\e[4m'
     ['blink']=$'\e[5m'
     ['reverse']=$'\e[7m'
-    ['strikethrough']=$'\e[9m'
+   # often not supported ['strikethrough']=$'\e[9m'
+
+    # Effects off
+
+    ['!bold']=$'\e[22m'
+    ['!dim']=$'\e[22m'
+    ['!italic']=$'\e[23m'
+    ['!underline']=$'\e[24m'
+    ['!blink']=$'\e[25m'
+    ['!reverse']=$'\e[27m'
+    # often not supported ['!strikethrough']=$'\e[29m'
 
     # Basic Colors
 
@@ -352,12 +370,13 @@ echo() {
 }
 
 # Same as echo but formats can be used at any argument position. Also supports 256 color codes
-# as decimals in the range 0-255 inclusive. Styles (e.g. bold, italic) continue if followed
+# as decimals in the range 0-255 inclusive, and RGB colors. Styles (e.g. bold, italic) continue if followed
 # by a color change or additional styles.
 #
 # EXAMPLES
 #    show "normal text" italic bold blue "italic bold blue text" red "italic bold red" # style continuation
 #    show 62 "256 color #62"
+#    show rgb 52:208:88 "rgb 52 208 88 text"
 #
 show() {
     if (( ! $# )); then
@@ -380,6 +399,9 @@ show() {
                 currentFormat+=${formats[${1}]}
             elif [[ -z "${1//[0-9]/}" ]] && ((${1} <= 255)); then
                 currentFormat+=$'\033[38;5;'"${1}m" # 256 color
+            elif [[ ${1} == RGB ]] && (( $# >=2 )); then
+                shift
+                currentFormat+=$'\e[38;2;'"${1//:/;}m"
             else
                 if ((addSpace)); then
                     output+=' '
