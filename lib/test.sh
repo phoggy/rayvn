@@ -240,6 +240,27 @@ requireAndAssertFailureContains() {
     assertVarContains _requireFailure "${expected}"
 }
 
+benchmark() {
+    local functionName=${1}
+    local iterations=${2}
+    local testCase=${3}
+    shift 3
+    local args=("${@}")
+
+    local startTime=${EPOCHREALTIME}
+
+    for (( i=0; i < ${iterations}; i++ )); do
+        ${functionName} "${args[@]}" > /dev/null
+    done
+
+    local endTime=${EPOCHREALTIME}
+    local duration=$(awk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}")
+    local opsPerSec=$(awk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}")
+
+    printf "%-30s %-15s %10d iterations in %8.4f sec (%10s ops/sec)\n" \
+      "${testCase}" "${functionName}" "${iterations}" "${duration}" "${opsPerSec}"
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_test() {
