@@ -53,7 +53,7 @@ registerProjectOnRayvnCentral() {
         cd "${_rayvnCentralRegistryRepoDir}" || fail
         title="REGISTRATION REQUEST: project '${projectName}'"
         issueUrl=${ gh issue create --title "${title}" --body-file "${entryFile}" | grep github.com; } || fail
-        echo "${ ansi bold Track your registration request here; }: ${ ansi blue "${issueUrl}"; }"
+        show bold "Track your registration request here:" blue "${issueUrl}"
     )
 }
 

@@ -26,6 +26,6 @@ _init_${projectName}_${libraryName}() {
 
 # TODO remove/replace me!
 _my${libraryNameInitialCap}PrivateFunction() {
-    echo "$(ansi bold _my${libraryNameInitialCap}PrivateFunction here!)"
+    show bold "_my${libraryNameInitialCap}PrivateFunction here!"
 }
 

@@ -23,18 +23,18 @@ release () {
     _restorePackageFile "${version}" || fail
 
     echo
-    echo "$(ansi bold_blue ${project} ${version} release completed)"
+    show bold blue "${project} ${version} release completed"
     echo
     if [[ ${releaseDeleted} ]]; then
-        echo "$(ansi bold The existing ${version} brew release of ${project} was updated. Please run the following:)"
+        show bold "The existing ${version} brew release of ${project} was updated. Please run the following:"
         echo "brew uninstall ${project} && brew install ${project} && brew test ${project}"
     elif brew list ${project} &> /dev/null; then
-        echo "$(ansi bold The ${version} brew release of ${project} was previously installed. Please run the following:)"
+        show bold "The ${version} brew release of ${project} was previously installed. Please run the following:"
         echo "brew update && brew upgrade ${project} && brew test ${project}"
         echo
         echo "If you get a sha256 mismatch, look for the tar file described as 'Already downloaded', delete it and retry."
     else
-        echo "$(ansi bold The ${project} project is not installed via brew. Please run the following:)"
+        show bold "The ${project} project is not installed via brew. Please run the following:"
         echo "brew install ${project} && brew test ${project}"
     fi
     echo
@@ -369,6 +369,6 @@ _updateBrewFormulaDependencies() {
 
 _printHeader() {
     echo
-    echo "$(ansi bold ${*})"
+    show bold "${*}"
 }
 

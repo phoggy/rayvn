@@ -13,6 +13,6 @@ _init_function_rayvn_up_main() {
 }
 
 _testMainPrivateFunction() {
-    echo "$(ansi bold _testMainPrivateFunction here!)"
+    show bold "_testMainPrivateFunction here!"
 }
 

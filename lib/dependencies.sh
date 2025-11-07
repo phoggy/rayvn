@@ -23,7 +23,7 @@ listProjectDependencies() {
         for projectName in "${projectsArrayRef[@]}"; do
             _collectProjectDependencies "${projectName}" dependencies minVersions
             echo
-            echo "$(ansi bold ${projectName})"
+            show bold "${projectName}"
             echo
             for (( i = 0; i < ${#dependencies[@]}; i++ )); do
                 source="${dependencies[i]}"
@@ -49,7 +49,7 @@ _assertProjectDependencies() {
     local projectName="${1}"
     declare -i quiet="${2:-0}"
     local errMsg
-    (( ! quiet )) && echo -n "Checking $(ansi bold ${projectName}) project dependencies: "
+    (( ! quiet )) && echo -n "Checking ${ show bold "${projectName}" ;} project dependencies: "
 
     # Load project dependencies and assert that all projects referenced in require calls are present
 

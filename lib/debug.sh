@@ -30,12 +30,12 @@ debugStatus() {
         local suffix=
         if [[ -n ${_debugLogFile} ]]; then
             local show=
-            [[ ${_debugShowLogOnExit} ]] && show=" $(ansi dim [show on exit])"
-            suffix="$(ansi bold_blue "${_debugLogFile}")${show}"
+            [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]" ;}"
+            suffix="${ show bold blue "${_debugLogFile}" ;}${show}"
         elif [[ ${_debugOut} == "${terminal}" ]]; then
-            suffix="$(ansi bold_blue terminal)"
+            suffix="${ show bold blue "terminal" ;}"
         else
-            suffix="$(ansi bold_blue ${_debugOut})"
+            suffix="${ show bold blue "${_debugOut}" ;}"
         fi
         echo "${prefix} ${suffix}"
         echo
@@ -66,13 +66,13 @@ debugVarIsSet() {
     if (( _debug )); then
         local var="${1}"
         local prefix="${2}"
-        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
+        [[ ${prefix} ]] && prefix="${ show cyan "${prefix} and" ;} "
         (
-            _debugEchoNoNewline "${prefix}$(ansi blue expect \'${var}\' is set -\>) "
+            _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is set ->" ;} "
             if _varIsSet ${var}; then
                 declare -p ${var}
             else
-                echo "$(ansi red NOT SET!)"
+                show red "NOT SET!"
                 printStack
                 echo
             fi
@@ -84,12 +84,12 @@ debugVarIsNotSet() {
     if (( _debug )); then
         local var="${1}"
         local prefix="${2}"
-        [[ ${prefix} ]] && prefix="$(ansi cyan ${prefix} and) "
+        [[ ${prefix} ]] && prefix="${ show cyan "${prefix} and" ;} "
         (
             local var="${1}"
-            _debugEchoNoNewline "${prefix}$(ansi blue expect \'${var}\' is not set -\>) "
+            _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is not set ->" ;} "
             if _varIsSet ${var}; then
-                echo "$(ansi red=${!var})"
+                show red "=${!var}"
                 printStack
                 echo
             else
@@ -264,7 +264,7 @@ _printDebugLog() {
         {
             local closing
             if (( _debugStartLine > 1 )); then
-                closing="$(ansi italic \(skipped ${_debugStartLine} preexisting lines in \'${_debugLogFile}\'))\n"
+                closing="${ show italic "(skipped ${_debugStartLine} preexisting lines in '${_debugLogFile}')" ;}\n"
             fi
             echo
 
@@ -272,7 +272,7 @@ _printDebugLog() {
 
             (( _debugStartLine++ ))
             startLine="$(tail -n +${_debugStartLine} "${_debugLogFile}" | head -n 1)"
-            echo "$(ansi bold_blue ${startLine})"
+            show bold blue "${startLine}"
 
             # print remaining lines
 
@@ -281,7 +281,7 @@ _printDebugLog() {
 
             # print a closing line
 
-            echo "$(ansi bold_blue ____________________________________________________________________________)"
+            show bold blue "____________________________________________________________________________"
             printf "${closing}\n"
         }
     fi

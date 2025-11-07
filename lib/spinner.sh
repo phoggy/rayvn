@@ -52,7 +52,7 @@ configureSpinner() {
     _spinnerArray=()
     for ((i = 0; i < ${count}; i++)); do
         c="${chars:i:1}"
-        c="$(printf "$(ansi ${color} ${chars:${i}:1})${ansi_normal}")"
+        c="${ show ${color} "${chars:${i}:1}" ;}"
         _spinnerArray[${i}]="${c}"
     done
     _spinnerArraySize=${count}

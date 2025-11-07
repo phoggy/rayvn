@@ -4,9 +4,9 @@
 # shellcheck disable=SC2120
 usage() {
     echo
-    echo "$(ansi bold Manage shared bash libraries and executables)."
+    show bold "Manage shared bash libraries and executables."
     echo
-    echo "Usage: $(ansi bold rayvn) COMMAND [PROJECT] [PROJECT...] <options>"
+    show "Usage:" bold "rayvn" plain "COMMAND [PROJECT] [PROJECT...] <options>"
     echo
     echo "Commands"
     echo
@@ -405,10 +405,10 @@ runProjectTests() {
                 runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength}
             done
         else
-            echo "$(ansi bold ${project}) (no ${descriptor}tests found)"
+            show bold "${project}" plain "(no ${descriptor}tests found)"
         fi
     else
-        echo "$(ansi bold ${project}) (no tests)"
+        show bold "${project}" plain "(no tests)"
     fi
 }
 
@@ -429,7 +429,7 @@ runTest() {
     local testLogFileName="${projectName}-${testName}.log"
     local testLogFile="${testLogDir}/${testLogFileName}"
 
-    local status="$(ansi bold ${projectName}) test $(ansi cyan ${testName})"
+    local status="${ show bold "${projectName}" plain "test" cyan "${testName}" ;}"
     local padLength=$(( ${maxTestNameLength} - ${#testName} ))
 
     echo -n "${status}"
@@ -493,9 +493,9 @@ runTest() {
             stopSpinner
             padSpaces ${padLength}
             if (( ${testResult} == 0 )); then
-                echo " ${_greenCheckMark} $(ansi dim log at ${testLogFile})"
+                show " ${_greenCheckMark}" dim "log at ${testLogFile}"
             else
-                echo " ${_redCrossMark} $(ansi dim log at ${testLogFile})"
+                show " ${_redCrossMark}" dim "log at ${testLogFile}"
             fi
         else
             warn "Skipping ${testFile}: not executable"
@@ -528,7 +528,7 @@ createProject() {
     local libraryTemplate="${templateDir}/library-template.sh"
 
     echo
-    echo "$(ansi bold Creating project "'${projectName}'" in) $(ansi blue "'${PWD}'")"
+    show bold "Creating project '${projectName}' in" blue "'${PWD}'"
     echo
 
     require 'rayvn/prompt' 'rayvn/central'
@@ -588,7 +588,7 @@ createProject() {
         echo
     else
         echo
-        echo "$(ansi bold Once you create a repo on GitHub, use the following commands to push it):"
+        show bold "Once you create a repo on GitHub, use the following commands to push it:"
         echo
         echo "   TODO: create a 'rayvn save-project' command, using initNewProjectFormulaInRayvnCentral + the following;"
         echo "   cd ${projectRoot}"
@@ -612,7 +612,7 @@ _createAndPushFormula() {
 remindIfNotInPath() {
     local binDir="${1}"
     if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
-        echo "Remember to add $(ansi blue ${binDir}) to your PATH."
+        show "Remember to add" blue "${binDir}" plain "to your PATH."
     fi
 }
 
@@ -634,7 +634,7 @@ createScript() {
     chmod +x "${scriptFile}" || fail
     git add "${scriptFile}" || fail
 
-    echo "Created $(ansi blue bin/${name})"
+    show "Created" blue "bin/${name}"
     remindIfNotInPath "${binDir}"
 }
 
@@ -657,7 +657,7 @@ createLibrary() {
 
     git add "${libraryFile}" || fail
 
-    echo "Created $(ansi blue lib/${name}.sh)"
+    show "Created" blue "lib/${name}.sh"
 }
 
 getProjectRoot() {

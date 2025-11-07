@@ -2,9 +2,9 @@
 
 usage() {
     echo
-    echo "$(ansi bold does, uh... $(ansi italic something))."
+    show bold "does, uh..." plain italic "something" plain "."
     echo
-    echo "Usage: $(ansi bold ${scriptName}) <options>"
+    show "Usage:" bold "${scriptName}" plain "<options>"
     echo
     echo "Options:"
     echo
@@ -44,7 +44,7 @@ init() {
 
 # TODO remove me!
 doSomething() {
-    echo "🌱 $(ansi bold_yellow doSomething here!) 🌱 "
+    show "🌱" bold yellow "doSomething here!" plain "🌱"
 }
 
 source rayvn.up --add 'rayvn_up' 'rayvn/core' 'function_collision/example'
