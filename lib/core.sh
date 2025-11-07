@@ -256,12 +256,9 @@ _theme_colors=($'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m'
 
 declare -grAx formats=(
 
-    # None
+    # Turn off previous formats
 
-    ['none']=$'\e[0m'
     ['plain']=$'\e[0m'
-    ['normal']=$'\e[0m'
-    ['reset']=$'\e[0m'
 
     # Theme
 
@@ -312,21 +309,32 @@ declare -grAx formats=(
     ['bright-white']=$'\e[97m'
 )
 
-# Enhanced echo function supporting color and formatting.
+# Enhanced echo function supporting text color and styles along in addition to standard echo
+# options (-n, -e, -E). Formats can appear at any argument position and effect the subsequent
+# arguments until another format occurs. Styles (e.g. bold, italic) continue to subsequent
+# arguments and may need to e reset using the 'plain' format. Any color change takes precedence
+# over a previous color. See examples below.
 #
-# Extends the built-in echo command with named color and text formatting while
-# maintaining full compatibility with standard echo options (-n, -e, -E).
+# Automatically resets formatting to plain after text to prevent color bleed.
 #
 # USAGE:
-#   echo [OPTIONS] [FORMATS...] [TEXT...]
+#   show [-neE] [[FORMAT [FORMAT]...] [TEXT]...]
+#
+# Options:
+#
+#   -n do not append a newline
+#   -e enable interpretation of backslash escapes (see help echo for list)
+#   -E explicitly suppress interpretation of backslash escapes
 #
 # EXAMPLES:
-#   echo blue "This is blue text"
-#   echo bold red "Bold red text"
-#   echo -n yellow "No newline"
-#   echo success "Operation completed"
-#   echo italic underline green "Multiple formats"
-#   echo bold green   # only formats so prints nothing
+#   show blue "This is blue text"
+#   show bold red "Bold red text"
+#   show -n yellow "Yellow text with no newline"
+#   show success "Operation completed"
+#   show italic underline green "Italic underline green text"
+#   show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" plain blue "blue text" # style continuation
+#   show italic 62 "italic 256 color #62 text" plain red "plain red text" # style continuation
+#   show RGB 52:208:88 "rgb 52 208 88 colored text"
 #
 # AVAILABLE FORMATS:
 #
@@ -341,53 +349,25 @@ declare -grAx formats=(
 #     bright-black, bright-red, bright-green, bright-yellow,
 #     bright-blue, bright-magenta, bright-cyan, bright-white
 #
+#   256 Colors:
+#     0-255
+#
+#   RGB Colors ('truecolor':
+#     RGB 0-255 0-255 0-255
+#
 #   Reset:
-#     body, plain, normal, reset
-#
-# NOTES:
-#   - Options (-n, -e, -E) must come before format keywords
-#   - Multiple formats can be stacked: echo bold italic blue "text"
-#   - Automatically resets formatting after text to prevent color bleed
-#
-echo() {
-    # Fast path: plain text with no formatting or options
-    if (( $# )) && [[ ! -v formats[${1}] ]] && [[ ${1} != -* ]]; then
-        builtin echo "${@}"
-        return
-    fi
-
-    # Standard path: handle options & formatting
-    local options='' format=''
-    while (($#)) && [[ ${1} == -* ]]; do
-        options=${options:+${options} }${1}
-        shift
-    done
-    while [[ -v formats[${1}] ]]; do
-        format+=${formats[${1}]}
-        shift
-    done
-    (( $# )) && builtin echo ${options} "${format}${*}"$'\e[0m' || builtin echo ${options}
-}
-
-# Same as echo but formats can be used at any argument position. Also supports 256 color codes
-# as decimals in the range 0-255 inclusive, and RGB colors. Styles (e.g. bold, italic) continue if followed
-# by a color change or additional styles.
-#
-# EXAMPLES
-#    show "normal text" italic bold blue "italic bold blue text" red "italic bold red" # style continuation
-#    show 62 "256 color #62"
-#    show rgb 52:208:88 "rgb 52 208 88 text"
+#     plain
 #
 show() {
     if (( ! $# )); then
-        builtin echo
+        echo
         return
     fi
 
     local options=''
     if [[ ${1} == -* ]]; then
         options=${1}; shift
-        while (($#)) && [[ ${1} == -* ]]; do
+        while (( $# )) && [[ ${1} == -* ]]; do
             options="${options} ${1}"; shift
         done
     fi
@@ -397,11 +377,11 @@ show() {
         if [[ -n ${1} ]]; then
             if [[ -v formats[${1}] ]]; then
                 currentFormat+=${formats[${1}]}
-            elif [[ -z "${1//[0-9]/}" ]] && ((${1} <= 255)); then
-                currentFormat+=$'\033[38;5;'"${1}m" # 256 color
+            elif [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )); then
+                currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
             elif [[ ${1} == RGB ]] && (( $# >=2 )); then
                 shift
-                currentFormat+=$'\e[38;2;'"${1//:/;}m"
+                currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
             else
                 if ((addSpace)); then
                     output+=' '
@@ -413,7 +393,7 @@ show() {
         fi
         shift
     done
-    builtin echo ${options} "${output}"$'\e[0m'
+    echo ${options} "${output}"$'\e[0m'
 }
 
 printRepeat() {
@@ -422,7 +402,7 @@ printRepeat() {
     local result
     printf -v result "%*s" "${count}" ""
     result=${result// /${str}}
-    builtin echo "${result}"
+    echo "${result}"
 }
 
 printVars() {
@@ -447,22 +427,18 @@ print() {
     echo -e "${*}"
 }
 
-printRed() {
-    ansi red "${*}\n"
-}
-
 warn() {
-    ansi yellow "⚠️ ${*}\n" >&2
+    show yellow "⚠️ ${*}" >&2
 }
 
 error() {
-    ansi red "🔺 ${*}\n" >&2
+    show red "🔺 ${*}" >&2
 }
 
 redStream() {
     local error
     while read error; do
-        printRed "${error}"
+        show red "${error}"
     done
 }
 
@@ -472,7 +448,7 @@ printStack() {
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
 
-    [[ -n ${message} ]] && error "${*}\n"
+    [[ -n ${message} ]] && error "${*}"
 
     if ((depth > 2)); then
         [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
@@ -480,11 +456,11 @@ printStack() {
 
     for ((i = start; i < depth; i++)); do
         local function="${FUNCNAME[${i}]}"
-        local line="$(ansi bold_blue ${BASH_LINENO[${i} - 1]})"
-        local arrow="$(ansi cyan -\>)"
+        local line="${ show bold blue "${BASH_LINENO[${i} - 1]}" ;}"
+        local arrow="${ show cyan "->" ;}"
         local called=${FUNCNAME[${i} - 1]}
-        local script="$(ansi dim "${BASH_SOURCE[${i}]}")"
-        ((i == start)) && function="$(ansi red "${function}"\(\))" || function="$(ansi blue "${function}"\(\))"
+        local script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
+        ((i == start)) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
         echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
 }
@@ -500,7 +476,7 @@ fail() {
 }
 
 bye() {
-    [[ ${1} ]] && printRed "${*}"
+    (( $# )) && show red "${*}"
     debugStack
     exit 0
 }
@@ -667,19 +643,19 @@ _restoreTerminal() {
 
 _onRayvnTerm() {
     _restoreTerminal
-    ansi italic_red "🔺 killed\n"
+    show italic red "🔺 killed"
     exit 1
 }
 
 _onRayvnHup() {
     _restoreTerminal
-    ansi italic_red "🔺 killed (SIGHUP)\n"
+    show italic red "🔺 killed (SIGHUP)"
     exit 1
 }
 
 _onRayvnInt() {
     _restoreTerminal
-    ansi italic_red "🔺 exiting (ctrl-c)\n"
+    show italic red "🔺 exiting (ctrl-c)"
     exit 1
 }
 
