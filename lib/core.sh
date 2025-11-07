@@ -310,10 +310,11 @@ declare -grAx formats=(
 )
 
 # Enhanced echo function supporting text color and styles along in addition to standard echo
-# options (-n, -e, -E). Formats can appear at any argument position and effect the subsequent
-# arguments until another format occurs. Styles (e.g. bold, italic) continue to subsequent
-# arguments and may need to e reset using the 'plain' format. Any color change takes precedence
-# over a previous color. See examples below.
+# options (-n, -e, -E). Formats can appear at any argument position and affect the subsequent
+# arguments until another format occurs. Styles accumulate and persist (e.g., bold remains
+# bold across subsequent arguments), while colors replace previous colors. Use 'plain' to
+# reset all formatting. IMPORTANT: When transitioning from colored text to style-only text,
+# use 'plain' first to reset the color, then apply the style. See examples below.
 #
 # Automatically resets formatting to plain after text to prevent color bleed.
 #
@@ -335,6 +336,46 @@ declare -grAx formats=(
 #   show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" plain blue "blue text" # style continuation
 #   show italic 62 "italic 256 color #62 text" plain red "plain red text" # style continuation
 #   show RGB 52:208:88 "rgb 52 208 88 colored text"
+#
+#   # IMPORTANT: Use 'plain' to reset colors BEFORE applying styles-only
+#   show cyan "colored text" plain dim "dim text (no color)"
+#
+#   # Reset after combining color+style before continuing
+#   show bold green "Note" plain "Regular text continues here"
+#
+#   # Transitioning between different color+style combinations
+#   show bold blue "heading" plain "text" italic "emphasis"
+#
+#   # In command substitution (bash 5.3+)
+#   prompt "${ show bold green "Proceed?" ;}" yes no reply
+#
+# COMMON PATTERNS:
+#
+#   Applying color only:
+#     show blue "text"
+#
+#   Applying style only:
+#     show bold "text"
+#
+#   Combining color and style:
+#     show bold blue "text"
+#
+#   Resetting after color/style combination:
+#     show bold green "styled" plain "back to normal"
+#
+#   Transitioning from color to style-only (IMPORTANT):
+#     show cyan "colored" plain dim "dimmed, not colored"
+#     # NOT: show cyan "colored" dim "dimmed" - dim inherits cyan!
+#
+#   Style continuation (styles persist):
+#     show italic "starts italic" blue "still italic, now blue"
+#
+#   Color replacement (colors don't persist):
+#     show blue "blue" red "red (replaces blue)"
+#
+#   In command substitution:
+#     message="${ show bold "text" ;}"
+#     stopSpinner ": ${ show green "success" ;}"
 #
 # AVAILABLE FORMATS:
 #
