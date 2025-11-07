@@ -233,14 +233,6 @@ secureEraseVars() {
     done
 }
 
-# New invocation model:         echo "${ ansi bold Some bold text!; }"
-# TODO explore costs of a more flexible model, e.g. nesting (from my Helidon code)?
-ansi() {
-    local color="ansi_${1}"
-    shift
-    ((terminalSupportsAnsi)) && echo -ne "${!color}${*}${ansi_normal}" || echo -ne "${*}"
-}
-
 # TODO load from ~/rayvn/theme.sh
 
 _theme_name='Ocean'
