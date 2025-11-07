@@ -31,7 +31,7 @@ usage() {
 
 main() {
     init "${@}"
-    ${command} "${args[*]}"
+    ${command} "${args[@]}"
     echo
 }
 
@@ -46,24 +46,31 @@ init() {
 
     # process arguments
 
-    case "${1}" in
-        new | create) parseArgs false create "${@:2}" ;;
-        test) parseArgs true runTests "${@:2}" ;;
-        projects) parseArgs true listProjects "${@:2}" ;;
-        libraries) parseArgs true listLibraries "${@:2}" ;;
-        functions) parseArgs true listFunctions "${@:2}" ;;
-        dependencies) parseArgs true projectDependencies "${@:2}" ;;
-        register) parseArgs false registerProject "${@:2}" ;;
-        release) parseArgs true releaseProject "${@:2}" ;;
-        -v) printVersion; exit 0 ;;
-        --version) printVersion true; exit 0 ;;
-        -h | --help | help) command='usage' ;;
-        -*) command='usage'; args=("Unknown option:" "${1}") ;;
-        *) command='usage'; args=("Unknown command:" "${1}") ;;
-    esac
+    while (( $# )) && [[ -v command ]]; do
+        case "${1}" in
+            new | create) parseArgs false create "${@:2}" ;;
+            test) parseArgs true runTests "${@:2}" ;;
+            projects) parseArgs true listProjects "${@:2}" ;;
+            libraries) parseArgs true listLibraries "${@:2}" ;;
+            functions) parseArgs true listFunctions "${@:2}" ;;
+            dependencies) parseArgs true projectDependencies "${@:2}" ;;
+            register) parseArgs false registerProject "${@:2}" ;;
+            release) parseArgs true releaseProject "${@:2}" ;;
+            --debug) debugOptions='showOnExit' ;;
+            --debug-new) debugOptions='clearLog showOnExit' ;;
+            --debug-out) debugOptions="tty ${terminal}" ;;
+            --debug-tty) shift; debugOptions="tty ${1}" ;;
+            -v) printVersion; exit 0 ;;
+            --version) printVersion true; exit 0 ;;
+            -h | --help | help) command='usage' ;;
+            -*) command='usage'; args=("Unknown option:" "${1}") ;;
+            *) command='usage'; [[ -n ${1} ]] && args=("Unknown command:" "${1}");;
+        esac
+        shift
+    done
 
     # Boot rayvn, adding any additional projects, then load core
-    source rayvn.up ${upOptions[*]} 'rayvn/core'
+    source rayvn.up "${upOptions[@]}" 'rayvn/core'
 
     [[ -n ${command} ]] || usage
     [[ -n ${debugOptions} ]] && setDebug ${debugOptions}
@@ -126,7 +133,7 @@ addProject() {
     local project="${1}"
     projects+=("${projectName}")
     [[ ${projectName} == rayvn ]] && return 0
-    upOptions+=("--add ${project}")
+    upOptions+=("--add" "${project}")
 }
 
 assertSingleProject() {
@@ -289,17 +296,24 @@ listFunctions() {
     local sourceName
     local functions=()
     local function
+    local suffix
     for sourceName in "${_rayvnSources[@]}"; do
         echo
-        echo "${sourceName} functions"
+        show bold "${sourceName} functions"
         echo
         getFunctions functions "${sourceName}"
         functions=($(printf '%s\n' "${functions[@]}" | sort))
         for function in "${functions[@]}"; do
             if declare -pF "${functionName}" 2> /dev/null | grep -q "declare -fr"; then
-                echo "    ${function}"
+                suffix=
             else
-                echo "    ${function} [NOT READONLY!]"
+                suffix="${ show bold red " [NOT READONLY!]" ;}"
+            fi
+
+            if [[ ${function} == _* ]]; then
+                show italic red "    ${function}" "${suffix}"
+            else
+                echo "    ${function}" "${suffix}"
             fi
         done
         functions=()
