@@ -17,6 +17,14 @@ main() {
     testOptions
     testEdgeCases
     testDocumentedPatterns
+    testEscapeCodesBasicStyles
+    testEscapeCodesBasicColors
+    testEscapeCodesBrightColors
+    testEscapeCodes256Colors
+    testEscapeCodesRGBColors
+    testEscapeCodesStyleCombinations
+    testEscapeCodesResets
+    testEscapeCodesComplexPatterns
 
     printSummary
 }
@@ -60,6 +68,30 @@ assertStripped() {
     local actual="${3}"
 
     assert "${testName}" "${expected}" "${ stripAnsi "${actual}"; }"
+}
+
+# Helper to assert exact escape code match
+assertEscapeCodes() {
+    local testName="${1}"
+    local expected="${2}"
+    local actual="${3}"
+
+    (( testCount++ ))
+
+    if [[ ${actual} == ${expected} ]]; then
+        (( passCount++ ))
+        echo "  ✓ ${testName}"
+        return 0
+    else
+        (( failCount++ ))
+        echo "  ✗ ${testName}"
+        echo "    Expected: '${expected}'"
+        echo "    Actual:   '${actual}'"
+        # Show visible representation of escape codes for debugging
+        echo "    Expected (visible): $(echo -n "${expected}" | cat -v)"
+        echo "    Actual (visible):   $(echo -n "${actual}" | cat -v)"
+        return 1
+    fi
 }
 
 testBasicUsage() {
@@ -406,6 +438,334 @@ testDocumentedPatterns() {
     assertStripped "Doc pattern: transitions" "heading text emphasis" "${result}"
 }
 
+testEscapeCodesBasicStyles() {
+    echo ""
+    echo "Testing Basic Style Escape Codes"
+    echo "================================="
+    echo ""
+
+    local result expected
+
+    # Bold: \e[1m
+    result=${ show bold "text"; }
+    expected=$'\e[1m'"text"$'\e[0m'
+    assertEscapeCodes "Bold escape code" "${expected}" "${result}"
+
+    # Dim: \e[2m
+    result=${ show dim "text"; }
+    expected=$'\e[2m'"text"$'\e[0m'
+    assertEscapeCodes "Dim escape code" "${expected}" "${result}"
+
+    # Italic: \e[3m
+    result=${ show italic "text"; }
+    expected=$'\e[3m'"text"$'\e[0m'
+    assertEscapeCodes "Italic escape code" "${expected}" "${result}"
+
+    # Underline: \e[4m
+    result=${ show underline "text"; }
+    expected=$'\e[4m'"text"$'\e[0m'
+    assertEscapeCodes "Underline escape code" "${expected}" "${result}"
+
+    # Blink: \e[5m
+    result=${ show blink "text"; }
+    expected=$'\e[5m'"text"$'\e[0m'
+    assertEscapeCodes "Blink escape code" "${expected}" "${result}"
+
+    # Reverse: \e[7m
+    result=${ show reverse "text"; }
+    expected=$'\e[7m'"text"$'\e[0m'
+    assertEscapeCodes "Reverse escape code" "${expected}" "${result}"
+}
+
+testEscapeCodesBasicColors() {
+    echo ""
+    echo "Testing Basic Color Escape Codes"
+    echo "================================="
+    echo ""
+
+    local result expected
+
+    # Black: \e[30m
+    result=${ show black "text"; }
+    expected=$'\e[30m'"text"$'\e[0m'
+    assertEscapeCodes "Black escape code" "${expected}" "${result}"
+
+    # Red: \e[31m
+    result=${ show red "text"; }
+    expected=$'\e[31m'"text"$'\e[0m'
+    assertEscapeCodes "Red escape code" "${expected}" "${result}"
+
+    # Green: \e[32m
+    result=${ show green "text"; }
+    expected=$'\e[32m'"text"$'\e[0m'
+    assertEscapeCodes "Green escape code" "${expected}" "${result}"
+
+    # Yellow: \e[33m
+    result=${ show yellow "text"; }
+    expected=$'\e[33m'"text"$'\e[0m'
+    assertEscapeCodes "Yellow escape code" "${expected}" "${result}"
+
+    # Blue: \e[34m
+    result=${ show blue "text"; }
+    expected=$'\e[34m'"text"$'\e[0m'
+    assertEscapeCodes "Blue escape code" "${expected}" "${result}"
+
+    # Magenta: \e[35m
+    result=${ show magenta "text"; }
+    expected=$'\e[35m'"text"$'\e[0m'
+    assertEscapeCodes "Magenta escape code" "${expected}" "${result}"
+
+    # Cyan: \e[36m
+    result=${ show cyan "text"; }
+    expected=$'\e[36m'"text"$'\e[0m'
+    assertEscapeCodes "Cyan escape code" "${expected}" "${result}"
+
+    # White: \e[37m
+    result=${ show white "text"; }
+    expected=$'\e[37m'"text"$'\e[0m'
+    assertEscapeCodes "White escape code" "${expected}" "${result}"
+}
+
+testEscapeCodesBrightColors() {
+    echo ""
+    echo "Testing Bright Color Escape Codes"
+    echo "=================================="
+    echo ""
+
+    local result expected
+
+    # Bright Black: \e[90m
+    result=${ show bright-black "text"; }
+    expected=$'\e[90m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-black escape code" "${expected}" "${result}"
+
+    # Bright Red: \e[91m
+    result=${ show bright-red "text"; }
+    expected=$'\e[91m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-red escape code" "${expected}" "${result}"
+
+    # Bright Green: \e[92m
+    result=${ show bright-green "text"; }
+    expected=$'\e[92m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-green escape code" "${expected}" "${result}"
+
+    # Bright Yellow: \e[93m
+    result=${ show bright-yellow "text"; }
+    expected=$'\e[93m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-yellow escape code" "${expected}" "${result}"
+
+    # Bright Blue: \e[94m
+    result=${ show bright-blue "text"; }
+    expected=$'\e[94m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-blue escape code" "${expected}" "${result}"
+
+    # Bright Magenta: \e[95m
+    result=${ show bright-magenta "text"; }
+    expected=$'\e[95m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-magenta escape code" "${expected}" "${result}"
+
+    # Bright Cyan: \e[96m
+    result=${ show bright-cyan "text"; }
+    expected=$'\e[96m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-cyan escape code" "${expected}" "${result}"
+
+    # Bright White: \e[97m
+    result=${ show bright-white "text"; }
+    expected=$'\e[97m'"text"$'\e[0m'
+    assertEscapeCodes "Bright-white escape code" "${expected}" "${result}"
+}
+
+testEscapeCodes256Colors() {
+    echo ""
+    echo "Testing 256 Color Escape Codes"
+    echo "=============================="
+    echo ""
+
+    local result expected
+
+    # 256 color format: \e[38;5;Nm where N is 0-255
+    # Test color 0
+    result=${ show 0 "text"; }
+    expected=$'\033[38;5;0m'"text"$'\e[0m'
+    assertEscapeCodes "256 color: 0" "${expected}" "${result}"
+
+    # Test color 196 (red)
+    result=${ show 196 "text"; }
+    expected=$'\033[38;5;196m'"text"$'\e[0m'
+    assertEscapeCodes "256 color: 196" "${expected}" "${result}"
+
+    # Test color 46 (green)
+    result=${ show 46 "text"; }
+    expected=$'\033[38;5;46m'"text"$'\e[0m'
+    assertEscapeCodes "256 color: 46" "${expected}" "${result}"
+
+    # Test color 255 (max)
+    result=${ show 255 "text"; }
+    expected=$'\033[38;5;255m'"text"$'\e[0m'
+    assertEscapeCodes "256 color: 255" "${expected}" "${result}"
+
+    # Test that 256+ is treated as text, not color
+    result=${ show 256 "text"; }
+    expected="256 text"$'\e[0m'
+    assertEscapeCodes "Invalid 256 color (256) treated as text" "${expected}" "${result}"
+
+    result=${ show 999 "text"; }
+    expected="999 text"$'\e[0m'
+    assertEscapeCodes "Invalid 256 color (999) treated as text" "${expected}" "${result}"
+}
+
+testEscapeCodesRGBColors() {
+    echo ""
+    echo "Testing RGB Color Escape Codes"
+    echo "=============================="
+    echo ""
+
+    local result expected
+
+    # RGB format: \e[38;2;R;G;Bm
+    # Test RGB green (52:208:88)
+    result=${ show RGB 52:208:88 "text"; }
+    expected=$'\e[38;2;52;208;88m'"text"$'\e[0m'
+    assertEscapeCodes "RGB color: green (52:208:88)" "${expected}" "${result}"
+
+    # Test RGB red (215:58:73)
+    result=${ show RGB 215:58:73 "text"; }
+    expected=$'\e[38;2;215;58;73m'"text"$'\e[0m'
+    assertEscapeCodes "RGB color: red (215:58:73)" "${expected}" "${result}"
+
+    # Test RGB with zeros
+    result=${ show RGB 0:0:0 "text"; }
+    expected=$'\e[38;2;0;0;0m'"text"$'\e[0m'
+    assertEscapeCodes "RGB color: black (0:0:0)" "${expected}" "${result}"
+
+    # Test RGB with max values
+    result=${ show RGB 255:255:255 "text"; }
+    expected=$'\e[38;2;255;255;255m'"text"$'\e[0m'
+    assertEscapeCodes "RGB color: white (255:255:255)" "${expected}" "${result}"
+}
+
+testEscapeCodesStyleCombinations() {
+    echo ""
+    echo "Testing Style Combination Escape Codes"
+    echo "======================================="
+    echo ""
+
+    local result expected
+
+    # Bold + Italic
+    result=${ show bold italic "text"; }
+    expected=$'\e[1m\e[3m'"text"$'\e[0m'
+    assertEscapeCodes "Bold + Italic" "${expected}" "${result}"
+
+    # Bold + Red
+    result=${ show bold red "text"; }
+    expected=$'\e[1m\e[31m'"text"$'\e[0m'
+    assertEscapeCodes "Bold + Red" "${expected}" "${result}"
+
+    # Italic + Underline + Green
+    result=${ show italic underline green "text"; }
+    expected=$'\e[3m\e[4m\e[32m'"text"$'\e[0m'
+    assertEscapeCodes "Italic + Underline + Green" "${expected}" "${result}"
+
+    # Bold + Italic + Underline
+    result=${ show bold italic underline "text"; }
+    expected=$'\e[1m\e[3m\e[4m'"text"$'\e[0m'
+    assertEscapeCodes "Bold + Italic + Underline" "${expected}" "${result}"
+
+    # Bold + 256 color
+    result=${ show bold 196 "text"; }
+    expected=$'\e[1m\033[38;5;196m'"text"$'\e[0m'
+    assertEscapeCodes "Bold + 256 color (196)" "${expected}" "${result}"
+
+    # Italic + RGB color
+    result=${ show italic RGB 52:208:88 "text"; }
+    expected=$'\e[3m\e[38;2;52;208;88m'"text"$'\e[0m'
+    assertEscapeCodes "Italic + RGB color" "${expected}" "${result}"
+
+    # All styles combined
+    result=${ show bold italic underline dim reverse "text"; }
+    expected=$'\e[1m\e[3m\e[4m\e[2m\e[7m'"text"$'\e[0m'
+    assertEscapeCodes "All styles: bold+italic+underline+dim+reverse" "${expected}" "${result}"
+}
+
+testEscapeCodesResets() {
+    echo ""
+    echo "Testing Reset Escape Codes"
+    echo "=========================="
+    echo ""
+
+    local result expected
+
+    # Plain resets all formatting: \e[0m
+    result=${ show bold green "text1" plain "text2"; }
+    expected=$'\e[1m\e[32m'"text1 "$'\e[0m'"text2"$'\e[0m'
+    assertEscapeCodes "Plain resets formatting" "${expected}" "${result}"
+
+    # Plain between color and style
+    result=${ show blue "text1" plain italic "text2"; }
+    expected=$'\e[34m'"text1 "$'\e[0m\e[3m'"text2"$'\e[0m'
+    assertEscapeCodes "Plain between color and style" "${expected}" "${result}"
+
+    # Multiple plain resets
+    result=${ show bold "text1" plain "text2" plain "text3"; }
+    expected=$'\e[1m'"text1 "$'\e[0m'"text2 "$'\e[0m'"text3"$'\e[0m'
+    assertEscapeCodes "Multiple plain resets" "${expected}" "${result}"
+
+    # Final reset always applied
+    result=${ show bold red "text"; }
+    expected=$'\e[1m\e[31m'"text"$'\e[0m'
+    assertEscapeCodes "Final reset code present" "${expected}" "${result}"
+
+    # No arguments - just newline, no reset code
+    result=${ show; }
+    expected=''
+    assertEscapeCodes "No arguments produces empty output" "${expected}" "${result}"
+
+    # Format only, no text - just final reset
+    result=${ show bold red; }
+    expected=$'\e[0m'
+    assertEscapeCodes "Format only produces only reset" "${expected}" "${result}"
+}
+
+testEscapeCodesComplexPatterns() {
+    echo ""
+    echo "Testing Complex Pattern Escape Codes"
+    echo "====================================="
+    echo ""
+
+    local result expected
+
+    # Style persistence: italic continues across arguments
+    result=${ show italic "text1" blue "text2"; }
+    expected=$'\e[3m'"text1 "$'\e[34m'"text2"$'\e[0m'
+    assertEscapeCodes "Style persistence with color change" "${expected}" "${result}"
+
+    # Color replacement: blue replaced by red, bold persists
+    result=${ show bold blue "text1" red "text2"; }
+    expected=$'\e[1m\e[34m'"text1 "$'\e[31m'"text2"$'\e[0m'
+    assertEscapeCodes "Color replacement with style persistence" "${expected}" "${result}"
+
+    # Multiple arguments with accumulating styles
+    result=${ show "text1" bold "text2" italic "text3"; }
+    expected="text1 "$'\e[1m'"text2 "$'\e[3m'"text3"$'\e[0m'
+    assertEscapeCodes "Accumulating styles across arguments" "${expected}" "${result}"
+
+    # Plain reset, then new style
+    result=${ show bold green "text1" plain dim "text2"; }
+    expected=$'\e[1m\e[32m'"text1 "$'\e[0m\e[2m'"text2"$'\e[0m'
+    assertEscapeCodes "Reset then new style" "${expected}" "${result}"
+
+    # Documented pattern: cyan to dim via plain
+    result=${ show cyan "colored text" plain dim "dim text"; }
+    expected=$'\e[36m'"colored text "$'\e[0m\e[2m'"dim text"$'\e[0m'
+    assertEscapeCodes "Cyan to dim via plain" "${expected}" "${result}"
+
+    # Multiple text with multiple color changes
+    result=${ show red "A" blue "B" green "C"; }
+    expected=$'\e[31m'"A "$'\e[34m'"B "$'\e[32m'"C"$'\e[0m'
+    assertEscapeCodes "Multiple color changes" "${expected}" "${result}"
+}
+
 printSummary() {
     echo ""
     echo "========================================"
@@ -429,6 +789,7 @@ printSummary() {
         echo "  • 256 color codes"
         echo "  • RGB colors"
         echo "  • All documented patterns"
+        echo "  • Correct ANSI escape code generation"
         return 0
     else
         echo "✗ Some tests failed"
