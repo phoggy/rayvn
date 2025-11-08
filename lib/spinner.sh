@@ -68,7 +68,7 @@ _init_rayvn_spinner() {
 }
 
 declare -grx _spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
-declare -grx _spinnerDefaultCharsColor='bold_blue'
+declare -grx _spinnerDefaultCharsColor='bold blue'
 declare -grx _spinnerCommandPrefix="::"
 declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
 declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
