@@ -46,7 +46,7 @@ init() {
 
     # process arguments
 
-    while (( $# )) && [[ -v command ]]; do
+    while (( $# )) && [[ -z ${command} ]]; do
         case "${1}" in
             new | create) parseArgs false create "${@:2}" ;;
             test) parseArgs true runTests "${@:2}" ;;
