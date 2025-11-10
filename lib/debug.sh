@@ -26,7 +26,7 @@ debugDir() {
 
 debugStatus() {
     if (( _debug )); then
-        local prefix="${_debugPrefixColor}${ansi_italic}debug ⮕ ${ansi_normal}"
+        local prefix="${_debugPrefixColor}${ansi_italic}debug ⮕ ${ansi_plain}"
         local suffix=
         if [[ -n ${_debugLogFile} ]]; then
             local show=
@@ -189,8 +189,8 @@ _setDebug() {
 
     if [[ -n ${_debugOut} ]]; then
         exec 3>> "${_debugOut}"
-        if (( terminalSupportsAnsi )); then
-            _debugPrefix="${_debugPrefixColor}debug: ${ansi_normal}"
+        if ((inTerminal)); then
+            _debugPrefix="${_debugPrefixColor}debug: ${ansi_plain}"
         else
             _debugPrefix="debug: "
         fi
@@ -198,7 +198,7 @@ _setDebug() {
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
             echo -n $'\e[2J\e[H' > ${_debugOut} # clear remote terminal
-            printf "${ansi_bold_green}BEGIN ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_normal}\n\n" \
+            printf "${ansi_bold_green}BEGIN ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_plain}\n\n" \
                 ${BASHPID} > ${_debugOut}
         fi
     else
@@ -246,7 +246,7 @@ _debugExit() {
     exec 3>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
-        printf "\n${ansi_bold_green}END   ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_normal}\n\n" \
+        printf "\n${ansi_bold_green}END   ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_plain}\n\n" \
                 ${BASHPID} > ${_debugOut}
     fi
 }

@@ -91,8 +91,8 @@ makeDir() {
     echo "${dir}"
 }
 
-assertAnsiSupported() {
-    ((terminalSupportsAnsi)) || assertionFailed "must be run in a terminal"
+assertInTerminal() {
+    (( inTerminal )) || assertionFailed "must be run in a terminal"
 }
 
 addExitHandler() {
@@ -233,75 +233,8 @@ secureEraseVars() {
     done
 }
 
-# TODO load from ~/rayvn/theme.sh
 
-_theme_name='Ocean'
-_theme_colors=($'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
-
-# MacOS Terminal Compatibility
-#
-#  Terminal TERM=xterm-color256 COLORTERM=(not set) -> RGB & strikethrough not supported
-#  iTerm2   TERM=xterm-color256 COLORTERM=truecolor -> all supported
-#  Warp     TERM=xterm-color256 COLORTERM=truecolor -> all supported
-#  IntelliJ TERM=xterm-color256 COLORTERM=(not set) -> RGB IS supported, no strikethrough
-
-
-declare -grAx formats=(
-
-    # Turn off previous formats
-
-    ['plain']=$'\e[0m'
-
-    # Theme
-
-    ['success']=${_theme_colors[0]}
-    ['error']=${_theme_colors[1]}
-    ['warning']=${_theme_colors[2]}
-    ['info']=${_theme_colors[3]}
-    ['accent']=${_theme_colors[4]}
-    ['muted']=${_theme_colors[5]}
-
-    # Effects on
-
-    ['bold']=$'\e[1m'
-    ['dim']=$'\e[2m'
-    ['italic']=$'\e[3m'
-    ['underline']=$'\e[4m'
-    ['blink']=$'\e[5m'
-    ['reverse']=$'\e[7m'
-   # often not supported ['strikethrough']=$'\e[9m'
-
-    # Effects off
-
-    ['!bold']=$'\e[22m'
-    ['!dim']=$'\e[22m'
-    ['!italic']=$'\e[23m'
-    ['!underline']=$'\e[24m'
-    ['!blink']=$'\e[25m'
-    ['!reverse']=$'\e[27m'
-    # often not supported ['!strikethrough']=$'\e[29m'
-
-    # Basic Colors
-
-    ['black']=$'\e[30m'
-    ['red']=$'\e[31m'
-    ['green']=$'\e[32m'
-    ['yellow']=$'\e[33m'
-    ['blue']=$'\e[34m'
-    ['magenta']=$'\e[35m'
-    ['cyan']=$'\e[36m'
-    ['white']=$'\e[37m'
-    ['bright-black']=$'\e[90m'
-    ['bright-red']=$'\e[91m'
-    ['bright-green']=$'\e[92m'
-    ['bright-yellow']=$'\e[93m'
-    ['bright-blue']=$'\e[94m'
-    ['bright-magenta']=$'\e[95m'
-    ['bright-cyan']=$'\e[96m'
-    ['bright-white']=$'\e[97m'
-)
-
-# Enhanced echo function supporting text color and styles along in addition to standard echo
+# Enhanced echo function supporting text color and styles in addition to standard echo
 # options (-n, -e, -E). Formats can appear at any argument position and affect the subsequent
 # arguments until another format occurs. Styles accumulate and persist (e.g., bold remains
 # bold across subsequent arguments), while colors replace previous colors. Use 'plain' to
@@ -408,17 +341,14 @@ show() {
     local output='' currentFormat='' addSpace=0
     while (( $# )); do
         if [[ -n ${1} ]]; then
-            if [[ -v formats[${1}] ]]; then
-                currentFormat+=${formats[${1}]}
-            elif [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )); then
+            if [[ -v _textFormats[${1}] ]]; then
+                currentFormat+=${_textFormats[${1}]}
+            elif [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )) && (( terminalColorBits >= 8 )); then
                 currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
-            elif [[ ${1} == RGB ]] && (( $# >=2 )); then
-                shift
-                currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
+            elif [[ ${1} == RGB ]] && (( $# >=2 )) && (( terminalColorBits >= 24 )); then
+                shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
             else
-                if ((addSpace)); then
-                    output+=' '
-                fi
+                (( addSpace)) && output+=' '
                 output+=${currentFormat}${1}
                 currentFormat=''
                 addSpace=1
@@ -543,8 +473,7 @@ debugEnvironment() { :; }
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_core() {
-
-    ((_rayvnCoreInitialized)) && return 0 # Should not occur, but... just in case
+    (( _rayvnCoreInitialized )) && return 0 # Should not occur, but... just in case
 
     # Setup exit handling
 
@@ -559,85 +488,68 @@ _init_rayvn_core() {
 
     if [[ -t 1 && -t 2 ]]; then
 
-        # Yes, so set terminal to the tty and remember that ANSI is supported.
+        # Yes, so set terminal to the tty and remember that we are in a terminal
 
         declare -grx terminal="/dev/tty"
-        declare -grxi terminalSupportsAnsi=1
+        declare -grxi inTerminal=1
+
+        # Determine the # of bits of color supported
+
+        local bits=0
+        if [[ "${COLORTERM}" == "truecolor" ]] || [[ "${COLORTERM}" == "24bit" ]]; then
+            bits=24
+        elif [[ "${TERM_PROGRAM}" =~ ^(iTerm\.app|vscode|Hyper|WezTerm|Alacritty|Kitty)$ ]]; then
+            bits=24
+        elif [[ "${TERM}" =~ 256col ]]; then
+            bits=8
+        elif [[ "${TERM_PROGRAM}" == "Apple_Terminal" ]]; then
+            bits=8
+        elif [[ "${TERM}" =~ color ]]; then
+            bits=4
+        fi
+        declare -grxi terminalColorBits=${bits}
 
     else
 
         # No. Ensure FD 3 exists and points to original stdout, then set terminal
-        # to use it and remember that ANSI is not supported.
+        # to use it and remember we are not in a terminal.
 
         [[ -t 3 ]] || exec 3>&1
         declare -grx terminal="&3"
-        declare -grxi terminalSupportsAnsi=0
+        declare -grxi inTerminal=0
+
+        # Unless a special flag is set, turn off colors
+
+        if (( forceRayvn24BitColor )); then
+            declare -grxi terminalColorBits=24
+        else
+            declare -grxi terminalColorBits=0
+        fi
     fi
 
     # Set some constants
 
-    declare -grx osName="$(uname)"
-    declare -grxi onMacOS=$((osName == "Darwin"))
-    declare -grxi onLinux=$((osName == "Linux"))
-    declare -grx rayvnRootDir="$(realpath "${BASH_SOURCE%/*}/..")"
+    declare -grx osName="${ uname; }"
+    declare -grxi onMacOS=$(( osName == "Darwin" ))
+    declare -grxi onLinux=$(( osName == "Linux" ))
+    declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
     declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
     declare -grx _checkMark='✔'
     declare -grx _crossMark='✗'
     declare -gxi _debug=0
 
-    # Set ANSI related constants
+    # Set color/style constants if terminal supports them
 
-    if ((terminalSupportsAnsi)); then
-
-        # Set ANSI colors if terminal supports them
-
-        # TODO theme
-        # See themes.sh showColor() and showFormatting
-        # and the colors, bgColors, formats hash tables.
-        #
-        # Note that there are 16 colors, not 8, because bright versions
-        # are included!
-        #
-        # Also, note that show256Colors() shows how to map the 16 colors
-        # to RGB: "\e[48;5;${i}m  %3d  \e[0m", where i = 0-15
-
-        if (($(tput colors) >= 8)); then
-            declare -grx ansi_normal="$(tput sgr0)"
-
-            declare -grx ansi_bold="$(tput bold)"
-            declare -grx ansi_underline="$(tput smul)"
-            declare -grx ansi_italic=$'\e[3m'
-            declare -grx ansi_black="$(tput setaf 0)"
-            declare -grx ansi_dim=$'\e[2m'
-
-            declare -grx ansi_red="$(tput setaf 1)"
-            declare -grx ansi_green="$(tput setaf 2)"
-            declare -grx ansi_yellow="$(tput setaf 3)"
-            declare -grx ansi_blue="$(tput setaf 4)"
-            declare -grx ansi_magenta="$(tput setaf 5)"
-            declare -grx ansi_cyan="$(tput setaf 6)"
-            declare -grx ansi_white="$(tput setaf 7)"
-
-            declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
-            declare -grx ansi_italic_red="${ansi_italic}${ansi_red}"
-
-            declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
-            declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
-            declare -grx ansi_bold_yellow="${ansi_bold}${ansi_yellow}"
-            declare -grx ansi_bold_blue="${ansi_bold}${ansi_blue}"
-            declare -grx ansi_bold_magenta="${ansi_bold}${ansi_magenta}"
-            declare -grx ansi_bold_cyan="${ansi_bold}${ansi_cyan}"
-            declare -grx ansi_bold_white="${ansi_bold}${ansi_white}"
-            declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
+    if (( inTerminal )); then
+        if (( terminalColorBits >= 4 )); then
+            _init_colors
+        else
+            _init_noColors
         fi
-
-        declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_normal}"
-        declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_normal}"
-
+    elif (( forceRayvn24BitColor )); then
+        _init_colors
     else
-
-        declare -grx _greenCheckMark="${_checkMark}"
-        declare -grx _redCrossMark="${_crossMark}"
+        _init_noColors
     fi
 
     # Is this a mac?
@@ -663,12 +575,181 @@ _init_rayvn_core() {
     # Force these readonly since we have to handle them specially in rayvn.up
 
     declare -fr fail printStack
-
     declare -grx _rayvnCoreInitialized=1
+
+    # Finally, remove our init helper functions. The current function will be
+    # removed by rayvn.up
+
+    unset _init_themeColors _init_colors _init_noColors
+}
+
+_init_themeColors() {
+    local -n result=${1}
+    local _theme
+    if (( terminalColorBits >= 24 )); then
+        # TODO THEME load from ~/rayvn/theme.sh
+        _theme=('Ocean' $'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
+    else
+        # TODO THEME have both theme4 and theme24 in theme.sh?
+        _theme=('Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m') # bright-green, bright-red, bright-yellow, blue, cyan, dim
+    fi
+    result="${_theme[@]}"
+}
+
+_init_colors() {
+    local theme
+    _init_themeColors theme
+
+    declare -grAx _textFormats=(
+
+       # Effects on
+
+        ['bold']=$'\e[1m'
+        ['dim']=$'\e[2m'
+        ['italic']=$'\e[3m'
+        ['underline']=$'\e[4m'
+        ['blink']=$'\e[5m'
+        ['reverse']=$'\e[7m'
+        ['strikethrough']='' # $'\e[9m' often not supported
+
+        # Effects off
+
+        ['!bold']=$'\e[22m'
+        ['!dim']=$'\e[22m'
+        ['!italic']=$'\e[23m'
+        ['!underline']=$'\e[24m'
+        ['!blink']=$'\e[25m'
+        ['!reverse']=$'\e[27m'
+        ['!strikethrough']='' # $'\e[29m' often not supported
+
+        # Basic Colors
+
+        ['black']=$'\e[30m'
+        ['red']=$'\e[31m'
+        ['green']=$'\e[32m'
+        ['yellow']=$'\e[33m'
+        ['blue']=$'\e[34m'
+        ['magenta']=$'\e[35m'
+        ['cyan']=$'\e[36m'
+        ['white']=$'\e[37m'
+        ['bright-black']=$'\e[90m'
+        ['bright-red']=$'\e[91m'
+        ['bright-green']=$'\e[92m'
+        ['bright-yellow']=$'\e[93m'
+        ['bright-blue']=$'\e[94m'
+        ['bright-magenta']=$'\e[95m'
+        ['bright-cyan']=$'\e[96m'
+        ['bright-white']=$'\e[97m'
+
+        # Theme colors
+
+        ['success']=${theme[1]}
+        ['error']=${theme[2]}
+        ['warning']=${theme[3]}
+        ['info']=${theme[4]}
+        ['accent']=${theme[5]}
+        ['muted']=${theme[6]}
+
+        # Turn off previous formats
+
+        ['plain']=$'\e[0m'
+    )
+
+    # TODO: remove some/all of these?
+    declare -grx ansi_plain=$'\e[0m'
+
+    declare -grx ansi_bold=$'\e[1m'
+    declare -grx ansi_dim=$'\e[2m'
+    declare -grx ansi_italic=$'\e[3m'
+    declare -grx ansi_underline=$'\e[3m'
+
+    declare -grx ansi_black=$'\e[30m'
+    declare -grx ansi_red=$'\e[31m'
+    declare -grx ansi_green=$'\e[32m'
+    declare -grx ansi_yellow=$'\e[33m'
+    declare -grx ansi_blue=$'\e[34m'
+    declare -grx ansi_magenta=$'\e[35m'
+    declare -grx ansi_cyan=$'\e[36m'
+    declare -grx ansi_white=$'\e[37m'
+
+    declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
+    declare -grx ansi_italic_red="${ansi_italic}${ansi_red}"
+
+    declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
+    declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
+    declare -grx ansi_bold_yellow="${ansi_bold}${ansi_yellow}"
+    declare -grx ansi_bold_blue="${ansi_bold}${ansi_blue}"
+    declare -grx ansi_bold_magenta="${ansi_bold}${ansi_magenta}"
+    declare -grx ansi_bold_cyan="${ansi_bold}${ansi_cyan}"
+    declare -grx ansi_bold_white="${ansi_bold}${ansi_white}"
+    declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
+
+    declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_plain}"
+    declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_plain}"
+}
+
+_init_noColors() {
+    declare -grAx _textFormats=(
+
+        # Effects on
+
+        ['bold']=''
+        ['dim']=''
+        ['italic']=''
+        ['underline']=''
+        ['blink']=''
+        ['reverse']=''
+        ['strikethrough']=''
+
+        # Effects off
+
+        ['!bold']=''
+        ['!dim']=''
+        ['!italic']=''
+        ['!underline']=''
+        ['!blink']=''
+        ['!reverse']=''
+        ['!strikethrough']=''
+
+        # Basic Colors
+
+        ['black']=''
+        ['red']=''
+        ['green']=''
+        ['yellow']=''
+        ['blue']=''
+        ['magenta']=''
+        ['cyan']=''
+        ['white']=''
+        ['bright-black']=''
+        ['bright-red']=''
+        ['bright-green']=''
+        ['bright-yellow']=''
+        ['bright-blue']=''
+        ['bright-magenta']=''
+        ['bright-cyan']=''
+        ['bright-white']=''
+
+        # Theme colors
+
+        ['success']=''
+        ['error']=''
+        ['warning']=''
+        ['info']=''
+        ['accent']=''
+        ['muted']=''
+
+        # Turn off previous formats
+
+        ['plain']=''
+    )
+
+    declare -grx _greenCheckMark="${_checkMark}"
+    declare -grx _redCrossMark="${_crossMark}"
 }
 
 _restoreTerminal() {
-    if ((terminalSupportsAnsi)); then
+    if (( inTerminal )); then
         stty sane
         printf '\e[0K\e[?25h' # Clear to end of line and show cursor in case sane does not
     fi

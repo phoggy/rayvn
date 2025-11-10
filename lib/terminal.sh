@@ -109,7 +109,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRI
 
 _init_rayvn_terminal() {
     require 'rayvn/core'
-    (( terminalSupportsAnsi )) || fail "'rayvn/terminal' library can only operate in a terminal"
+    ((inTerminal)) || fail "'rayvn/terminal' library can only operate in a terminal"
 }
 
 declare -grx _eraseToEndOfLine=$'\e[0K'

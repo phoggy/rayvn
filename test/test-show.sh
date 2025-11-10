@@ -797,5 +797,8 @@ printSummary() {
     fi
 }
 
+# If we're not running in a terminal, set a flag to force core to act as if we are
+[[ -t 1 && -t 2 ]] || declare -gx forceRayvn24BitColor=1
+
 source rayvn.up 'rayvn/core' 'rayvn/test'
 main "${@}"

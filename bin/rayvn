@@ -258,10 +258,30 @@ runTests() {
         echo "rayvn test [PROJECT] [TEST-NAME]"
     else
         require 'rayvn/spinner'
+
+        # Collect the names of all existing rayvn vars so we can remove them when we execute
+        # each test. This ensures that rayvn.up and core behavior is the same as if the test
+        # was run directly from the terminal.
+
+        declare -gax removeRayvnVars=()
+        local var
+        for var in $(compgen -v | grep -E '^([a-z]|_[^_])'); do
+            removeRayvnVars+=("-u")
+            removeRayvnVars+=("${var}")
+        done
+
+        # Setup logging
+
         local testLogDir="$(configDirPath tests)" || fail
         ensureDir "${testLogDir}" || fail
         rm "${testLogDir:?}"/* 2> /dev/null
+
+        # If there are no projects set, choose rayvn
+
         (( ${#projects[@]} )) || projects+=(rayvn)
+
+        # Run tests for all specified projects
+
         forEachProject runProjectTests
     fi
 }
@@ -448,21 +468,12 @@ runTest() {
 
                     #    debugEnvironment "rayvn-up-before-env"
 
-                    # First, collect the names of all existing vars whose names start with 'rayvn', ignoring case so
-                    # we can remove them.
-
-                    local removeVars var
-                    for var in $(compgen -v | grep -i 'rayvn'); do
-                        removeVars+="-u ${var} "
-                    done
-
-                    # Second, export var pointing to the current rayvnHome and binary
+                    # First, export var pointing to the current rayvnHome and binary
 
                     export rayvnInstallHome="${rayvnHome}"
                     export rayvnInstallBinary="${rayvnHome}/bin/rayvn"
-                    removeVars+="-u rayvnHome"
 
-                    # Third, export a list of the function names within the test itself so
+                    # Second, export a list of the function names within the test itself so
                     # that it can ensure that no other functions are present, e.g. require
 
                     export testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
@@ -480,12 +491,12 @@ runTest() {
                     # Finally, run the test without functions or rayvn vars in its env, and without sourcing
                     # any init files.
 
-                    env ${removeVars} ${SHELL} --noprofile --norc -c "${testFile}"
+                    executeTestFile "${testFile}"
                 ) &> "${testLogFile}"
 
             else
                 (
-                    "${SHELL}" "${testFile}"
+                    executeTestFile "${testFile}"
                 ) &> "${testLogFile}"
             fi
 
@@ -501,6 +512,11 @@ runTest() {
             warn "Skipping ${testFile}: not executable"
         fi
     )
+}
+
+executeTestFile() {
+    local testFile="${1}"
+    env "${removeRayvnVars[@]}" ${SHELL} --noprofile --norc -c "${testFile}"
 }
 
 sortArrayLongestFirst() {

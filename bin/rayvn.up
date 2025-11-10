@@ -75,12 +75,12 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         _collectUnknownFunctionNames newFunctions
 
-        # Process them
+        # Process them and set all non _init_* functions readonly
 
         for functionName in "${!newFunctions[@]}"; do
             _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
-            if [[ ${functionName} == "${initFunction}" ]]; then
-                hasInitFunction=1
+            if [[ ${functionName} == _init_* ]]; then
+                [[ ${functionName} == "${initFunction}" ]] && hasInitFunction=1
             else
                 declare -rf "${functionName}"
             fi
@@ -88,7 +88,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         # If we found an init function, invoke (which may recurse) and remove it.
 
-        if ((hasInitFunction)); then
+        if (( hasInitFunction )); then
             ${initFunction} || ${failed} "${initFunction}() failed"
             unset "_rayvnFunctionSources[${initFunction}]"
             unset -f "${initFunction}" || fail
