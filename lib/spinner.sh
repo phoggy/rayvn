@@ -45,14 +45,15 @@ failSpin() {
 
 # shellcheck disable=SC2120
 configureSpinner() {
-    local color="${1:-${_spinnerDefaultCharsColor}}"
-    local chars="${2:-${_spinnerDefaultChars}}"
+    local chars="${1:-${_spinnerDefaultChars}}"; shift
     local count="${#chars}"
+    local arrayName=${2:-_spinnerDefaultCharsColor}
+    local -n color=${arrayName}
     local i c
     _spinnerArray=()
     for ((i = 0; i < ${count}; i++)); do
         c="${chars:i:1}"
-        c="${ show ${color} "${chars:${i}:1}" ;}"
+        c="${ show "${color[@]}" "${chars:${i}:1}" ;}"
         _spinnerArray[${i}]="${c}"
     done
     _spinnerArraySize=${count}
@@ -68,7 +69,7 @@ _init_rayvn_spinner() {
 }
 
 declare -grx _spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
-declare -grx _spinnerDefaultCharsColor='bold blue'
+declare -grax _spinnerDefaultCharsColor=(bold blue)
 declare -grx _spinnerCommandPrefix="::"
 declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
 declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
