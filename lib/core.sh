@@ -477,9 +477,15 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE
 
 _init_rayvn_core() {
 
-    # Ensure we do not do this again in a child rayvn process if done in a parent
+    # Did we already do this in a parent process?
 
-    (( _rayvnCoreInitialized )) && return 0
+    if (( _rayvnCoreInitialized )); then
+
+        # Yes, so just instantiate our "exported" maps
+
+        eval "${_rayvnCoreMapExports}"
+        return 0
+    fi
 
     # Setup exit handling
 
@@ -581,7 +587,6 @@ _init_rayvn_core() {
     # Force these readonly since we have to handle them specially in rayvn.up
 
     declare -fr fail printStack
-    declare -grx _rayvnCoreInitialized=1
 
     # Collect the names of all existing lowercase and underscore prefixed vars if we have not already done so.
     # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those
@@ -595,10 +600,19 @@ _init_rayvn_core() {
     done
     declare -gax _unsetChildVars=("${unsetVars[@]}")
 
-    # Finally, remove our init helper functions. The current function will be
-    # removed by rayvn.up
+    # Remove our init helper functions. The current function will be removed by rayvn.up
 
     unset _init_themeColors _init_colors _init_noColors
+
+    # Since maps (associative arrays) cannot be exported to child processes, save them so we
+    # can restore in children. Note that we must force them to be restored as globals.
+
+    local declareOutput="${ declare -p _textFormats; }"  # Can append multiple ; separated declarations
+    declare -grx _rayvnCoreMapExports="${declareOutput//declare -A/declare -gA}"
+
+    # Remember that we've completed this initialization
+
+    declare -grx _rayvnCoreInitialized=1
 }
 
 _init_themeColors() {
@@ -618,7 +632,7 @@ _init_colors() {
     local theme
     _init_themeColors theme
 
-    declare -grAx _textFormats=(
+    declare -grA _textFormats=(
 
        # Effects on
 
@@ -707,7 +721,7 @@ _init_colors() {
 }
 
 _init_noColors() {
-    declare -grAx _textFormats=(
+    declare -grA _textFormats=(
 
         # Effects on
 
