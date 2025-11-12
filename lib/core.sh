@@ -233,6 +233,9 @@ secureEraseVars() {
     done
 }
 
+executeWithCleanVars() {
+   env "${_unsetChildVars[@]}" "${@}"
+}
 
 # Enhanced echo function supporting text color and styles in addition to standard echo
 # options (-n, -e, -E). Formats can appear at any argument position and affect the subsequent
@@ -330,11 +333,11 @@ show() {
         return
     fi
 
-    local options=''
+    local options=()
     if [[ ${1} == -* ]]; then
-        options=${1}; shift
+        options+=("${1}"); shift
         while (( $# )) && [[ ${1} == -* ]]; do
-            options="${options} ${1}"; shift
+            options+=("${1}"); shift
         done
     fi
 
@@ -348,7 +351,7 @@ show() {
             elif [[ ${1} == RGB ]] && (( $# >=2 )) && (( terminalColorBits >= 24 )); then
                 shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
             else
-                (( addSpace)) && output+=' '
+                (( addSpace )) && output+=' '
                 output+=${currentFormat}${1}
                 currentFormat=''
                 addSpace=1
@@ -356,7 +359,7 @@ show() {
         fi
         shift
     done
-    echo ${options} "${output}"$'\e[0m'
+    echo "${options[@]}" "${output}"$'\e[0m'
 }
 
 printRepeat() {
@@ -473,7 +476,10 @@ debugEnvironment() { :; }
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_core() {
-    (( _rayvnCoreInitialized )) && return 0 # Should not occur, but... just in case
+
+    # Ensure we do not do this again in a child rayvn process if done in a parent
+
+    (( _rayvnCoreInitialized )) && return 0
 
     # Setup exit handling
 
@@ -576,6 +582,18 @@ _init_rayvn_core() {
 
     declare -fr fail printStack
     declare -grx _rayvnCoreInitialized=1
+
+    # Collect the names of all existing lowercase and underscore prefixed vars if we have not already done so.
+    # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those
+    # run as if started from the command line.
+
+    local var unsetVars=()
+    IFS=$'\n'
+    for var in ${ compgen -v | grep -E '^([a-z]|_[^_])'; }; do
+        unsetVars+=("-u")
+        unsetVars+=("${var}")
+    done
+    declare -gax _unsetChildVars=("${unsetVars[@]}")
 
     # Finally, remove our init helper functions. The current function will be
     # removed by rayvn.up

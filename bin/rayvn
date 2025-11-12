@@ -259,17 +259,6 @@ runTests() {
     else
         require 'rayvn/spinner'
 
-        # Collect the names of all existing rayvn vars so we can remove them when we execute
-        # each test. This ensures that rayvn.up and core behavior is the same as if the test
-        # was run directly from the terminal.
-
-        declare -gax removeRayvnVars=()
-        local var
-        for var in $(compgen -v | grep -E '^([a-z]|_[^_])'); do
-            removeRayvnVars+=("-u")
-            removeRayvnVars+=("${var}")
-        done
-
         # Setup logging
 
         local testLogDir="$(configDirPath tests)" || fail
@@ -460,13 +449,11 @@ runTest() {
             if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
                     # We must create special conditions for this test so that the process it runs in does
-                    # NOT contain any functions from this process (esp. rayvn.up and core.sh) and that all
-                    # rayvn variables are excluded.
+                    # NOT contain any functions from this process (esp. rayvn.up and core.sh). Using the
+                    # executeWithCleanVars function also ensures that no pre-existing vars are passed.
                     #
                     # These preconditions for the test are required so that rayvn init acts exactly as it
                     # would the first time a user invokes it.
-
-                    #    debugEnvironment "rayvn-up-before-env"
 
                     # First, export var pointing to the current rayvnHome and binary
 
@@ -480,10 +467,6 @@ runTest() {
                             awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
                     testFunctionNames="${testFunctionNames%" "}"
 
-                    # Log vars if in debug mode
-
-                 #   debugVar removeVars rayvnInstallHome rayvnInstallBinary testFunctionNames testFile SHELL
-
                     # Don't add an empty line at exit
 
                     declare -grx _noEchoOnExit=1
@@ -495,9 +478,7 @@ runTest() {
                 ) &> "${testLogFile}"
 
             else
-                (
-                    executeTestFile "${testFile}"
-                ) &> "${testLogFile}"
+                executeTestFile "${testFile}" &> "${testLogFile}"
             fi
 
             declare testResult="${?}"
@@ -516,7 +497,8 @@ runTest() {
 
 executeTestFile() {
     local testFile="${1}"
-    env "${removeRayvnVars[@]}" ${SHELL} --noprofile --norc -c "${testFile}"
+    shift
+    executeWithCleanVars "${@}" ${SHELL} --noprofile --norc -c "${testFile}"
 }
 
 sortArrayLongestFirst() {
