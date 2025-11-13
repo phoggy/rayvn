@@ -394,11 +394,11 @@ print() {
 }
 
 warn() {
-    show yellow "⚠️ ${*}" >&2
+    show warning "⚠️ ${*}" >&2
 }
 
 error() {
-    show red "🔺 ${*}" >&2
+    show error "🔺 ${*}" >&2
 }
 
 redStream() {
@@ -602,7 +602,7 @@ _init_rayvn_core() {
 
     # Remove our init helper functions. The current function will be removed by rayvn.up
 
-    unset _init_themeColors _init_colors _init_noColors
+    unset _init_currentTheme _init_colors _init_noColors
 
     # Since maps (associative arrays) cannot be exported to child processes, save them so we
     # can restore in children. Note that we must force them to be restored as globals.
@@ -615,22 +615,20 @@ _init_rayvn_core() {
     declare -grx _rayvnCoreInitialized=1
 }
 
-_init_themeColors() {
-    local -n result=${1}
-    local _theme
+_init_currentTheme() {
+    local theme
     if (( terminalColorBits >= 24 )); then
         # TODO THEME load from ~/rayvn/theme.sh
-        _theme=('Ocean' $'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
+        theme=('Ocean' $'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
     else
         # TODO THEME have both theme4 and theme24 in theme.sh?
-        _theme=('Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m') # bright-green, bright-red, bright-yellow, blue, cyan, dim
+        theme=('Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m') # bright-green, bright-red, bright-yellow, blue, cyan, dim
     fi
-    result="${_theme[@]}"
+    declare -grax _currentTheme=("${theme[@]}")
 }
 
 _init_colors() {
-    local theme
-    _init_themeColors theme
+    _init_currentTheme
 
     declare -grA _textFormats=(
 
@@ -675,12 +673,12 @@ _init_colors() {
 
         # Theme colors
 
-        ['success']=${theme[1]}
-        ['error']=${theme[2]}
-        ['warning']=${theme[3]}
-        ['info']=${theme[4]}
-        ['accent']=${theme[5]}
-        ['muted']=${theme[6]}
+        ['success']=${_currentTheme[1]}
+        ['error']=${_currentTheme[2]}
+        ['warning']=${_currentTheme[3]}
+        ['info']=${_currentTheme[4]}
+        ['accent']=${_currentTheme[5]}
+        ['muted']=${_currentTheme[6]}
 
         # Turn off previous formats
 
