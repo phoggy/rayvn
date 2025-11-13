@@ -684,38 +684,6 @@ _init_colors() {
 
         ['plain']=$'\e[0m'
     )
-
-    # TODO: remove some/all of these?
-    declare -grx ansi_plain=$'\e[0m'
-
-    declare -grx ansi_bold=$'\e[1m'
-    declare -grx ansi_dim=$'\e[2m'
-    declare -grx ansi_italic=$'\e[3m'
-    declare -grx ansi_underline=$'\e[3m'
-
-    declare -grx ansi_black=$'\e[30m'
-    declare -grx ansi_red=$'\e[31m'
-    declare -grx ansi_green=$'\e[32m'
-    declare -grx ansi_yellow=$'\e[33m'
-    declare -grx ansi_blue=$'\e[34m'
-    declare -grx ansi_magenta=$'\e[35m'
-    declare -grx ansi_cyan=$'\e[36m'
-    declare -grx ansi_white=$'\e[37m'
-
-    declare -grx ansi_italic_cyan="${ansi_italic}${ansi_cyan}"
-    declare -grx ansi_italic_red="${ansi_italic}${ansi_red}"
-
-    declare -grx ansi_bold_red="${ansi_bold}${ansi_red}"
-    declare -grx ansi_bold_green="${ansi_bold}${ansi_green}"
-    declare -grx ansi_bold_yellow="${ansi_bold}${ansi_yellow}"
-    declare -grx ansi_bold_blue="${ansi_bold}${ansi_blue}"
-    declare -grx ansi_bold_magenta="${ansi_bold}${ansi_magenta}"
-    declare -grx ansi_bold_cyan="${ansi_bold}${ansi_cyan}"
-    declare -grx ansi_bold_white="${ansi_bold}${ansi_white}"
-    declare -grx ansi_bold_italic="${ansi_bold}${ansi_italic}"
-
-    declare -grx _greenCheckMark="${ansi_bold_green}${_checkMark}${ansi_plain}"
-    declare -grx _redCrossMark="${ansi_bold_red}${_crossMark}${ansi_plain}"
 }
 
 _init_noColors() {
