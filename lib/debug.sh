@@ -26,16 +26,17 @@ debugDir() {
 
 debugStatus() {
     if (( _debug )); then
-        local prefix="${_debugPrefixColor}${ansi_italic}debug ⮕ ${ansi_plain}"
+        local prefix=
         local suffix=
+        prefix="${ show "${_debugPrefixColor}" italic 'debug ⮕ '; }"
         if [[ -n ${_debugLogFile} ]]; then
             local show=
-            [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]" ;}"
+            [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]"; }"
             suffix="${ show bold blue "${_debugLogFile}" ;}${show}"
         elif [[ ${_debugOut} == "${terminal}" ]]; then
-            suffix="${ show bold blue "terminal" ;}"
+            suffix="${ show bold blue "terminal"; }"
         else
-            suffix="${ show bold blue "${_debugOut}" ;}"
+            suffix="${ show bold blue "${_debugOut}"; }"
         fi
         echo "${prefix} ${suffix}"
         echo
@@ -145,7 +146,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/debug' PRIVAT
 declare -gx _debugOut=
 declare -gx _debugPrefix=
 declare -gx _debugShowLogOnExit=0
-declare -gx _debugPrefixColor="${ansi_magenta}"
+declare -gx _debugPrefixColor="magenta"
 declare -gx _debugRemote=0
 
 _init_rayvn_debug() {
@@ -190,7 +191,7 @@ _setDebug() {
     if [[ -n ${_debugOut} ]]; then
         exec 3>> "${_debugOut}"
         if ((inTerminal)); then
-            _debugPrefix="${_debugPrefixColor}debug: ${ansi_plain}"
+            _debugPrefix="${ show ${_debugPrefixColor} 'debug: ';}"
         else
             _debugPrefix="debug: "
         fi
@@ -198,8 +199,7 @@ _setDebug() {
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
             echo -n $'\e[2J\e[H' > ${_debugOut} # clear remote terminal
-            printf "${ansi_bold_green}BEGIN ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_plain}\n\n" \
-                ${BASHPID} > ${_debugOut}
+            show -e bold green "BEGIN" blue "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
         fi
     else
         _prepareLogFile ${clearLog}
@@ -246,8 +246,7 @@ _debugExit() {
     exec 3>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
-        printf "\n${ansi_bold_green}END   ${ansi_bold_blue}debug output from pid %s ----------------------------------${ansi_plain}\n\n" \
-                ${BASHPID} > ${_debugOut}
+        show -e bold green "\nEND   " blue "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
     fi
 }
 
