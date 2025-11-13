@@ -61,7 +61,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
             local functionName="${BASH_REMATCH[1]}"
             local source=${_rayvnFunctionSources[${functionName}]}
             if [[ ${source} != '' ]]; then
-                reason=": ${ansi_italic}${functionName}() already defined by library '${source}'"
+                reason="${ show ':' bold italic "${functionName}()" plain error "already defined by library '${source}'"; }"
             fi
         fi
         ${failed} "failed to load shared library '${qualifiedName}'${reason}"
