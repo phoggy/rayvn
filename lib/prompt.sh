@@ -54,9 +54,9 @@ choose() {
         cursorTo ${_cursorRow} 0
         for (( i=0; i <= max; i++ )); do
             if (( i == current)); then
-                echo "${ansi_bold}> ${ansi_cyan}${choices[${i}]}${ansi_plain}"
+                show bold ">" cyan "${choices[${i}]}"
             else
-                echo "  ${ansi_cyan}${choices[${i}]}${ansi_plain}"
+                show cyan "  ${choices[${i}]}"
             fi
         done
     }
@@ -164,13 +164,13 @@ confirm() {
         defaultAnswer=${answerOne}
         _overwriteHint=0
         returnOnEmpty=true
-        _hint=" ${_ansi_hint}[${_ansi_hint_selected}${answerOne}${_ansi_hint_normal}/${answerTwo}]${ansi_plain}"
+        _hint=" ${ show -n dim italic "[" ;}${ show -n italic cyan "${answerOne}" ;}${ show -n dim italic "/${answerTwo}]" ;}"
     elif [[ ${answerTwo} == *'=default' ]]; then
         answerTwo="${answerTwo%=default}"
         defaultAnswer=${answerTwo}
         _overwriteHint=0
         returnOnEmpty=true
-        _hint=" ${_ansi_hint}[${answerOne}/${_ansi_hint_selected}${answerTwo}${_ansi_hint_normal}]${ansi_plain}"
+        _hint=" ${ show -n dim italic "[${answerOne}/" ;}${ show -n italic cyan "${answerTwo}" ;}${ show -n dim italic "]" ;}"
     else
         _prepareHint ' ' "${answerOne}/${answerTwo}"
     fi
@@ -192,7 +192,7 @@ confirm() {
 
                 # Update hint and retry
 
-                hint="${ansi_bold_green}[${answerOne}/${answerTwo}]${ansi_plain}"
+                hint="${ show -n bold green "[${answerOne}/${answerTwo}]" ;}"
                 cursorTo ${_cursorRow} ${_promptCol}
                 echo -n "${hint} "
               #  continue
@@ -209,11 +209,6 @@ _init_rayvn_prompt() {
     require 'rayvn/core' 'rayvn/terminal'
 }
 
-declare -gr _questionPrefix="${ansi_bold_green}?${ansi_plain} "
-declare -gr _ansi_hint="${ansi_italic}${ansi_dim}"
-declare -gr _ansi_hint_normal="${ansi_plain}${_ansi_hint}"
-declare -gr _ansi_hint_selected="${ansi_plain}${ansi_italic}${ansi_cyan}"
-declare -gr _promptPrefix="${ansi_bold_blue}>${ansi_plain} "
 declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
 declare -gr _cancelledMsgEmpty='cancelled (no input)'
 declare -gr _cancelledMsgEsc='cancelled (escape)'
@@ -239,14 +234,14 @@ _prepareHint() {
     local initialSpace="${1}"
     local hint="${2}"
     _overwriteHint="${3:0}"
-    _hint="${initialSpace}${_ansi_hint}[${hint}]${ansi_plain}"
+    _hint="${initialSpace}${ show -n dim italic "[${hint}]" ;}"
 }
 
 _preparePrompt() {
     _plainPrompt="${1}"
     local timeout="${2}"
     local requiredLines="${3}"
-    _prompt="${_questionPrefix}${ansi_bold}${_plainPrompt}${ansi_plain}${_hint} "
+    _prompt="${ show -n bold green "?" plain bold "${_plainPrompt}" ;}${_hint} "
     echo -n "${_prompt}"
     reserveRows "${requiredLines}"
     _promptRow=${_cursorRow}
