@@ -36,7 +36,7 @@ main() {
 }
 
 init() {
-    declare -g debugOptions=
+    declare -g debugOptions=()
     declare -g command=
     declare -g projects=()
     declare -g args=()
@@ -56,10 +56,10 @@ init() {
             dependencies) parseArgs true projectDependencies "${@:2}" ;;
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
-            --debug) debugOptions='showOnExit' ;;
-            --debug-new) debugOptions='clearLog showOnExit' ;;
-            --debug-out) debugOptions="tty ${terminal}" ;;
-            --debug-tty) shift; debugOptions="tty ${1}" ;;
+            --debug) debugOptions=('showOnExit') ;;
+            --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
+            --debug-out) debugOptions=('tty' "${ tty; }") ;;
+            --debug-tty) shift; debugOptions=('tty' "${1}") ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -h | --help | help) command='usage' ;;
@@ -87,10 +87,10 @@ parseArgs() {
             -h | --help) flags+=(['help']=1) ;;
             -q | --quiet) flags+=(['quiet']=1) ;;
             --assert) flags+=(['assert']=1) ;;
-            --debug) debugOptions='showOnExit' ;;
-            --debug-new) debugOptions='clearLog showOnExit' ;;
-            --debug-out) debugOptions="tty ${terminal}" ;;
-            --debug-tty) shift; debugOptions="tty ${1}" ;;
+            --debug) debugOptions=('showOnExit') ;;
+            --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
+            --debug-out) debugOptions=('tty' "${ tty; }") ;;
+            --debug-tty) shift; debugOptions=('tty' "${1}") ;;
             --repo) shift; gitHubRepo="${1}";;
             -*) args+=("${1}") ;;
             *)  if [[ ${add} == true ]]; then
