@@ -74,7 +74,7 @@ debugVarIsSet() {
                 declare -p ${var}
             else
                 show red "NOT SET!"
-                printStack
+                stackTrace
                 echo
             fi
         ) >&3
@@ -91,7 +91,7 @@ debugVarIsNotSet() {
             _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is not set ->" ;} "
             if _varIsSet ${var}; then
                 show red "=${!var}"
-                printStack
+                stackTrace
                 echo
             else
                 echo "not set"
@@ -123,7 +123,7 @@ debugJson() {
 debugStack() {
     if (( _debug )); then
         _debugEcho
-        printStack >&3
+        stackTrace >&3
     fi
 }
 
@@ -168,7 +168,7 @@ _debugEchoNoNewline() {
 _setDebug() {
     (( _debug)) && {
         debug '_setDebug(), but called previously.'
-        printStack
+        stackTrace
         return 0
     }
 

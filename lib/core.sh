@@ -362,35 +362,13 @@ show() {
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
-printRepeat() {
+repeat() {
     local str=${1}
     local count=${2}
     local result
     printf -v result "%*s" "${count}" ""
     result=${result// /${str}}
     echo "${result}"
-}
-
-printVars() {
-    (
-        while ((${#} > 0)); do
-            local var=${1}
-            if declare -p ${var} &>/dev/null; then
-                declare -p ${var}
-            else
-                echo "${var} is not set"
-            fi
-            shift
-        done
-    )
-}
-
-printFormatted() {
-    printf "${1}\n" "${@:2}"
-}
-
-print() {
-    echo -e "${*}"
 }
 
 warn() {
@@ -408,7 +386,7 @@ redStream() {
     done
 }
 
-printStack() {
+stackTrace() {
     local message="${1}"
     local caller=${FUNCNAME[1]}
     declare -i start=1
@@ -432,12 +410,12 @@ printStack() {
 }
 
 assertionFailed() {
-    printStack "${*}"
+    stackTrace "${*}"
     exit 1
 }
 
 fail() {
-    printStack "${*}"
+    stackTrace "${*}"
     exit 1
 }
 
@@ -494,6 +472,17 @@ _init_rayvn_core() {
     trap '_onRayvnTerm' TERM
     trap '_onRayvnHup' HUP
     trap '_onRayvnInt' INT
+
+    # Try to ensure UTF-8
+
+    declare -grx LC_ALL=en_US.UTF-8
+    declare -grx LANG=en_US.UTF-8
+    if [[ "${LC_ALL:-${LANG}}" =~ UTF-8 ]]; then
+        declare -grx _hasUTF8=1
+    else
+        echo "Warning: UTF-8 locale not detected. Unicode may not render correctly." >&2
+        declare -grx _hasUTF8=0
+    fi
 
     # We need to set ${terminal} so that it can be used as a redirect.
     # Are stdout and stderr both terminals?
@@ -652,7 +641,7 @@ _init_colors() {
         ['!reverse']=$'\e[27m'
         ['!strikethrough']='' # $'\e[29m' often not supported
 
-        # Basic Colors
+        # Basic Foreground Colors
 
         ['black']=$'\e[30m'
         ['red']=$'\e[31m'
@@ -671,6 +660,25 @@ _init_colors() {
         ['bright-cyan']=$'\e[96m'
         ['bright-white']=$'\e[97m'
 
+        # Basic Background Colors
+
+        ['bg-black']=$'\e[40m'
+        ['bg-red']=$'\e[41m'
+        ['bg-green']=$'\e[42m'
+        ['bg-yellow']=$'\e[43m'
+        ['bg-blue']=$'\e[44m'
+        ['bg-magenta']=$'\e[45m'
+        ['bg-cyan']=$'\e[46m'
+        ['bg-white']=$'\e[47m'
+        ['bg-bright-black']=$'\e[100m'
+        ['bg-bright-red']=$'\e[101m'
+        ['bg-bright-green']=$'\e[102m'
+        ['bg-bright-yellow']=$'\e[103m'
+        ['bg-bright-blue']=$'\e[104m'
+        ['bg-bright-magenta']=$'\e[105m'
+        ['bg-bright-cyan']=$'\e[106m'
+        ['bg-bright-white']=$'\e[107m'
+
         # Theme colors
 
         ['success']=${_currentTheme[1]}
@@ -680,9 +688,29 @@ _init_colors() {
         ['accent']=${_currentTheme[5]}
         ['muted']=${_currentTheme[6]}
 
-        # Turn off previous formats
+        # Turn off all formats
 
         ['plain']=$'\e[0m'
+
+        # TODO: these are not formats, so should be elsewhere
+
+        # Vertical line variants (UTF-8)
+
+        ['v-line']="│"          # U+2502 Box drawings light vertical
+        ['v-line-heavy']="┃"    # U+2503 Box drawings heavy vertical
+        ['v-line-2']="║"        # U+2551 Box drawings double vertical
+        ['v-dash-2']="╎"        # U+254E Box drawings light double dash vertical
+        ['v-dash-2-heavy']="╏"  # U+254F Box drawings heavy double dash vertical
+        ['v-dash-3']="┆"        # U+2506 Box drawings light triple dash vertical
+        ['v-dash-3-heavy']="┇"  # U+2507 Box drawings heavy triple dash vertical
+        ['v-dash-4']="┊"        # U+250A Box drawings light quadruple dash vertical
+        ['v-dash-4-heavy']="┋"  # U+250B Box drawings heavy quadruple dash vertical
+
+        # Block elements (solid)
+
+        ['block-full']="█"      # U+2588 Full block
+        ['block-left']="▌"      # U+258C Left half block
+        ['block-right']="▐"     # U+2590 Right half block
     )
 }
 
@@ -709,7 +737,7 @@ _init_noColors() {
         ['!reverse']=''
         ['!strikethrough']=''
 
-        # Basic Colors
+        # Basic Foreground Colors
 
         ['black']=''
         ['red']=''
@@ -728,6 +756,25 @@ _init_noColors() {
         ['bright-cyan']=''
         ['bright-white']=''
 
+        # Basic Background Colors
+
+        ['bg-black']=''
+        ['bg-red']=''
+        ['bg-green']=''
+        ['bg-yellow']=''
+        ['bg-blue']=''
+        ['bg-magenta']=''
+        ['bg-cyan']=''
+        ['bg-white']=''
+        ['bg-bright-black']=''
+        ['bg-bright-red']=''
+        ['bg-bright-green']=''
+        ['bg-bright-yellow']=''
+        ['bg-bright-blue']=''
+        ['bg-bright-magenta']=''
+        ['bg-bright-cyan']=''
+        ['bg-bright-white']=''
+
         # Theme colors
 
         ['success']=''
@@ -737,7 +784,7 @@ _init_noColors() {
         ['accent']=''
         ['muted']=''
 
-        # Turn off previous formats
+        # Turn off all formats
 
         ['plain']=''
     )
