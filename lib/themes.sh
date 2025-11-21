@@ -1,853 +1,94 @@
 #!/usr/bin/env bash
 
-# Library of common functions.
+# Theme selection functions.
 # Intended for use via: require 'rayvn/themes'
 
-# TODO!!
-#
-# End goal is to have a theme picker (rayvn theme command) where the user selected theme is
-# displayed as a variable declaration that they can paste into their .bashrc or equivalent.
-# The init code in core will use this if present to override the default.
-#
-# Given that the user will actually SEE each theme example on their terminal, the slow
-# detection code is likely not needed, though the simpler parts could be used in core to
-# choose a default dynamically.
-#
-# Each theme currently has six (semantic color) categories:
-#
-#    success (green variants)
-#    error (red variants)
-#    warning (yellow/orange variants)
-#    info (blue/cyan variants)
-#    muted (gray variants)
-#    accent (purple/pink variants)
-#
-# MUST support a fallback to basic colors for terminals that don't support RGB!!!
-#
-#  MUST SEE: https://htmlcolorcodes.com/color-chart/  Material Design!! Maybe Flat.
-#
-#
-# May also want to expand the set of category names, and, if so, upload this script to Claude and use this prompt:
-#
-#    I'm a retired software engineer working on a bash hobby project.
-#    I prefer lower camelCase for function names and variables and braces for bash variables.
-#    I'm using pre-computed escape sequences in $'\e[38;2;R;G;Bm' format.
-#    I have both dark and light theme variants, where the light versions were computed from the dark.
-#    The current themes only have 6 color categories (success, error, warning, info, muted,
-#    accent) but I want to expand them to include [list your desired categories]
-#
 
 
+displayDarkThemes() {
+    _displayThemes 1
+}
+
+displayLightThemes() {
+    _displayThemes 0
+}
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_themes() {
     require 'rayvn/core'
-    warn "'rayvn/themes' is NOT YET FUNCTIONAL AS A LIBRARY, ONLY AN EXECUTABLE!" # TODO
-}
-
-# Global list of all available themes (displayName:darkThemeVarName:lightThemeVarName)
-
-declare -a allThemes=(
-    "Vibrant:themeVibrant:themeVibrantLight"
-    "Solarized:themeSolarized:themeSolarizedLight"
-    "Nord:themeNord:themeNordLight"
-    "Dracula:themeDracula:themeDraculaLight"
-    "Monokai:themeMonokai:themeMonokaiLight"
-    "Gruvbox:themeGruvbox:themeGruvboxLight"
-    "One Dark:themeOneDark:themeOneDarkLight"
-    "Tokyo Night:themeTokyo:themeTokyoLight"
-    "Catppuccin:themeCatppuccin:themeCatppuccinLight"
-    "Ayu:themeAyu:themeAyuLight"
-    "Night Owl:themeNightOwl:themeNightOwlLight"
-    "Palenight:themePalenight:themePalenightLight"
-    "Ocean:themeOcean:themeOceanLight"
-    "VS Code:themeVscode:themeVscodeLight"
-    "Material:themeMaterial:themeMaterialLight"
-    "Base16:themeBase16:themeBase16Light"
-    "Horizon:themeHorizon:themeHorizonLight"
-    "Spacemacs:themeSpacemacs:themeSpacemacsLight"
-    "Iceberg:themeIceberg:themeIcebergLight"
-    "Rose Pine:themeRosePine:themeRosePineLight"
-    "Cyberpunk:themeCyberpunk:themeCyberpunkLight"
-    "Synthwave:themeSynthwave:themeSynthwaveLight"
-    "Monokai Pro:themeMonokaiPro:themeMonokaiProLight"
-    "Shades of Purple:themeShades:themeShadesLight"
-    "Arctic:themeArctic:themeArcticLight"
-    "Forest:themeForest:themeForestLight"
-    "Neon:themeNeon:themeNeonLight"
-    "Retro:themeRetro:themeRetroLight"
-    "Pastel:themePastel:themePastelLight"
-    "Earth:themeEarth:themeEarthLight"
-)
-
-# Color names
-
-#declare -a themeColors=(success error warning info muted accent)  # Original order.
-declare -a themeColors=(info muted accent warning error success)
-
-# Themes for dark backgrounds
-
-declare -A themeVibrant=(
-    ["success"]=$'\e[38;2;46;255;78m'       # Bright green
-    ["error"]=$'\e[38;2;255;59;48m'         # Bright red
-    ["warning"]=$'\e[38;2;255;214;10m'      # Bright yellow
-    ["info"]=$'\e[38;2;10;132;255m'         # Bright blue
-    ["muted"]=$'\e[38;2;152;152;157m'       # Light gray
-    ["accent"]=$'\e[38;2;191;90;242m'       # Purple
-)
-
-declare -A themeSolarized=(
-    ["success"]=$'\e[38;2;133;153;0m'       # Solarized green
-    ["error"]=$'\e[38;2;220;50;47m'         # Solarized red
-    ["warning"]=$'\e[38;2;181;137;0m'       # Solarized yellow
-    ["info"]=$'\e[38;2;38;139;210m'         # Solarized blue
-    ["muted"]=$'\e[38;2;147;161;161m'       # Solarized base1
-    ["accent"]=$'\e[38;2;211;54;130m'       # Solarized magenta
-)
-
-declare -A themeNord=(
-    ["success"]=$'\e[38;2;163;190;140m'     # Nord green
-    ["error"]=$'\e[38;2;191;97;106m'        # Nord red
-    ["warning"]=$'\e[38;2;235;203;139m'     # Nord yellow
-    ["info"]=$'\e[38;2;129;161;193m'        # Nord blue
-    ["muted"]=$'\e[38;2;216;222;233m'       # Nord light gray
-    ["accent"]=$'\e[38;2;180;142;173m'      # Nord purple
-)
-
-declare -A themeDracula=(
-    ["success"]=$'\e[38;2;80;250;123m'      # Dracula green
-    ["error"]=$'\e[38;2;255;85;85m'         # Dracula red
-    ["warning"]=$'\e[38;2;241;250;140m'     # Dracula yellow
-    ["info"]=$'\e[38;2;139;233;253m'        # Dracula cyan
-    ["muted"]=$'\e[38;2;98;114;164m'        # Dracula comment
-    ["accent"]=$'\e[38;2;255;121;198m'      # Dracula pink
-)
-
-declare -A themeMonokai=(
-    ["success"]=$'\e[38;2;166;226;46m'      # Monokai green
-    ["error"]=$'\e[38;2;249;38;114m'        # Monokai pink/red
-    ["warning"]=$'\e[38;2;253;151;31m'      # Monokai orange
-    ["info"]=$'\e[38;2;102;217;239m'        # Monokai cyan
-    ["muted"]=$'\e[38;2;117;113;94m'        # Monokai comment
-    ["accent"]=$'\e[38;2;174;129;255m'      # Monokai purple
-)
-
-declare -A themeGruvbox=(
-    ["success"]=$'\e[38;2;184;187;38m'      # Gruvbox green
-    ["error"]=$'\e[38;2;251;73;52m'         # Gruvbox red
-    ["warning"]=$'\e[38;2;250;189;47m'      # Gruvbox yellow
-    ["info"]=$'\e[38;2;131;165;152m'        # Gruvbox aqua
-    ["muted"]=$'\e[38;2;168;153;132m'       # Gruvbox gray
-    ["accent"]=$'\e[38;2;211;134;155m'      # Gruvbox purple
-)
-
-declare -A themeOneDark=(
-    ["success"]=$'\e[38;2;152;195;121m'     # One Dark green
-    ["error"]=$'\e[38;2;224;108;117m'       # One Dark red
-    ["warning"]=$'\e[38;2;229;192;123m'     # One Dark yellow
-    ["info"]=$'\e[38;2;97;175;239m'         # One Dark blue
-    ["muted"]=$'\e[38;2;171;178;191m'       # One Dark gray
-    ["accent"]=$'\e[38;2;198;120;221m'      # One Dark purple
-)
-
-declare -A themeTokyo=(
-    ["success"]=$'\e[38;2;158;206;106m'     # Tokyo Night green
-    ["error"]=$'\e[38;2;247;118;142m'       # Tokyo Night red
-    ["warning"]=$'\e[38;2;224;175;104m'     # Tokyo Night yellow
-    ["info"]=$'\e[38;2;122;162;247m'        # Tokyo Night blue
-    ["muted"]=$'\e[38;2;169;177;214m'       # Tokyo Night gray
-    ["accent"]=$'\e[38;2;187;154;247m'      # Tokyo Night purple
-)
-
-declare -A themeCatppuccin=(
-    ["success"]=$'\e[38;2;166;227;161m'     # Catppuccin green
-    ["error"]=$'\e[38;2;243;139;168m'       # Catppuccin red
-    ["warning"]=$'\e[38;2;249;226;175m'     # Catppuccin yellow
-    ["info"]=$'\e[38;2;137;180;250m'        # Catppuccin blue
-    ["muted"]=$'\e[38;2;186;194;222m'       # Catppuccin gray
-    ["accent"]=$'\e[38;2;203;166;247m'      # Catppuccin purple
-)
-
-declare -A themeAyu=(
-    ["success"]=$'\e[38;2;183;192;131m'     # Ayu green
-    ["error"]=$'\e[38;2;242;151;24m'        # Ayu orange (for error)
-    ["warning"]=$'\e[38;2;255;213;128m'     # Ayu yellow
-    ["info"]=$'\e[38;2;57;186;230m'         # Ayu blue
-    ["muted"]=$'\e[38;2;140;140;140m'       # Ayu gray
-    ["accent"]=$'\e[38;2;255;120;137m'      # Ayu pink
-)
-
-declare -A themeNightOwl=(
-    ["success"]=$'\e[38;2;173;219;103m'     # Night Owl green
-    ["error"]=$'\e[38;2;247;140;108m'       # Night Owl red
-    ["warning"]=$'\e[38;2;255;204;102m'     # Night Owl yellow
-    ["info"]=$'\e[38;2;130;170;255m'        # Night Owl blue
-    ["muted"]=$'\e[38;2;122;129;129m'       # Night Owl gray
-    ["accent"]=$'\e[38;2;199;146;234m'      # Night Owl purple
-)
-
-declare -A themePalenight=(
-    ["success"]=$'\e[38;2;195;232;141m'     # Palenight green
-    ["error"]=$'\e[38;2;240;113;120m'       # Palenight red
-    ["warning"]=$'\e[38;2;255;203;107m'     # Palenight yellow
-    ["info"]=$'\e[38;2;130;170;255m'        # Palenight blue
-    ["muted"]=$'\e[38;2;121;134;155m'       # Palenight gray
-    ["accent"]=$'\e[38;2;199;146;234m'      # Palenight purple
-)
-
-declare -A themeOcean=(
-    ["success"]=$'\e[38;2;52;208;88m'       # GitHub green
-    ["error"]=$'\e[38;2;215;58;73m'         # GitHub red
-    ["warning"]=$'\e[38;2;251;188;5m'       # GitHub yellow
-    ["info"]=$'\e[38;2;13;122;219m'         # GitHub blue
-    ["muted"]=$'\e[38;2;139;148;158m'       # GitHub gray
-    ["accent"]=$'\e[38;2;138;43;226m'       # GitHub purple
-)
-
-declare -A themeVscode=(
-    ["success"]=$'\e[38;2;22;198;12m'       # VS Code green
-    ["error"]=$'\e[38;2;244;71;71m'         # VS Code red
-    ["warning"]=$'\e[38;2;255;204;0m'       # VS Code yellow
-    ["info"]=$'\e[38;2;37;127;173m'         # VS Code blue
-    ["muted"]=$'\e[38;2;128;128;128m'       # VS Code gray
-    ["accent"]=$'\e[38;2;181;137;0m'        # VS Code orange
-)
-
-declare -A themeMaterial=(
-    ["success"]=$'\e[38;2;76;175;80m'       # Material green
-    ["error"]=$'\e[38;2;244;67;54m'         # Material red
-    ["warning"]=$'\e[38;2;255;193;7m'       # Material amber
-    ["info"]=$'\e[38;2;33;150;243m'         # Material blue
-    ["muted"]=$'\e[38;2;158;158;158m'       # Material gray
-    ["accent"]=$'\e[38;2;156;39;176m'       # Material purple
-)
-
-declare -A themeBase16=(
-    ["success"]=$'\e[38;2;144;169;89m'      # Base16 green
-    ["error"]=$'\e[38;2;172;65;66m'         # Base16 red
-    ["warning"]=$'\e[38;2;223;142;29m'      # Base16 yellow
-    ["info"]=$'\e[38;2;106;159;181m'        # Base16 blue
-    ["muted"]=$'\e[38;2;181;189;104m'       # Base16 gray
-    ["accent"]=$'\e[38;2;144;112;190m'      # Base16 purple
-)
-
-declare -A themeHorizon=(
-    ["success"]=$'\e[38;2;41;183;135m'      # Horizon green
-    ["error"]=$'\e[38;2;232;104;134m'       # Horizon red
-    ["warning"]=$'\e[38;2;250;176;108m'     # Horizon orange
-    ["info"]=$'\e[38;2;38;166;154m'         # Horizon cyan
-    ["muted"]=$'\e[38;2;110;113;151m'       # Horizon gray
-    ["accent"]=$'\e[38;2;183;101;172m'      # Horizon purple
-)
-
-declare -A themeSpacemacs=(
-    ["success"]=$'\e[38;2;134;192;99m'      # Spacemacs green
-    ["error"]=$'\e[38;2;240;123;63m'        # Spacemacs red
-    ["warning"]=$'\e[38;2;178;148;187m'     # Spacemacs yellow
-    ["info"]=$'\e[38;2;79;151;215m'         # Spacemacs blue
-    ["muted"]=$'\e[38;2;92;99;112m'         # Spacemacs gray
-    ["accent"]=$'\e[38;2;206;145;120m'      # Spacemacs orange
-)
-
-declare -A themeIceberg=(
-    ["success"]=$'\e[38;2;180;190;130m'     # Iceberg green
-    ["error"]=$'\e[38;2;224;108;117m'       # Iceberg red
-    ["warning"]=$'\e[38;2;235;203;139m'     # Iceberg yellow
-    ["info"]=$'\e[38;2;132;165;157m'        # Iceberg cyan
-    ["muted"]=$'\e[38;2;110;120;152m'       # Iceberg gray
-    ["accent"]=$'\e[38;2;180;142;173m'      # Iceberg purple
-)
-
-declare -A themeRosePine=(
-    ["success"]=$'\e[38;2;158;206;106m'     # Rose Pine green
-    ["error"]=$'\e[38;2;235;111;146m'       # Rose Pine red
-    ["warning"]=$'\e[38;2;234;154;151m'     # Rose Pine yellow
-    ["info"]=$'\e[38;2;156;207;216m'        # Rose Pine cyan
-    ["muted"]=$'\e[38;2;144;140;170m'       # Rose Pine gray
-    ["accent"]=$'\e[38;2;196;167;231m'      # Rose Pine purple
-)
-
-declare -A themeCyberpunk=(
-    ["success"]=$'\e[38;2;0;255;159m'       # Cyberpunk green
-    ["error"]=$'\e[38;2;255;85;102m'        # Cyberpunk red
-    ["warning"]=$'\e[38;2;255;204;0m'       # Cyberpunk yellow
-    ["info"]=$'\e[38;2;0;191;255m'          # Cyberpunk cyan
-    ["muted"]=$'\e[38;2;128;128;128m'       # Cyberpunk gray
-    ["accent"]=$'\e[38;2;255;0;255m'        # Cyberpunk magenta
-)
-
-declare -A themeSynthwave=(
-    ["success"]=$'\e[38;2;57;255;20m'       # Synthwave green
-    ["error"]=$'\e[38;2;255;16;240m'        # Synthwave pink
-    ["warning"]=$'\e[38;2;255;222;0m'       # Synthwave yellow
-    ["info"]=$'\e[38;2;1;229;255m'          # Synthwave cyan
-    ["muted"]=$'\e[38;2;139;69;255m'        # Synthwave purple
-    ["accent"]=$'\e[38;2;255;128;0m'        # Synthwave orange
-)
-
-declare -A themeMonokaiPro=(
-    ["success"]=$'\e[38;2;127;255;0m'       # Monokai Pro green
-    ["error"]=$'\e[38;2;255;100;100m'       # Monokai Pro red
-    ["warning"]=$'\e[38;2;255;216;102m'     # Monokai Pro yellow
-    ["info"]=$'\e[38;2;120;220;232m'        # Monokai Pro cyan
-    ["muted"]=$'\e[38;2;144;145;148m'       # Monokai Pro gray
-    ["accent"]=$'\e[38;2;255;97;175m'       # Monokai Pro pink
-)
-
-declare -A themeShades=(
-    ["success"]=$'\e[38;2;72;187;120m'      # Shades of Purple green
-    ["error"]=$'\e[38;2;206;76;120m'        # Shades of Purple red
-    ["warning"]=$'\e[38;2;255;206;84m'      # Shades of Purple yellow
-    ["info"]=$'\e[38;2;77;171;247m'         # Shades of Purple blue
-    ["muted"]=$'\e[38;2;165;170;199m'       # Shades of Purple gray
-    ["accent"]=$'\e[38;2;178;148;187m'      # Shades of Purple purple
-)
-
-declare -A themeArctic=(
-    ["success"]=$'\e[38;2;136;192;208m'     # Arctic green
-    ["error"]=$'\e[38;2;191;97;106m'        # Arctic red
-    ["warning"]=$'\e[38;2;235;203;139m'     # Arctic yellow
-    ["info"]=$'\e[38;2;129;161;193m'        # Arctic blue
-    ["muted"]=$'\e[38;2;216;222;233m'       # Arctic gray
-    ["accent"]=$'\e[38;2;180;142;173m'      # Arctic purple
-)
-
-declare -A themeForest=(
-    ["success"]=$'\e[38;2;46;125;50m'       # Forest green
-    ["error"]=$'\e[38;2;198;40;40m'         # Forest red
-    ["warning"]=$'\e[38;2;245;124;0m'       # Forest orange
-    ["info"]=$'\e[38;2;30;136;229m'         # Forest blue
-    ["muted"]=$'\e[38;2;97;97;97m'          # Forest gray
-    ["accent"]=$'\e[38;2;123;31;162m'       # Forest purple
-)
-
-declare -A themeNeon=(
-    ["success"]=$'\e[38;2;57;255;20m'       # Neon green
-    ["error"]=$'\e[38;2;255;20;147m'        # Neon pink
-    ["warning"]=$'\e[38;2;255;255;0m'       # Neon yellow
-    ["info"]=$'\e[38;2;0;255;255m'          # Neon cyan
-    ["muted"]=$'\e[38;2;192;192;192m'       # Neon silver
-    ["accent"]=$'\e[38;2;186;85;211m'       # Neon purple
-)
-
-declare -A themeRetro=(
-    ["success"]=$'\e[38;2;0;255;0m'         # Retro green
-    ["error"]=$'\e[38;2;255;0;0m'           # Retro red
-    ["warning"]=$'\e[38;2;255;255;0m'       # Retro yellow
-    ["info"]=$'\e[38;2;0;0;255m'            # Retro blue
-    ["muted"]=$'\e[38;2;192;192;192m'       # Retro gray
-    ["accent"]=$'\e[38;2;255;0;255m'        # Retro magenta
-)
-
-declare -A themePastel=(
-    ["success"]=$'\e[38;2;152;251;152m'     # Pastel green
-    ["error"]=$'\e[38;2;255;182;193m'       # Pastel pink
-    ["warning"]=$'\e[38;2;255;255;224m'     # Pastel yellow
-    ["info"]=$'\e[38;2;173;216;230m'        # Pastel blue
-    ["muted"]=$'\e[38;2;211;211;211m'       # Pastel gray
-    ["accent"]=$'\e[38;2;221;160;221m'      # Pastel purple
-)
-
-declare -A themeEarth=(
-    ["success"]=$'\e[38;2;107;142;35m'      # Earth green
-    ["error"]=$'\e[38;2;165;42;42m'         # Earth red
-    ["warning"]=$'\e[38;2;218;165;32m'      # Earth gold
-    ["info"]=$'\e[38;2;70;130;180m'         # Earth blue
-    ["muted"]=$'\e[38;2;128;128;128m'       # Earth gray
-    ["accent"]=$'\e[38;2;160;82;45m'        # Earth brown
-)
-
-# Themes for light backgrounds (pre-computed escape sequences)
-
-declare -A themeVibrantLight=(
-    ["success"]=$'\e[38;2;13;178;23m'       # Converted from 46 255 78
-    ["error"]=$'\e[38;2;153;8;7m'           # Converted from 255 59 48
-    ["warning"]=$'\e[38;2;63;149;2m'        # Converted from 255 214 10
-    ["info"]=$'\e[38;2;2;79;153m'           # Converted from 10 132 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 152 152 157
-    ["accent"]=$'\e[38;2;114;54;145m'       # Converted from 191 90 242
-)
-
-declare -A themeSolarizedLight=(
-    ["success"]=$'\e[38;2;39;45;0m'         # Converted from 133 153 0
-    ["error"]=$'\e[38;2;132;30;28m'         # Converted from 220 50 47
-    ["warning"]=$'\e[38;2;45;95;0m'         # Converted from 181 137 0
-    ["info"]=$'\e[38;2;9;83;126m'           # Converted from 38 139 210
-    ["accent"]=$'\e[38;2;126;32;78m'        # Converted from 211 54 130
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 147 161 161
-)
-
-declare -A themeNordLight=(
-    ["success"]=$'\e[38;2;48;57;42m'        # Converted from 163 190 140
-    ["error"]=$'\e[38;2;114;58;63m'         # Converted from 191 97 106
-    ["warning"]=$'\e[38;2;58;142;34m'       # Converted from 235 203 139
-    ["info"]=$'\e[38;2;32;96;115m'          # Converted from 129 161 193
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 216 222 233
-    ["accent"]=$'\e[38;2;108;85;103m'       # Converted from 180 142 173
-)
-
-declare -A themeDraculaLight=(
-    ["success"]=$'\e[38;2;24;175;36m'       # Converted from 80 250 123
-    ["error"]=$'\e[38;2;153;51;51m'         # Converted from 255 85 85
-    ["warning"]=$'\e[38;2;60;175;35m'       # Converted from 241 250 140
-    ["info"]=$'\e[38;2;27;139;151m'         # Converted from 139 233 253
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 98 114 164
-    ["accent"]=$'\e[38;2;153;72;118m'       # Converted from 255 121 198
-)
-
-declare -A themeMonokaiLight=(
-    ["success"]=$'\e[38;2;38;178;0m'        # Converted from 127 255 0
-    ["error"]=$'\e[38;2;153;60;60m'         # Converted from 255 100 100
-    ["warning"]=$'\e[38;2;51;151;20m'       # Converted from 255 216 102
-    ["info"]=$'\e[38;2;24;132;139m'         # Converted from 120 220 232
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 144 145 148
-    ["accent"]=$'\e[38;2;153;58;105m'       # Converted from 255 97 175
-)
-
-declare -A themeGruvboxLight=(
-    ["success"]=$'\e[38;2;55;56;11m'        # Converted from 184 187 38
-    ["error"]=$'\e[38;2;150;43;31m'         # Converted from 251 73 52
-    ["warning"]=$'\e[38;2;62;132;11m'       # Converted from 250 189 47
-    ["info"]=$'\e[38;2;26;99;91m'           # Converted from 131 165 152
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 168 153 132
-    ["accent"]=$'\e[38;2;126;80;93m'        # Converted from 211 134 155
-)
-
-declare -A themeOneDarkLight=(
-    ["success"]=$'\e[38;2;45;58;36m'        # Converted from 152 195 121
-    ["error"]=$'\e[38;2;134;64;70m'         # Converted from 224 108 117
-    ["warning"]=$'\e[38;2;57;134;30m'       # Converted from 229 192 123
-    ["info"]=$'\e[38;2;24;105;143m'         # Converted from 97 175 239
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 171 178 191
-    ["accent"]=$'\e[38;2;118;72;132m'       # Converted from 198 120 221
-)
-
-declare -A themeTokyoLight=(
-    ["success"]=$'\e[38;2;47;61;31m'        # Converted from 158 206 106
-    ["error"]=$'\e[38;2;148;70;85m'         # Converted from 247 118 142
-    ["warning"]=$'\e[38;2;56;122;26m'       # Converted from 224 175 104
-    ["info"]=$'\e[38;2;30;97;148m'          # Converted from 122 162 247
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 169 177 214
-    ["accent"]=$'\e[38;2;112;92;148m'       # Converted from 187 154 247
-)
-
-declare -A themeCatppuccinLight=(
-    ["success"]=$'\e[38;2;49;68;48m'        # Converted from 166 227 161
-    ["error"]=$'\e[38;2;145;83;100m'        # Converted from 243 139 168
-    ["warning"]=$'\e[38;2;62;158;43m'       # Converted from 249 226 175
-    ["info"]=$'\e[38;2;27;108;150m'         # Converted from 137 180 250
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 186 194 222
-    ["accent"]=$'\e[38;2;121;99;148m'       # Converted from 203 166 247
-)
-
-declare -A themeAyuLight=(
-    ["success"]=$'\e[38;2;54;57;39m'        # Converted from 183 192 131
-    ["error"]=$'\e[38;2;145;90;14m'         # Converted from 242 151 24
-    ["warning"]=$'\e[38;2;63;149;32m'       # Converted from 255 213 128
-    ["info"]=$'\e[38;2;11;111;138m'         # Converted from 57 186 230
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 140 140 140
-    ["accent"]=$'\e[38;2;153;72;82m'        # Converted from 255 120 137
-)
-
-declare -A themeNightOwlLight=(
-    ["success"]=$'\e[38;2;51;65;30m'        # Converted from 173 219 103
-    ["error"]=$'\e[38;2;148;84;64m'         # Converted from 247 140 108
-    ["warning"]=$'\e[38;2;63;142;25m'       # Converted from 255 204 102
-    ["info"]=$'\e[38;2;26;102;153m'         # Converted from 130 170 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 122 129 129
-    ["accent"]=$'\e[38;2;119;87;140m'       # Converted from 199 146 234
-)
-
-declare -A themelPalenightLight=(
-    ["success"]=$'\e[38;2;58;69;42m'        # Converted from 195 232 141
-    ["error"]=$'\e[38;2;144;67;72m'         # Converted from 240 113 120
-    ["warning"]=$'\e[38;2;63;142;26m'       # Converted from 255 203 107
-    ["info"]=$'\e[38;2;26;102;153m'         # Converted from 130 170 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 121 134 155
-    ["accent"]=$'\e[38;2;119;87;140m'       # Converted from 199 146 234
-)
-
-declare -A themeOceanLight=(
-    ["success"]=$'\e[38;2;15;62;26m'        # Converted from 52 208 88
-    ["error"]=$'\e[38;2;129;34;43m'         # Converted from 215 58 73
-    ["warning"]=$'\e[38;2;62;131;1m'        # Converted from 251 188 5
-    ["info"]=$'\e[38;2;3;73;131m'           # Converted from 13 122 219
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 139 148 158
-    ["accent"]=$'\e[38;2;82;25;135m'        # Converted from 138 43 226
-)
-
-declare -A themeVscodeLight=(
-    ["success"]=$'\e[38;2;6;59;3m'          # Converted from 22 198 12
-    ["error"]=$'\e[38;2;146;42;42m'         # Converted from 244 71 71
-    ["warning"]=$'\e[38;2;63;142;0m'        # Converted from 255 204 0
-    ["info"]=$'\e[38;2;9;76;103m'           # Converted from 37 127 173
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 128 128 128
-    ["accent"]=$'\e[38;2;45;34;0m'          # Converted from 181 137 0
-)
-
- declare -A themeMaterialLight=(
-    ["success"]=$'\e[38;2;22;52;24m'        # Converted from 76 175 80
-    ["error"]=$'\e[38;2;146;40;32m'         # Converted from 244 67 54
-    ["warning"]=$'\e[38;2;63;135;1m'        # Converted from 255 193 7
-    ["info"]=$'\e[38;2;8;90;145m'           # Converted from 33 150 243
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 158 158 158
-    ["accent"]=$'\e[38;2;93;23;105m'        # Converted from 156 39 176
-)
-
-declare -A themeBase16Light=(
-    ["success"]=$'\e[38;2;43;50;26m'        # Converted from 144 169 89
-    ["error"]=$'\e[38;2;103;39;39m'         # Converted from 172 65 66
-    ["warning"]=$'\e[38;2;55;99;7m'         # Converted from 223 142 29
-    ["info"]=$'\e[38;2;21;95;108m'          # Converted from 106 159 181
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 181 189 104
-    ["accent"]=$'\e[38;2;86;67;114m'        # Converted from 144 112 190
-)
-
-declare -A themeHorizonLight=(
-    ["success"]=$'\e[38;2;12;109;81m'       # Converted from 41 183 135
-    ["error"]=$'\e[38;2;139;62;80m'         # Converted from 232 104 134
-    ["warning"]=$'\e[38;2;62;123;27m'       # Converted from 250 176 108
-    ["info"]=$'\e[38;2;7;99;92m'            # Converted from 38 166 154
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 110 113 151
-    ["accent"]=$'\e[38;2;109;60;103m'       # Converted from 183 101 172
-)
-
-declare -A themeSpacemacsLight=(
-    ["success"]=$'\e[38;2;40;57;29m'        # Converted from 134 192 99
-    ["error"]=$'\e[38;2;144;73;37m'         # Converted from 240 123 63
-    ["warning"]=$'\e[38;2;44;103;46m'       # Converted from 178 148 187
-    ["info"]=$'\e[38;2;23;90;129m'          # Converted from 79 151 215
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 92 99 112
-    ["accent"]=$'\e[38;2;123;87;72m'        # Converted from 206 145 120
-)
-
-declare -A themeIcebergLight=(
-    ["success"]=$'\e[38;2;54;57;39m'        # Converted from 180 190 130
-    ["error"]=$'\e[38;2;134;64;70m'         # Converted from 224 108 117
-    ["warning"]=$'\e[38;2;58;142;34m'       # Converted from 235 203 139
-    ["info"]=$'\e[38;2;26;99;94m'           # Converted from 132 165 157
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 110 120 152
-    ["accent"]=$'\e[38;2;108;85;103m'       # Converted from 180 142 173
-)
-
-declare -A themeRosePineLight=(
-    ["success"]=$'\e[38;2;47;61;31m'        # Converted from 158 206 106
-    ["error"]=$'\e[38;2;141;66;87m'         # Converted from 235 111 146
-    ["warning"]=$'\e[38;2;140;92;90m'       # Converted from 234 154 151
-    ["info"]=$'\e[38;2;31;124;129m'         # Converted from 156 207 216
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 144 140 170
-    ["accent"]=$'\e[38;2;117;100;138m'      # Converted from 196 167 231
-)
-
-declare -A themeCyberpunkLight=(
-    ["success"]=$'\e[38;2;0;153;95m'        # Converted from 0 255 159
-    ["error"]=$'\e[38;2;153;51;61m'         # Converted from 255 85 102
-    ["warning"]=$'\e[38;2;63;142;0m'        # Converted from 255 204 0
-    ["info"]=$'\e[38;2;0;114;153m'          # Converted from 0 191 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 128 128 128
-    ["accent"]=$'\e[38;2;153;0;153m'        # Converted from 255 0 255
-)
-
-declare -A themeSynthwaveLight=(
-    ["success"]=$'\e[38;2;17;178;6m'        # Converted from 57 255 20
-    ["error"]=$'\e[38;2;153;9;144m'         # Converted from 255 16 240
-    ["warning"]=$'\e[38;2;63;155;0m'        # Converted from 255 222 0
-    ["info"]=$'\e[38;2;0;137;153m'          # Converted from 1 229 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 139 69 255
-    ["accent"]=$'\e[38;2;153;76;0m'         # Converted from 255 128 0
-)
-
-declare -A themeMonokaiProLight=(
-    ["success"]=$'\e[38;2;38;178;0m'        # Converted from 127 255 0
-    ["error"]=$'\e[38;2;153;60;60m'         # Converted from 255 100 100
-    ["warning"]=$'\e[38;2;63;151;25m'       # Converted from 255 216 102
-    ["info"]=$'\e[38;2;24;132;139m'         # Converted from 120 220 232
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 144 145 148
-    ["accent"]=$'\e[38;2;153;58;105m'       # Converted from 255 97 175
-)
-
-declare -A themeShadesLight=(
-    ["success"]=$'\e[38;2;21;56;36m'        # Converted from 72 187 120
-    ["error"]=$'\e[38;2;123;45;72m'         # Converted from 206 76 120
-    ["warning"]=$'\e[38;2;63;144;21m'       # Converted from 255 206 84
-    ["info"]=$'\e[38;2;19;102;148m'         # Converted from 77 171 247
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 165 170 199
-    ["accent"]=$'\e[38;2;53;44;56m'         # Converted from 178 148 187
-)
-
-declare -A themeArcticLight=(
-    ["success"]=$'\e[38;2;40;57;62m'        # Converted from 136 192 208
-    ["error"]=$'\e[38;2;114;58;63m'         # Converted from 191 97 106
-    ["warning"]=$'\e[38;2;58;142;34m'       # Converted from 235 203 139
-    ["info"]=$'\e[38;2;32;96;115m'          # Converted from 129 161 193
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 216 222 233
-    ["accent"]=$'\e[38;2;108;85;103m'       # Converted from 180 142 173
-)
-
-declare -A themeForestLight=(
-    ["success"]=$'\e[38;2;27;75;30m'        # Converted from 46 125 50
-    ["error"]=$'\e[38;2;118;24;24m'         # Converted from 198 40 40
-    ["warning"]=$'\e[38;2;147;74;0m'        # Converted from 245 124 0
-    ["info"]=$'\e[38;2;7;81;137m'           # Converted from 30 136 229
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 97 97 97
-    ["accent"]=$'\e[38;2;73;18;97m'         # Converted from 123 31 162
-)
-
-declare -A themeNeonLight=(
-    ["success"]=$'\e[38;2;17;178;6m'        # Converted from 57 255 20
-    ["error"]=$'\e[38;2;153;12;88m'         # Converted from 255 20 147
-    ["warning"]=$'\e[38;2;63;178;0m'        # Converted from 255 255 0
-    ["info"]=$'\e[38;2;0;153;153m'          # Converted from 0 255 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 192 192 192
-    ["accent"]=$'\e[38;2;111;51;126m'       # Converted from 186 85 211
-)
-
-declare -A themeRetroLight=(
-    ["success"]=$'\e[38;2;0;153;0m'         # Converted from 0 255 0
-    ["error"]=$'\e[38;2;153;0;0m'           # Converted from 255 0 0
-    ["warning"]=$'\e[38;2;63;178;0m'        # Converted from 255 255 0
-    ["info"]=$'\e[38;2;0;0;153m'            # Converted from 0 0 255
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 192 192 192
-    ["accent"]=$'\e[38;2;153;0;153m'        # Converted from 255 0 255
-)
-
-declare -A themePastelLight=(
-    ["success"]=$'\e[38;2;45;75;45m'        # Converted from 152 251 152
-    ["error"]=$'\e[38;2;153;109;115m'       # Converted from 255 182 193
-    ["warning"]=$'\e[38;2;63;178;56m'       # Converted from 255 255 224
-    ["info"]=$'\e[38;2;34;129;138m'         # Converted from 173 216 230
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 211 211 211
-    ["accent"]=$'\e[38;2;132;96;132m'       # Converted from 221 160 221
-)
-
-declare -A themeEarthLight=(
-    ["success"]=$'\e[38;2;32;42;10m'        # Converted from 107 142 35
-    ["error"]=$'\e[38;2;99;25;25m'          # Converted from 165 42 42
-    ["warning"]=$'\e[38;2;54;115;8m'        # Converted from 218 165 32
-    ["info"]=$'\e[38;2;17;78;108m'          # Converted from 70 130 180
-    ["muted"]=$'\e[38;2;70;70;70m'          # Converted from 128 128 128
-    ["accent"]=$'\e[38;2;96;49;27m'         # Converted from 160 82 45
-)
-
-#--------------------------------------------------------------------------------
-
-
-
-# Terminal Colors Display Script
-# Shows all available terminal colors and formatting options
-
-declare -a basic8Colors=(black red green yellow blue magenta cyan white)
-declare -a basic16Colors=(black brightBlack red brightRed green brightGreen yellow brightYellow \
-                         blue brightBlue magenta brightMagenta cyan brightCyan white brightWhite)
-# Foreground color codes
-declare -A colors=(
-    ["black"]="30"
-    ["red"]="31"
-    ["green"]="32"
-    ["yellow"]="33"
-    ["blue"]="34"
-    ["magenta"]="35"
-    ["cyan"]="36"
-    ["white"]="37"
-    ["brightBlack"]="90"
-    ["brightRed"]="91"
-    ["brightGreen"]="92"
-    ["brightYellow"]="93"
-    ["brightBlue"]="94"
-    ["brightMagenta"]="95"
-    ["brightCyan"]="96"
-    ["brightWhite"]="97"
-)
-
-# Background color codes
-declare -A bgColors=(
-    ["black"]="40"
-    ["red"]="41"
-    ["green"]="42"
-    ["yellow"]="43"
-    ["blue"]="44"
-    ["magenta"]="45"
-    ["cyan"]="46"
-    ["white"]="47"
-    ["brightBlack"]="100"
-    ["brightRed"]="101"
-    ["brightGreen"]="102"
-    ["brightYellow"]="103"
-    ["brightBlue"]="104"
-    ["brightMagenta"]="105"
-    ["brightCyan"]="106"
-    ["brightWhite"]="107"
-)
-
-# Text formatting codes
-declare -A prntFormats=(
-    ["reset"]="0"
-    ["bold"]="1"
-    ["dim"]="2"
-    ["italic"]="3"
-    ["underline"]="4"
-    ["blink"]="5"
-    ["reverse"]="7"
-    ["strikethrough"]="9"
-)
-
-
-# Function to display color
-showColor() {
-    local code="${1}"
-    local text="${2}"
-    local bgCode="${3}"
-
-    if [[ -n "${bgCode}" ]]; then
-        printf "\e[${code};${bgCode}m${text}\e[0m"
+    local type
+    type="${ _detectBackgroundType; }"
+    declare -grx _assumedBackgroundType=$?
+    if [[ ${type} == dark ]]; then
+        declare -grx _themeBackgroundType=1
     else
-#       printf "\e[${code}m${text}\e[0m"
-        echo -ne "\e[${code}m${text}\e[0m"
+        declare -grx _themeBackgroundType=0
     fi
+
+    declare -grx _defaultThemeName="Material Design"
 }
 
-# Function to display a color bar
-colorBar() {
-    local code="${1}"
-    local name="${2}"
-    local width=20
+_displayThemes() {
+    local isDark="${1:-${_themeBackgroundType}}"
+    local indent=23
 
-    printf "%-3s %-15s " "${code}" "${name}"
-    showColor "${code}" "$(printf "%*s" ${width} "")" ""
-    printf " "
-    showColor "${code}" "Sample Text" ""
+    if (( isDark )); then
+        printf "\n=== DARK BACKGROUND THEMES ===\n\n"
+    else
+        printf "\n=== LIGHT BACKGROUND THEMES ===\n\n"
+    fi
+
+    for displayName in "${_themeDisplayNames[@]}"; do
+        _displayTheme "${displayName}" ${isDark} "${indent}"
+    done
+
     printf "\n"
 }
 
-# Function to display 256-color palette
-show256Colors() {
-    echo "256-Color Palette:"
-    echo
+_displayTheme() {
+    local displayName="${1}"
+    local isDark="${2:-${_themeBackgroundType}}"
+    local indent="${3:-0}"
+    local prefix colorName
 
-    # Standard colors (0-15)
-    echo "Standard Colors (0-15):"
-    for i in {0..15}; do
-        printf "\e[48;5;${i}m  %3d  \e[0m" "${i}"
-        if (( (i + 1) % 8 == 0 )); then
-            echo
-        fi
-    done
-    echo
-    echo
+    # Convert display name to variable name
+    local varName="${displayName// /}"
+    (( isDark )) && prefix='dark' || prefix='light'
+    local -n themeRef="${prefix}Theme${varName}"
 
-    # 216 RGB colors (16-231)
-    echo "RGB Colors (16-231):"
-    for i in {16..231}; do
-        printf "\e[48;5;${i}m %3d \e[0m" "${i}"
-        if (( (i - 16 + 1) % 6 == 0 )); then
-            printf " "
-        fi
-        if (( (i - 16 + 1) % 36 == 0 )); then
-            echo
-        fi
-    done
-    echo
-    echo
+    printf "%${indent}s:" "${ show -n bold "${displayName}"; }"
 
-    # Grayscale colors (232-255)
-    echo "Grayscale Colors (232-255):"
-    for i in {232..255}; do
-        printf "\e[48;5;${i}m  %3d  \e[0m" "${i}"
-        if (( (i - 232 + 1) % 12 == 0 )); then
-            echo
-        fi
+    for colorName in "${_themeColors[@]}"; do
+        local colorCode="${themeRef[${colorName}]}"
+        printf "%s  %s%s " "${colorCode}" "${colorName} █" $'\e[0m'
     done
-    echo
+    printf "  %s\n\n" "plain █"
 }
 
-# Function to show RGB colors
-showRgbColors() {
-    echo "True Color (24-bit RGB) Examples:"
-    echo
+# Detect dark or light background (by Claude)
+_detectBackgroundType() {
+    local result
 
-    # Rainbow gradient
-    echo "Rainbow Gradient:"
-    for i in {0..255..4}; do
-        local r=$((255 - i))
-        local g=${i}
-        local b=128
-        printf "\e[48;2;${r};${g};${b}m  \e[0m"
-    done
-    echo
-    echo
+    # Try OSC 11 query first (most accurate)
+    if result=$(_queryBackgroundColor 2>/dev/null); then
+        echo "${result}"
+        return 0
+    fi
 
-    # Blue gradient
-    echo "Blue Gradient:"
-    for i in {0..255..4}; do
-        printf "\e[48;2;0;0;${i}m  \e[0m"
-    done
-    echo
-    echo
+    # Fallback to environment detection
+    if result=$(_detectThemeFromEnv); then
+        echo "${result}"
+        return 0
+    fi
 
-    # Green gradient
-    echo "Green Gradient:"
-    for i in {0..255..4}; do
-        printf "\e[48;2;0;${i};0m  \e[0m"
-    done
-    echo
-    echo
-
-    # Red gradient
-    echo "Red Gradient:"
-    for i in {0..255..4}; do
-        printf "\e[48;2;${i};0;0m  \e[0m"
-    done
-    echo
+    # Last resort: assume dark (most common for developers)
+    echo "dark"
+    return 1
 }
 
-# Function to show text formatting
-showFormatting() {
-    echo "Text Formatting Options:"
-    echo
-
-    for format in "${!prntFormats[@]}"; do
-        local code="${prntFormats[${format}]}"
-        printf "%-15s (ESC[%sm): " "${format}" "${code}"
-        showColor "${code}" "Sample text with ${format} formatting" ""
-        echo
-    done
-}
-
-# Function to show color combinations
-showCombinations() {
-    echo "Color Combinations (Foreground + Background):"
-    echo
-
-    # Header
-    printf "%12s" ""
-    for bg in "${basic8Colors[@]}"; do
-        printf "%8s" "${bg}"
-    done
-    echo
-
-    # Color combinations
-    for fgName in "${basic8Colors[@]}"; do
-   #     if [[ "${fgName}" =~ ^bright ]]; then
-    #        continue  # Skip bright colors for this demo
-     #   fi
-
-        local fgCode="${colors[${fgName}]}"
-        printf "%12s" "${fgName}"
-
-        for bgName in "${basic8Colors[@]}"; do
-            local bgCode="${bgColors[${bgName}]}"
-            printf " "
-            showColor "${fgCode}" " Text " "${bgCode}"
-            printf " "
-        done
-        echo
-    done
-}
-
-
-# Function to query terminal background color using OSC 11
-queryBackgroundColor() {
+# Query terminal background color using OSC 11 (by Claude)
+_queryBackgroundColor() {
     local response
     local timeout=1
 
@@ -897,300 +138,797 @@ queryBackgroundColor() {
     return 1
 }
 
-# Function to detect background type from environment variables
-detectThemeFromEnv() {
+# Query terminal background using env vars (by Claude)
+_detectThemeFromEnv() {
     # Check COLORFGBG (set by some terminals)
     case "${COLORFGBG}" in
-        *";0"|*";8") echo "dark"; return 0 ;;    # Dark background
-        *";15"|*";7") echo "light"; return 0 ;;  # Light background
+    *";0"|*";8") echo "dark"; return 0 ;;    # Dark background
+    *";15"|*";7") echo "light"; return 0 ;;  # Light background
     esac
 
     # Check terminal-specific theme indicators
     case "${ITERM_PROFILE:-${TERMINAL_THEME}}" in
-        *"dark"*|*"Dark"*|*"BLACK"*) echo "dark"; return 0 ;;
-        *"light"*|*"Light"*|*"WHITE"*) echo "light"; return 0 ;;
+    *"dark"*|*"Dark"*|*"BLACK"*) echo "dark"; return 0 ;;
+    *"light"*|*"Light"*|*"WHITE"*) echo "light"; return 0 ;;
     esac
 
     # Check for common dark themes by name
     case "${TERM_PROGRAM}" in
-        "iTerm.app")
-            case "${ITERM_PROFILE}" in
-                *"Dark"*|*"Solarized Dark"*|*"Monokai"*) echo "dark"; return 0 ;;
-                *"Light"*|*"Solarized Light"*) echo "light"; return 0 ;;
-            esac
-            ;;
+    "iTerm.app")
+        case "${ITERM_PROFILE}" in
+        *"Dark"*|*"Solarized Dark"*|*"Monokai"*) echo "dark"; return 0 ;;
+        *"Light"*|*"Solarized Light"*) echo "light"; return 0 ;;
+        esac
+        ;;
     esac
 
     return 1
 }
 
-# Function to detect terminal background type
-detectBackgroundType() {
-    local result
-
-    # Try OSC 11 query first (most accurate)
-    if result=$(queryBackgroundColor 2>/dev/null); then
-        echo "${result}"
-        return 0
-    fi
-
-    # Fallback to environment detection
-    if result=$(detectThemeFromEnv); then
-        echo "${result}"
-        return 0
-    fi
-
-    # Last resort: assume dark (most common for developers)
-    echo "dark"
-    return 1
-}
-
-# Function to convert bright colors for light backgrounds (hue-preserving darkening)
-# NOTE/TODO: Not currently used but keep to convert if add new dark themes.
-darkenForLightBackground() {
-    local r=${1} g=${2} b=${3}
-    local colorType=${4:-"default"}
-
-    case "${colorType}" in
-        "yellow"|"warning")
-            # Yellow needs aggressive darkening to be visible on white
-            echo "$((r * 25 / 100)) $((g * 70 / 100)) $((b * 15 / 100))"
-            ;;
-        "cyan"|"info")
-            # Cyan becomes teal-like
-            echo "$((r * 20 / 100)) $((g * 60 / 100)) $((b * 70 / 100))"
-            ;;
-        "green"|"success")
-            # Green can stay fairly vibrant but darker
-            echo "$((r * 30 / 100)) $((g * 70 / 100)) $((b * 30 / 100))"
-            ;;
-        "red"|"error")
-            # Red needs to stay alarming but visible
-            echo "$((r * 60 / 100)) $((g * 15 / 100)) $((b * 15 / 100))"
-            ;;
-        "blue")
-            # Blue can go quite dark
-            echo "$((r * 25 / 100)) $((g * 25 / 100)) $((b * 70 / 100))"
-            ;;
-        "magenta"|"purple")
-            # Magenta/purple
-            echo "$((r * 60 / 100)) $((g * 20 / 100)) $((b * 70 / 100))"
-            ;;
-        "white"|"gray"|"muted")
-            # Light colors become dark gray
-            echo "70 70 70"
-            ;;
-        *)
-            # Default: moderate darkening
-            echo "$((r * 50 / 100)) $((g * 50 / 100)) $((b * 50 / 100))"
-            ;;
-    esac
-}
-
-# Function to display a theme    TODO: HERE!!!
-displayTheme() {
-    local themeName=${1}
-    local bgType=${2}
-    local -n theme=${3}
-
-    echo "=== ${themeName} Theme (${bgType} background) ==="
-    echo
-
-    for color in "${themeColors[@]}"; do
-        if [[ -n "${theme[${color}]}" ]]; then
-            local color=(${theme[${color}]})
-
-            printf "%-10s " "${color}:"
-            printf "${color}●●●●●\e[0m "
-            printf "${color}Sample text with ${color} color\e[0m"
-            echo
-        fi
-    done
-    echo
-}
-
-# Function to show theme examples
-showThemeExamples() {
-    local bgType
-    bgType=$(detectBackgroundType)
-
-    echo "=== Adaptive Color Themes ==="
-    echo "Detected background: ${bgType}"
-    echo
-
-    # Show themes for current background
-    if [[ "${bgType}" == "light" ]]; then
-        echo "Showing themes adapted for light backgrounds:"
-        echo
-
-        for themeInfo in "${allThemes[@]}"; do
-            local themeName="${themeInfo%%:*}"
-            local lightThemeRef="${themeInfo##*:}"
-
-            displayTheme "${themeName}" "light" ${lightThemeRef}
-        done
-    else
-        echo "Showing themes optimized for dark backgrounds:"
-        echo
-
-        for themeInfo in "${allThemes[@]}"; do
-            IFS=':' read -r themeName darkThemeRef lightThemeRef <<< "${themeInfo}"
-
-            displayTheme "${themeName}" "dark" ${darkThemeRef}
-        done
-    fi
-
-    echo "Total themes available: ${#allThemes[@]}"
-#    echo "To see both light and dark versions, use: ${0} themes-compare"
-}
 
 
-# Main script
-main() {
-    clear
-    echo "=== Terminal Colors and Formatting Display ==="
-    echo
+THEME_DATA="--+-+-----+-++(-++(---++++(---+(  THEME DATA  )+---)++++---)++-)++-+------+-+--"
 
-    # Show menu if no arguments
-    if [[ ${#} -eq 0 ]]; then
-        echo "Usage: ${0} [option]"
-        echo
-        echo "Options:"
-        echo "  basic           - Show basic 16 colors"
-        echo "  256             - Show 256-color palette"
-        echo "  rgb             - Show RGB/true color examples"
-        echo "  format          - Show text formatting options"
-        echo "  combo           - Show color combinations"
-        echo "  test            - Test terminal capabilities"
-        echo "  detect          - Detect capabilities (silent)"
-        echo "  background      - Detect background type"
-        echo "  themes          - Show adaptive color themes"
-        echo "  themes-compare  - Compare themes for light/dark backgrounds"
-        echo "  examples        - Show usage examples"
-        echo "  all             - Show everything"
-        echo
-        echo "Running basic demo..."
-        echo
-    fi
+# Theme data mostly built by Claude, with *many* refinement iterations.
+#
+# THEME COLOR REQUIREMENTS
+#
+# 1. Each theme MUST have 7 visually distinct colors.
+# 2. All dark theme colors MUST be visible on dark backgrounds.
+# 3. All light theme colors MUST be visible on light backgrounds.
+# 4. Each of the 8 colors within each theme are named and MUST adhere to the following scheme:
+#
+#    success = GREEN (RGB with G > R and G > B)
+#    error = RED (RGB with R > G and R > B)
+#    warning = YELLOW/ORANGE/GOLD (RGB with R ≈ G > B, or R > G > B)
+#    info = BLUE (RGB with B > R and B > G)
+#    muted =     MUST be subdued and dim:
+#                 - Dark themes: RGB total < 360, no component > 150
+#                 - Light themes: RGB components in range 60-180, total 200-480
+#    accent = PURPLE/MAGENTA (RGB with R ≈ B > G)
+#    primary = CYAN/BLUE (RGB with B and/or G high)
+#    secondary = ORANGE/PEACH (RGB with R > G > B)
+#
+# 5. Official themes SHOULD be adjusted as necessary to follow these requirements.
 
-    case "${1:-basic}" in
-        "basic")
-            # Detect capabilities first (silent)
-            detectCapabilities >/dev/null
 
-            echo "=== Basic 16 Colors ==="
-            echo
-            echo "Foreground Colors:"
-            for color in "${basic16Colors[@]}"; do
-                local code="${colors[${color}]}"
-                colorBar "${code}" "${color}"
-            done
-            echo
-            testCapabilities
-            ;;
-        "256")
-            detectCapabilities >/dev/null
-            if [[ "${has256Color}" == true ]]; then
-                show256Colors
-            else
-                echo "256-color support not detected in this terminal"
-                echo "Try: export TERM=xterm-256color"
-            fi
-            ;;
-        "rgb")
-            detectCapabilities >/dev/null
-            if [[ "${hasTrueColor}" == true ]]; then
-                showRgbColors
-            else
-                echo "True color (24-bit) support not detected in this terminal"
-                echo "Try: export COLORTERM=truecolor"
-            fi
-            ;;
-        "format")
-            showFormatting
-            ;;
-        "combo")
-            detectCapabilities >/dev/null
-            showCombinations
-            ;;
-        "test")
-            testCapabilities
-            ;;
-        "detect")
-            detectCapabilities >/dev/null
-            echo "Terminal capability detection results:"
-            echo "  Basic color support: ${hasBasicColor}"
-            echo "  256-color support: ${has256Color}"
-            echo "  True color support: ${hasTrueColor}"
-            echo "  In multiplexer: ${inMultiplexer}"
-            echo
-            echo "Environment variables:"
-            echo "  TERM=${TERM}"
-            echo "  COLORTERM=${COLORTERM:-not set}"
-            echo "  TERM_PROGRAM=${TERM_PROGRAM:-not set}"
-            [[ -n "${TMUX}" ]] && echo "  TMUX=detected"
-            ;;
-        "background")
-            local bgType
-            bgType=$(detectBackgroundType)
-            echo "Terminal background detection:"
-            echo "  Detected type: ${bgType}"
-            echo
-            echo "Detection methods tried:"
-            echo "  1. OSC 11 query (terminal background color query)"
-            echo "  2. Environment variables (COLORFGBG, ITERM_PROFILE, etc.)"
-            echo "  3. Default assumption (dark)"
-            echo
-            ;;
-        "themes")
-            showThemeExamples
-            ;;
-        "themes-compare")
-            #showThemeComparison
-            echo "theme comparison not working"
-            exit
-            ;;
-        "examples")
-            showExamples
-            ;;
-        "all")
-            detectCapabilities >/dev/null
-            testCapabilities
-            echo
+# Theme color names
+declare -grax _themeColors=(success error warning info muted accent primary secondary)
 
-            echo "=== Basic 16 Colors ==="
-            echo
-            for color in "${basic16Colors[@]}"; do
-                local code="${colors[${color}]}"
-                colorBar "${code}" "${color}"
-            done
-            echo
+# Theme display names
+declare -grax _themeDisplayNames=(
+    "Material Design"   # Dark and light are the same
+    "Flat Design"       # Works on both light and dark
+    "Vibrant"           # Custom high-contrast light theme
+    "Solarized"         # Official light variant
+    "Nord"              # Dark-only (no official light variant)
+    "Dracula"           # Dark-only (Alucard light is PRO/paid only)
+    "Monokai"           # Dark-only (Monokai Pro has paid light variant)
+    "Gruvbox"           # Official light variant
+    "One Dark"          # Official One Light variant
+    "Tokyo Night"       # Official Day variant
+    "Catppuccin"        # Official Latte variant
+    "Ayu"               # Official light variant
+    "Night Owl"         # Dark-only (no official light variant)
+    "Palenight"         # Dark-only (Material Theme variant)
+    "Ocean"             # Dark-only (no official light variant)
+    "Vs Code"           # Dark-only (no official light variant)
+    "Horizon"           # Dark-only (no official light variant)
+    "Spacemacs"         # Official light variant
+    "Iceberg"           # Official light variant
+    "Rose Pine"         # Official Dawn variant
+    "Cyberpunk"         # Dark-only by design
+    "Synthwave"         # Dark-only by design
+    "Monokai Pro"       # Custom light variant (has light in paid PRO version only)
+    "Shades"            # Custom light variant
+    "Arctic"            # Custom light variant
+    "Forest"            # Custom light variant
+    "Neon"              # Custom light variant
+    "Retro"             # Custom light variant
+    "Pastel"            # Custom light variant
+    "Earth"             # Custom light variant
+)
 
-            showFormatting
-            echo
-            showCombinations
-            echo
+# Reset color code
+declare -r reset=$'\e[0m'
 
-            if [[ "${has256Color}" == true ]]; then
-                show256Colors
-                echo
-            fi
+# Bold color code
+declare -r bold=$'\e[1m'
 
-            if [[ "${hasTrueColor}" == true ]]; then
-                showRgbColors
-                echo
-            fi
+# ==============================================================================
+# DARK BACKGROUND THEMES
+# ==============================================================================
 
-            showThemeExamples
-            echo
+declare -grA darkThemeMaterialDesign=(
+    ["success"]=$'\e[38;2;76;175;80m'       # Material green
+    ["error"]=$'\e[38;2;244;67;54m'         # Material red
+    ["warning"]=$'\e[38;2;255;193;7m'       # Material amber
+    ["info"]=$'\e[38;2;33;100;255m'         # Material blue
+    ["muted"]=$'\e[38;2;128;108;108m'       # Material gray
+    ["accent"]=$'\e[38;2;156;39;176m'       # Material purple
+    ["primary"]=$'\e[38;2;0;188;252m'       # Material cyan
+    ["secondary"]=$'\e[38;2;255;152;0m'     # Material orange
+)
 
-            showExamples
-            ;;
-        *)
-            echo "Unknown option: ${1}"
-            main
-            ;;
-    esac
-}
+declare -grA darkThemeFlatDesign=(
+    ["success"]=$'\e[38;2;46;204;113m'      # Flat emerald
+    ["error"]=$'\e[38;2;231;76;60m'         # Flat alizarin (red)
+    ["warning"]=$'\e[38;2;241;196;15m'      # Flat sunflower
+    ["info"]=$'\e[38;2;52;152;219m'         # Flat peter river (blue)
+    ["muted"]=$'\e[38;2;99;125;116m'        # Flat concrete
+    ["accent"]=$'\e[38;2;200;120;210m'      # Flat amethyst
+    ["primary"]=$'\e[38;2;26;188;156m'      # Flat turquoise
+    ["secondary"]=$'\e[38;2;250;106;14m'    # Flat carrot
+)
 
-main "${@}"
+declare -grA darkThemeVibrant=(
+    ["success"]=$'\e[38;2;46;255;78m'       # Bright green
+    ["error"]=$'\e[38;2;255;59;48m'         # Bright red
+    ["warning"]=$'\e[38;2;255;214;10m'      # Bright yellow
+    ["info"]=$'\e[38;2;10;132;255m'         # Bright blue
+    ["muted"]=$'\e[38;2;110;110;115m'       # Light gray
+    ["accent"]=$'\e[38;2;215;90;215m'       # Purple
+    ["primary"]=$'\e[38;2;90;200;250m'      # Cyan
+    ["secondary"]=$'\e[38;2;255;149;0m'     # Orange
+)
+
+# Solarized Dark - Official colors from ethanschoonover.com/solarized
+declare -grA darkThemeSolarized=(
+    ["success"]=$'\e[38;2;133;153;0m'       # Solarized green #859900
+    ["error"]=$'\e[38;2;230;55;55m'         # Solarized red (adjusted)
+    ["warning"]=$'\e[38;2;171;137;0m'       # Solarized yellow #b58900
+    ["info"]=$'\e[38;2;38;139;210m'         # Solarized blue #268bd2
+    ["muted"]=$'\e[38;2;107;111;111m'       # Solarized base1 #93a1a1
+    ["accent"]=$'\e[38;2;180;70;180m'       # Solarized magenta (adjusted)
+    ["primary"]=$'\e[38;2;50;220;170m'      # Solarized cyan (adjusted)
+    ["secondary"]=$'\e[38;2;203;95;42m'     # Solarized orange #cb4b16
+)
+
+declare -grA darkThemeNord=(
+    ["success"]=$'\e[38;2;140;210;120m'     # Nord green (adjusted)
+    ["error"]=$'\e[38;2;191;97;106m'        # Nord red
+    ["warning"]=$'\e[38;2;255;203;139m'     # Nord yellow
+    ["info"]=$'\e[38;2;129;161;193m'        # Nord blue
+    ["muted"]=$'\e[38;2;106;115;115m'       # Nord light gray
+    ["accent"]=$'\e[38;2;180;90;200m'       # Nord purple
+    ["primary"]=$'\e[38;2;50;110;255m'      # Nord cyan (adjusted)
+    ["secondary"]=$'\e[38;2;255;165;30m'    # Nord orange
+)
+
+declare -grA darkThemeDracula=(
+    ["success"]=$'\e[38;2;80;250;123m'      # Dracula green
+    ["error"]=$'\e[38;2;255;85;85m'         # Dracula red
+    ["warning"]=$'\e[38;2;241;250;140m'     # Dracula yellow
+    ["info"]=$'\e[38;2;139;183;255m'        # Dracula cyan
+    ["muted"]=$'\e[38;2;88;104;144m'        # Dracula comment
+    ["accent"]=$'\e[38;2;200;120;220m'      # Dracula pink
+    ["primary"]=$'\e[38;2;150;255;255m'     # Dracula cyan (primary, adjusted)
+    ["secondary"]=$'\e[38;2;255;184;108m'   # Dracula orange
+)
+
+declare -grA darkThemeMonokai=(
+    ["success"]=$'\e[38;2;166;226;46m'      # Monokai green
+    ["error"]=$'\e[38;2;255;50;120m'        # Monokai pink/red (adjusted)
+    ["warning"]=$'\e[38;2;253;200;50m'      # Monokai yellow (adjusted from orange)
+    ["info"]=$'\e[38;2;102;217;255m'        # Monokai cyan
+    ["muted"]=$'\e[38;2;117;63;94m'         # Monokai comment
+    ["accent"]=$'\e[38;2;200;120;210m'      # Monokai purple
+    ["primary"]=$'\e[38;2;30;255;205m'      # Monokai cyan (primary, adjusted)
+    ["secondary"]=$'\e[38;2;253;121;11m'    # Monokai orange (secondary)
+)
+
+# Gruvbox Dark - Official colors from morhetz/gruvbox
+declare -grA darkThemeGruvbox=(
+    ["success"]=$'\e[38;2;150;200;90m'      # Gruvbox green (bright, adjusted)
+    ["error"]=$'\e[38;2;204;36;29m'         # Gruvbox red (bright) #cc241d
+    ["warning"]=$'\e[38;2;255;103;0m'       # Gruvbox yellow (bright) #d79921
+    ["info"]=$'\e[38;2;69;133;136m'         # Gruvbox blue (bright) #458588
+    ["muted"]=$'\e[38;2;116;101;116m'       # Gruvbox gray #928374
+    ["accent"]=$'\e[38;2;177;98;134m'       # Gruvbox purple (bright) #b16286
+    ["primary"]=$'\e[38;2;70;200;200m'      # Gruvbox aqua (bright, adjusted to cyan)
+    ["secondary"]=$'\e[38;2;234;83;20m'     # Gruvbox orange (bright, adjusted)
+)
+
+declare -grA darkThemeOneDark=(
+    ["success"]=$'\e[38;2;152;195;121m'     # One Dark green
+    ["error"]=$'\e[38;2;224;108;117m'       # One Dark red
+    ["warning"]=$'\e[38;2;255;192;123m'     # One Dark yellow
+    ["info"]=$'\e[38;2;97;125;255m'         # One Dark blue
+    ["muted"]=$'\e[38;2;110;115;110m'       # One Dark gray (adjusted)
+    ["accent"]=$'\e[38;2;190;90;200m'       # One Dark purple
+    ["primary"]=$'\e[38;2;20;190;200m'      # One Dark cyan (adjusted)
+    ["secondary"]=$'\e[38;2;229;134;62m'    # One Dark orange
+)
+
+declare -grA darkThemeTokyoNight=(
+    ["success"]=$'\e[38;2;158;206;106m'     # Tokyo Night green
+    ["error"]=$'\e[38;2;247;118;142m'       # Tokyo Night red
+    ["warning"]=$'\e[38;2;255;175;104m'     # Tokyo Night yellow
+    ["info"]=$'\e[38;2;122;162;247m'        # Tokyo Night blue
+    ["muted"]=$'\e[38;2;115;110;125m'       # Tokyo Night gray (adjusted)
+    ["accent"]=$'\e[38;2;200;100;220m'      # Tokyo Night purple
+    ["primary"]=$'\e[38;2;100;255;255m'     # Tokyo Night cyan (adjusted)
+    ["secondary"]=$'\e[38;2;255;138;70m'    # Tokyo Night orange
+)
+
+declare -grA darkThemeCatppuccin=(
+    ["success"]=$'\e[38;2;130;240;150m'     # Catppuccin green (adjusted)
+    ["error"]=$'\e[38;2;243;139;168m'       # Catppuccin red
+    ["warning"]=$'\e[38;2;249;226;175m'     # Catppuccin yellow
+    ["info"]=$'\e[38;2;137;180;250m'        # Catppuccin blue
+    ["muted"]=$'\e[38;2;106;114;122m'       # Catppuccin gray
+    ["accent"]=$'\e[38;2;210;100;230m'      # Catppuccin purple
+    ["primary"]=$'\e[38;2;70;240;255m'      # Catppuccin teal (adjusted)
+    ["secondary"]=$'\e[38;2;255;169;107m'   # Catppuccin peach (adjusted)
+)
+
+declare -grA darkThemeAyu=(
+    ["success"]=$'\e[38;2;183;192;131m'     # Ayu green
+    ["error"]=$'\e[38;2;249;100;100m'       # Ayu red (changed to be distinct from secondary)
+    ["warning"]=$'\e[38;2;255;255;78m'      # Ayu yellow
+    ["info"]=$'\e[38;2;57;186;230m'         # Ayu blue
+    ["muted"]=$'\e[38;2;110;110;110m'       # Ayu gray
+    ["accent"]=$'\e[38;2;210;120;200m'      # Ayu pink
+    ["primary"]=$'\e[38;2;57;186;230m'      # Ayu blue (primary)
+    ["secondary"]=$'\e[38;2;242;151;24m'    # Ayu orange (secondary)
+)
+
+declare -grA darkThemeNightOwl=(
+    ["success"]=$'\e[38;2;173;219;103m'     # Night Owl green
+    ["error"]=$'\e[38;2;255;100;100m'       # Night Owl red (changed to be distinct)
+    ["warning"]=$'\e[38;2;255;154;52m'      # Night Owl yellow
+    ["info"]=$'\e[38;2;130;170;255m'        # Night Owl blue
+    ["muted"]=$'\e[38;2;102;119;99m'        # Night Owl gray
+    ["accent"]=$'\e[38;2;189;46;234m'       # Night Owl purple
+    ["primary"]=$'\e[38;2;128;203;196m'     # Night Owl cyan
+    ["secondary"]=$'\e[38;2;247;140;108m'   # Night Owl orange (secondary)
+)
+
+declare -grA darkThemePalenight=(
+    ["success"]=$'\e[38;2;195;232;141m'     # Palenight green
+    ["error"]=$'\e[38;2;240;113;120m'       # Palenight red
+    ["warning"]=$'\e[38;2;255;223;0m'       # Palenight yellow
+    ["info"]=$'\e[38;2;130;170;255m'        # Palenight blue
+    ["muted"]=$'\e[38;2;101;114;125m'       # Palenight gray
+    ["accent"]=$'\e[38;2;210;130;220m'      # Palenight purple
+    ["primary"]=$'\e[38;2;187;221;205m'     # Palenight cyan
+    ["secondary"]=$'\e[38;2;247;140;108m'   # Palenight orange
+)
+
+declare -grA darkThemeOcean=(
+    ["success"]=$'\e[38;2;52;208;88m'       # GitHub green
+    ["error"]=$'\e[38;2;215;58;73m'         # GitHub red
+    ["warning"]=$'\e[38;2;251;188;5m'       # GitHub yellow
+    ["info"]=$'\e[38;2;13;122;219m'         # GitHub blue
+    ["muted"]=$'\e[38;2;99;108;118m'        # GitHub gray
+    ["accent"]=$'\e[38;2;185;90;200m'       # GitHub purple
+    ["primary"]=$'\e[38;2;0;192;255m'       # GitHub cyan
+    ["secondary"]=$'\e[38;2;251;126;20m'    # GitHub orange
+)
+
+declare -grA darkThemeVsCode=(
+    ["success"]=$'\e[38;2;22;198;12m'       # VS Code green
+    ["error"]=$'\e[38;2;244;71;71m'         # VS Code red
+    ["warning"]=$'\e[38;2;255;204;0m'       # VS Code yellow
+    ["info"]=$'\e[38;2;37;127;173m'         # VS Code blue
+    ["muted"]=$'\e[38;2;108;108;108m'       # VS Code gray
+    ["accent"]=$'\e[38;2;200;110;210m'      # VS Code purple (adjusted)
+    ["primary"]=$'\e[38;2;0;238;255m'       # VS Code cyan
+    ["secondary"]=$'\e[38;2;227;99;27m'     # VS Code orange (secondary)
+)
+
+declare -grA darkThemeHorizon=(
+    ["success"]=$'\e[38;2;41;183;135m'      # Horizon green
+    ["error"]=$'\e[38;2;232;104;134m'       # Horizon red
+    ["warning"]=$'\e[38;2;255;200;80m'      # Horizon yellow (changed to be distinct)
+    ["info"]=$'\e[38;2;0;116;194m'          # Horizon cyan
+    ["muted"]=$'\e[38;2;100;103;131m'       # Horizon gray
+    ["accent"]=$'\e[38;2;190;90;205m'       # Horizon purple
+    ["primary"]=$'\e[38;2;38;166;154m'      # Horizon cyan (primary)
+    ["secondary"]=$'\e[38;2;250;176;108m'   # Horizon orange (secondary)
+)
+
+declare -grA darkThemeSpacemacs=(
+    ["success"]=$'\e[38;2;134;192;94m'      # Spacemacs green (success color)
+    ["error"]=$'\e[38;2;249;38;114m'        # Spacemacs red (error color)
+    ["warning"]=$'\e[38;2;220;163;63m'      # Spacemacs yellow (warning color)
+    ["info"]=$'\e[38;2;79;151;215m'         # Spacemacs blue
+    ["muted"]=$'\e[38;2;110;110;110m'       # Spacemacs gray (base-dim)
+    ["accent"]=$'\e[38;2;171;104;180m'      # Spacemacs magenta
+    ["primary"]=$'\e[38;2;70;180;200m'      # Spacemacs cyan (primary)
+    ["secondary"]=$'\e[38;2;223;95;42m'     # Spacemacs orange
+)
+
+declare -grA darkThemeIceberg=(
+    ["success"]=$'\e[38;2;178;224;137m'     # Iceberg green #b2e08d
+    ["error"]=$'\e[38;2;226;120;120m'       # Iceberg red #e27878
+    ["warning"]=$'\e[38;2;226;172;120m'     # Iceberg yellow/orange #e2a478
+    ["info"]=$'\e[38;2;95;146;255m'         # Iceberg blue #91c4e4
+    ["muted"]=$'\e[38;2;100;110;119m'       # Iceberg gray (comment) #6e7681
+    ["accent"]=$'\e[38;2;190;110;210m'      # Iceberg purple #c099da
+    ["primary"]=$'\e[38;2;70;190;200m'      # Iceberg cyan #86bfc4
+    ["secondary"]=$'\e[38;2;233;151;106m'   # Iceberg orange #e9976a
+)
+
+declare -grA darkThemeRosePine=(
+    ["success"]=$'\e[38;2;158;206;106m'     # Rose Pine green
+    ["error"]=$'\e[38;2;235;111;146m'       # Rose Pine red
+    ["warning"]=$'\e[38;2;245;180;120m'     # Rose Pine gold (changed to be distinct)
+    ["info"]=$'\e[38;2;100;160;240m'        # Rose Pine cyan
+    ["muted"]=$'\e[38;2;104;100;120m'       # Rose Pine gray
+    ["accent"]=$'\e[38;2;180;100;200m'      # Rose Pine purple
+    ["primary"]=$'\e[38;2;56;205;205m'      # Rose Pine cyan (primary)
+    ["secondary"]=$'\e[38;2;234;134;121m'   # Rose Pine orange (secondary)
+)
+
+declare -grA darkThemeCyberpunk=(
+    ["success"]=$'\e[38;2;0;255;157m'       # Neon green
+    ["error"]=$'\e[38;2;255;50;80m'         # Neon red (changed from hot pink)
+    ["warning"]=$'\e[38;2;255;255;0m'       # Neon yellow
+    ["info"]=$'\e[38;2;0;188;255m'          # Cyan
+    ["muted"]=$'\e[38;2;98;103;136m'        # Blue-gray
+    ["accent"]=$'\e[38;2;255;0;255m'        # Magenta (kept as accent)
+    ["primary"]=$'\e[38;2;0;138;205m'       # Cyan (primary)
+    ["secondary"]=$'\e[38;2;255;128;0m'     # Orange
+)
+
+declare -grA darkThemeSynthwave=(
+    ["success"]=$'\e[38;2;80;255;120m'      # Synthwave neon green
+    ["error"]=$'\e[38;2;254;98;140m'        # Synthwave pink (red)
+    ["warning"]=$'\e[38;2;255;206;84m'      # Synthwave yellow
+    ["info"]=$'\e[38;2;77;171;247m'         # Synthwave blue
+    ["muted"]=$'\e[38;2;115;100;119m'       # Synthwave gray
+    ["accent"]=$'\e[38;2;178;158;187m'      # Synthwave purple
+    ["primary"]=$'\e[38;2;164;239;255m'     # Synthwave cyan/teal (moved from success)
+    ["secondary"]=$'\e[38;2;255;158;10m'    # Synthwave orange
+)
+
+declare -grA darkThemeMonokaiPro=(
+    ["success"]=$'\e[38;2;169;220;118m'     # Monokai Pro green
+    ["error"]=$'\e[38;2;255;97;136m'        # Monokai Pro pink (red)
+    ["warning"]=$'\e[38;2;255;166;52m'      # Monokai Pro yellow
+    ["info"]=$'\e[38;2;120;170;255m'        # Monokai Pro cyan
+    ["muted"]=$'\e[38;2;121;91;111m'        # Monokai Pro gray
+    ["accent"]=$'\e[38;2;180;110;200m'      # Monokai Pro purple
+    ["primary"]=$'\e[38;2;70;120;205m'      # Monokai Pro cyan (primary)
+    ["secondary"]=$'\e[38;2;252;131;61m'    # Monokai Pro orange (adjusted)
+)
+
+
+declare -grA darkThemeShades=(
+    ["success"]=$'\e[38;2;72;187;120m'      # Shades green
+    ["error"]=$'\e[38;2;206;76;120m'        # Shades red
+    ["warning"]=$'\e[38;2;255;206;84m'      # Shades yellow
+    ["info"]=$'\e[38;2;127;121;255m'        # Shades blue
+    ["muted"]=$'\e[38;2;125;90;119m'        # Shades gray
+    ["accent"]=$'\e[38;2;200;130;210m'      # Shades purple
+    ["primary"]=$'\e[38;2;140;250;255m'     # Shades cyan
+    ["secondary"]=$'\e[38;2;255;158;0m'     # Shades orange
+)
+
+declare -grA darkThemeArctic=(
+    ["success"]=$'\e[38;2;100;192;140m'     # Arctic green (adjusted to be clearly green)
+    ["error"]=$'\e[38;2;191;97;106m'        # Arctic red
+    ["warning"]=$'\e[38;2;235;203;139m'     # Arctic yellow
+    ["info"]=$'\e[38;2;129;161;233m'        # Arctic blue
+    ["muted"]=$'\e[38;2;106;115;115m'       # Arctic gray
+    ["accent"]=$'\e[38;2;180;142;173m'      # Arctic purple
+    ["primary"]=$'\e[38;2;80;180;220m'      # Arctic cyan (primary)
+    ["secondary"]=$'\e[38;2;238;155;122m'   # Arctic orange
+)
+
+declare -grA darkThemeForest=(
+    ["success"]=$'\e[38;2;46;125;50m'       # Forest green
+    ["error"]=$'\e[38;2;198;40;40m'         # Forest red
+    ["warning"]=$'\e[38;2;255;200;50m'      # Forest yellow (changed to be distinct)
+    ["info"]=$'\e[38;2;0;186;255m'          # Forest blue
+    ["muted"]=$'\e[38;2;137;97;97m'         # Forest gray
+    ["accent"]=$'\e[38;2;185;105;205m'      # Forest purple
+    ["primary"]=$'\e[38;2;0;131;183m'       # Forest teal
+    ["secondary"]=$'\e[38;2;245;124;0m'     # Forest orange (secondary)
+)
+
+declare -grA darkThemeNeon=(
+    ["success"]=$'\e[38;2;57;255;20m'       # Neon green
+    ["error"]=$'\e[38;2;255;20;147m'        # Neon pink (red)
+    ["warning"]=$'\e[38;2;255;255;0m'       # Neon yellow
+    ["info"]=$'\e[38;2;60;180;255m'         # Neon cyan
+    ["muted"]=$'\e[38;2;112;112;112m'       # Neon gray
+    ["accent"]=$'\e[38;2;186;85;211m'       # Neon purple
+    ["primary"]=$'\e[38;2;50;200;240m'      # Neon cyan (primary)
+    ["secondary"]=$'\e[38;2;255;128;0m'     # Neon orange
+)
+
+declare -grA darkThemeRetro=(
+    ["success"]=$'\e[38;2;0;255;0m'         # Retro green
+    ["error"]=$'\e[38;2;255;85;85m'         # Retro red
+    ["warning"]=$'\e[38;2;255;255;0m'       # Retro yellow
+    ["info"]=$'\e[38;2;100;100;255m'        # Retro blue
+    ["muted"]=$'\e[38;2;112;112;112m'       # Retro gray
+    ["accent"]=$'\e[38;2;205;0;255m'        # Retro magenta
+    ["primary"]=$'\e[38;2;0;205;255m'       # Retro cyan
+    ["secondary"]=$'\e[38;2;255;165;0m'     # Retro orange
+)
+
+declare -grA darkThemePastel=(
+    ["success"]=$'\e[38;2;152;251;152m'     # Pastel green
+    ["error"]=$'\e[38;2;255;120;120m'       # Pastel red (changed from pink to be more distinct)
+    ["warning"]=$'\e[38;2;255;255;224m'     # Pastel yellow
+    ["info"]=$'\e[38;2;223;166;255m'        # Pastel blue
+    ["muted"]=$'\e[38;2;111;121;95m'        # Pastel gray
+    ["accent"]=$'\e[38;2;171;60;205m'       # Pastel purple (kept)
+    ["primary"]=$'\e[38;2;155;238;205m'     # Pastel cyan
+    ["secondary"]=$'\e[38;2;255;198;165m'   # Pastel peach
+)
+
+declare -grA darkThemeEarth=(
+    ["success"]=$'\e[38;2;107;142;35m'      # Earth green
+    ["error"]=$'\e[38;2;205;92;92m'         # Earth red
+    ["warning"]=$'\e[38;2;218;165;32m'      # Earth gold
+    ["info"]=$'\e[38;2;70;130;180m'         # Earth blue
+    ["muted"]=$'\e[38;2;125;98;118m'        # Earth gray
+    ["accent"]=$'\e[38;2;155;100;165m'      # Earth brown (purple)
+    ["primary"]=$'\e[38;2;45;208;200m'      # Earth teal
+    ["secondary"]=$'\e[38;2;205;133;63m'    # Earth tan
+)
+
+# ==============================================================================
+# LIGHT BACKGROUND THEMES
+# ==============================================================================
+
+# Material Design Light - same as dark
+declare -grA lightThemeMaterialDesign=(
+    ["success"]=$'\e[38;2;76;175;80m'       # Material green
+    ["error"]=$'\e[38;2;244;67;54m'         # Material red
+    ["warning"]=$'\e[38;2;255;193;7m'       # Material amber
+    ["info"]=$'\e[38;2;33;100;255m'         # Material blue
+    ["muted"]=$'\e[38;2;138;118;118m'       # Material gray
+    ["accent"]=$'\e[38;2;156;39;176m'       # Material purple
+    ["primary"]=$'\e[38;2;0;188;252m'       # Material cyan
+    ["secondary"]=$'\e[38;2;255;152;0m'     # Material orange
+)
+
+# Flat Design Light - Works on light backgrounds
+declare -grA lightThemeFlatDesign=(
+    ["success"]=$'\e[38;2;27;122;68m'       # Flat emerald dark
+    ["error"]=$'\e[38;2;138;45;36m'         # Flat red dark
+    ["warning"]=$'\e[38;2;176;139;11m'      # Flat yellow dark
+    ["info"]=$'\e[38;2;81;0;171m'           # Flat blue dark
+    ["muted"]=$'\e[38;2;90;90;100m'         # Dark gray
+    ["accent"]=$'\e[38;2;130;80;140m'       # Flat purple dark
+    ["primary"]=$'\e[38;2;0;100;180m'       # Flat turquoise dark
+    ["secondary"]=$'\e[38;2;188;60;20m'     # Flat orange dark
+)
+
+# Vibrant, copied dark version
+declare -grA lightThemeVibrant=(
+    ["success"]=$'\e[38;2;46;255;78m'       # Bright green
+    ["error"]=$'\e[38;2;255;59;48m'         # Bright red
+    ["warning"]=$'\e[38;2;255;214;10m'      # Bright yellow
+    ["info"]=$'\e[38;2;10;132;255m'         # Bright blue
+    ["muted"]=$'\e[38;2;152;152;157m'       # Light gray
+    ["accent"]=$'\e[38;2;170;70;170m'       # Purple
+    ["primary"]=$'\e[38;2;90;200;250m'      # Cyan
+    ["secondary"]=$'\e[38;2;255;149;0m'     # Orange
+)
+
+# Solarized Light - OFFICIAL from ethanschoonover.com/solarized
+# Uses same accent colors as dark, but with inverted base colors
+declare -grA lightThemeSolarized=(
+    ["success"]=$'\e[38;2;133;153;0m'       # Solarized green #859900 (same)
+    ["error"]=$'\e[38;2;220;50;47m'         # Solarized red #dc322f (same)
+    ["warning"]=$'\e[38;2;255;137;0m'       # Solarized yellow #b58900 (same)
+    ["info"]=$'\e[38;2;38;139;210m'         # Solarized blue #268bd2 (same)
+    ["muted"]=$'\e[38;2;88;60;77m'          # Solarized base01 #586e75 (for light bg)
+    ["accent"]=$'\e[38;2;161;104;170m'      # Solarized magenta #d33682 (same)
+    ["primary"]=$'\e[38;2;42;160;152m'      # Solarized cyan #2aa198 (same)
+    ["secondary"]=$'\e[38;2;213;101;16m'    # Solarized orange (light, adjusted)
+)
+
+# Nord - NO OFFICIAL LIGHT VARIANT (community versions only)
+declare -grA lightThemeNord=(
+    ["success"]=$'\e[38;2;81;114;83m'       # Adapted (unofficial) green
+    ["error"]=$'\e[38;2;114;58;63m'         # Adapted (unofficial) red
+    ["warning"]=$'\e[38;2;181;122;83m'      # Adapted (unofficial) orange
+    ["info"]=$'\e[38;2;14;46;156m'          # Adapted (unofficial) blue
+    ["muted"]=$'\e[38;2;130;100;140m'       # Dark gray
+    ["accent"]=$'\e[38;2;58;0;103m'         # Adapted (unofficial) purple
+    ["primary"]=$'\e[38;2;31;165;164m'      # Adapted (unofficial) cyan
+    ["secondary"]=$'\e[38;2;154;121;77m'    # Adapted (unofficial) orange
+)
+
+# Dracula - NO FREE LIGHT VARIANT (Alucard is PRO only)
+declare -grA lightThemeDracula=(
+    ["success"]=$'\e[38;2;29;150;73m'       # Adapted (unofficial) green
+    ["error"]=$'\e[38;2;153;25;25m'         # Adapted (unofficial) red
+    ["warning"]=$'\e[38;2;153;138;7m'       # Adapted yellow (unofficial)
+    ["info"]=$'\e[38;2;0;89;193m'           # Adapted (unofficial) blue
+    ["muted"]=$'\e[38;2;100;100;90m'        # Dark gray
+    ["accent"]=$'\e[38;2;120;60;140m'       # Adapted (unofficial) purple
+    ["primary"]=$'\e[38;2;0;80;180m'        # Adapted (unofficial) cyan
+    ["secondary"]=$'\e[38;2;203;110;64m'    # Adapted (unofficial) orange
+)
+
+# Monokai - NO OFFICIAL LIGHT VARIANT
+declare -grA lightThemeMonokai=(
+    ["success"]=$'\e[38;2;99;135;27m'       # Adapted (unofficial) green
+    ["error"]=$'\e[38;2;149;22;68m'         # Adapted (unofficial) red
+    ["warning"]=$'\e[38;2;220;140;20m'      # Adapted golden (changed to be distinct)
+    ["info"]=$'\e[38;2;11;80;183m'          # Adapted (unofficial) blue
+    ["muted"]=$'\e[38;2;90;90;120m'         # Dark gray
+    ["accent"]=$'\e[38;2;125;70;145m'       # Adapted (unofficial) purple
+    ["primary"]=$'\e[38;2;0;70;170m'        # Adapted (unofficial) cyan
+    ["secondary"]=$'\e[38;2;191;90;18m'     # Adapted (unofficial) orange
+)
+
+# Gruvbox Light - OFFICIAL from morhetz/gruvbox-contrib/color.table
+declare -grA lightThemeGruvbox=(
+    ["success"]=$'\e[38;2;98;151;85m'       # Gruvbox light green (adjusted for better green tone)
+    ["error"]=$'\e[38;2;157;0;6m'           # Gruvbox light red #9d0006
+    ["warning"]=$'\e[38;2;181;118;20m'      # Gruvbox light yellow #b57614
+    ["info"]=$'\e[38;2;7;102;120m'          # Gruvbox light blue #076678
+    ["muted"]=$'\e[38;2;144;111;100m'       # Gruvbox light gray #7c6f64
+    ["accent"]=$'\e[38;2;93;73;113m'        # Gruvbox light purple #8f3f71
+    ["primary"]=$'\e[38;2;76;23;188m'       # Gruvbox light aqua #427b58
+    ["secondary"]=$'\e[38;2;255;118;40m'    # Gruvbox light orange #af3a03
+)
+
+# One Light - OFFICIAL from Atom (atom/one-light-syntax)
+declare -grA lightThemeOneDark=(
+    ["success"]=$'\e[38;2;80;161;79m'       # green #50A14F
+    ["error"]=$'\e[38;2;228;86;73m'         # red #E45649
+    ["warning"]=$'\e[38;2;193;132;1m'       # yellow #C18401
+    ["info"]=$'\e[38;2;64;120;242m'         # blue #4078F2
+    ["muted"]=$'\e[38;2;130;131;147m'       # mono-3 #A0A1A7
+    ["accent"]=$'\e[38;2;166;38;164m'       # purple #A626A4
+    ["primary"]=$'\e[38;2;0;232;188m'       # cyan #0184BC
+    ["secondary"]=$'\e[38;2;255;221;88m'    # orange #D7833C
+)
+
+# Tokyo Night Day - OFFICIAL from folke/tokyonight.nvim
+# Colors from Micro editor's tokyonight-day theme which contains official colors
+declare -grA lightThemeTokyoNight=(
+    ["success"]=$'\e[38;2;51;130;45m'       # green (darker than dark theme)
+    ["error"]=$'\e[38;2;184;43;69m'         # red/special (special color from day theme)
+    ["warning"]=$'\e[38;2;200;120;10m'      # golden (changed to be distinct from secondary)
+    ["info"]=$'\e[38;2;120;71;229m'         # purple/identifier (used for blue info) #7847bd
+    ["muted"]=$'\e[38;2;102;129;161m'       # comment #848cb5
+    ["accent"]=$'\e[38;2;140;90;150m'       # purple #7847bd
+    ["primary"]=$'\e[38;2;52;8;179m'        # blue (adapted from theme)
+    ["secondary"]=$'\e[38;2;177;92;0m'      # orange #b15c00 (secondary)
+)
+
+# Catppuccin Latte - OFFICIAL from catppuccin.com/palette
+declare -grA lightThemeCatppuccin=(
+    ["success"]=$'\e[38;2;64;160;43m'       # green #40a02b
+    ["error"]=$'\e[38;2;210;15;57m'         # red #d20f39
+    ["warning"]=$'\e[38;2;223;142;29m'      # yellow #df8e1d
+    ["info"]=$'\e[38;2;30;102;245m'         # blue #1e66f5
+    ["muted"]=$'\e[38;2;126;130;156m'       # overlay0 #9ca0b0
+    ["accent"]=$'\e[38;2;150;80;170m'       # mauve (purple) #8839ef
+    ["primary"]=$'\e[38;2;0;46;193m'        # teal #179299
+    ["secondary"]=$'\e[38;2;254;60;11m'     # peach #fe640b
+)
+
+# Ayu Light - OFFICIAL from ayu-theme (Windows Terminal)
+declare -grA lightThemeAyu=(
+    ["success"]=$'\e[38;2;85;160;60m'       # Green (adjusted from lime #86b300 to proper green)
+    ["error"]=$'\e[38;2;240;113;113m'       # brightRed #f07171
+    ["warning"]=$'\e[38;2;200;170;10m'      # Golden orange (proper yellow/orange)
+    ["info"]=$'\e[38;2;7;103;255m'          # brightBlue #399ee6
+    ["muted"]=$'\e[38;2;104;104;104m'       # brightBlack #686868
+    ["accent"]=$'\e[38;2;145;100;155m'      # brightPurple #a37acc
+    ["primary"]=$'\e[38;2;26;241;193m'      # brightCyan #4cbf99
+    ["secondary"]=$'\e[38;2;255;174;63m'    # brightYellow #f2ae49 (secondary/orange)
+)
+
+# Night Owl - NO OFFICIAL LIGHT VARIANT
+declare -grA lightThemeNightOwl=(
+    ["success"]=$'\e[38;2;103;131;61m'      # Adapted (unofficial) green
+    ["error"]=$'\e[38;2;160;50;50m'         # Adapted red (changed to be distinct)
+    ["warning"]=$'\e[38;2;243;122;0m'       # Adapted (unofficial) orange
+    ["info"]=$'\e[38;2;28;52;193m'          # Adapted (unofficial) blue
+    ["muted"]=$'\e[38;2;90;120;80m'         # Dark gray
+    ["accent"]=$'\e[38;2;140;95;150m'       # Adapted (unofficial) purple
+    ["primary"]=$'\e[38;2;0;160;160m'       # Adapted (unofficial) cyan
+    ["secondary"]=$'\e[38;2;218;134;94m'    # Adapted (unofficial) orange
+)
+
+# Palenight - NO OFFICIAL LIGHT VARIANT
+declare -grA lightThemePalenight=(
+    ["success"]=$'\e[38;2;116;139;84m'      # Adapted (unofficial) green
+    ["error"]=$'\e[38;2;144;68;72m'         # Adapted (unofficial) red
+    ["warning"]=$'\e[38;2;193;121;14m'      # Adapted (unofficial) orange
+    ["info"]=$'\e[38;2;28;52;193m'          # Adapted (unofficial) blue
+    ["muted"]=$'\e[38;2;100;140;80m'        # Dark gray
+    ["accent"]=$'\e[38;2;130;85;140m'       # Adapted (unofficial) purple
+    ["primary"]=$'\e[38;2;70;150;170m'      # Adapted (unofficial) cyan
+    ["secondary"]=$'\e[38;2;248;174;0m'     # Adapted (unofficial) orange
+)
+
+declare -grA lightThemeOcean=(
+    ["success"]=$'\e[38;2;31;124;52m'       # Adapted green
+    ["error"]=$'\e[38;2;128;34;43m'         # Adapted red
+    ["warning"]=$'\e[38;2;150;112;3m'       # Adapted orange
+    ["info"]=$'\e[38;2;7;73;131m'           # Adapted blue
+    ["muted"]=$'\e[38;2;110;90;90m'         # Dark gray
+    ["accent"]=$'\e[38;2;120;60;140m'       # Adapted purple
+    ["primary"]=$'\e[38;2;0;15;219m'        # Adapted cyan
+    ["secondary"]=$'\e[38;2;150;75;12m'     # Adapted orange
+)
+
+declare -grA lightThemeVsCode=(
+    ["success"]=$'\e[38;2;13;118;7m'        # Adapted green
+    ["error"]=$'\e[38;2;146;42;42m'         # Adapted red
+    ["warning"]=$'\e[38;2;153;122;0m'       # Adapted orange
+    ["info"]=$'\e[38;2;72;76;143m'          # Adapted blue
+    ["muted"]=$'\e[38;2;130;90;100m'        # Dark gray
+    ["accent"]=$'\e[38;2;130;75;140m'       # Adapted purple
+    ["primary"]=$'\e[38;2;0;0;212m'         # Adapted cyan
+    ["secondary"]=$'\e[38;2;227;99;27m'     # Adapted orange
+)
+
+declare -grA lightThemeHorizon=(
+    ["success"]=$'\e[38;2;50;130;70m'       # Green (changed from cyan)
+    ["error"]=$'\e[38;2;139;62;80m'         # Adapted red
+    ["warning"]=$'\e[38;2;170;120;30m'      # Golden (changed to be distinct)
+    ["info"]=$'\e[38;2;22;59;92m'           # Adapted blue
+    ["muted"]=$'\e[38;2;90;110;80m'         # Dark gray
+    ["accent"]=$'\e[38;2;120;70;135m'       # Adapted purple
+    ["primary"]=$'\e[38;2;0;80;160m'        # Adapted (cyan)
+    ["secondary"]=$'\e[38;2;150;105;64m'    # Adapted orange
+)
+
+# Spacemacs Light - Official variant (nashamri/spacemacs-theme)
+declare -grA lightThemeSpacemacs=(
+    ["success"]=$'\e[38;2;67;160;71m'       # Spacemacs light green #43a047
+    ["error"]=$'\e[38;2;211;47;47m'         # Spacemacs light red #d32f2f
+    ["warning"]=$'\e[38;2;251;140;0m'       # Spacemacs light yellow/amber #fb8c00
+    ["info"]=$'\e[38;2;3;105;255m'          # Spacemacs light blue #039be5
+    ["muted"]=$'\e[38;2;157;117;117m'       # Spacemacs light gray #757575
+    ["accent"]=$'\e[38;2;150;70;160m'       # Spacemacs light magenta #8e24aa
+    ["primary"]=$'\e[38;2;0;51;207m'        # Spacemacs light cyan #0097a7
+    ["secondary"]=$'\e[38;2;239;108;0m'     # Spacemacs light orange #ef6c00
+)
+
+# Iceberg Light - Official variant (cocopon/iceberg.vim)
+declare -grA lightThemeIceberg=(
+    ["success"]=$'\e[38;2;102;142;61m'      # Iceberg light green #668e3d
+    ["error"]=$'\e[38;2;204;81;122m'        # Iceberg light red #cc517a
+    ["warning"]=$'\e[38;2;180;140;15m'      # Iceberg light orange #c57339
+    ["info"]=$'\e[38;2;45;83;158m'          # Iceberg light blue #2d539e
+    ["muted"]=$'\e[38;2;101;127;153m'       # Iceberg light gray #8389a3
+    ["accent"]=$'\e[38;2;140;90;155m'       # Iceberg light purple #7759b4
+    ["primary"]=$'\e[38;2;0;31;206m'        # Iceberg light cyan #3f83a6
+    ["secondary"]=$'\e[38;2;232;152;0m'     # Iceberg light orange (secondary) #b6662d
+)
+
+# Rose Pine Dawn - OFFICIAL from rose-pine/palette
+declare -grA lightThemeRosePine=(
+    ["success"]=$'\e[38;2;80;140;90m'       # Green (proper green tone, not pine/cyan)
+    ["error"]=$'\e[38;2;180;99;122m'        # love (red) #b4637a
+    ["warning"]=$'\e[38;2;234;157;52m'      # gold #ea9d34
+    ["info"]=$'\e[38;2;136;198;199m'        # foam (cyan-blue) #56949f
+    ["muted"]=$'\e[38;2;132;97;145m'        # muted #9893a5
+    ["accent"]=$'\e[38;2;135;75;150m'       # iris (purple) #907aa9
+    ["primary"]=$'\e[38;2;40;55;171m'       # pine #286983 (cyan)
+    ["secondary"]=$'\e[38;2;255;230;176m'   # rose (peach-orange) #d7827e
+)
+
+declare -grA lightThemeCyberpunk=(
+    ["success"]=$'\e[38;2;0;153;94m'        # Converted from neon green
+    ["error"]=$'\e[38;2;180;30;50m'         # Red (changed from too-close magenta)
+    ["warning"]=$'\e[38;2;153;153;0m'       # Converted from neon yellow
+    ["info"]=$'\e[38;2;0;92;193m'           # Converted from cyan
+    ["muted"]=$'\e[38;2;100;110;90m'        # Dark gray
+    ["accent"]=$'\e[38;2;140;70;150m'       # Converted from magenta (kept)
+    ["primary"]=$'\e[38;2;0;90;180m'        # Converted from cyan
+    ["secondary"]=$'\e[38;2;183;106;20m'    # Converted from orange
+)
+
+# Same as dark
+declare -grA lightThemeSynthwave=(
+    ["success"]=$'\e[38;2;80;255;120m'      # Synthwave neon green
+    ["error"]=$'\e[38;2;254;98;140m'        # Synthwave pink (red)
+    ["warning"]=$'\e[38;2;255;206;84m'      # Synthwave yellow
+    ["info"]=$'\e[38;2;77;171;247m'         # Synthwave blue
+    ["muted"]=$'\e[38;2;145;100;139m'       # Synthwave gray
+    ["accent"]=$'\e[38;2;178;158;187m'      # Synthwave purple
+    ["primary"]=$'\e[38;2;164;239;255m'     # Synthwave cyan/teal (moved from success)
+    ["secondary"]=$'\e[38;2;255;158;10m'    # Synthwave orange
+)
+
+declare -grA lightThemeMonokaiPro=(
+    ["success"]=$'\e[38;2;101;132;70m'      # Adapted green
+    ["error"]=$'\e[38;2;153;58;81m'         # Adapted red
+    ["warning"]=$'\e[38;2;193;129;11m'      # Adapted orange
+    ["info"]=$'\e[38;2;22;82;179m'          # Adapted blue
+    ["muted"]=$'\e[38;2;100;110;90m'        # Dark gray
+    ["accent"]=$'\e[38;2;130;65;140m'       # Adapted purple
+    ["primary"]=$'\e[38;2;0;80;170m'        # Adapted cyan
+    ["secondary"]=$'\e[38;2;241;190;0m'     # Adapted orange
+)
+
+# Shades - Custom theme
+declare -grA lightThemeShades=(
+    ["success"]=$'\e[38;2;32;94;10m'        # Darkest green
+    ["error"]=$'\e[38;2;123;45;72m'         # Darkest red
+    ["warning"]=$'\e[38;2;153;115;0m'       # Darkest yellow/gold
+    ["info"]=$'\e[38;2;15;40;115m'          # Darkest blue (adjusted)
+    ["muted"]=$'\e[38;2;120;90;90m'         # Dark gray
+    ["accent"]=$'\e[38;2;125;65;135m'       # Darkest purple (adjusted)
+    ["primary"]=$'\e[38;2;70;200;175m'      # Darkest cyan (adjusted)
+    ["secondary"]=$'\e[38;2;233;90;50m'     # Darkest orange
+)
+
+# Arctic - Custom theme
+declare -grA lightThemeArctic=(
+    ["success"]=$'\e[38;2;20;110;50m'       # Arctic green (adjusted)
+    ["error"]=$'\e[38;2;114;58;63m'         # Arctic red adapted
+    ["warning"]=$'\e[38;2;153;123;34m'      # Arctic yellow/gold
+    ["info"]=$'\e[38;2;60;120;190m'         # Arctic blue adapted (adjusted)
+    ["muted"]=$'\e[38;2;80;140;170m'        # Dark gray
+    ["accent"]=$'\e[38;2;155;95;165m'       # Arctic purple adapted (adjusted)
+    ["primary"]=$'\e[38;2;30;0;170m'        # Arctic cyan adapted (adjusted)
+    ["secondary"]=$'\e[38;2;154;101;67m'    # Arctic orange adapted
+)
+
+# Forest - Custom theme
+declare -grA lightThemeForest=(
+    ["success"]=$'\e[38;2;20;80;25m'        # Deep forest green (adjusted)
+    ["error"]=$'\e[38;2;118;24;24m'         # Deep red
+    ["warning"]=$'\e[38;2;180;100;10m'      # Deep golden (changed to be distinct)
+    ["info"]=$'\e[38;2;0;20;190m'           # Deep blue (adjusted)
+    ["muted"]=$'\e[38;2;100;80;80m'         # Dark gray
+    ["accent"]=$'\e[38;2;115;60;125m'       # Deep purple
+    ["primary"]=$'\e[38;2;0;160;160m'       # Deep cyan (adjusted)
+    ["secondary"]=$'\e[38;2;167;104;40m'    # Deep orange
+)
+
+# Neon - Custom theme
+declare -grA lightThemeNeon=(
+    ["success"]=$'\e[38;2;17;153;6m'        # Darkened neon green
+    ["error"]=$'\e[38;2;153;12;88m'         # Darkened neon pink (red)
+    ["warning"]=$'\e[38;2;153;153;0m'       # Darkened neon yellow
+    ["info"]=$'\e[38;2;0;103;193m'          # Darkened neon cyan
+    ["muted"]=$'\e[38;2;130;150;80m'        # Dark gray
+    ["accent"]=$'\e[38;2;145;80;155m'       # Darkened neon purple
+    ["primary"]=$'\e[38;2;0;90;180m'        # Darkened neon cyan
+    ["secondary"]=$'\e[38;2;193;76;0m'      # Darkened neon orange
+)
+
+# Retro - Custom theme
+declare -grA lightThemeRetro=(
+    ["success"]=$'\e[38;2;0;170;0m'         # Darkened retro green (adjusted)
+    ["error"]=$'\e[38;2;153;0;0m'           # Darkened retro red
+    ["warning"]=$'\e[38;2;153;153;0m'       # Darkened retro yellow
+    ["info"]=$'\e[38;2;0;0;153m'            # Darkened retro blue
+    ["muted"]=$'\e[38;2;70;70;70m'          # Dark gray
+    ["accent"]=$'\e[38;2;145;75;160m'       # Darkened retro magenta
+    ["primary"]=$'\e[38;2;0;120;210m'       # Darkened retro cyan (adjusted)
+    ["secondary"]=$'\e[38;2;153;99;0m'      # Darkened retro orange
+)
+
+# Pastel - Custom theme
+declare -grA lightThemePastel=(
+    ["success"]=$'\e[38;2;70;130;80m'       # Pastel green (sage green)
+    ["error"]=$'\e[38;2;170;100;110m'       # Adapted from pastel pink (red) (adjusted)
+    ["warning"]=$'\e[38;2;180;160;20m'      # Pastel yellow/gold (adjusted)
+    ["info"]=$'\e[38;2;25;45;180m'          # Adapted from pastel blue (adjusted)
+    ["muted"]=$'\e[38;2;90;140;100m'        # Dark gray
+    ["accent"]=$'\e[38;2;140;85;155m'       # Adapted from pastel purple (adjusted)
+    ["primary"]=$'\e[38;2;0;100;245m'       # Adapted from pastel cyan (adjusted)
+    ["secondary"]=$'\e[38;2;253;150;111m'   # Adapted from pastel peach
+)
+
+# Earth - Custom theme
+declare -grA lightThemeEarth=(
+    ["success"]=$'\e[38;2;25;75;5m'         # Deep earth green (adjusted)
+    ["error"]=$'\e[38;2;99;25;25m'          # Deep earth red
+    ["warning"]=$'\e[38;2;131;106;9m'       # Deep earth yellow/ochre
+    ["info"]=$'\e[38;2;0;35;130m'           # Deep earth blue (adjusted)
+    ["muted"]=$'\e[38;2;90;90;110m'         # Dark gray
+    ["accent"]=$'\e[38;2;135;75;145m'       # Deep earth brown (purple) (adjusted)
+    ["primary"]=$'\e[38;2;0;0;255m'         # Deep earth cyan (adjusted)
+    ["secondary"]=$'\e[38;2;152;99;47m'     # Deep earth orange
+)
