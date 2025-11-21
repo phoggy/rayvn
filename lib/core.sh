@@ -368,7 +368,7 @@ repeat() {
     local result
     printf -v result "%*s" "${count}" ""
     result=${result// /${str}}
-    echo "${result}"
+    echo -n "${result}"
 }
 
 warn() {
@@ -608,12 +608,22 @@ _init_currentTheme() {
     local theme
     if (( terminalColorBits >= 24 )); then
         # TODO THEME load from ~/rayvn/theme.sh
-        theme=('Ocean' $'\e[38;2;52;208;88m' $'\e[38;2;215;58;73m' $'\e[38;2;251;188;5m' $'\e[38;2;13;122;219m' $'\e[38;2;138;43;226m' $'\e[38;2;139;148;158m')
+        theme=(
+            "Material Design"
+            $'\e[38;2;76;175;80m'
+            $'\e[38;2;244;67;54m'
+            $'\e[38;2;255;193;7m'
+            $'\e[38;2;33;100;255m'
+            $'\e[38;2;128;108;108m'
+            $'\e[38;2;156;39;176m'
+            $'\e[38;2;0;188;252m'
+            $'\e[38;2;255;152;0m'
+        )
     else
         # TODO THEME have both theme4 and theme24 in theme.sh?
-        theme=('Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m') # bright-green, bright-red, bright-yellow, blue, cyan, dim
+        theme=('Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m' $'\e[35m' $'\e[96m') # bright-green, bright-red, bright-yellow, blue, cyan, dim, magenta bright-cyan
     fi
-    declare -grax _currentTheme=("${theme[@]}")
+    declare -grax _currentThemeName=("${theme[@]}")
 }
 
 _init_colors() {
@@ -681,12 +691,14 @@ _init_colors() {
 
         # Theme colors
 
-        ['success']=${_currentTheme[1]}
-        ['error']=${_currentTheme[2]}
-        ['warning']=${_currentTheme[3]}
-        ['info']=${_currentTheme[4]}
-        ['accent']=${_currentTheme[5]}
-        ['muted']=${_currentTheme[6]}
+        ['success']=${_currentThemeName[1]}
+        ['error']=${_currentThemeName[2]}
+        ['warning']=${_currentThemeName[3]}
+        ['info']=${_currentThemeName[4]}
+        ['accent']=${_currentThemeName[5]}
+        ['muted']=${_currentThemeName[6]}
+        ['primary']=${_currentThemeName[7]}
+        ['secondary']=${_currentThemeName[8]}
 
         # Turn off all formats
 
@@ -783,6 +795,8 @@ _init_noColors() {
         ['info']=''
         ['accent']=''
         ['muted']=''
+        ['primary']=''
+        ['secondary']=''
 
         # Turn off all formats
 
