@@ -71,7 +71,7 @@ _detectBackgroundType() {
     local result
 
     # Try OSC 11 query first (most accurate)
-    if result=$(_queryBackgroundColor 2>/dev/null); then
+    if result=$(_queryBackgroundColor 2> /dev/null); then
         echo "${result}"
         return 0
     fi
@@ -90,23 +90,22 @@ _detectBackgroundType() {
 # Query terminal background color using OSC 11 (by Claude)
 _queryBackgroundColor() {
     local response
-    local timeout=1
+    local oldSettings
 
     # Save current terminal settings
-    local oldSettings
-    oldSettings=$(stty -g 2>/dev/null) || return 1
+    oldSettings=$(stty -g 2> /dev/null) || return 1
 
     # Set terminal to raw mode for reading response
-    stty raw -echo min 0 time $((timeout * 10)) 2>/dev/null || return 1
+    stty raw -echo min 0 2> /dev/null || return 1
 
     # Send OSC 11 query (query background color)
-    printf '\e]11;?\a' >/dev/tty
+    printf '\e]11;?\a' > /dev/tty
 
-    # Read response with timeout
-    IFS= read -r response <&0
+    # Read response with 0.1s timeout using bash builtin
+    IFS= read -r -t 0.1 response < /dev/tty
 
     # Restore terminal settings
-    stty "${oldSettings}" 2>/dev/null
+    stty "${oldSettings}" 2> /dev/null
 
     # Parse response: should be like "\e]11;rgb:RRRR/GGGG/BBBB\a" or similar
     if [[ "${response}" =~ rgb:([0-9a-fA-F]+)/([0-9a-fA-F]+)/([0-9a-fA-F]+) ]]; then
