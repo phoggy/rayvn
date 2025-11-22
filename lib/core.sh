@@ -216,7 +216,13 @@ timeStamp() {
 }
 
 epochSeconds() {
-    date +%s
+    echo "${EPOCHREALTIME}"
+}
+
+# pass start time captured from ${EPOCHREALTIME}
+elapsedEpochSeconds() {
+    local startTime="${1}"
+    echo "${ awk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
 secureEraseVars() {
