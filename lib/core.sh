@@ -378,11 +378,16 @@ repeat() {
 }
 
 warn() {
-    show warning "⚠️ ${*}" >&2
+    show warning "⚠️ ${1}" "${@:2}" >&2
 }
 
 error() {
-    show error "🔺 ${*}" >&2
+    show error "🔺 ${1}" "${@:2}" >&2
+}
+
+fail() {
+    stackTrace "${@}"
+    exit 1
 }
 
 redStream() {
@@ -392,13 +397,24 @@ redStream() {
     done
 }
 
+assertionFailed() {
+    stackTrace "${@}"
+    exit 1
+}
+
+bye() {
+    (( $# )) && show red "${1}" "${@:2}"
+    debugStack
+    exit 0
+}
+
 stackTrace() {
-    local message="${1}"
+    local message=("${@}")
     local caller=${FUNCNAME[1]}
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
 
-    [[ -n ${message} ]] && error "${*}"
+    (( ${#message[@]} )) && error "${@}"
 
     if ((depth > 2)); then
         [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
@@ -413,22 +429,6 @@ stackTrace() {
         ((i == start)) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
         echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
-}
-
-assertionFailed() {
-    stackTrace "${*}"
-    exit 1
-}
-
-fail() {
-    stackTrace "${*}"
-    exit 1
-}
-
-bye() {
-    (( $# )) && show red "${*}"
-    debugStack
-    exit 0
 }
 
 # Debug control functions
