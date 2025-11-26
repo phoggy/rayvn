@@ -248,6 +248,7 @@ testCommandSubstitution() {
 }
 
 testThemeColors() {
+    require 'rayvn/themes'
     echo ""
     echo "Testing Theme Colors"
     echo "===================="
@@ -256,9 +257,9 @@ testThemeColors() {
     local result
 
     # All theme colors
-    for theme in success error warning info accent muted; do
-        result=${ show ${theme} "themed text"; }
-        assertStripped "Theme color: ${theme}" "themed text" "${result}"
+    for themeColor in "${_themeColors[@]}"; do
+        result=${ show ${themeColor} "themed text"; }
+        assertStripped "Theme color: ${themeColor}" "themed text" "${result}"
     done
 
     # Theme colors with styles

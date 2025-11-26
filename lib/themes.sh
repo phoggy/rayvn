@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 
-# Theme selection functions.
+# Theme functions.
 # Intended for use via: require 'rayvn/themes'
 
 
-
-displayDarkThemes() {
-    _displayThemes 1
+showCurrentTheme() {
+    _showTheme "${_currentThemeBackground}" "${_currentThemeName}"
 }
 
-displayLightThemes() {
-    _displayThemes 0
+showThemes() {
+    _showThemes Dark
+    _showThemes Light
+}
+
+showDarkThemes() {
+    _showThemes Dark
+}
+
+showLightThemes() {
+    _showThemes Light
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -18,47 +26,32 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---
 _init_rayvn_themes() {
     require 'rayvn/core'
     local type
-    type="${ _detectBackgroundType; }"
-    declare -grx _assumedBackgroundType=$?
-    if [[ ${type} == dark ]]; then
-        declare -grx _themeBackgroundType=1
-    else
-        declare -grx _themeBackgroundType=0
-    fi
-
+    type="${ _detectBackground; }"
+    declare -grx _assumedBackground=$?
+    declare -grx _themeBackground="${type}"
     declare -grx _defaultThemeName="Material Design"
 }
 
-_displayThemes() {
-    local isDark="${1:-${_themeBackgroundType}}"
-    local indent=23
-
-    if (( isDark )); then
-        printf "\n=== DARK BACKGROUND THEMES ===\n\n"
-    else
-        printf "\n=== LIGHT BACKGROUND THEMES ===\n\n"
-    fi
-
-    for displayName in "${_themeDisplayNames[@]}"; do
-        _displayTheme "${displayName}" ${isDark} "${indent}"
+_showThemes() {
+    local background="${1:-${_themeBackground}}"
+    local indent=29 themeName
+    for themeName in "${_themeDisplayNames[@]}"; do
+        _showTheme "${background}" "${themeName}" "${indent}"
     done
-
-    printf "\n"
+    echo
 }
 
-_displayTheme() {
-    local displayName="${1}"
-    local isDark="${2:-${_themeBackgroundType}}"
+_showTheme() {
+    local background="${1}"
+    local themeName="${2}"
     local indent="${3:-0}"
-    local prefix colorName
+    local colorName
+    local themeVar
+    _toThemeVar "${background}" "${themeName}" themeVar
 
-    # Convert display name to variable name
-    local varName="${displayName// /}"
-    (( isDark )) && prefix='dark' || prefix='light'
-    local -n themeRef="${prefix}Theme${varName}"
+    printf "%${indent}s:" "${ show -n bold "${background} ${themeName}"; }"
 
-    printf "%${indent}s:" "${ show -n bold "${displayName}"; }"
-
+    local -n themeRef=${themeVar}
     for colorName in "${_themeColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
         printf "%s  %s%s " "${colorCode}" "${colorName} █" $'\e[0m'
@@ -66,8 +59,40 @@ _displayTheme() {
     printf "  %s\n\n" "plain █"
 }
 
+# Takes effect on next startup
+_setTheme() {
+    local background="${1}"
+    local themeName="${2}"
+    local themeVar
+
+    _toThemeVar "${background}" "${themeName}" themeVar
+
+    # Convert to a 'theme' array with the background and name as the first elements
+
+    local -n themeRef="${themeVar}"
+    local theme=("${background}" "${themeName}")
+
+    for colorName in "${_themeColors[@]}"; do
+        local colorCode="${themeRef[${colorName}]}"
+        theme+=("${colorCode}")
+    done
+
+    # Store it
+
+    declare -p theme > "${_themeConfigFile}" || fail
+}
+
+_toThemeVar() {
+    local background="${1}"
+    local themeName="${2}"
+    local -n returnVarRef=${3}
+    local varName="theme${background}${themeName// /}"
+    declare -p "${varName}" > /dev/null 2>&1 || bye "Unknown theme:" plain bold "\"${background} ${themeName}\""
+    returnVarRef="${varName}"
+}
+
 # Detect dark or light background (by Claude)
-_detectBackgroundType() {
+_detectBackground() {
     local result
 
     # Try OSC 11 query first (most accurate)
@@ -83,7 +108,7 @@ _detectBackgroundType() {
     fi
 
     # Last resort: assume dark (most common for developers)
-    echo "dark"
+    echo "Dark"
     return 1
 }
 
@@ -127,9 +152,9 @@ _queryBackgroundColor() {
         local brightness=$(( (r * 299 + g * 587 + b * 114) / 1000 ))
 
         if (( brightness > 127 )); then
-            echo "light"
+            echo "Light"
         else
-            echo "dark"
+            echo "Dark"
         fi
         return 0
     fi
@@ -141,29 +166,28 @@ _queryBackgroundColor() {
 _detectThemeFromEnv() {
     # Check COLORFGBG (set by some terminals)
     case "${COLORFGBG}" in
-    *";0"|*";8") echo "dark"; return 0 ;;    # Dark background
-    *";15"|*";7") echo "light"; return 0 ;;  # Light background
+    *";0"|*";8") echo "Dark"; return 0 ;;    # Dark background
+    *";15"|*";7") echo "Light"; return 0 ;;  # Light background
     esac
 
     # Check terminal-specific theme indicators
     case "${ITERM_PROFILE:-${TERMINAL_THEME}}" in
-    *"dark"*|*"Dark"*|*"BLACK"*) echo "dark"; return 0 ;;
-    *"light"*|*"Light"*|*"WHITE"*) echo "light"; return 0 ;;
+    *"dark"*|*"Dark"*|*"BLACK"*) echo "Dark"; return 0 ;;
+    *"light"*|*"Light"*|*"WHITE"*) echo "Light"; return 0 ;;
     esac
 
     # Check for common dark themes by name
     case "${TERM_PROGRAM}" in
     "iTerm.app")
         case "${ITERM_PROFILE}" in
-        *"Dark"*|*"Solarized Dark"*|*"Monokai"*) echo "dark"; return 0 ;;
-        *"Light"*|*"Solarized Light"*) echo "light"; return 0 ;;
+        *"Dark"*|*"Solarized Dark"*|*"Monokai"*) echo "Dark"; return 0 ;;
+        *"Light"*|*"Solarized Light"*) echo "Light"; return 0 ;;
         esac
         ;;
     esac
 
     return 1
 }
-
 
 
 THEME_DATA="--+-+-----+-++(-++(---++++(---+(  THEME DATA  )+---)++++---)++-)++-+------+-+--"
@@ -238,7 +262,7 @@ declare -r bold=$'\e[1m'
 # DARK BACKGROUND THEMES
 # ==============================================================================
 
-declare -grA darkThemeMaterialDesign=(
+declare -grA themeDarkMaterialDesign=(
     ["success"]=$'\e[38;2;76;175;80m'       # Material green
     ["error"]=$'\e[38;2;244;67;54m'         # Material red
     ["warning"]=$'\e[38;2;255;193;7m'       # Material amber
@@ -249,7 +273,7 @@ declare -grA darkThemeMaterialDesign=(
     ["secondary"]=$'\e[38;2;255;152;0m'     # Material orange
 )
 
-declare -grA darkThemeFlatDesign=(
+declare -grA themeDarkFlatDesign=(
     ["success"]=$'\e[38;2;46;204;113m'      # Flat emerald
     ["error"]=$'\e[38;2;231;76;60m'         # Flat alizarin (red)
     ["warning"]=$'\e[38;2;241;196;15m'      # Flat sunflower
@@ -260,7 +284,7 @@ declare -grA darkThemeFlatDesign=(
     ["secondary"]=$'\e[38;2;250;106;14m'    # Flat carrot
 )
 
-declare -grA darkThemeVibrant=(
+declare -grA themeDarkVibrant=(
     ["success"]=$'\e[38;2;46;255;78m'       # Bright green
     ["error"]=$'\e[38;2;255;59;48m'         # Bright red
     ["warning"]=$'\e[38;2;255;214;10m'      # Bright yellow
@@ -272,7 +296,7 @@ declare -grA darkThemeVibrant=(
 )
 
 # Solarized Dark - Official colors from ethanschoonover.com/solarized
-declare -grA darkThemeSolarized=(
+declare -grA themeDarkSolarized=(
     ["success"]=$'\e[38;2;133;153;0m'       # Solarized green #859900
     ["error"]=$'\e[38;2;230;55;55m'         # Solarized red (adjusted)
     ["warning"]=$'\e[38;2;171;137;0m'       # Solarized yellow #b58900
@@ -283,7 +307,7 @@ declare -grA darkThemeSolarized=(
     ["secondary"]=$'\e[38;2;203;95;42m'     # Solarized orange #cb4b16
 )
 
-declare -grA darkThemeNord=(
+declare -grA themeDarkNord=(
     ["success"]=$'\e[38;2;140;210;120m'     # Nord green (adjusted)
     ["error"]=$'\e[38;2;191;97;106m'        # Nord red
     ["warning"]=$'\e[38;2;255;203;139m'     # Nord yellow
@@ -294,7 +318,7 @@ declare -grA darkThemeNord=(
     ["secondary"]=$'\e[38;2;255;165;30m'    # Nord orange
 )
 
-declare -grA darkThemeDracula=(
+declare -grA themeDarkDracula=(
     ["success"]=$'\e[38;2;80;250;123m'      # Dracula green
     ["error"]=$'\e[38;2;255;85;85m'         # Dracula red
     ["warning"]=$'\e[38;2;241;250;140m'     # Dracula yellow
@@ -305,7 +329,7 @@ declare -grA darkThemeDracula=(
     ["secondary"]=$'\e[38;2;255;184;108m'   # Dracula orange
 )
 
-declare -grA darkThemeMonokai=(
+declare -grA themeDarkMonokai=(
     ["success"]=$'\e[38;2;166;226;46m'      # Monokai green
     ["error"]=$'\e[38;2;255;50;120m'        # Monokai pink/red (adjusted)
     ["warning"]=$'\e[38;2;253;200;50m'      # Monokai yellow (adjusted from orange)
@@ -317,7 +341,7 @@ declare -grA darkThemeMonokai=(
 )
 
 # Gruvbox Dark - Official colors from morhetz/gruvbox
-declare -grA darkThemeGruvbox=(
+declare -grA themeDarkGruvbox=(
     ["success"]=$'\e[38;2;150;200;90m'      # Gruvbox green (bright, adjusted)
     ["error"]=$'\e[38;2;204;36;29m'         # Gruvbox red (bright) #cc241d
     ["warning"]=$'\e[38;2;255;103;0m'       # Gruvbox yellow (bright) #d79921
@@ -328,7 +352,7 @@ declare -grA darkThemeGruvbox=(
     ["secondary"]=$'\e[38;2;234;83;20m'     # Gruvbox orange (bright, adjusted)
 )
 
-declare -grA darkThemeOneDark=(
+declare -grA themeDarkOneDark=(
     ["success"]=$'\e[38;2;152;195;121m'     # One Dark green
     ["error"]=$'\e[38;2;224;108;117m'       # One Dark red
     ["warning"]=$'\e[38;2;255;192;123m'     # One Dark yellow
@@ -339,7 +363,7 @@ declare -grA darkThemeOneDark=(
     ["secondary"]=$'\e[38;2;229;134;62m'    # One Dark orange
 )
 
-declare -grA darkThemeTokyoNight=(
+declare -grA themeDarkTokyoNight=(
     ["success"]=$'\e[38;2;158;206;106m'     # Tokyo Night green
     ["error"]=$'\e[38;2;247;118;142m'       # Tokyo Night red
     ["warning"]=$'\e[38;2;255;175;104m'     # Tokyo Night yellow
@@ -350,7 +374,7 @@ declare -grA darkThemeTokyoNight=(
     ["secondary"]=$'\e[38;2;255;138;70m'    # Tokyo Night orange
 )
 
-declare -grA darkThemeCatppuccin=(
+declare -grA themeDarkCatppuccin=(
     ["success"]=$'\e[38;2;130;240;150m'     # Catppuccin green (adjusted)
     ["error"]=$'\e[38;2;243;139;168m'       # Catppuccin red
     ["warning"]=$'\e[38;2;249;226;175m'     # Catppuccin yellow
@@ -361,7 +385,7 @@ declare -grA darkThemeCatppuccin=(
     ["secondary"]=$'\e[38;2;255;169;107m'   # Catppuccin peach (adjusted)
 )
 
-declare -grA darkThemeAyu=(
+declare -grA themeDarkAyu=(
     ["success"]=$'\e[38;2;183;192;131m'     # Ayu green
     ["error"]=$'\e[38;2;249;100;100m'       # Ayu red (changed to be distinct from secondary)
     ["warning"]=$'\e[38;2;255;255;78m'      # Ayu yellow
@@ -372,7 +396,7 @@ declare -grA darkThemeAyu=(
     ["secondary"]=$'\e[38;2;242;151;24m'    # Ayu orange (secondary)
 )
 
-declare -grA darkThemeNightOwl=(
+declare -grA themeDarkNightOwl=(
     ["success"]=$'\e[38;2;173;219;103m'     # Night Owl green
     ["error"]=$'\e[38;2;255;100;100m'       # Night Owl red (changed to be distinct)
     ["warning"]=$'\e[38;2;255;154;52m'      # Night Owl yellow
@@ -383,7 +407,7 @@ declare -grA darkThemeNightOwl=(
     ["secondary"]=$'\e[38;2;247;140;108m'   # Night Owl orange (secondary)
 )
 
-declare -grA darkThemePalenight=(
+declare -grA themeDarkPalenight=(
     ["success"]=$'\e[38;2;195;232;141m'     # Palenight green
     ["error"]=$'\e[38;2;240;113;120m'       # Palenight red
     ["warning"]=$'\e[38;2;255;223;0m'       # Palenight yellow
@@ -394,7 +418,7 @@ declare -grA darkThemePalenight=(
     ["secondary"]=$'\e[38;2;247;140;108m'   # Palenight orange
 )
 
-declare -grA darkThemeOcean=(
+declare -grA themeDarkOcean=(
     ["success"]=$'\e[38;2;52;208;88m'       # GitHub green
     ["error"]=$'\e[38;2;215;58;73m'         # GitHub red
     ["warning"]=$'\e[38;2;251;188;5m'       # GitHub yellow
@@ -405,7 +429,7 @@ declare -grA darkThemeOcean=(
     ["secondary"]=$'\e[38;2;251;126;20m'    # GitHub orange
 )
 
-declare -grA darkThemeVsCode=(
+declare -grA themeDarkVsCode=(
     ["success"]=$'\e[38;2;22;198;12m'       # VS Code green
     ["error"]=$'\e[38;2;244;71;71m'         # VS Code red
     ["warning"]=$'\e[38;2;255;204;0m'       # VS Code yellow
@@ -416,7 +440,7 @@ declare -grA darkThemeVsCode=(
     ["secondary"]=$'\e[38;2;227;99;27m'     # VS Code orange (secondary)
 )
 
-declare -grA darkThemeHorizon=(
+declare -grA themeDarkHorizon=(
     ["success"]=$'\e[38;2;41;183;135m'      # Horizon green
     ["error"]=$'\e[38;2;232;104;134m'       # Horizon red
     ["warning"]=$'\e[38;2;255;200;80m'      # Horizon yellow (changed to be distinct)
@@ -427,7 +451,7 @@ declare -grA darkThemeHorizon=(
     ["secondary"]=$'\e[38;2;250;176;108m'   # Horizon orange (secondary)
 )
 
-declare -grA darkThemeSpacemacs=(
+declare -grA themeDarkSpacemacs=(
     ["success"]=$'\e[38;2;134;192;94m'      # Spacemacs green (success color)
     ["error"]=$'\e[38;2;249;38;114m'        # Spacemacs red (error color)
     ["warning"]=$'\e[38;2;220;163;63m'      # Spacemacs yellow (warning color)
@@ -438,7 +462,7 @@ declare -grA darkThemeSpacemacs=(
     ["secondary"]=$'\e[38;2;223;95;42m'     # Spacemacs orange
 )
 
-declare -grA darkThemeIceberg=(
+declare -grA themeDarkIceberg=(
     ["success"]=$'\e[38;2;178;224;137m'     # Iceberg green #b2e08d
     ["error"]=$'\e[38;2;226;120;120m'       # Iceberg red #e27878
     ["warning"]=$'\e[38;2;226;172;120m'     # Iceberg yellow/orange #e2a478
@@ -449,7 +473,7 @@ declare -grA darkThemeIceberg=(
     ["secondary"]=$'\e[38;2;233;151;106m'   # Iceberg orange #e9976a
 )
 
-declare -grA darkThemeRosePine=(
+declare -grA themeDarkRosePine=(
     ["success"]=$'\e[38;2;158;206;106m'     # Rose Pine green
     ["error"]=$'\e[38;2;235;111;146m'       # Rose Pine red
     ["warning"]=$'\e[38;2;245;180;120m'     # Rose Pine gold (changed to be distinct)
@@ -460,7 +484,7 @@ declare -grA darkThemeRosePine=(
     ["secondary"]=$'\e[38;2;234;134;121m'   # Rose Pine orange (secondary)
 )
 
-declare -grA darkThemeCyberpunk=(
+declare -grA themeDarkCyberpunk=(
     ["success"]=$'\e[38;2;0;255;157m'       # Neon green
     ["error"]=$'\e[38;2;255;50;80m'         # Neon red (changed from hot pink)
     ["warning"]=$'\e[38;2;255;255;0m'       # Neon yellow
@@ -471,7 +495,7 @@ declare -grA darkThemeCyberpunk=(
     ["secondary"]=$'\e[38;2;255;128;0m'     # Orange
 )
 
-declare -grA darkThemeSynthwave=(
+declare -grA themeDarkSynthwave=(
     ["success"]=$'\e[38;2;80;255;120m'      # Synthwave neon green
     ["error"]=$'\e[38;2;254;98;140m'        # Synthwave pink (red)
     ["warning"]=$'\e[38;2;255;206;84m'      # Synthwave yellow
@@ -482,7 +506,7 @@ declare -grA darkThemeSynthwave=(
     ["secondary"]=$'\e[38;2;255;158;10m'    # Synthwave orange
 )
 
-declare -grA darkThemeMonokaiPro=(
+declare -grA themeDarkMonokaiPro=(
     ["success"]=$'\e[38;2;169;220;118m'     # Monokai Pro green
     ["error"]=$'\e[38;2;255;97;136m'        # Monokai Pro pink (red)
     ["warning"]=$'\e[38;2;255;166;52m'      # Monokai Pro yellow
@@ -494,7 +518,7 @@ declare -grA darkThemeMonokaiPro=(
 )
 
 
-declare -grA darkThemeShades=(
+declare -grA themeDarkShades=(
     ["success"]=$'\e[38;2;72;187;120m'      # Shades green
     ["error"]=$'\e[38;2;206;76;120m'        # Shades red
     ["warning"]=$'\e[38;2;255;206;84m'      # Shades yellow
@@ -505,7 +529,7 @@ declare -grA darkThemeShades=(
     ["secondary"]=$'\e[38;2;255;158;0m'     # Shades orange
 )
 
-declare -grA darkThemeArctic=(
+declare -grA themeDarkArctic=(
     ["success"]=$'\e[38;2;100;192;140m'     # Arctic green (adjusted to be clearly green)
     ["error"]=$'\e[38;2;191;97;106m'        # Arctic red
     ["warning"]=$'\e[38;2;235;203;139m'     # Arctic yellow
@@ -516,7 +540,7 @@ declare -grA darkThemeArctic=(
     ["secondary"]=$'\e[38;2;238;155;122m'   # Arctic orange
 )
 
-declare -grA darkThemeForest=(
+declare -grA themeDarkForest=(
     ["success"]=$'\e[38;2;46;125;50m'       # Forest green
     ["error"]=$'\e[38;2;198;40;40m'         # Forest red
     ["warning"]=$'\e[38;2;255;200;50m'      # Forest yellow (changed to be distinct)
@@ -527,7 +551,7 @@ declare -grA darkThemeForest=(
     ["secondary"]=$'\e[38;2;245;124;0m'     # Forest orange (secondary)
 )
 
-declare -grA darkThemeNeon=(
+declare -grA themeDarkNeon=(
     ["success"]=$'\e[38;2;57;255;20m'       # Neon green
     ["error"]=$'\e[38;2;255;20;147m'        # Neon pink (red)
     ["warning"]=$'\e[38;2;255;255;0m'       # Neon yellow
@@ -538,7 +562,7 @@ declare -grA darkThemeNeon=(
     ["secondary"]=$'\e[38;2;255;128;0m'     # Neon orange
 )
 
-declare -grA darkThemeRetro=(
+declare -grA themeDarkRetro=(
     ["success"]=$'\e[38;2;0;255;0m'         # Retro green
     ["error"]=$'\e[38;2;255;85;85m'         # Retro red
     ["warning"]=$'\e[38;2;255;255;0m'       # Retro yellow
@@ -549,7 +573,7 @@ declare -grA darkThemeRetro=(
     ["secondary"]=$'\e[38;2;255;165;0m'     # Retro orange
 )
 
-declare -grA darkThemePastel=(
+declare -grA themeDarkPastel=(
     ["success"]=$'\e[38;2;152;251;152m'     # Pastel green
     ["error"]=$'\e[38;2;255;120;120m'       # Pastel red (changed from pink to be more distinct)
     ["warning"]=$'\e[38;2;255;255;224m'     # Pastel yellow
@@ -560,7 +584,7 @@ declare -grA darkThemePastel=(
     ["secondary"]=$'\e[38;2;255;198;165m'   # Pastel peach
 )
 
-declare -grA darkThemeEarth=(
+declare -grA themeDarkEarth=(
     ["success"]=$'\e[38;2;107;142;35m'      # Earth green
     ["error"]=$'\e[38;2;205;92;92m'         # Earth red
     ["warning"]=$'\e[38;2;218;165;32m'      # Earth gold
@@ -576,7 +600,7 @@ declare -grA darkThemeEarth=(
 # ==============================================================================
 
 # Material Design Light - same as dark
-declare -grA lightThemeMaterialDesign=(
+declare -grA themeLightMaterialDesign=(
     ["success"]=$'\e[38;2;76;175;80m'       # Material green
     ["error"]=$'\e[38;2;244;67;54m'         # Material red
     ["warning"]=$'\e[38;2;255;193;7m'       # Material amber
@@ -588,7 +612,7 @@ declare -grA lightThemeMaterialDesign=(
 )
 
 # Flat Design Light - Works on light backgrounds
-declare -grA lightThemeFlatDesign=(
+declare -grA themeLightFlatDesign=(
     ["success"]=$'\e[38;2;27;122;68m'       # Flat emerald dark
     ["error"]=$'\e[38;2;138;45;36m'         # Flat red dark
     ["warning"]=$'\e[38;2;176;139;11m'      # Flat yellow dark
@@ -600,7 +624,7 @@ declare -grA lightThemeFlatDesign=(
 )
 
 # Vibrant, copied dark version
-declare -grA lightThemeVibrant=(
+declare -grA themeLightVibrant=(
     ["success"]=$'\e[38;2;46;255;78m'       # Bright green
     ["error"]=$'\e[38;2;255;59;48m'         # Bright red
     ["warning"]=$'\e[38;2;255;214;10m'      # Bright yellow
@@ -613,7 +637,7 @@ declare -grA lightThemeVibrant=(
 
 # Solarized Light - OFFICIAL from ethanschoonover.com/solarized
 # Uses same accent colors as dark, but with inverted base colors
-declare -grA lightThemeSolarized=(
+declare -grA themeLightSolarized=(
     ["success"]=$'\e[38;2;133;153;0m'       # Solarized green #859900 (same)
     ["error"]=$'\e[38;2;220;50;47m'         # Solarized red #dc322f (same)
     ["warning"]=$'\e[38;2;255;137;0m'       # Solarized yellow #b58900 (same)
@@ -625,7 +649,7 @@ declare -grA lightThemeSolarized=(
 )
 
 # Nord - NO OFFICIAL LIGHT VARIANT (community versions only)
-declare -grA lightThemeNord=(
+declare -grA themeLightNord=(
     ["success"]=$'\e[38;2;81;114;83m'       # Adapted (unofficial) green
     ["error"]=$'\e[38;2;114;58;63m'         # Adapted (unofficial) red
     ["warning"]=$'\e[38;2;181;122;83m'      # Adapted (unofficial) orange
@@ -637,7 +661,7 @@ declare -grA lightThemeNord=(
 )
 
 # Dracula - NO FREE LIGHT VARIANT (Alucard is PRO only)
-declare -grA lightThemeDracula=(
+declare -grA themeLightDracula=(
     ["success"]=$'\e[38;2;29;150;73m'       # Adapted (unofficial) green
     ["error"]=$'\e[38;2;153;25;25m'         # Adapted (unofficial) red
     ["warning"]=$'\e[38;2;153;138;7m'       # Adapted yellow (unofficial)
@@ -649,7 +673,7 @@ declare -grA lightThemeDracula=(
 )
 
 # Monokai - NO OFFICIAL LIGHT VARIANT
-declare -grA lightThemeMonokai=(
+declare -grA themeLightMonokai=(
     ["success"]=$'\e[38;2;99;135;27m'       # Adapted (unofficial) green
     ["error"]=$'\e[38;2;149;22;68m'         # Adapted (unofficial) red
     ["warning"]=$'\e[38;2;220;140;20m'      # Adapted golden (changed to be distinct)
@@ -661,7 +685,7 @@ declare -grA lightThemeMonokai=(
 )
 
 # Gruvbox Light - OFFICIAL from morhetz/gruvbox-contrib/color.table
-declare -grA lightThemeGruvbox=(
+declare -grA themeLightGruvbox=(
     ["success"]=$'\e[38;2;98;151;85m'       # Gruvbox light green (adjusted for better green tone)
     ["error"]=$'\e[38;2;157;0;6m'           # Gruvbox light red #9d0006
     ["warning"]=$'\e[38;2;181;118;20m'      # Gruvbox light yellow #b57614
@@ -673,7 +697,7 @@ declare -grA lightThemeGruvbox=(
 )
 
 # One Light - OFFICIAL from Atom (atom/one-light-syntax)
-declare -grA lightThemeOneDark=(
+declare -grA themeLightOneDark=(
     ["success"]=$'\e[38;2;80;161;79m'       # green #50A14F
     ["error"]=$'\e[38;2;228;86;73m'         # red #E45649
     ["warning"]=$'\e[38;2;193;132;1m'       # yellow #C18401
@@ -686,7 +710,7 @@ declare -grA lightThemeOneDark=(
 
 # Tokyo Night Day - OFFICIAL from folke/tokyonight.nvim
 # Colors from Micro editor's tokyonight-day theme which contains official colors
-declare -grA lightThemeTokyoNight=(
+declare -grA themeLightTokyoNight=(
     ["success"]=$'\e[38;2;51;130;45m'       # green (darker than dark theme)
     ["error"]=$'\e[38;2;184;43;69m'         # red/special (special color from day theme)
     ["warning"]=$'\e[38;2;200;120;10m'      # golden (changed to be distinct from secondary)
@@ -698,7 +722,7 @@ declare -grA lightThemeTokyoNight=(
 )
 
 # Catppuccin Latte - OFFICIAL from catppuccin.com/palette
-declare -grA lightThemeCatppuccin=(
+declare -grA themeLightCatppuccin=(
     ["success"]=$'\e[38;2;64;160;43m'       # green #40a02b
     ["error"]=$'\e[38;2;210;15;57m'         # red #d20f39
     ["warning"]=$'\e[38;2;223;142;29m'      # yellow #df8e1d
@@ -710,7 +734,7 @@ declare -grA lightThemeCatppuccin=(
 )
 
 # Ayu Light - OFFICIAL from ayu-theme (Windows Terminal)
-declare -grA lightThemeAyu=(
+declare -grA themeLightAyu=(
     ["success"]=$'\e[38;2;85;160;60m'       # Green (adjusted from lime #86b300 to proper green)
     ["error"]=$'\e[38;2;240;113;113m'       # brightRed #f07171
     ["warning"]=$'\e[38;2;200;170;10m'      # Golden orange (proper yellow/orange)
@@ -722,7 +746,7 @@ declare -grA lightThemeAyu=(
 )
 
 # Night Owl - NO OFFICIAL LIGHT VARIANT
-declare -grA lightThemeNightOwl=(
+declare -grA themeLightNightOwl=(
     ["success"]=$'\e[38;2;103;131;61m'      # Adapted (unofficial) green
     ["error"]=$'\e[38;2;160;50;50m'         # Adapted red (changed to be distinct)
     ["warning"]=$'\e[38;2;243;122;0m'       # Adapted (unofficial) orange
@@ -734,7 +758,7 @@ declare -grA lightThemeNightOwl=(
 )
 
 # Palenight - NO OFFICIAL LIGHT VARIANT
-declare -grA lightThemePalenight=(
+declare -grA themeLightPalenight=(
     ["success"]=$'\e[38;2;116;139;84m'      # Adapted (unofficial) green
     ["error"]=$'\e[38;2;144;68;72m'         # Adapted (unofficial) red
     ["warning"]=$'\e[38;2;193;121;14m'      # Adapted (unofficial) orange
@@ -745,7 +769,7 @@ declare -grA lightThemePalenight=(
     ["secondary"]=$'\e[38;2;248;174;0m'     # Adapted (unofficial) orange
 )
 
-declare -grA lightThemeOcean=(
+declare -grA themeLightOcean=(
     ["success"]=$'\e[38;2;31;124;52m'       # Adapted green
     ["error"]=$'\e[38;2;128;34;43m'         # Adapted red
     ["warning"]=$'\e[38;2;150;112;3m'       # Adapted orange
@@ -756,7 +780,7 @@ declare -grA lightThemeOcean=(
     ["secondary"]=$'\e[38;2;150;75;12m'     # Adapted orange
 )
 
-declare -grA lightThemeVsCode=(
+declare -grA themeLightVsCode=(
     ["success"]=$'\e[38;2;13;118;7m'        # Adapted green
     ["error"]=$'\e[38;2;146;42;42m'         # Adapted red
     ["warning"]=$'\e[38;2;153;122;0m'       # Adapted orange
@@ -767,7 +791,7 @@ declare -grA lightThemeVsCode=(
     ["secondary"]=$'\e[38;2;227;99;27m'     # Adapted orange
 )
 
-declare -grA lightThemeHorizon=(
+declare -grA themeLightHorizon=(
     ["success"]=$'\e[38;2;50;130;70m'       # Green (changed from cyan)
     ["error"]=$'\e[38;2;139;62;80m'         # Adapted red
     ["warning"]=$'\e[38;2;170;120;30m'      # Golden (changed to be distinct)
@@ -779,7 +803,7 @@ declare -grA lightThemeHorizon=(
 )
 
 # Spacemacs Light - Official variant (nashamri/spacemacs-theme)
-declare -grA lightThemeSpacemacs=(
+declare -grA themeLightSpacemacs=(
     ["success"]=$'\e[38;2;67;160;71m'       # Spacemacs light green #43a047
     ["error"]=$'\e[38;2;211;47;47m'         # Spacemacs light red #d32f2f
     ["warning"]=$'\e[38;2;251;140;0m'       # Spacemacs light yellow/amber #fb8c00
@@ -791,7 +815,7 @@ declare -grA lightThemeSpacemacs=(
 )
 
 # Iceberg Light - Official variant (cocopon/iceberg.vim)
-declare -grA lightThemeIceberg=(
+declare -grA themeLightIceberg=(
     ["success"]=$'\e[38;2;102;142;61m'      # Iceberg light green #668e3d
     ["error"]=$'\e[38;2;204;81;122m'        # Iceberg light red #cc517a
     ["warning"]=$'\e[38;2;180;140;15m'      # Iceberg light orange #c57339
@@ -803,7 +827,7 @@ declare -grA lightThemeIceberg=(
 )
 
 # Rose Pine Dawn - OFFICIAL from rose-pine/palette
-declare -grA lightThemeRosePine=(
+declare -grA themeLightRosePine=(
     ["success"]=$'\e[38;2;80;140;90m'       # Green (proper green tone, not pine/cyan)
     ["error"]=$'\e[38;2;180;99;122m'        # love (red) #b4637a
     ["warning"]=$'\e[38;2;234;157;52m'      # gold #ea9d34
@@ -814,7 +838,7 @@ declare -grA lightThemeRosePine=(
     ["secondary"]=$'\e[38;2;255;230;176m'   # rose (peach-orange) #d7827e
 )
 
-declare -grA lightThemeCyberpunk=(
+declare -grA themeLightCyberpunk=(
     ["success"]=$'\e[38;2;0;153;94m'        # Converted from neon green
     ["error"]=$'\e[38;2;180;30;50m'         # Red (changed from too-close magenta)
     ["warning"]=$'\e[38;2;153;153;0m'       # Converted from neon yellow
@@ -826,7 +850,7 @@ declare -grA lightThemeCyberpunk=(
 )
 
 # Same as dark
-declare -grA lightThemeSynthwave=(
+declare -grA themeLightSynthwave=(
     ["success"]=$'\e[38;2;80;255;120m'      # Synthwave neon green
     ["error"]=$'\e[38;2;254;98;140m'        # Synthwave pink (red)
     ["warning"]=$'\e[38;2;255;206;84m'      # Synthwave yellow
@@ -837,7 +861,7 @@ declare -grA lightThemeSynthwave=(
     ["secondary"]=$'\e[38;2;255;158;10m'    # Synthwave orange
 )
 
-declare -grA lightThemeMonokaiPro=(
+declare -grA themeLightMonokaiPro=(
     ["success"]=$'\e[38;2;101;132;70m'      # Adapted green
     ["error"]=$'\e[38;2;153;58;81m'         # Adapted red
     ["warning"]=$'\e[38;2;193;129;11m'      # Adapted orange
@@ -849,7 +873,7 @@ declare -grA lightThemeMonokaiPro=(
 )
 
 # Shades - Custom theme
-declare -grA lightThemeShades=(
+declare -grA themeLightShades=(
     ["success"]=$'\e[38;2;32;94;10m'        # Darkest green
     ["error"]=$'\e[38;2;123;45;72m'         # Darkest red
     ["warning"]=$'\e[38;2;153;115;0m'       # Darkest yellow/gold
@@ -861,7 +885,7 @@ declare -grA lightThemeShades=(
 )
 
 # Arctic - Custom theme
-declare -grA lightThemeArctic=(
+declare -grA themeLightArctic=(
     ["success"]=$'\e[38;2;20;110;50m'       # Arctic green (adjusted)
     ["error"]=$'\e[38;2;114;58;63m'         # Arctic red adapted
     ["warning"]=$'\e[38;2;153;123;34m'      # Arctic yellow/gold
@@ -873,7 +897,7 @@ declare -grA lightThemeArctic=(
 )
 
 # Forest - Custom theme
-declare -grA lightThemeForest=(
+declare -grA themeLightForest=(
     ["success"]=$'\e[38;2;20;80;25m'        # Deep forest green (adjusted)
     ["error"]=$'\e[38;2;118;24;24m'         # Deep red
     ["warning"]=$'\e[38;2;180;100;10m'      # Deep golden (changed to be distinct)
@@ -885,7 +909,7 @@ declare -grA lightThemeForest=(
 )
 
 # Neon - Custom theme
-declare -grA lightThemeNeon=(
+declare -grA themeLightNeon=(
     ["success"]=$'\e[38;2;17;153;6m'        # Darkened neon green
     ["error"]=$'\e[38;2;153;12;88m'         # Darkened neon pink (red)
     ["warning"]=$'\e[38;2;153;153;0m'       # Darkened neon yellow
@@ -897,7 +921,7 @@ declare -grA lightThemeNeon=(
 )
 
 # Retro - Custom theme
-declare -grA lightThemeRetro=(
+declare -grA themeLightRetro=(
     ["success"]=$'\e[38;2;0;170;0m'         # Darkened retro green (adjusted)
     ["error"]=$'\e[38;2;153;0;0m'           # Darkened retro red
     ["warning"]=$'\e[38;2;153;153;0m'       # Darkened retro yellow
@@ -909,7 +933,7 @@ declare -grA lightThemeRetro=(
 )
 
 # Pastel - Custom theme
-declare -grA lightThemePastel=(
+declare -grA themeLightPastel=(
     ["success"]=$'\e[38;2;70;130;80m'       # Pastel green (sage green)
     ["error"]=$'\e[38;2;170;100;110m'       # Adapted from pastel pink (red) (adjusted)
     ["warning"]=$'\e[38;2;180;160;20m'      # Pastel yellow/gold (adjusted)
@@ -921,7 +945,7 @@ declare -grA lightThemePastel=(
 )
 
 # Earth - Custom theme
-declare -grA lightThemeEarth=(
+declare -grA themeLightEarth=(
     ["success"]=$'\e[38;2;25;75;5m'         # Deep earth green (adjusted)
     ["error"]=$'\e[38;2;99;25;25m'          # Deep earth red
     ["warning"]=$'\e[38;2;131;106;9m'       # Deep earth yellow/ochre

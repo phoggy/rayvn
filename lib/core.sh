@@ -67,13 +67,16 @@ makeTempDir() {
 
 configDirPath() {
     local fileName="${1:-}"
-    if [[ -z ${_rayvnConfigDir:-} ]]; then
-        local configDir="${rayvnConfigDirPath}"
-        [[ ${currentProjectName} != rayvn ]] && configDir+="/${currentProjectName}"
-        withUmask 0077 ensureDir "${configDir}"
-        _rayvnConfigDir="${configDir}"
+    local -n configRef="_rayvnConfigDir"
+    if [[ ${currentProjectName} != rayvn ]]; then
+        configVar="_${currentProjectName}ConfigDir"
+        configRef="${configVar}"
+        if [[ -z ${configRef:-} ]]; then
+            configRef="${_rayvnConfigDir}/${currentProjectName}"
+            withUmask 0077 ensureDir "${configRef}"
+        fi
     fi
-    [[ -n ${fileName} ]] && echo "${_rayvnConfigDir}/${fileName}" || echo "${_rayvnConfigDir}"
+    [[ -n ${fileName} ]] && echo "${configRef}/${fileName}" || echo "${configRef}"
 }
 
 ensureDir() {
@@ -368,6 +371,19 @@ show() {
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
+randomInteger() {
+    local maxValue="${1:-100}"
+    echo $(( SRANDOM % (maxValue + 1) ))
+}
+
+copyMap() {
+    local -n src="${1}"
+    local -n dest="${2}"
+    for key in "${!src[@]}"; do
+        dest[${key}]="${src[${key}]}"
+    done
+}
+
 repeat() {
     local str=${1}
     local count=${2}
@@ -540,10 +556,15 @@ _init_rayvn_core() {
     declare -grxi onMacOS=$(( osName == "Darwin" ))
     declare -grxi onLinux=$(( osName == "Linux" ))
     declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
-    declare -grx rayvnConfigDirPath="${HOME}/.rayvn"
     declare -grx _checkMark='✔'
     declare -grx _crossMark='✗'
     declare -gxi _debug=0
+
+    # Ensure rayvn config dir set to valid directory
+
+    local configDir="${HOME}/.rayvn"
+    [[ -d ${configDir} ]] || withUmask 0077 ensureDir "${configDir}"
+    declare -grx _rayvnConfigDir="${configDir}"
 
     # Set color/style constants if terminal supports them
 
@@ -597,7 +618,7 @@ _init_rayvn_core() {
 
     # Remove our init helper functions. The current function will be removed by rayvn.up
 
-    unset _init_currentTheme _init_colors _init_noColors
+    unset _init_theme _init_colors _init_noColors
 
     # Since maps (associative arrays) cannot be exported to child processes, save them so we
     # can restore in children. Note that we must force them to be restored as globals.
@@ -610,30 +631,41 @@ _init_rayvn_core() {
     declare -grx _rayvnCoreInitialized=1
 }
 
-_init_currentTheme() {
-    local theme
-    if (( terminalColorBits >= 24 )); then
-        # TODO THEME load from ~/rayvn/theme.sh
-        theme=(
-            "Material Design"
-            $'\e[38;2;76;175;80m'
-            $'\e[38;2;244;67;54m'
-            $'\e[38;2;255;193;7m'
-            $'\e[38;2;33;100;255m'
-            $'\e[38;2;128;108;108m'
-            $'\e[38;2;156;39;176m'
-            $'\e[38;2;0;188;252m'
-            $'\e[38;2;255;152;0m'
-        )
-    else
-        # TODO THEME have both theme4 and theme24 in theme.sh?
-        theme=('Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m' $'\e[35m' $'\e[96m') # bright-green, bright-red, bright-yellow, blue, cyan, dim, magenta bright-cyan
+_init_theme() {
+    unset theme
+    declare -grx _themeConfigFile="${_rayvnConfigDir}/theme"
+    if [[ -e "${_themeConfigFile}" ]]; then
+        require 'rayvn/config'
+        sourceConfigFile "${_themeConfigFile}"
     fi
-    declare -grax _currentThemeName=("${theme[@]}")
+    if [[ -z "${theme[0]}" ]]; then
+        if (( terminalColorBits >= 24 )); then
+            theme=(
+                "Dark"
+                "Material Design"
+                $'\e[38;2;76;175;80m'
+                $'\e[38;2;244;67;54m'
+                $'\e[38;2;255;193;7m'
+                $'\e[38;2;33;100;255m'
+                $'\e[38;2;128;108;108m'
+                $'\e[38;2;156;39;176m'
+                $'\e[38;2;0;188;252m'
+                $'\e[38;2;255;152;0m'
+            )
+        else
+            theme=('Dark' 'Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m' $'\e[35m' $'\e[96m') # bright-green, bright-red, bright-yellow, blue, cyan, dim, magenta bright-cyan
+        fi
+        declare -p theme > "${_themeConfigFile}" # save it
+        echo -e "\nNOTE: Using default theme '${theme[0]} ${theme[1]}'. Run 'rayvn themes' to change.\n"
+    fi
+
+    declare -grax _currentTheme=("${theme[@]}")
+    declare -grx _currentThemeBackground="${theme[0]}"
+    declare -grx _currentThemeName="${theme[1]}"
 }
 
 _init_colors() {
-    _init_currentTheme
+    _init_theme
 
     declare -grA _textFormats=(
 
@@ -697,14 +729,14 @@ _init_colors() {
 
         # Theme colors
 
-        ['success']=${_currentThemeName[1]}
-        ['error']=${_currentThemeName[2]}
-        ['warning']=${_currentThemeName[3]}
-        ['info']=${_currentThemeName[4]}
-        ['accent']=${_currentThemeName[5]}
-        ['muted']=${_currentThemeName[6]}
-        ['primary']=${_currentThemeName[7]}
-        ['secondary']=${_currentThemeName[8]}
+        ['success']=${_currentTheme[2]}
+        ['error']=${_currentTheme[3]}
+        ['warning']=${_currentTheme[4]}
+        ['info']=${_currentTheme[5]}
+        ['accent']=${_currentTheme[6]}
+        ['muted']=${_currentTheme[7]}
+        ['primary']=${_currentTheme[8]}
+        ['secondary']=${_currentTheme[9]}
 
         # Turn off all formats
 
