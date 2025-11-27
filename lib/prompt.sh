@@ -54,9 +54,9 @@ choose() {
         cursorTo ${_cursorRow} 0
         for (( i=0; i <= max; i++ )); do
             if (( i == current)); then
-                show bold ">" cyan "${choices[${i}]}"
+                show bold ">" primary "${choices[${i}]}"
             else
-                show cyan "  ${choices[${i}]}"
+                show primary "  ${choices[${i}]}"
             fi
         done
     }
@@ -131,7 +131,7 @@ choose() {
 
         # Finalize the prompt if success (already done if failed).
 
-        (( ! failed )) && _finalizePrompt selected cyan
+        (( ! failed )) && _finalizePrompt selected primary
     }
 
     # Run it
@@ -185,7 +185,7 @@ confirm() {
                 resultRef="${result}"
                 return 0
             elif [[ -n ${defaultAnswer} && ${result} == '' ]]; then
-                _finalizePrompt defaultAnswer cyan
+                _finalizePrompt defaultAnswer primary
                 resultRef="${defaultAnswer}"
                 return 0
             else
@@ -207,41 +207,41 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/prompt' PRIVA
 
 _init_rayvn_prompt() {
     require 'rayvn/core' 'rayvn/terminal'
+
+    declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
+    declare -gr _cancelledMsgEmpty='cancelled (no input)'
+    declare -gr _cancelledMsgEsc='cancelled (escape)'
+    declare -gr _cancelledMsgTimeout='cancelled (timeout)'
+    declare -gr _canceledOnEmpty=1
+    declare -gr _canceledOnTimeout=124
+    declare -gr _canceledOnEsc=130
+
+    # Shared global state (safe since bash is single threaded!).
+    # Only valid during execution of public functions.
+
+    declare -g _hint
+    declare -g _prompt
+    declare -g _promptRow
+    declare -gi _promptCol
+    declare -g _plainPrompt
+    declare -g _overwriteHint
+    declare -g _timeoutSeconds
+    declare -gi _timeoutCheckCount
+    declare -g _userInput
 }
-
-declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
-declare -gr _cancelledMsgEmpty='cancelled (no input)'
-declare -gr _cancelledMsgEsc='cancelled (escape)'
-declare -gr _cancelledMsgTimeout='cancelled (timeout)'
-declare -gr _canceledOnEmpty=1
-declare -gr _canceledOnTimeout=124
-declare -gr _canceledOnEsc=130
-
-# Shared global state (safe since bash is single threaded!).
-# Only valid during execution of public functions.
-
-declare -g _hint
-declare -g _prompt
-declare -g _promptRow
-declare -gi _promptCol
-declare -g _plainPrompt
-declare -g _overwriteHint
-declare -g _timeoutSeconds
-declare -gi _timeoutCheckCount
-declare -g _userInput
 
 _prepareHint() {
     local initialSpace="${1}"
     local hint="${2}"
     _overwriteHint="${3:0}"
-    _hint="${initialSpace}${ show -n dim italic "[${hint}]" ;}"
+    _hint="${initialSpace}${ show -n muted italic "[${hint}]" ;}"
 }
 
 _preparePrompt() {
     _plainPrompt="${1}"
     local timeout="${2}"
     local requiredLines="${3}"
-    _prompt="${ show -n bold green "?" plain bold "${_plainPrompt}" ;}${_hint} "
+    _prompt="${ show -n bold success "?" plain bold "${_plainPrompt}" ;}${_hint} "
     echo -n "${_prompt}"
     reserveRows "${requiredLines}"
     _promptRow=${_cursorRow}
@@ -256,7 +256,7 @@ _preparePrompt() {
 _hasPromptTimerExpired() {
     if (( ++_timeoutCheckCount >= 10 )); then
         if (( SECONDS >= _timeoutSeconds )); then
-            _finalizePrompt _cancelledMsgTimeout italic_red
+            _finalizePrompt _cancelledMsgTimeout italic warning
             debug "${_timeoutSeconds} second timeout for prompt '${_plainPrompt}'"
             return 0
         fi
@@ -280,14 +280,14 @@ _readPromptInput() {
             '' | $'\n' | $'\r') # Enter
                 if [[ -z "${_userInput// /}" ]]; then
                     if [[ ${cancelOnEmpty} == true ]]; then
-                        _finalizePrompt _cancelledMsgEmpty red
+                        _finalizePrompt _cancelledMsgEmpty italic warning
                         return ${_canceledOnEmpty}
                     elif [[ ${returnOnEmpty} == true ]]; then
                         return 0
                     fi
                     # ignore
                 else
-                    _finalizePrompt _userInput cyan
+                    _finalizePrompt _userInput primary
                     return 0
                 fi
                 ;;
@@ -366,16 +366,16 @@ _readPromptEscapeSequence() {
     else
 
         # No, so ESC
-        _finalizePrompt _cancelledMsgEsc red
+        _finalizePrompt _cancelledMsgEsc italic warning
         return 1
     fi
 }
 
 _finalizePrompt() {
     local -n inputVarRef="${1}"
-    local colorName="ansi_${2}"
+    local formats=("${@:2}")
     cursorTo ${_promptRow} ${_promptCol}
     eraseToEndOfLine
-    echo "${!colorName}${inputVarRef}${ansi_plain}"
+    show "${formats[@]}" "${inputVarRef}"
     stty "${_originalStty}"
 }
