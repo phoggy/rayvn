@@ -641,16 +641,16 @@ _init_theme() {
     if [[ -z "${theme[0]}" ]]; then
         if (( terminalColorBits >= 24 )); then
             theme=(
-                "Dark"
-                "Material Design"
-                $'\e[38;2;76;175;80m'
-                $'\e[38;2;244;67;54m'
-                $'\e[38;2;255;193;7m'
-                $'\e[38;2;33;100;255m'
-                $'\e[38;2;128;108;108m'
-                $'\e[38;2;156;39;176m'
-                $'\e[38;2;0;188;252m'
-                $'\e[38;2;255;152;0m'
+                "Dark"                   # 0 background
+                "Material Design"        # 1 name
+                $'\e[38;2;76;175;80m'    # 2 success   (green)
+                $'\e[38;2;244;67;54m'    # 3 error     (red)
+                $'\e[38;2;255;193;7m'    # 4 warning   (amber)
+                $'\e[38;2;33;100;255m'   # 5 info      (blue)
+                $'\e[38;2;128;108;108m'  # 6 muted     (gray)
+                $'\e[38;2;156;39;176m'   # 7 accent    (purple)
+                $'\e[38;2;0;188;252m'    # 8 primary   (cyan)
+                $'\e[38;2;255;152;0m'    # 9 secondary (orange)
             )
         else
             theme=('Dark' 'Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m' $'\e[35m' $'\e[96m') # bright-green, bright-red, bright-yellow, blue, cyan, dim, magenta bright-cyan
@@ -733,8 +733,8 @@ _init_colors() {
         ['error']=${_currentTheme[3]}
         ['warning']=${_currentTheme[4]}
         ['info']=${_currentTheme[5]}
-        ['accent']=${_currentTheme[6]}
-        ['muted']=${_currentTheme[7]}
+        ['muted']=${_currentTheme[6]}
+        ['accent']=${_currentTheme[7]}
         ['primary']=${_currentTheme[8]}
         ['secondary']=${_currentTheme[9]}
 
