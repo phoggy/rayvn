@@ -382,9 +382,20 @@ show() {
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
-header1() {
-    show accent "││ " plain bold "${1^^}"
-    [[ -n "${2}" ]] && show accent "││ " plain bold "${2}"
+header() {
+    local index=0
+    if [[ -z "${1//[0-9]/}" ]]; then
+        index="${1}"
+        (( index-=1 ))
+        (( ${index} > 6 )) && index=6
+        shift
+    fi
+
+    local header="${1}"
+    (( index == 0 )) && header="${1^^}"
+
+    show bold ${_headerPrefixColors[index]} "${_headerPrefixes[index]}" plain bold " ${header}"
+    echo
 }
 
 randomInteger() {
@@ -575,6 +586,8 @@ _init_rayvn_core() {
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -gxi _debug=0
+    declare -gar _headerPrefixColors=('info' 'primary' 'secondary' 'accent' 'warning' 'error' 'muted')
+    declare -gar _headerPrefixes=('▐│' '▐╎' '▐┆' '▐┊' '▐|' '▐░' '▐▗')
 
     declare -gAr _symbols=(
 
