@@ -279,33 +279,40 @@ test256Colors() {
     local result
 
     # Valid 256 color codes
-    result=${ show 196 "red via 256"; }
+    result=${ show IDX 196 "red via 256"; }
     assertStripped "256 color: 196 (red)" "red via 256" "${result}"
 
-    result=${ show 46 "green via 256"; }
+    result=${ show IDX 46 "green via 256"; }
     assertStripped "256 color: 46 (green)" "green via 256" "${result}"
 
     # Edge cases: 0 and 255
-    result=${ show 0 "color 0"; }
+    result=${ show IDX 0 "color 0"; }
     assertStripped "256 color: 0" "color 0" "${result}"
 
-    result=${ show 255 "color 255"; }
+    result=${ show IDX 255 "color 255"; }
     assertStripped "256 color: 255" "color 255" "${result}"
 
     # Mix format names and 256 colors
-    result=${ show bold 196 "bold red 256"; }
+    result=${ show bold IDX 196 "bold red 256"; }
     assertStripped "256 color with style" "bold red 256" "${result}"
 
     # 256 colors interleaved
-    result=${ show "Start" 196 "red" 46 "green" "end"; }
-    assertStripped "256 colors interleaved" "Start end" "${result}"
+    result=${ show "Start" IDX 196 "red" IDX 46 "green" "end"; }
+    assertStripped "256 colors interleaved" "Start red green end" "${result}"
 
     # Invalid 256 color (>255) treated as text
-    result=${ show 256 "text"; }
-    assertStripped "Invalid 256 color (256)" "256 text" "${result}"
+    result=${ show IDX 256 "text"; }
+    assertStripped "Invalid 256 color (256)" "IDX 256 text" "${result}"
 
-    result=${ show 999 "text"; }
-    assertStripped "Invalid 256 color (999)" "999 text" "${result}"
+    result=${ show IDX 999 "text"; }
+    assertStripped "Invalid 256 color (999)" "IDX 999 text" "${result}"
+
+    # Numeric values without IDX are displayed as text
+    result=${ show "The answer is" 42 "!"; }
+    assertStripped "Numeric value as text" "The answer is 42 !" "${result}"
+
+    result=${ show bold 100 "not a color"; }
+    assertStripped "Numeric with style as text" "100 not a color" "${result}"
 }
 
 testRGBColors() {
@@ -586,33 +593,38 @@ testEscapeCodes256Colors() {
 
     # 256 color format: \e[38;5;Nm where N is 0-255
     # Test color 0
-    result=${ show 0 "text"; }
+    result=${ show IDX 0 "text"; }
     expected=$'\033[38;5;0m'"text"$'\e[0m'
     assertEscapeCodes "256 color: 0" "${expected}" "${result}"
 
     # Test color 196 (red)
-    result=${ show 196 "text"; }
+    result=${ show IDX 196 "text"; }
     expected=$'\033[38;5;196m'"text"$'\e[0m'
     assertEscapeCodes "256 color: 196" "${expected}" "${result}"
 
     # Test color 46 (green)
-    result=${ show 46 "text"; }
+    result=${ show IDX 46 "text"; }
     expected=$'\033[38;5;46m'"text"$'\e[0m'
     assertEscapeCodes "256 color: 46" "${expected}" "${result}"
 
     # Test color 255 (max)
-    result=${ show 255 "text"; }
+    result=${ show IDX 255 "text"; }
     expected=$'\033[38;5;255m'"text"$'\e[0m'
     assertEscapeCodes "256 color: 255" "${expected}" "${result}"
 
     # Test that 256+ is treated as text, not color
-    result=${ show 256 "text"; }
-    expected="256 text"$'\e[0m'
+    result=${ show IDX 256 "text"; }
+    expected="IDX 256 text"$'\e[0m'
     assertEscapeCodes "Invalid 256 color (256) treated as text" "${expected}" "${result}"
 
-    result=${ show 999 "text"; }
-    expected="999 text"$'\e[0m'
+    result=${ show IDX 999 "text"; }
+    expected="IDX 999 text"$'\e[0m'
     assertEscapeCodes "Invalid 256 color (999) treated as text" "${expected}" "${result}"
+
+    # Test that numeric values without IDX are treated as text
+    result=${ show 42 "text"; }
+    expected="42 text"$'\e[0m'
+    assertEscapeCodes "Numeric value without IDX treated as text" "${expected}" "${result}"
 }
 
 testEscapeCodesRGBColors() {
@@ -674,7 +686,7 @@ testEscapeCodesStyleCombinations() {
     assertEscapeCodes "Bold + Italic + Underline" "${expected}" "${result}"
 
     # Bold + 256 color
-    result=${ show bold 196 "text"; }
+    result=${ show bold IDX 196 "text"; }
     expected=$'\e[1m\033[38;5;196m'"text"$'\e[0m'
     assertEscapeCodes "Bold + 256 color (196)" "${expected}" "${result}"
 

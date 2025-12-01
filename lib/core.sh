@@ -271,8 +271,10 @@ executeWithCleanVars() {
 #   show success "Operation completed"
 #   show italic underline green "Italic underline green text"
 #   show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" plain blue "blue text" # style continuation
-#   show italic 62 "italic 256 color #62 text" plain red "plain red text" # style continuation
+#   show italic IDX 62 "italic 256 color #62 text" plain red "plain red text" # style continuation
+#   show IDX 42 "Display 256 color #42"
 #   show RGB 52:208:88 "rgb 52 208 88 colored text"
+#   show "The answer is" bold 42 "not a color code" # numeric values display normally
 #
 #   # IMPORTANT: Use 'plain' to reset colors BEFORE applying styles-only
 #   show cyan "colored text" plain dim "dim text (no color)"
@@ -327,11 +329,11 @@ executeWithCleanVars() {
 #     bright-black, bright-red, bright-green, bright-yellow,
 #     bright-blue, bright-magenta, bright-cyan, bright-white
 #
-#   256 Colors:
-#     0-255
+#   256 Colors ('indexed' colors):
+#     IDX 0-255
 #
-#   RGB Colors ('truecolor':
-#     RGB 0-255 0-255 0-255
+#   RGB Colors ('truecolor'):
+#     RGB 0-255:0-255:0-255
 #
 #   Reset:
 #     plain
@@ -355,9 +357,18 @@ show() {
         if [[ -n ${1} ]]; then
             if [[ -v _textFormats[${1}] ]]; then
                 currentFormat+=${_textFormats[${1}]}
-            elif [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )) && (( terminalColorBits >= 8 )); then
-                currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
-            elif [[ ${1} == RGB ]] && (( $# >=2 )) && (( terminalColorBits >= 24 )); then
+            elif [[ ${1} == IDX ]] && (( $# >= 2 )) && (( terminalColorBits >= 8 )); then
+                shift
+                if [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )); then
+                    currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
+                else
+                    # Invalid color value, treat IDX and value as text
+                    (( addSpace )) && output+=' '
+                    output+=${currentFormat}"IDX ${1}"
+                    currentFormat=''
+                    addSpace=1
+                fi
+            elif [[ ${1} == RGB ]] && (( $# >= 2 )) && (( terminalColorBits >= 24 )); then
                 shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
             else
                 (( addSpace )) && output+=' '
@@ -369,6 +380,11 @@ show() {
         shift
     done
     echo "${options[@]}" "${output}"$'\e[0m'
+}
+
+header1() {
+    show accent "││ " plain bold "${1^^}"
+    [[ -n "${2}" ]] && show accent "││ " plain bold "${2}"
 }
 
 randomInteger() {
@@ -556,9 +572,30 @@ _init_rayvn_core() {
     declare -grxi onMacOS=$(( osName == "Darwin" ))
     declare -grxi onLinux=$(( osName == "Linux" ))
     declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
-    declare -grx _checkMark='✔'
-    declare -grx _crossMark='✗'
+    declare -grx _checkMark='✔' # U+2714 Check mark
+    declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -gxi _debug=0
+
+    declare -gAr _symbols=(
+
+        # Vertical line variants (UTF-8)
+
+        ['v-line']="│"          # U+2502 Box drawings light vertical
+        ['v-line-heavy']="┃"    # U+2503 Box drawings heavy vertical
+        ['v-line-2']="║"        # U+2551 Box drawings double vertical
+        ['v-dash-2']="╎"        # U+254E Box drawings light double dash vertical
+        ['v-dash-2-heavy']="╏"  # U+254F Box drawings heavy double dash vertical
+        ['v-dash-3']="┆"        # U+2506 Box drawings light triple dash vertical
+        ['v-dash-3-heavy']="┇"  # U+2507 Box drawings heavy triple dash vertical
+        ['v-dash-4']="┊"        # U+250A Box drawings light quadruple dash vertical
+        ['v-dash-4-heavy']="┋"  # U+250B Box drawings heavy quadruple dash vertical
+
+        # Block elements (solid)
+
+        ['block-full']="█"      # U+2588 Full block
+        ['block-left']="▌"      # U+258C Left half block
+        ['block-right']="▐"     # U+2590 Right half block
+    )
 
     # Ensure rayvn config dir set to valid directory
 
