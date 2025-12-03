@@ -67,8 +67,10 @@ makeTempDir() {
 
 configDirPath() {
     local fileName="${1:-}"
-    local -n configRef="_rayvnConfigDir"
-    if [[ ${currentProjectName} != rayvn ]]; then
+    local -n configRef
+    if [[ ${currentProjectName} == rayvn ]]; then
+        configRef="_rayvnConfigDir"
+    else
         configVar="_${currentProjectName}ConfigDir"
         configRef="${configVar}"
         if [[ -z ${configRef:-} ]]; then
@@ -183,6 +185,20 @@ assertValidFileName() {
     # Reject reserved characters (Windows-unsafe or problematic cross-platform)
     [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] &&
         fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
+}
+
+assertNoErrorLog() {
+    local errorHandler="${1:-'fail'}"
+    local stripBracketLines="${2:-0}"
+    local errorLog="${ cat "${errorLogFile}"; }"
+    if [[ -e "${errorLogFile}" ]]; then
+        debug "${errorLog}"
+        if (( stripBracketLines )); then
+            ${errorHandler} "${ echo "${errorLog}" | grep -v '^\[.*\]$' | sed -e :a -e '/^\s*$/{$d;N;ba' -e '}'; }"
+        else
+            ${errorHandler} "${errorLog}"
+        fi
+    fi
 }
 
 appendVar() {
@@ -394,7 +410,8 @@ header() {
     local header="${1}"
     (( index == 0 )) && header="${1^^}"
 
-    show bold ${_headerPrefixColors[index]} "${_headerPrefixes[index]}" plain bold " ${header}"
+    show bold primary "${_headerPrefixes[index]}" plain bold " ${header}"
+#    show bold ${_headerPrefixColors[index]} "${_headerPrefixes[index]}" plain bold " ${header}"
     echo
 }
 
@@ -492,7 +509,7 @@ debugEnabled() { return 1; }
 debugDir() { :; }
 debugStatus() { echo 'debug disabled'; }
 debugBinary() { :; }
-debugVar() { :; }
+debugVars() { :; }
 debugVarIsSet() { :; }
 debugVarIsNotSet() { :; }
 debugFile() { :; }
@@ -587,7 +604,7 @@ _init_rayvn_core() {
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -gxi _debug=0
     declare -gar _headerPrefixColors=('info' 'primary' 'secondary' 'accent' 'warning' 'error' 'muted')
-    declare -gar _headerPrefixes=('▐│' '▐╎' '▐┆' '▐┊' '▐|' '▐░' '▐▗')
+    declare -gar _headerPrefixes=('▐▐' '▐│' '▐╎' '▐┆' '▐┊' '▐|' '▐░' '▐▗')
 
     declare -gAr _symbols=(
 
@@ -629,6 +646,10 @@ _init_rayvn_core() {
     else
         _init_noColors
     fi
+
+    # Create an error log path
+
+    declare -gr errorLogFile="${ tempDirPath 'error.log'; }"
 
     # Is this a mac?
 
