@@ -88,8 +88,8 @@ assertEscapeCodes() {
         echo "    Expected: '${expected}'"
         echo "    Actual:   '${actual}'"
         # Show visible representation of escape codes for debugging
-        echo "    Expected (visible): $(echo -n "${expected}" | cat -v)"
-        echo "    Actual (visible):   $(echo -n "${actual}" | cat -v)"
+        echo "    Expected (visible): ${ echo -n "${expected}" | cat -v; }"
+        echo "    Actual (visible):   ${ echo -n "${actual}" | cat -v; }"
         return 1
     fi
 }

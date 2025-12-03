@@ -42,7 +42,7 @@ assertEnvPreconditions() {
 
     # Ensure we contain only our own functions
 
-    local allFunctions=$(declare -F | awk '{print $NF}')
+    local allFunctions="${ declare -F | awk '{print $NF}'; }"
     declare -A expectedFunctions=
     local name
 
@@ -70,22 +70,22 @@ assertEnvPreconditions() {
 
 _assertFunctionIsNotDefined() {
     local name="${1}"
-    [[ $(declare -f "${name}" 2> /dev/null) ]] && _failed "${name} is set: $(declare -f ${name})"
+    [[ ${ declare -f "${name}" 2> /dev/null; } ]] && _failed "${name} is set: ${ declare -f ${name}; }"
 }
 
 _assertFunctionIsDefined() {
     local name="${1}"
-    [[ ! $(declare -f "${name}" 2> /dev/null) ]] && _failed "${name} not set"
+    [[ ! ${ declare -f "${name}" 2> /dev/null; } ]] && _failed "${name} not set"
 }
 
 _assertVarIsDefined() {
     local name="${1}"
-    [[ ! $(declare -p "${name}" 2> /dev/null) ]] && _failed "${name} not set"
+    [[ ! ${ declare -p "${name}" 2> /dev/null; } ]] && _failed "${name} not set"
 }
 
 _assertVarIsNotDefined() {
     local name="${1}"
-    [[ $(declare -p "${name}" 2> /dev/null) ]] && _failed "${name} is set"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && _failed "${name} is set"
 }
 
 _assertFileDoesNotExist() {
@@ -193,9 +193,9 @@ testSourceRayvnUp() {
     # Remove all PATH dirs containing rayvn so that we can test rayvn.up
 
     while true; do
-        found="$(which rayvn)"
+        found="${ which rayvn; }"
         if [[ ${found} ]]; then
-            pathDir="$(dirname "${found}")"
+            pathDir="${ dirname "${found}"; }"
             _removePath "${pathDir}"
         else
             break # we're done
@@ -204,12 +204,12 @@ testSourceRayvnUp() {
 
     # Double check it
 
-    [[ "$(which rayvn.up)" ]] && _failed "rayvn.up found after PATH removals"
+    [[ "${ which rayvn.up; }" ]] && _failed "rayvn.up found after PATH removals"
 
     # OK, now add the install home back into PATH and check we can find it
 
     _prependPath "${rayvnInstallHome}/bin"
-    [[ "$(which rayvn.up)" ]] || _failed "rayvn.up NOT found after PATH removals"
+    [[ "${ which rayvn.up; }" ]] || _failed "rayvn.up NOT found after PATH removals"
 
     # Finally, we're ready to boot, so do it but suppress forced inclusion of 'rayvn/core'
 

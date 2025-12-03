@@ -14,9 +14,9 @@ main() {
 init() {
     if [[ ${1} == --debug ]]; then
         setDebug showOnExit
-        declare -grx tempDir="$(debugDir)"
+        declare -grx tempDir="${ debugDir; }"
     else
-        declare -grx tempDir="$(tempDirPath)"
+        declare -grx tempDir="${ tempDirPath; }"
     fi
 
     declare -grx evilEnvFilePath="${tempDir}/evil.env"
@@ -28,7 +28,7 @@ init() {
     local testCaseFile="${rayvnHome}/test/files/config-test-case"
     cat "${testCaseFile}" > ${evilEnvFilePath} || fail
     declare -grx evilEnvFile="${evilEnvFilePath}"
-    declare -grx evilEnvVar="$(cat "${evilEnvFile}")"
+    declare -grx evilEnvVar="${ cat "${evilEnvFile}"; }"
 
     # Create safe files
 
@@ -43,15 +43,15 @@ testFileAndStringInputResultsMatch() {
 
      # First, test without prefix filter
 
-     safeFromFile="$(extractSafeStaticVars "${evilEnvFile}")"
-     safeFromString="$(extractSafeStaticVars "${evilEnvVar}")"
+     safeFromFile="${ extractSafeStaticVars "${evilEnvFile}"; }"
+     safeFromString="${ extractSafeStaticVars "${evilEnvVar}"; }"
 
      assertEqual "${safeFromFile}" "${safeFromString}"
 
      # And test again with prefix filter
 
-     safeFilteredFromFile="$(extractSafeStaticVars "${evilEnvFile}" project)"
-     safeFilteredFromString="$(extractSafeStaticVars "${evilEnvVar}" project)"
+     safeFilteredFromFile="${ extractSafeStaticVars "${evilEnvFile}" project; }"
+     safeFilteredFromString="${ extractSafeStaticVars "${evilEnvVar}" project; }"
 
      assertEqual "${safeFilteredFromFile}" "${safeFilteredFromString}"
 }

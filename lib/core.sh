@@ -20,7 +20,7 @@ withUmask() {
 
     # Save umask and set to new
 
-    oldUmask="$(umask)"
+    oldUmask="${ umask; }"
     umask "${newUmask}"
 
     # execute the command and save the status
@@ -45,7 +45,7 @@ tempDirPath() {
 
 ensureTempDir() {
     if [[ -z ${_rayvnTempDir:-} ]]; then
-        declare -grx _rayvnTempDir="$(withUmask 0077 mktemp -d)" || fail "could not create temp directory"
+        declare -grx _rayvnTempDir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi
 }
@@ -53,7 +53,7 @@ ensureTempDir() {
 makeTempFile() {
     ensureTempDir
     local fileName="${1:-XXXXXXXXXXX}" # create random file name if not present
-    local file="$(mktemp "${_rayvnTempDir}/${fileName}")"
+    local file="${ mktemp "${_rayvnTempDir}/${fileName}"; }"
     # chmod 600 "${file}" || fail "chmod failed on ${file}"
     echo "${file}"
 }
@@ -61,7 +61,7 @@ makeTempFile() {
 makeTempDir() {
     ensureTempDir
     local dirName="${1:-XXXXXXXXXXX}" # create random dir name if not present
-    local directory="$(mktemp "${_rayvnTempDir}/${dirName}")"
+    local directory="${ mktemp "${_rayvnTempDir}/${dirName}"; }"
     echo "${directory}"
 }
 
@@ -226,7 +226,7 @@ _setFileSystemVar() {
     else
         [[ -f ${file} ]] || assretFailed "${file} is not a file"
     fi
-    local realFile="$(realpath "${file}" 2>/dev/null)"
+    local realFile="${ realpath "${file}" 2>/dev/null; }"
     resultVar="${realFile}"
 }
 

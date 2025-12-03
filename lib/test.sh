@@ -25,17 +25,17 @@ assertEqual() {
 
 assertNotInPath() {
     local executable="${1}"
-    local path="$(command -v ${executable})"
+    local path="${ command -v ${executable}; }"
     [[ ${path} == '' ]] || assertionFailed "${executable} was found in PATH at ${path}"
 }
 
 assertInPath() {
     local executable="${1}"
     local expectedPath="${2}"
-    local foundPath="$(command -v ${executable})"
+    local foundPath="${ command -v ${executable}; }"
     [[ ${foundPath} ]] || assertionFailed "${executable} was not found in PATH"
     assertFile "${foundPath}"
-    local realPath="$(realpath ${foundPath})"
+    local realPath="${ realpath ${foundPath}; }"
 
     if [[ ${expectedPath} ]]; then
         if [[ ${realPath} == "${foundPath}" ]]; then
@@ -50,22 +50,22 @@ assertInPath() {
 
 assertFunctionIsNotDefined() {
     local name="${1}"
-    [[ $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} is defined: $(declare -f ${name})"
+    [[ ${ declare -f "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined: ${ declare -f ${name}; }"
 }
 
 assertFunctionIsDefined() {
     local name="${1}"
-    [[ ! $(declare -f "${name}" 2> /dev/null) ]] && assertionFailed "${name} is not defined"
+    [[ ! ${ declare -f "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is not defined"
 }
 
 assertVarIsDefined() {
     local name="${1}"
-    [[ ! $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} is not defined"
+    [[ ! ${ declare -p "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is not defined"
 }
 
 assertVarIsNotDefined() {
     local name="${1}"
-    [[ $(declare -p "${name}" 2> /dev/null) ]] && assertionFailed "${name} is defined"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined"
 }
 
 assertVarType() {
@@ -73,7 +73,7 @@ assertVarType() {
     local expectedFlags="${2}"  # e.g. "ir", "r", "arx", "A"
 
     local declaration
-    if ! declaration="$(declare -p "${varName}" 2> /dev/null)"; then
+    if ! declaration="${ declare -p "${varName}" 2> /dev/null; }"; then
         assertionFailed "${varName} is not defined"
     fi
 
@@ -81,8 +81,8 @@ assertVarType() {
     actualFlags="${actualFlags% *}"
 
     local sortedExpected sortedActual
-    sortedExpected="$(echo "${expectedFlags}" | grep -o . | sort | tr -d '\n')"
-    sortedActual="$(echo "${actualFlags}" | grep -o . | sort | tr -d '\n')"
+    sortedExpected="${ echo "${expectedFlags}" | grep -o . | sort | tr -d '\n'; }"
+    sortedActual="${ echo "${actualFlags}" | grep -o . | sort | tr -d '\n'; }"
 
     if [[ "${sortedExpected}" != "${sortedActual}" ]]; then
         assertionFailed "${varName} has -${sortedActual}, expected -${sortedExpected}"

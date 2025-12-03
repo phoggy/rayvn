@@ -25,7 +25,7 @@ waitForProcessExit() {
         fail "Usage: waitForProcessExit <pid> <timeoutMs> [checkIntervalMs] [termWaitMs]"
     fi
 
-    checkIntervalS=$(echo "scale=3; ${checkIntervalMs} / 1000" | bc) # Convert millis to fractional seconds
+    checkIntervalS="${ echo "scale=3; ${checkIntervalMs} / 1000" | bc; }" # Convert millis to fractional seconds
 
     while (( elapsed < timeoutMs )); do
         if ! kill -0 "${pid}" 2> /dev/null; then
