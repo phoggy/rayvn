@@ -400,18 +400,18 @@ show() {
 
 header() {
     local index=0
+    local maxIndex=${#_headerColors[@]}
     if [[ -z "${1//[0-9]/}" ]]; then
         index="${1}"
+        (( index > maxIndex )) && index=${maxIndex}
         (( index-=1 ))
-        (( ${index} > 6 )) && index=6
         shift
     fi
 
-    local header="${1}"
-    (( index == 0 )) && header="${1^^}"
-
-    show bold primary "${_headerPrefixes[index]}" plain bold " ${header}"
-#    show bold ${_headerPrefixColors[index]} "${_headerPrefixes[index]}" plain bold " ${header}"
+    local header="${1^^}"
+    local color="${_headerColors[${index}]}"
+    show bold primary "┃┃" plain "${color}" "${header[@]}"
+    [[ -n ${2} ]] && show primary "┃┃" plain "${color}" "${2}"
     echo
 }
 
@@ -603,9 +603,7 @@ _init_rayvn_core() {
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -gxi _debug=0
-    declare -gar _headerPrefixColors=('info' 'primary' 'secondary' 'accent' 'warning' 'error' 'muted')
-    declare -gar _headerPrefixes=('▐▐' '▐│' '▐╎' '▐┆' '▐┊' '▐|' '▐░' '▐▗')
-
+    declare -gar _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
     declare -gAr _symbols=(
 
         # Vertical line variants (UTF-8)
