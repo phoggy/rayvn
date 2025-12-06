@@ -411,7 +411,10 @@ header() {
     local header="${1^^}"
     local color="${_headerColors[${index}]}"
     show bold primary "┃┃" plain "${color}" "${header[@]}"
-    [[ -n ${2} ]] && show primary "┃┃" plain "${color}" "${2}"
+    if (( $# > 1 )); then
+        shift
+        show primary "┃┃" plain "${color}" "${@}"
+    fi
     echo
 }
 
@@ -602,9 +605,8 @@ _init_rayvn_core() {
     declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
-    declare -gxi _debug=0
-    declare -gar _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
-    declare -gAr _symbols=(
+    declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
+    declare -gArx _symbols=(
 
         # Vertical line variants (UTF-8)
 
@@ -624,6 +626,10 @@ _init_rayvn_core() {
         ['block-left']="▌"      # U+258C Left half block
         ['block-right']="▐"     # U+2590 Right half block
     )
+
+    # Initialize debug to off
+
+    declare -gxi _debug=0
 
     # Ensure rayvn config dir set to valid directory
 
