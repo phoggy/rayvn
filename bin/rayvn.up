@@ -163,12 +163,12 @@ traceInit() {
         if [[ -v traceOut ]]; then
             echo -e "\n\n[trace] BOOT rayvn.up --------- ${ date; } ----------------\n" > "${traceOut}"
             declare -g _tracing=1
-            _rayvnFunctionSources+=([trace]='rayvn.up' [traceVar]='rayvn.up' [traceStack]='rayvn.up' [traceInit]='rayvn.up')
+            _rayvnFunctionSources+=(['trace']='rayvn.up' ['traceVar']='rayvn.up' ['traceStack']='rayvn.up' ['traceInit']='rayvn.up')
             trace "${1}"
         else
             declare -g _tracing=0
             _rayvnUpUnsetIds+=(trace traceVar traceStack traceInit) # remove these later
-            _ignoreRayvnUpFunctions+=([trace]=1 [traceVar]=1 [traceStack]=1 [traceInit]=1)
+            _ignoreRayvnUpFunctions+=(['trace']=1 ['traceVar']=1 ['traceStack']=1 ['traceInit']=1)
         fi
     fi
 }
@@ -254,12 +254,12 @@ configure() {
 
     # Now replace with known sources: our persistent and replaced functions plus the debug API
 
-    _rayvnFunctionSources+=([require]='rayvn.up' [_loadRayvnLibrary]='rayvn.up' [_collectUnknownFunctionNames]='rayvn.up'
-        [fail]='rayvn/core' [printStack]='rayvn/core'
-        [debug]='rayvn/debug' [debugEnabled]='rayvn/debug' [debugDir]='rayvn/debug' [debugStatus]='rayvn/debug'
-        [debugBinary]='rayvn/debug' [debugVars]='rayvn/debug' [debugVarIsSet]='rayvn/debug' [debugVarIsNotSet]='rayvn/debug'
-        [debugFile]='rayvn/debug' [debugJson]='rayvn/debug' [debugStack]='rayvn/debug' [debugEnvironment]='rayvn/debug'
-        [debug]='rayvn/debug')
+    _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownFunctionNames']='rayvn.up'
+        ['fail']='rayvn/core' ['printStack']='rayvn/core'
+        ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugStatus']='rayvn/debug'
+        ['debugBinary']='rayvn/debug' ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug' ['debugVarIsNotSet']='rayvn/debug'
+        ['debugFile']='rayvn/debug' ['debugJson']='rayvn/debug' ['debugStack']='rayvn/debug' ['debugEnvironment']='rayvn/debug'
+        ['debug']='rayvn/debug')
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 
@@ -296,7 +296,7 @@ addRoot() {
 addProjectFromExecutable() {
     local projectName="${1}"
     local executable="${2}"
-    local path
+    local path projectRoot
     path="${ type -p "${executable}"; }" || fail "'${executable}' not found for project '${projectName}'"
     path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
     projectRoot="${ dirname "${path}"; }/.."
@@ -310,7 +310,7 @@ addProject() {
     # Add project root
 
     if [[ -d ${projectRoot} ]]; then
-        addRoot "${projectName}" ${_projectRootSuffix} "${projectRoot}"
+        addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
     else
         addProjectFromExecutable "${projectName}" "${projectRoot}"
     fi
@@ -319,16 +319,16 @@ addProject() {
 
     local libraryRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/lib"
     if [[ -d "${libraryRoot}" ]]; then
-        addRoot "${projectName}" ${_libraryRootSuffix} "${libraryRoot}"
+        addRoot "${projectName}" "${_libraryRootSuffix}" "${libraryRoot}"
     fi
 }
 
 # Configure, require specified libraries, then remove all temp functions and vars.
 
-configure "${@}"
-require "${_required[@]}"
-unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
-return 0
+    configure "${@}"
+    require "${_required[@]}"
+    unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
+    return 0
 
 
 
