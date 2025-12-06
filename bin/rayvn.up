@@ -173,7 +173,7 @@ traceInit() {
     fi
 }
 
-# --- All the following will be UNSET once configuration completes, *before* any libraries are loaded --------
+# --- All the following functions will be UNSET once configuration completes, *before* any libraries are loaded --------
 
 # bashsupport disable=BP3002
 configure() {
@@ -325,10 +325,10 @@ addProject() {
 
 # Configure, require specified libraries, then remove all temp functions and vars.
 
-    configure "${@}"
-    require "${_required[@]}"
-    unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
-    return 0
+configure "${@}"
+require "${_required[@]}"
+unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
+return 0
 
 
 
