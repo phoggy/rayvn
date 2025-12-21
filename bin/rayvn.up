@@ -275,6 +275,10 @@ configure() {
         _ignoreRayvnUpFunctions["${key}"]=1
         unset "_rayvnFunctionSources[${key}]"
     done
+
+    # Finally, set flag to indicate we have completed
+
+    declare -grx rayvnIsUp=1
 }
 
 addRoot() {
