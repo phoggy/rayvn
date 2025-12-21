@@ -410,6 +410,7 @@ header() {
 
     local header="${1^^}"
     local color="${_headerColors[${index}]}"
+    echo
     show bold primary "┃┃" plain "${color}" "${header[@]}"
     if (( $# > 1 )); then
         shift
@@ -438,6 +439,27 @@ repeat() {
     printf -v result "%*s" "${count}" ""
     result=${result// /${str}}
     echo -n "${result}"
+}
+
+padTo() {
+    local padBefore=0
+    if [[ ${1} == --before ]]; then
+        padBefore=1; shift
+    fi
+    local str="${1}"
+    local targetCol="${2}"
+    local strLen="${#str}"
+    local padLen=$(( targetCol - strLen ))
+
+    if (( padLen > 0 )); then
+        if (( padBefore )); then
+            printf '%*s%s' "${padLen}" '' "${str}"
+        else
+            printf '%s%*s' "${str}" "${padLen}" ''
+        fi
+    else
+        printf '%s' "${str}"
+    fi
 }
 
 warn() {
