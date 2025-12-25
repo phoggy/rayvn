@@ -1,0 +1,20 @@
+services:
+  linux-test:
+    build: .
+    image: linux-compat-test:latest
+    container_name: linux-compat-test
+    tty: true
+    stdin_open: true
+    volumes:
+      # Mount all three projects as read-only for safety
+      - ../..:/workspace/rayvn:ro
+      - ../../../valt:/workspace/valt:ro
+      - ../../../wardn:/workspace/wardn:ro
+      # Mount test runner script as read-only
+      - ./run-tests.sh:/workspace/run-tests.sh:ro
+    working_dir: /workspace
+    command: bash run-tests.sh
+    environment:
+      - TERM=xterm-256color
+      # Force terminal detection for rayvn tests
+      - FORCE_COLOR=1
