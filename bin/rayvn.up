@@ -208,7 +208,8 @@ configure() {
     # This is important when this file is sourced using a file path.
 
     local rayvnUpBinary="${BASH_SOURCE[0]}"
-    rayvnUpBinary="${ realpath "${rayvnUpBinary}/.."; }"
+    rayvnUpBinary="${ dirname "${rayvnUpBinary}"; }"  # do this in 2 steps for linux
+    rayvnUpBinary="${ realpath "${rayvnUpBinary}"; }"
     addProject rayvn "${ dirname "${rayvnUpBinary}"; }"
 
     # Unless requested, ensure that 'rayvn/core' is loaded first

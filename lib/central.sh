@@ -26,7 +26,8 @@ registerProjectOnRayvnCentral() {
         # Yes, so use it for the registered date
 
         registeredDate=${ git log --reverse --format="%at" | head -1; } || fail
-        registeredDate=${ date -r "${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z"; }
+        # Platform-agnostic date formatting: try GNU date first, fall back to BSD date
+        registeredDate=${ date -d "@${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z" 2>/dev/null || date -r "${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z"; }
     else
         # No, so use current
 

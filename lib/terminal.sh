@@ -109,7 +109,10 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRI
 
 _init_rayvn_terminal() {
     require 'rayvn/core'
-    ((inTerminal)) || fail "'rayvn/terminal' library can only operate in a terminal"
+    ((isInteractive)) || return 0  # Silently succeed when not interactive
+
+    # Save original terminal settings (only when interactive)
+    [[ ${_originalStty} ]] || declare -gr _originalStty="$(stty -g)"
 }
 
 declare -grx _eraseToEndOfLine=$'\e[0K'
@@ -125,7 +128,6 @@ declare -gr _cursorDown=$'\e[B'
 declare -gr _cursorPosition=$'\e[6n'
 declare -gr _cursorSave=$'\e[s'
 declare -gr _cursorRestore=$'\e[u'
-declare -gr _originalStty="$(stty -g)"
 declare -gr _cursorParsePattern=$'\e\\[([0-9]+);([0-9]+)R'
 declare -gi _cursorRow=
 declare -gi _cursorCol=

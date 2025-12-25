@@ -96,8 +96,8 @@ makeDir() {
     echo "${dir}"
 }
 
-assertInTerminal() {
-    (( inTerminal )) || assertionFailed "must be run in a terminal"
+assertIsInteractive() {
+    (( isInteractive )) || assertionFailed "must be run interactively"
 }
 
 addExitHandler() {
@@ -194,7 +194,7 @@ assertNoErrorLog() {
     if [[ -e "${errorLogFile}" ]]; then
         debug "${errorLog}"
         if (( stripBracketLines )); then
-            ${errorHandler} "${ echo "${errorLog}" | grep -v '^\[.*\]$' | sed -e :a -e '/^\s*$/{$d;N;ba' -e '}'; }"
+            ${errorHandler} "${ echo "${errorLog}" | grep -v '^\[.*\]$' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
         else
             ${errorHandler} "${errorLog}"
         fi
@@ -578,12 +578,12 @@ _init_rayvn_core() {
     # We need to set ${terminal} so that it can be used as a redirect.
     # Are stdout and stderr both terminals?
 
-    if [[ -t 1 && -t 2 ]]; then
+    if [[ ! ${nonInteractive} && -t 1 && -t 2 ]]; then
 
-        # Yes, so set terminal to the tty and remember that we are in a terminal
+        # Yes, so set terminal to the tty and remember that we are interactive
 
         declare -grx terminal="/dev/tty"
-        declare -grxi inTerminal=1
+        declare -grxi isInteractive=1
 
         # Determine the # of bits of color supported
 
@@ -604,11 +604,11 @@ _init_rayvn_core() {
     else
 
         # No. Ensure FD 3 exists and points to original stdout, then set terminal
-        # to use it and remember we are not in a terminal.
+        # to use it and remember we are not interactive.
 
         [[ -t 3 ]] || exec 3>&1
         declare -grx terminal="&3"
-        declare -grxi inTerminal=0
+        declare -grxi isInteractive=0
 
         # Unless a special flag is set, turn off colors
 
@@ -661,7 +661,7 @@ _init_rayvn_core() {
 
     # Set color/style constants if terminal supports them
 
-    if (( inTerminal )); then
+    if (( isInteractive )); then
         if (( terminalColorBits >= 4 )); then
             _init_colors
         else
@@ -686,15 +686,6 @@ _init_rayvn_core() {
         if command -v brew >/dev/null; then
             declare -grxi _brewIsInstalled=1
         fi
-    elif [[ ! -v RAYVN_NO_OS_CHECK ]]; then
-
-        # No, so warn!
-
-        echo "⚠️ This code contains MacOS specific functionality and likely will not work here."
-        echo
-        echo "   This warning can be bypassed by exporting RAYVN_NO_OS_CHECK=true"
-        echo "   but be aware that some functionality may not work correctly."
-        echo
     fi
 
     # Force these readonly since we have to handle them specially in rayvn.up
@@ -943,7 +934,7 @@ _init_noColors() {
 }
 
 _restoreTerminal() {
-    if (( inTerminal )); then
+    if (( isInteractive )); then
         stty sane
         printf '\e[0K\e[?25h' # Clear to end of line and show cursor in case sane does not
     fi

@@ -190,7 +190,7 @@ _setDebug() {
 
     if [[ -n ${_debugOut} ]]; then
         exec 3>> "${_debugOut}"
-        if ((inTerminal)); then
+        if ((isInteractive)); then
             _debugPrefix="${ show ${_debugPrefixColor} 'debug: ';}"
         else
             _debugPrefix="debug: "

@@ -178,10 +178,10 @@ _updateBrewFormula() {
 
             # replace version, url, sha256 and releaseDate
 
-            sed -i.bak -E "s|version \"[0-9]+\.[0-9]+\.[0-9]+\"|version \"${version}\"|; \
-                           s|sha256 \"[a-fA-F0-9]{64}\"|sha256 \"${hash}\"|;   \
-                           s|(url \".*tags/v)[0-9.]+|\1${version}.|;  \
-                           s|release_date = \".*\"|release_date = \"${releaseDate}\"|" "${formulaFile}"
+            sed -i.bak "s|version \"[0-9]\+\.[0-9]\+\.[0-9]\+\"|version \"${version}\"|; \
+                        s|sha256 \"[a-fA-F0-9]\{64\}\"|sha256 \"${hash}\"|;   \
+                        s|\(url \".*tags/v\)[0-9.]\+|\1${version}.|;  \
+                        s|release_date = \".*\"|release_date = \"${releaseDate}\"|" "${formulaFile}"
 
             echo "Replaced version, url and sha256 values in '${formulaFile}'"
 

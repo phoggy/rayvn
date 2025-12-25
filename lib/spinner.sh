@@ -5,6 +5,7 @@
 # Intended for use via: require 'rayvn/spinner'
 
 startSpinner() {
+    ((isInteractive)) || return 0  # No-op when not interactive
     if [[ ! ${_spinnerPid} ]]; then
         _ensureStopOnExit
         _spinServerMain "${1}" &
@@ -13,20 +14,24 @@ startSpinner() {
 }
 
 restartSpinner() {
+    ((isInteractive)) || return 0  # No-op when not interactive
     stopSpinner "${1}"
     startSpinner "${2}"
 }
 
 replaceSpinnerAndRestart() {
+    ((isInteractive)) || return 0  # No-op when not interactive
     stopSpinner "${_spinnerEraseLineCommand}" "${1}"
     startSpinner "${2}"
 }
 
 stopSpinnerAndEraseLine() {
+    ((isInteractive)) || return 0  # No-op when not interactive
     stopSpinner "${_spinnerEraseLineCommand}" "${1}"
 }
 
 stopSpinner() {
+    ((isInteractive)) || return 0  # No-op when not interactive
     local command message
     if [[ ${1} =~ ${_spinnerCommandPrefix} ]]; then
         command="${1}"
