@@ -28,8 +28,8 @@ cd "${linux_compat_dir}"
 # Check if Docker image exists, build if needed
 if ! docker image inspect linux-compat-test:latest &> /dev/null; then
     echo "Docker image not found, building..."
-    make build
+    docker compose build
 fi
 
 # Run the tests
-exec make test
+exec docker compose up --build --abort-on-container-exit
