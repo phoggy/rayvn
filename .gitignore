@@ -8,3 +8,6 @@ profile
 *.ipr
 *.iml
 
+# Claude
+.claude/
+
