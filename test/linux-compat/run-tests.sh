@@ -24,9 +24,10 @@ echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # Check bash version (required 5.2+)
-bash_version=${ bash --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1; }
-bash_major=${ echo "${bash_version}" | cut -d. -f1; }
-bash_minor=${ echo "${bash_version}" | cut -d. -f2; }
+bash_major="${BASH_VERSINFO[0]}"
+bash_minor="${BASH_VERSINFO[1]}"
+bash_patch="${BASH_VERSINFO[2]}"
+bash_version="${bash_major}.${bash_minor}.${bash_patch}"
 
 echo -e "${YELLOW}Bash Version Check:${NC}"
 if (( bash_major > 5 || (bash_major == 5 && bash_minor >= 2) )); then
