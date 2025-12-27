@@ -103,7 +103,7 @@ debugVarIsNotSet() {
 debugFile() {
     if (( _debug )); then
         local sourceFile="${1}"
-        local fileName="${2:-$(baseName ${sourceFile})}"
+        local fileName="${2:-${ baseName ${sourceFile}; }}"
         local destFile="${_debugDir}/${fileName}"
         cp "${sourceFile}" "${destFile}"
         debug "Added file ${destFile}"
@@ -216,7 +216,7 @@ _varIsSet() {
 
 _prepareLogFile() {
     local clearLog=${1}
-    configDir="$(configDirPath)" || fail
+    configDir="${ configDirPath; }" || fail
     declare -grx _debugDir="${configDir}/debug"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
     declare -gxi _debugStartLine
@@ -235,11 +235,11 @@ _prepareLogFile() {
         touch "${_debugLogFile}"
     fi
 
-    _debugStartLine=$(wc -l < "${_debugLogFile}")
+    _debugStartLine=${ wc -l < "${_debugLogFile}"; }
 
     exec 3>> "${_debugLogFile}"
 
-    printf "___ rayvn log $(date) _________________________________\n\n" >&3
+    printf "___ rayvn log ${ date; } _________________________________\n\n" >&3
 }
 
 _debugExit() {
@@ -256,7 +256,7 @@ _printDebugLog() {
 
     # did we log anything?
 
-    endLine=$(wc -l < "${_debugLogFile}")
+    endLine=${ wc -l < "${_debugLogFile}"; }
     if  (( endLine - _debugStartLine > 2 )); then
 
         # yes, so dump what we added
@@ -270,7 +270,7 @@ _printDebugLog() {
             # print start line in color
 
             (( _debugStartLine++ ))
-            startLine="$(tail -n +${_debugStartLine} "${_debugLogFile}" | head -n 1)"
+            startLine="${ tail -n +${_debugStartLine} "${_debugLogFile}" | head -n 1; }"
             show bold blue "${startLine}"
 
             # print remaining lines

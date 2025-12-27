@@ -130,7 +130,7 @@ assertArrayEquals() {
 assertHashTableIsDefined() {
     local varName=${1}
     assertVarIsDefined ${varName}
-    [[ "$(declare -p ${varName} 2>/dev/null)" =~ "declare -A" ]] || assertionFailed "${varName} is not a hash table"
+    [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || assertionFailed "${varName} is not a hash table"
 }
 
 assertHashTableIsNotDefined() {
@@ -162,7 +162,7 @@ assertHashValue() {
     local expectedValue="${3}"
     assertHashKeyIsDefined "${varName}" "${keyName}"
 
-    local actualValue="$(eval echo \$"{${varName}[${keyName}]}")" # complexity required to use variables for var and key
+    local actualValue="${ eval echo \$"{${varName}[${keyName}]}"; }" # complexity required to use variables for var and key
     [[ ${actualValue} == "${expectedValue}" ]] || assertionFailed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
 }
 
@@ -254,8 +254,8 @@ benchmark() {
     done
 
     local endTime=${EPOCHREALTIME}
-    local duration=$(awk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}")
-    local opsPerSec=$(awk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}")
+    local duration=${ awk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}"; }
+    local opsPerSec=${ awk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}"; }
 
     printf "%-30s %-15s %10d iterations in %8.4f sec (%10s ops/sec)\n" \
       "${testCase}" "${functionName}" "${iterations}" "${duration}" "${opsPerSec}"

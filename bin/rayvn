@@ -107,12 +107,12 @@ addIfRayvnExecutable() {
     [[ ${command} == 'create' ]] && return 1
     local name="${1}"
     local path root rayvnPkgFile
-    path="$(which "${name}")"
+    path="${ which "${name}"; }"
     if [[ -n "${path}" ]]; then
 
         # Get root directory
 
-        path="$(realpath "${path}")"
+        path="${ realpath "${path}"; }"
         path="${path%/}"  # normalize trailing slash
         path="${path%/*}" # strip last component
         root="${path%/*}" # and again to reach root
@@ -176,7 +176,7 @@ create() {
             *) bye "unknown type: ${type}"
         esac
         [[ -n "${name}" ]] || bye "name required"
-        local gitRoot=$(git rev-parse --show-toplevel 2>/dev/null) || gitRoot=''
+        local gitRoot=${ git rev-parse --show-toplevel 2>/dev/null; } || gitRoot=''
         local templateDir="${rayvnHome}/templates"
         args=("${args[@]:3}")
 
@@ -261,7 +261,7 @@ runTests() {
 
         # Setup logging
 
-        local testLogDir="$(configDirPath tests)" || fail
+        local testLogDir="${ configDirPath tests; }" || fail
         ensureDir "${testLogDir}" || fail
         rm "${testLogDir:?}"/* 2> /dev/null
 
@@ -311,7 +311,7 @@ listFunctions() {
         show bold "${sourceName} functions"
         echo
         getFunctions functions "${sourceName}"
-        functions=($(printf '%s\n' "${functions[@]}" | sort))
+        functions=(${ printf '%s\n' "${functions[@]}" | sort; })
         for function in "${functions[@]}"; do
             if declare -pF "${functionName}" 2> /dev/null | grep -q "declare -fr"; then
                 suffix=
@@ -367,7 +367,7 @@ forEachLibrary() {              # TODO: this pattern is a pain. Replace with get
     [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
     for file in "${libraryRoot}"/*.sh; do
         [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
-        local fileName="$(basename "${file}")"
+        local fileName="${ basename "${file}"; }"
         local library="${fileName%.*}"
         "${command}" "${project}" "${library}" "${file}" "${arguments}"
     done
@@ -430,9 +430,9 @@ runTest() {
     local projectDir="${1}"
     local testFile="${2}"
     declare -i maxTestNameLength=${3}
-    local projectName=$(basename "${projectDir}")
+    local projectName=${ basename "${projectDir}"; }
     assertFileExists "${testFile}"
-    local fileName="$(basename ${testFile})"
+    local fileName="${ basename ${testFile}; }"
     local testName="${fileName#test-}"
     testName="${testName%.sh}"
     local testLogFileName="${projectName}-${testName}.log"
@@ -463,8 +463,8 @@ runTest() {
                     # Second, export a list of the function names within the test itself so
                     # that it can ensure that no other functions are present, e.g. require
 
-                    export testFunctionNames=$(grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
-                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}')
+                    export testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+                            awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
                     testFunctionNames="${testFunctionNames%" "}"
 
                     # Don't add an empty line at exit
@@ -503,7 +503,7 @@ executeTestFile() {
 
 sortArrayLongestFirst() {
     local -n arrayRef="${1}"
-    IFS=$'\n' arrayRef=($(printf "%s\n" "${arrayRef[@]}" | sort -r -n -k1,1 --key=1.1,1.1 --key=1.1,1.1 | awk '{ print length, $0 }' | sort -r -n | cut -d' ' -f2-))
+    IFS=$'\n' arrayRef=(${ printf "%s\n" "${arrayRef[@]}" | sort -r -n -k1,1 --key=1.1,1.1 --key=1.1,1.1 | awk '{ print length, $0 }' | sort -r -n | cut -d' ' -f2-; })
     IFS=' '
 
     if (( ${#arrayRef[@]} > 0 )); then
@@ -560,7 +560,7 @@ createProject() {
 
     local quotedName="'${projectName}'"
     local qualifiedName="'${projectName}/example'"
-    local rayvnVersion="'$(projectVersion rayvn | cut -d' ' -f2)'"
+    local rayvnVersion="'${ projectVersion rayvn | cut -d' ' -f2; }'"
     local libraryCall='myExampleLibraryFunction'
     local libraryName="example"
     local libraryNameInitialCap="Example"
@@ -666,7 +666,7 @@ getProjectRoot() {
     local _projectRoot="${gitRoot}"
     local packageFile="${_projectRoot}/rayvn.pkg"
     [[ -f "${packageFile}" ]] || bye "${_projectRoot} does not appear to be a rayvn project: no rayvn.pkg file"
-    local _projectName="$(baseName ${_projectRoot})"
+    local _projectName="${ baseName ${_projectRoot}; }"
     projectRootRef="${_projectRoot}"
     projectNameRef="${_projectName}"
 }

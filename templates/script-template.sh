@@ -23,7 +23,7 @@ main() {
 
 # shellcheck disable=SC2155
 init() {
-    declare -r scriptName=$(baseName "${0}")
+    declare -r scriptName=${ baseName "${0}"; }
 
     while (( ${#} > 0 )); do
         case "${1}" in

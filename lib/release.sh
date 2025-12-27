@@ -8,7 +8,7 @@ release () {
     local version="${2}"
     local project="${ghRepo#*/}"
     local releaseDeleted=
-    local releaseDate="$(_timeStamp)"
+    local releaseDate="${ _timeStamp; }"
 
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
@@ -225,7 +225,7 @@ _ensureInExpectedRepo() {
 
     # Get the remote repository URL
 
-    remoteUrl=$(git config --get remote.origin.url)
+    remoteUrl=${ git config --get remote.origin.url; }
 
     # Extract the repository name and account from the URL (handles HTTPS & SSH formats)
 
@@ -251,14 +251,14 @@ _ensureRepoIsReadyForRelease() {
 
     # Check for uncommitted changes
 
-    if [[ -n $(git status --porcelain) ]]; then
+    if [[ -n ${ git status --porcelain; } ]]; then
         fail "Uncommitted changes. Please commit or stash them before proceeding."
     fi
 
     # Check if the local branch is behind the remote (i.e., if a push is required)
 
-    localCommit=$(git rev-parse HEAD)
-    remoteCommit=$(git rev-parse origin/"$(git rev-parse --abbrev-ref HEAD)")
+    localCommit=${ git rev-parse HEAD; }
+    remoteCommit=${ git rev-parse origin/"${ git rev-parse --abbrev-ref HEAD; }"; }
 
     if [[ "${localCommit}" != "${remoteCommit}" ]]; then
         echo "Your local branch is behind the remote. A push is required."
@@ -266,13 +266,13 @@ _ensureRepoIsReadyForRelease() {
         if [[ "${response}" != "y" ]]; then
             fail "Exiting without pushing changes."
         fi
-        git push origin "$(git rev-parse --abbrev-ref HEAD)" &> /dev/null
+        git push origin "${ git rev-parse --abbrev-ref HEAD; }" &> /dev/null
         echo "Changes pushed to remote."
     fi
 
     # Check if the version tag exists in the remote but not locally
 
-    remoteTag="$(git ls-remote --tags origin "${versionTag}")"
+    remoteTag="${ git ls-remote --tags origin "${versionTag}"; }"
     if [[ ${remoteTag} ]]  && ! git rev-parse --verify "${versionTag}" &> /dev/null; then
         echo "Tag ${versionTag} exists in the remote but not locally. Pulling tag..."
 
@@ -293,9 +293,9 @@ _ensureRepoIsReadyForRelease() {
 _ensureRepoIsUpToDate() {
     _printHeader "Ensuring repo is up to date"
 
-    branch=$(git rev-parse --abbrev-ref HEAD)
-    localCommit=$(git rev-parse HEAD)
-    remoteCommit=$(git rev-parse "origin/${branch}")
+    branch=${ git rev-parse --abbrev-ref HEAD; }
+    localCommit=${ git rev-parse HEAD; }
+    remoteCommit=${ git rev-parse "origin/${branch}"; }
 
     # Make sure we have all remote tags
 
@@ -327,7 +327,7 @@ _gitHubReleaseHash() {
     local sha256
 
     echo "Computing sha256 for ${project} release ${versionTag} file at'${url}'"
-    sha256="$(curl -L --no-progress-meter --fail "${url}" | shasum -a 256 | cut -d' ' -f1)" || fail
+    sha256="${ curl -L --no-progress-meter --fail "${url}" | shasum -a 256 | cut -d' ' -f1; }" || fail
     echo "sha256 ${sha256}"
     result="${sha256}"
 }
@@ -336,7 +336,7 @@ _updateBrewFormulaDependencies() {
     require 'rayvn/dependencies'
     local project="${1}"
     local formulaFile="${2}"
-    local tempFile="$(makeTempFile "${project}.rb")" || fail
+    local tempFile="${ makeTempFile "${project}.rb"; }" || fail
     local dependencies=()
     local minVersions=()
     declare -i found=0

@@ -96,13 +96,13 @@ _detectBackground() {
     local result
 
     # Try OSC 11 query first (most accurate)
-    if result=$(_queryBackgroundColor 2> /dev/null); then
+    if result=${ _queryBackgroundColor 2> /dev/null; }; then
         echo "${result}"
         return 0
     fi
 
     # Fallback to environment detection
-    if result=$(_detectThemeFromEnv); then
+    if result=${ _detectThemeFromEnv; }; then
         echo "${result}"
         return 0
     fi
@@ -118,7 +118,7 @@ _queryBackgroundColor() {
     local oldSettings
 
     # Save current terminal settings
-    oldSettings=$(stty -g 2> /dev/null) || return 1
+    oldSettings=${ stty -g 2> /dev/null; } || return 1
 
     # Set terminal to raw mode for reading response
     stty raw -echo min 0 2> /dev/null || return 1

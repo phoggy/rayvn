@@ -80,7 +80,7 @@ clearTerminal() {
 
 reserveRows() {
     local requiredRows="${1:-2}"
-    local terminalHeight=$(tput lines)
+    local terminalHeight=${ tput lines; }
     local remainingRows
 
     cursorPosition _cursorRow _cursorCol
@@ -97,7 +97,7 @@ reserveRows() {
         # Move to the last line and force scrolling
 
         cursorTo ${terminalHeight} 0
-        printf '\n%.0s' $(seq 1 ${scrollRows})
+        printf '\n%.0s' ${ seq 1 ${scrollRows}; }
 
         # Restore cursor to adjusted row and original column
 
@@ -112,7 +112,7 @@ _init_rayvn_terminal() {
     ((isInteractive)) || return 0  # Silently succeed when not interactive
 
     # Save original terminal settings (only when interactive)
-    [[ ${_originalStty} ]] || declare -gr _originalStty="$(stty -g)"
+    [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g; }"
 }
 
 declare -grx _eraseToEndOfLine=$'\e[0K'

@@ -24,9 +24,9 @@ echo -e "${BLUE}========================================${NC}"
 echo ""
 
 # Check bash version (required 5.2+)
-bash_version=$(bash --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-bash_major=$(echo "${bash_version}" | cut -d. -f1)
-bash_minor=$(echo "${bash_version}" | cut -d. -f2)
+bash_version=${ bash --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1; }
+bash_major=${ echo "${bash_version}" | cut -d. -f1; }
+bash_minor=${ echo "${bash_version}" | cut -d. -f2; }
 
 echo -e "${YELLOW}Bash Version Check:${NC}"
 if (( bash_major > 5 || (bash_major == 5 && bash_minor >= 2) )); then
@@ -41,12 +41,12 @@ echo ""
 
 # Display system information
 echo -e "${YELLOW}System Information:${NC}"
-echo "  OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"')"
-echo "  Bash: $(bash --version | head -1)"
-echo "  Date: $(date --version | head -1)"
-echo "  Sed: $(sed --version | head -1)"
-echo "  Awk: $(awk --version | head -1)"
-echo "  Base64: $(base64 --version | head -1)"
+echo "  OS: ${ cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"'; }"
+echo "  Bash: ${ bash --version | head -1; }"
+echo "  Date: ${ date --version | head -1; }"
+echo "  Sed: ${ sed --version | head -1; }"
+echo "  Awk: ${ awk --version | head -1; }"
+echo "  Base64: ${ base64 --version | head -1; }"
 echo ""
 
 # Function to run rayvn test for one or more projects

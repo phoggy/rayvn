@@ -256,7 +256,7 @@ _assertExecutable() {
         _assertExecutableFound "${name}"
         local extractMethod="${projectDependencies[${name}_extract]}"
         if [[ ${minVersion} != 0 ]]; then
-            local version=$(_extractVersion ${name} ${extractMethod})
+            local version=${ _extractVersion ${name} ${extractMethod}; }
             _assertMinimumVersion ${minVersion} ${version} "${name}"
         fi
     else
@@ -275,7 +275,7 @@ _assertMinimumVersion() {
     local minimum="${1}"
     local version="${2}"
     local targetName="${3}"
-    local lowest=$(printf '%s\n%s\n' "${version}" "${minimum}" | sort -V | head -n 1)
+    local lowest=${ printf '%s\n%s\n' "${version}" "${minimum}" | sort -V | head -n 1; }
     if [[ "${lowest}" != "${minimum}" ]]; then
         local errMsg="requires ${targetName} version >= ${minimum}, found ${lowest}"
         _dependencyFailed "${targetName}" "${errMsg}" 1

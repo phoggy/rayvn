@@ -13,7 +13,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Get the directory containing this script
-script_dir="$(dirname "${BASH_SOURCE[0]}")"
+script_dir="${ dirname "${BASH_SOURCE[0]}"; }"
 linux_compat_dir="${script_dir}/linux-compat"
 
 # Check if linux-compat directory exists

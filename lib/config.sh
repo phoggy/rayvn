@@ -13,7 +13,7 @@ sourceConfigFile() {
     local safeEnv
     local input="${1}"
     local prefixFilter="${2}"
-    safeEnv="$(extractSafeStaticVars "${input}" "${prefixFilter}" | _globalizeDeclarations)" || fail
+    safeEnv="${ extractSafeStaticVars "${input}" "${prefixFilter}" | _globalizeDeclarations; }" || fail
     source <(echo "${safeEnv}")
 }
 
@@ -38,10 +38,10 @@ extractSafeStaticVars() {
     local result
     [[ "${input}" ]] || fail "missing required input"
 
-    result="$(_extractSafeStaticVarsOnly "${input}")" || fail
+    result="${ _extractSafeStaticVarsOnly "${input}"; }" || fail
 
     if [[ ${prefixFilter} ]]; then
-        result="$(_filterStaticVarsByPrefix "${result}" "${prefixFilter}")"
+        result="${ _filterStaticVarsByPrefix "${result}" "${prefixFilter}"; }"
     fi
 
     echo "${result}"
@@ -246,7 +246,7 @@ _filterStaticVarsByPrefix() {
     local input="${1}"
     local prefix="${2}"
 
-    [[ -f "${input}" ]] && input="$(<"${input}")"
+    [[ -f "${input}" ]] && input="${ <"${input}"; }"
 
     awk -v prefix="${prefix}" '
     BEGIN {
