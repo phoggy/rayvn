@@ -142,6 +142,207 @@ choose() {
     return 0
 }
 
+# Carousel chooser with fixed cursor in the middle and scrolling items.
+# Assumes there are more items than can fit on screen.
+#
+# Usage: carousel <prompt> <choiceIndexVarName> <timeout> <useSeparator> choice0 choice1 ... choiceN
+# Output: choiceIndexVar set to index of selected choice.
+# Exit codes: 0 = success, 124 = timeout, 130 = user cancelled (ESC pressed)
+
+carousel() {
+    local prompt="${1}"
+    local -n choiceIndexRef="${2}"
+    local timeout="${3}"
+    local useSeparator="${4:-false}"
+    local choices=("${@:5}")
+    local max=$(( ${#choices[@]} - 1 ))
+    local current=0
+    local key i
+    local selected=
+    local visibleRows
+    local itemsAbove
+    local itemsBelow
+    local rowsPerItem
+    local displayStartRow
+    local maxLength=0
+    local separatorLine
+
+    _carousel_calculateDisplay() {
+        # Get terminal height
+        local termHeight=$(tput lines)
+
+        # Reserve space for prompt and margins
+        visibleRows=$(( termHeight - 6 ))
+
+        # Rows per item (1 for item, +1 if separator)
+        if [[ ${useSeparator} == true ]]; then
+            rowsPerItem=2
+        else
+            rowsPerItem=1
+        fi
+
+        # Calculate items above and below cursor (cursor is in middle)
+        local totalItems=$(( visibleRows / rowsPerItem ))
+        itemsAbove=$(( totalItems / 2 ))
+        itemsBelow=$(( totalItems - itemsAbove - 1 ))
+    }
+
+    _carousel_prepare() {
+        # Clear screen first
+        clear
+
+        # Display prompt at top
+        echo -n "${ show -n bold success "?" plain bold "${prompt}" ;} "
+        show muted italic "[use arrows to scroll]"
+        echo
+
+        # Set up timeout tracking
+        _timeoutSeconds=${timeout}
+        _timeoutCheckCount=0
+        SECONDS=0
+
+        # Calculate maximum item length
+        for (( i=0; i <= max; i++ )); do
+            local len=${#choices[${i}]}
+            (( len > maxLength )) && maxLength=${len}
+        done
+
+        # Add 2 for the "> " prefix
+        maxLength=$(( maxLength + 2 ))
+
+        # Build separator line
+        separatorLine=""
+        for (( i=0; i < maxLength; i++ )); do
+            separatorLine+="─"
+        done
+
+        # Calculate display parameters
+        _carousel_calculateDisplay
+
+        # Hide cursor and position for items
+        cursorHide
+        displayStartRow=3
+
+        # Reserve rows
+        reserveRows $(( visibleRows + 3 ))
+    }
+
+    _carousel_paint() {
+        local idx offset
+
+        # Move to display start
+        cursorTo ${displayStartRow} 0
+
+        # Paint items in a window around current selection
+        for (( offset=-itemsAbove; offset <= itemsBelow; offset++ )); do
+            # Calculate wrapped index
+            idx=$(( (current + offset + (max + 1) * 100) % (max + 1) ))
+
+            # Show separator line above cursor item (only once, when we reach cursor)
+            if (( offset == 0 )); then
+                echo -n "${ show -n dim "${separatorLine}" ;}"
+                echo
+            fi
+
+            # Show the item
+            if (( offset == 0 )); then
+                # This is the cursor position (middle)
+                echo -n "${ show -n bold ">" primary "${choices[${idx}]}" ;}"
+                echo
+            else
+                echo -n "${ show -n primary "  ${choices[${idx}]}" ;}"
+                echo
+            fi
+
+            # Show separator line below cursor item (only once, immediately after cursor)
+            if (( offset == 0 )); then
+                echo -n "${ show -n dim "${separatorLine}" ;}"
+                echo
+            fi
+
+            # Add blank separator line if requested (but not adjacent to cursor separators)
+            if [[ ${useSeparator} == true && ${offset} -lt ${itemsBelow} && ${offset} != -1 && ${offset} != 0 ]]; then
+                echo
+            fi
+        done
+    }
+
+    _carousel_up() {
+        if (( current == 0 )); then
+            current=${max}
+        else
+            (( current-- ))
+        fi
+        _carousel_paint
+    }
+
+    _carousel_down() {
+        if (( current == ${max} )); then
+            current=0
+        else
+            (( current++ ))
+        fi
+        _carousel_paint
+    }
+
+    _carousel_pick() {
+        _carousel_paint
+        stty cbreak -echo
+        while true; do
+            if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+                case "${key}" in
+                    '' | $'\n' | $'\r')
+                        # Enter
+                        selected="${choices[${current}]}"
+                        choiceIndexRef=${current}
+                        break ;;
+
+                    $'\e') # Escape, maybe a sequence
+                        if _readPromptEscapeSequence key; then
+                            case "${key}" in
+                                'u') _carousel_up ;;   # up arrow
+                                'd') _carousel_down ;; # down arrow
+                                 *) ;;        # ignore others
+                            esac
+                        else
+                            _carousel_finalize 1 # ESC
+                            return ${_canceledOnEsc}
+                        fi
+                        ;;
+
+                    *) # ignore anything else
+                        ;;
+                esac
+            fi
+
+            if _hasPromptTimerExpired; then
+                _carousel_finalize 1
+                return ${_canceledOnTimeout}
+            fi
+        done
+    }
+
+    _carousel_finalize() {
+        local failed="${1}"
+
+        # Clear display area
+        clear
+        cursorShow
+
+        # Show result
+        if (( ! failed )); then
+            echo -n "${ show -n bold success "?" plain bold "${prompt}" ;} "
+            show primary "${selected}"
+        fi
+    }
+
+    # Run it
+    _carousel_prepare
+    _carousel_pick || return $?
+    _carousel_finalize 0
+    return 0
+}
+
 # Request that the user confirm one of two choices. By default, the user must type one of the two
 # answers. If one of the answers should be considered a default when only the <enter> key is pressed,
 # that answer should have '=default' appended to it (e.g. yes=default).

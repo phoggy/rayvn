@@ -32,6 +32,25 @@ _init_rayvn_themes() {
     declare -grx _defaultThemeName="Material Design"
 }
 
+_themesToArray() {
+    local -n resultArray="${1}"
+    local darkThemes=()
+    local lightThemes=()
+    local indent=29
+    local theme
+    for themeName in "${_themeDisplayNames[@]}"; do
+        darkThemes+=("${ _showTheme "Dark" "${themeName}" "${indent}"; }")
+        lightThemes+=("${ _showTheme "Light" "${themeName}" "${indent}"; }")
+    done
+
+    if [[ ${_themeBackground} == Dark ]]; then
+        resultArray=("${darkThemes[@]}" "${lightThemes[@]}")
+    else
+        resultArray=("${lightThemes[@]}" "${darkThemes[@]}")
+    fi
+}
+
+
 _showThemes() {
     local background="${1:-${_themeBackground}}"
     local indent=29 themeName
