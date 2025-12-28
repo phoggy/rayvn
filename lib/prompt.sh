@@ -36,8 +36,6 @@ choose() {
     local -n choiceIndexRef="${2}"
     local timeout="${3}"
     local choices=("${@:4}")
-    local key i
-    local selected=
 
     _choosePaint() {
         cursorTo ${_cursorRow} 0
@@ -68,8 +66,6 @@ carousel() {
     local timeout="${3}"
     local useSeparator="${4}"
     local choices=("${@:5}")
-    local key i
-    local selected=
     local visibleRows
     local itemsAbove
     local itemsBelow
@@ -77,6 +73,7 @@ carousel() {
     local displayStartRow
     local maxLength=0
     local separatorLine
+    local offset
 
     _carouselPrepare() {
         # Calculate display parameters
@@ -125,15 +122,13 @@ carousel() {
     }
 
     _carouselPaint() {
-        local idx offset
-
         # Move to display start
         cursorTo ${displayStartRow} 0
 
         # Paint items in a window around current selection
         for (( offset=-itemsAbove; offset <= itemsBelow; offset++ )); do
             # Calculate wrapped index
-            idx=$(( (currentChoice + offset + (maxChoices + 1) * 100) % (maxChoices + 1) ))
+            i=$(( (currentChoice + offset + (maxChoices + 1) * 100) % (maxChoices + 1) ))
 
             # Show separator line above cursor item (only once, when we reach cursor)
             (( offset == 0 )) && echo "${separatorLine}"
@@ -141,9 +136,9 @@ carousel() {
             # Show the item
             if (( offset == 0 )); then
                 # This is the cursor position (middle)
-                show bold ">" primary "${choices[${idx}]}"
+                show bold ">" primary "${choices[${i}]}"
             else
-                show primary "  ${choices[${idx}]}"
+                show primary "  ${choices[${i}]}"
             fi
 
             # Show separator line below cursor item (only once, immediately after cursor)
@@ -409,6 +404,8 @@ _select() {
     local maxChoices=$(( ${#choices[@]} - 1 ))
     local currentChoice=0
     local reserveRows=$(( maxChoices + 3 ))
+    local selected
+    local key i
 
     ${prepareFunction}
     _selectChoice || return $?
