@@ -432,6 +432,11 @@ copyMap() {
     done
 }
 
+stripANSI() {
+    echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+
 repeat() {
     local str=${1}
     local count=${2}

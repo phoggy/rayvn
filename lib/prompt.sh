@@ -76,12 +76,15 @@ carousel() {
     local offset
 
     _carouselPrepare() {
+        local len stripped
+
         # Calculate display parameters
         _carouselCalculateDisplay
 
-        # Calculate maximum item length
+        # Calculate maximum item length (strip escape sequences for accurate length)
         for (( i=0; i <= maxChoices; i++ )); do
-            local len=${#choices[${i}]}
+            stripped="${ stripANSI "${choices[${i}]}"; }"
+            len=${#stripped}
             (( len > maxLength )) && maxLength=${len}
         done
 
@@ -95,7 +98,7 @@ carousel() {
         done
         separatorLine="${ show dim "${separatorLine}" ;}"
 
-        # Clear screen to allow for maximum visible lines prepare
+        # Clear screen to allow for maximum visible lines and prepare
 
         clear
         _selectPrepare
