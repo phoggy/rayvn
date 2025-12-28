@@ -36,24 +36,13 @@ choose() {
     local -n choiceIndexRef="${2}"
     local timeout="${3}"
     local choices=("${@:4}")
-    local max=$(( ${#choices[@]} - 1 ))
-    local reserve=$(( max + 3 ))
-    local current=0
     local key i
     local selected=
 
-    _prepare() {
-        _prepareHint ' ' 'use arrows to move'
-        _preparePrompt "${prompt}" ${timeout} ${reserve}
-        cursorHide
-        echo
-        (( _cursorRow++ )) # adjust for echo
-    }
-
-    _paint() {
+    _choosePaint() {
         cursorTo ${_cursorRow} 0
-        for (( i=0; i <= max; i++ )); do
-            if (( i == current)); then
+        for (( i=0; i <= maxChoices; i++ )); do
+            if (( i == currentChoice)); then
                 show bold ">" primary "${choices[${i}]}"
             else
                 show primary "  ${choices[${i}]}"
@@ -61,85 +50,9 @@ choose() {
         done
     }
 
-    _up() {
-        if (( current == 0 )); then
-            current=${max}
-        else
-            (( current-- ))
-        fi
-        _paint
-    }
-
-    _down() {
-        if (( current == ${max} )); then
-            current=0
-        else
-            (( current++ ))
-        fi
-        _paint
-    }
-
-    _pick() {
-        _paint
-        stty cbreak -echo
-        while true; do
-            if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-                case "${key}" in
-                    '' | $'\n' | $'\r')
-
-                        # Enter
-                        selected="${choices[${current}]}"
-                        choiceIndexRef=${current}
-                        break ;;
-
-                    $'\e') # Escape, maybe a sequence
-
-                        if _readPromptEscapeSequence key; then
-                            case "${key}" in
-                                'u') _up ;;   # up arrow
-                                'd') _down ;; # down arrow
-                                 *) ;;        # ignore others
-                            esac
-                        else
-                            _finalize 1 # ESC
-                            return ${_canceledOnEsc}
-                        fi
-                        ;;
-
-                    *) # ignore anything else
-                        ;;
-                esac
-            fi
-
-            if _hasPromptTimerExpired; then
-                _finalize 1
-                return ${_canceledOnTimeout}
-            fi
-        done
-    }
-
-    _finalize() {
-        local failed="${1}"
-
-        # Clear choices
-
-        cursorTo ${_promptRow} ${_promptCol}
-        for (( i=0; i <= max; i++ )); do
-            cursorDownOneAndEraseLine
-        done
-        cursorTo $(( _promptRow+1 )) 0
-
-        # Finalize the prompt if success (already done if failed).
-
-        (( ! failed )) && _finalizePrompt selected primary
-    }
-
     # Run it
 
-    _prepare
-    _pick || return $?
-    _finalize 0
-    return 0
+    _select _selectPrepare _choosePaint
 }
 
 # Carousel chooser with fixed cursor in the middle and scrolling items.
@@ -153,10 +66,8 @@ carousel() {
     local prompt="${1}"
     local -n choiceIndexRef="${2}"
     local timeout="${3}"
-    local useSeparator="${4:-false}"
+    local useSeparator="${4}"
     local choices=("${@:5}")
-    local max=$(( ${#choices[@]} - 1 ))
-    local current=0
     local key i
     local selected=
     local visibleRows
@@ -167,42 +78,12 @@ carousel() {
     local maxLength=0
     local separatorLine
 
-    _carousel_calculateDisplay() {
-        # Get terminal height
-        local termHeight=$(tput lines)
-
-        # Reserve space for prompt and margins
-        visibleRows=$(( termHeight - 6 ))
-
-        # Rows per item (1 for item, +1 if separator)
-        if [[ ${useSeparator} == true ]]; then
-            rowsPerItem=2
-        else
-            rowsPerItem=1
-        fi
-
-        # Calculate items above and below cursor (cursor is in middle)
-        local totalItems=$(( visibleRows / rowsPerItem ))
-        itemsAbove=$(( totalItems / 2 ))
-        itemsBelow=$(( totalItems - itemsAbove - 1 ))
-    }
-
-    _carousel_prepare() {
-        # Clear screen first
-        clear
-
-        # Display prompt at top
-        echo -n "${ show -n bold success "?" plain bold "${prompt}" ;} "
-        show muted italic "[use arrows to scroll]"
-        echo
-
-        # Set up timeout tracking
-        _timeoutSeconds=${timeout}
-        _timeoutCheckCount=0
-        SECONDS=0
+    _carouselPrepare() {
+        # Calculate display parameters
+        _carouselCalculateDisplay
 
         # Calculate maximum item length
-        for (( i=0; i <= max; i++ )); do
+        for (( i=0; i <= maxChoices; i++ )); do
             local len=${#choices[${i}]}
             (( len > maxLength )) && maxLength=${len}
         done
@@ -211,23 +92,39 @@ carousel() {
         maxLength=$(( maxLength + 2 ))
 
         # Build separator line
-        separatorLine=""
+        separatorLine=''
         for (( i=0; i < maxLength; i++ )); do
-            separatorLine+="─"
+            separatorLine+='─'
         done
+        separatorLine="${ show dim "${separatorLine}" ;}"
 
-        # Calculate display parameters
-        _carousel_calculateDisplay
+        # Clear screen to allow for maximum visible lines prepare
 
-        # Hide cursor and position for items
-        cursorHide
-        displayStartRow=3
-
-        # Reserve rows
-        reserveRows $(( visibleRows + 3 ))
+        clear
+        _selectPrepare
     }
 
-    _carousel_paint() {
+    _carouselCalculateDisplay() {
+        # Get terminal height
+        local termHeight=$(tput lines)
+
+        # Reserve space for prompt and margins
+        visibleRows=$(( termHeight - 6 ))
+        reserveRows=$(( visibleRows + 3 ))
+
+        # Rows per item (1 for item, +1 if separator)
+        [[ ${useSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
+
+        # Calculate items above and below cursor (cursor is in middle)
+        local totalItems=$(( visibleRows / rowsPerItem ))
+        itemsAbove=$(( totalItems / 2 ))
+        itemsBelow=$(( totalItems - itemsAbove - 1 ))
+
+        # Position for items
+        displayStartRow=3
+    }
+
+    _carouselPaint() {
         local idx offset
 
         # Move to display start
@@ -236,111 +133,30 @@ carousel() {
         # Paint items in a window around current selection
         for (( offset=-itemsAbove; offset <= itemsBelow; offset++ )); do
             # Calculate wrapped index
-            idx=$(( (current + offset + (max + 1) * 100) % (max + 1) ))
+            idx=$(( (currentChoice + offset + (maxChoices + 1) * 100) % (maxChoices + 1) ))
 
             # Show separator line above cursor item (only once, when we reach cursor)
-            if (( offset == 0 )); then
-                echo -n "${ show -n dim "${separatorLine}" ;}"
-                echo
-            fi
+            (( offset == 0 )) && echo "${separatorLine}"
 
             # Show the item
             if (( offset == 0 )); then
                 # This is the cursor position (middle)
-                echo -n "${ show -n bold ">" primary "${choices[${idx}]}" ;}"
-                echo
+                show bold ">" primary "${choices[${idx}]}"
             else
-                echo -n "${ show -n primary "  ${choices[${idx}]}" ;}"
-                echo
+                show primary "  ${choices[${idx}]}"
             fi
 
             # Show separator line below cursor item (only once, immediately after cursor)
-            if (( offset == 0 )); then
-                echo -n "${ show -n dim "${separatorLine}" ;}"
-                echo
-            fi
+            (( offset == 0 )) && echo "${separatorLine}"
 
             # Add blank separator line if requested (but not adjacent to cursor separators)
-            if [[ ${useSeparator} == true && ${offset} -lt ${itemsBelow} && ${offset} != -1 && ${offset} != 0 ]]; then
-                echo
-            fi
+            [[ ${useSeparator} == true && ${offset} -lt ${itemsBelow} && ${offset} != -1 && ${offset} != 0 ]] && echo
         done
-    }
-
-    _carousel_up() {
-        if (( current == 0 )); then
-            current=${max}
-        else
-            (( current-- ))
-        fi
-        _carousel_paint
-    }
-
-    _carousel_down() {
-        if (( current == ${max} )); then
-            current=0
-        else
-            (( current++ ))
-        fi
-        _carousel_paint
-    }
-
-    _carousel_pick() {
-        _carousel_paint
-        stty cbreak -echo
-        while true; do
-            if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-                case "${key}" in
-                    '' | $'\n' | $'\r')
-                        # Enter
-                        selected="${choices[${current}]}"
-                        choiceIndexRef=${current}
-                        break ;;
-
-                    $'\e') # Escape, maybe a sequence
-                        if _readPromptEscapeSequence key; then
-                            case "${key}" in
-                                'u') _carousel_up ;;   # up arrow
-                                'd') _carousel_down ;; # down arrow
-                                 *) ;;        # ignore others
-                            esac
-                        else
-                            _carousel_finalize 1 # ESC
-                            return ${_canceledOnEsc}
-                        fi
-                        ;;
-
-                    *) # ignore anything else
-                        ;;
-                esac
-            fi
-
-            if _hasPromptTimerExpired; then
-                _carousel_finalize 1
-                return ${_canceledOnTimeout}
-            fi
-        done
-    }
-
-    _carousel_finalize() {
-        local failed="${1}"
-
-        # Clear display area
-        clear
-        cursorShow
-
-        # Show result
-        if (( ! failed )); then
-            echo -n "${ show -n bold success "?" plain bold "${prompt}" ;} "
-            show primary "${selected}"
-        fi
     }
 
     # Run it
-    _carousel_prepare
-    _carousel_pick || return $?
-    _carousel_finalize 0
-    return 0
+
+    _select _carouselPrepare _carouselPaint
 }
 
 # Request that the user confirm one of two choices. By default, the user must type one of the two
@@ -448,6 +264,10 @@ _preparePrompt() {
     _promptRow=${_cursorRow}
     _promptCol="${#_plainPrompt} + 4" # exclude hint, include prefix & trailing space
     (( _overwriteHint)) && printf '\e[%dG' ${_promptCol} # move cursor before hint
+    _preparePromptTimer
+}
+
+_preparePromptTimer() {
     _timeoutSeconds=${timeout}
     _timeoutCheckCount=0
     _userInput=
@@ -580,3 +400,92 @@ _finalizePrompt() {
     show "${formats[@]}" "${inputVarRef}"
     stty "${_originalStty}"
 }
+
+# Select function shared by choose() and carousel()
+
+_select() {
+    local prepareFunction="${1}"
+    local paintFunction="${2}"
+    local maxChoices=$(( ${#choices[@]} - 1 ))
+    local currentChoice=0
+    local reserveRows=$(( maxChoices + 3 ))
+
+    ${prepareFunction}
+    _selectChoice || return $?
+    _selectFinalize 0
+    return 0
+}
+
+_selectPrepare() {
+    _prepareHint ' ' 'use arrows to move'
+    _preparePrompt "${prompt}" ${timeout} ${reserveRows}
+    cursorHide
+    echo
+    (( _cursorRow++ )) # adjust for echo
+}
+
+_selectUp() {
+    (( currentChoice == 0 )) && currentChoice=${maxChoices} || (( currentChoice-- ))
+    ${paintFunction}
+}
+
+_selectDown() {
+    (( currentChoice == ${maxChoices} )) && currentChoice=0 || (( currentChoice++ ))
+    ${paintFunction}
+}
+
+_selectChoice() {
+    ${paintFunction}
+    stty cbreak -echo
+    while true; do
+        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+            case "${key}" in
+            '' | $'\n' | $'\r')
+
+            # Enter
+                selected="${choices[${currentChoice}]}"
+                choiceIndexRef=${currentChoice}
+                break ;;
+
+            $'\e') # Escape, maybe a sequence
+
+                if _readPromptEscapeSequence key; then
+                    case "${key}" in
+                    'u') _selectUp ;;   # up arrow
+                    'd') _selectDown ;; # down arrow
+                    *) ;;        # ignore others
+                    esac
+                else
+                    _selectFinalize 1 # ESC
+                    return ${_canceledOnEsc}
+                fi
+                ;;
+
+            *) # ignore anything else
+                ;;
+            esac
+        fi
+
+        if _hasPromptTimerExpired; then
+            _selectFinalize 1
+            return ${_canceledOnTimeout}
+        fi
+    done
+}
+
+_selectFinalize() {
+    local failed="${1}"
+
+    # Clear choices
+
+    cursorTo ${_promptRow} ${_promptCol}
+    for (( i=0; i <= maxChoices; i++ )); do
+        cursorDownOneAndEraseLine
+    done
+    cursorTo $(( _promptRow+1 )) 0
+
+    # Finalize the prompt if success (already done if failed).
+
+    (( ! failed )) && _finalizePrompt selected primary
+}
+
