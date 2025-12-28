@@ -432,7 +432,7 @@ copyMap() {
     done
 }
 
-stripANSI() {
+stripAnsi() {
     echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
 }
 

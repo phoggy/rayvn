@@ -83,7 +83,7 @@ carousel() {
 
         # Calculate maximum item length (strip escape sequences for accurate length)
         for (( i=0; i <= maxChoices; i++ )); do
-            stripped="${ stripANSI "${choices[${i}]}"; }"
+            stripped="${ stripAnsi "${choices[${i}]}"; }"
             len=${#stripped}
             (( len > maxLength )) && maxLength=${len}
         done
