@@ -633,26 +633,26 @@ _init_rayvn_core() {
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
-    declare -gArx _symbols=(
-
-        # Vertical line variants (UTF-8)
-
-        ['v-line']="│"          # U+2502 Box drawings light vertical
-        ['v-line-heavy']="┃"    # U+2503 Box drawings heavy vertical
-        ['v-line-2']="║"        # U+2551 Box drawings double vertical
-        ['v-dash-2']="╎"        # U+254E Box drawings light double dash vertical
-        ['v-dash-2-heavy']="╏"  # U+254F Box drawings heavy double dash vertical
-        ['v-dash-3']="┆"        # U+2506 Box drawings light triple dash vertical
-        ['v-dash-3-heavy']="┇"  # U+2507 Box drawings heavy triple dash vertical
-        ['v-dash-4']="┊"        # U+250A Box drawings light quadruple dash vertical
-        ['v-dash-4-heavy']="┋"  # U+250B Box drawings heavy quadruple dash vertical
-
-        # Block elements (solid)
-
-        ['block-full']="█"      # U+2588 Full block
-        ['block-left']="▌"      # U+258C Left half block
-        ['block-right']="▐"     # U+2590 Right half block
-    )
+#    declare -gArx _symbols=(
+#
+#        # Vertical line variants (UTF-8)
+#
+#        ['v-line']="│"          # U+2502 Box drawings light vertical
+#        ['v-line-heavy']="┃"    # U+2503 Box drawings heavy vertical
+#        ['v-line-2']="║"        # U+2551 Box drawings double vertical
+#        ['v-dash-2']="╎"        # U+254E Box drawings light double dash vertical
+#        ['v-dash-2-heavy']="╏"  # U+254F Box drawings heavy double dash vertical
+#        ['v-dash-3']="┆"        # U+2506 Box drawings light triple dash vertical
+#        ['v-dash-3-heavy']="┇"  # U+2507 Box drawings heavy triple dash vertical
+#        ['v-dash-4']="┊"        # U+250A Box drawings light quadruple dash vertical
+#        ['v-dash-4-heavy']="┋"  # U+250B Box drawings heavy quadruple dash vertical
+#
+#        # Block elements (solid)
+#
+#        ['block-full']="█"      # U+2588 Full block
+#        ['block-left']="▌"      # U+258C Left half block
+#        ['block-right']="▐"     # U+2590 Right half block
+#    )
 
     # Initialize debug to off
 
@@ -677,6 +677,11 @@ _init_rayvn_core() {
     else
         _init_noColors
     fi
+
+    # Create 'green' check mark and 'red' cross mark
+
+    declare -grx _greenCheckMark="${_textFormats['success']}${_checkMark}"
+    declare -grx _redCrossMark="${_textFormats['error']}${_crossMark}"
 
     # Create an error log path
 
@@ -834,26 +839,6 @@ _init_colors() {
         # Turn off all formats
 
         ['plain']=$'\e[0m'
-
-        # TODO: these are not formats, so should be elsewhere
-
-        # Vertical line variants (UTF-8)
-
-        ['v-line']="│"          # U+2502 Box drawings light vertical
-        ['v-line-heavy']="┃"    # U+2503 Box drawings heavy vertical
-        ['v-line-2']="║"        # U+2551 Box drawings double vertical
-        ['v-dash-2']="╎"        # U+254E Box drawings light double dash vertical
-        ['v-dash-2-heavy']="╏"  # U+254F Box drawings heavy double dash vertical
-        ['v-dash-3']="┆"        # U+2506 Box drawings light triple dash vertical
-        ['v-dash-3-heavy']="┇"  # U+2507 Box drawings heavy triple dash vertical
-        ['v-dash-4']="┊"        # U+250A Box drawings light quadruple dash vertical
-        ['v-dash-4-heavy']="┋"  # U+250B Box drawings heavy quadruple dash vertical
-
-        # Block elements (solid)
-
-        ['block-full']="█"      # U+2588 Full block
-        ['block-left']="▌"      # U+258C Left half block
-        ['block-right']="▐"     # U+2590 Right half block
     )
 }
 
@@ -933,9 +918,6 @@ _init_noColors() {
 
         ['plain']=''
     )
-
-    declare -grx _greenCheckMark="${_checkMark}"
-    declare -grx _redCrossMark="${_crossMark}"
 }
 
 _restoreTerminal() {

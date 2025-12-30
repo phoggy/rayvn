@@ -66,14 +66,8 @@ carousel() {
     local timeout="${3}"
     local useSeparator="${4}"
     local choices=("${@:5}")
-    local visibleRows
-    local itemsAbove
-    local itemsBelow
-    local rowsPerItem
-    local displayStartRow
+    local visibleRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
     local maxLength=0
-    local separatorLine
-    local offset
 
     _carouselPrepare() {
         local len stripped
@@ -210,7 +204,6 @@ confirm() {
                 hint="${ show -n bold green "[${answerOne}/${answerTwo}]" ;}"
                 cursorTo ${_cursorRow} ${_promptCol}
                 echo -n "${hint} "
-              #  continue
             fi
         else
             return $?

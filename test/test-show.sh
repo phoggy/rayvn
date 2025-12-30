@@ -35,11 +35,6 @@ init() {
     declare -gi failCount=0
 }
 
-# Helper to strip ANSI codes
-stripAnsi() {
-    echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
-}
-
 # Test assertion with better output
 assert() {
     local testName="${1}"
@@ -48,7 +43,7 @@ assert() {
 
     (( testCount++ ))
 
-    if [[ ${actual} == ${expected} ]]; then
+    if [[ ${actual} == "${expected}" ]]; then
         (( passCount++ ))
         echo "  ✓ ${testName}"
         return 0
@@ -78,7 +73,7 @@ assertEscapeCodes() {
 
     (( testCount++ ))
 
-    if [[ ${actual} == ${expected} ]]; then
+    if [[ ${actual} == "${expected}" ]]; then
         (( passCount++ ))
         echo "  ✓ ${testName}"
         return 0
@@ -297,8 +292,9 @@ test256Colors() {
     assertStripped "256 color with style" "bold red 256" "${result}"
 
     # 256 colors interleaved
-    result=${ show "Start" IDX 196 "red" IDX 46 "green" "end"; }
-    assertStripped "256 colors interleaved" "Start red green end" "${result}"
+
+    result=${ show "Start" IDX 196 "'red'" IDX 46 "'green'" "end"; }
+    assertStripped "256 colors interleaved" "Start 'red' 'green' end" "${result}"
 
     # Invalid 256 color (>255) treated as text
     result=${ show IDX 256 "text"; }
@@ -805,8 +801,7 @@ printSummary() {
         echo "  • Correct ANSI escape code generation"
         return 0
     else
-        echo "✗ Some tests failed"
-        return 1
+        fail "${failCount} tests failed"
     fi
 }
 

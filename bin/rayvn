@@ -261,13 +261,14 @@ runTests() {
     if (( flags['help'] )); then
         echo "rayvn test [PROJECT] [TEST-NAME]"
     else
-        require 'rayvn/spinner'
+        require 'rayvn/spinner' 'rayvn/prompt'
 
         # Setup logging
 
         local testLogDir="${ configDirPath tests; }" || fail
         ensureDir "${testLogDir}" || fail
         rm "${testLogDir:?}"/* 2> /dev/null
+        local failedTestsFile="${ tempDirPath failed-tests; }"
 
         # If there are no projects set, choose rayvn
 
@@ -276,6 +277,29 @@ runTests() {
         # Run tests for all specified projects
 
         forEachProject runProjectTests
+
+        # Read failed test names from temp file
+
+        local failedTestLogNames=()
+        if [[ -s "${failedTestsFile}" ]]; then
+            mapfile -t failedTestLogNames < "${failedTestsFile}"
+        fi
+        local failedTestCount=${#failedTestLogNames[@]}
+
+        # Any error logs?
+
+        if (( failedTestCount )); then
+            local answer i
+
+            for (( i=0; i < failedTestCount; i++ )); do
+                confirm "View ${failedTestLogNames[${i}]}?" yes=default no answer 60 || bye
+                if [[ ${answer} == yes ]]; then
+                    echo
+                    cat "${testLogDir}/${failedTestLogNames[${i}]}"
+                    echo
+                fi
+            done
+        fi
     fi
 }
 
@@ -396,7 +420,7 @@ runProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
-    local testName testFile descriptor
+    local testName testFile descriptor testResult
 
     if [[ -d "${testDir}" ]]; then
         pushd "${testDir}" &> /dev/null
@@ -415,7 +439,7 @@ runProjectTests() {
             sortArrayLongestFirst testFiles
             declare -i maxLength=$(( $? -8 ))
             for testFile in "${testFiles[@]}"; do
-                runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength}
+                runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength} "${failedTestsFile}"
             done
         else
             show bold "${project}" plain "(no ${descriptor}tests found)"
@@ -434,6 +458,7 @@ runTest() {
     local projectDir="${1}"
     local testFile="${2}"
     declare -i maxTestNameLength=${3}
+    local failedTestsFile="${4}"
     local projectName=${ basename "${projectDir}"; }
     assertFileExists "${testFile}"
     local fileName="${ basename ${testFile}; }"
@@ -485,13 +510,14 @@ runTest() {
                 executeTestFile "${testFile}" &> "${testLogFile}"
             fi
 
-            declare testResult="${?}"
             stopSpinner
             padSpaces ${padLength}
-            if (( ${testResult} == 0 )); then
-                show " ${_greenCheckMark}" dim "log at ${testLogFile}"
+            if (( testResult == 0 )); then
+                show " ${_greenCheckMark}" plain dim "log at ${testLogFile}"
             else
-                show " ${_redCrossMark}" dim "log at ${testLogFile}"
+                show " ${_redCrossMark}" "log at ${testLogFile}"
+                local testLogFileName="${ baseName "${testLogFile}"; }"
+                echo "${testLogFileName}" >> "${failedTestsFile}"
             fi
         else
             warn "Skipping ${testFile}: not executable"
@@ -502,7 +528,12 @@ runTest() {
 executeTestFile() {
     local testFile="${1}"
     shift
-    executeWithCleanVars "${@}" ${SHELL} --noprofile --norc -c "${testFile}"
+
+    # TODO!! Clean this up! Why can't I set these in _unsetChildVars?
+    # Execute test file with bash, PATH set so rayvn.up can be found
+    # Explicitly unset _rayvnCoreInitialized so core.sh reinitializes with correct color settings
+    executeWithCleanVars "${@}" -u _rayvnCoreInitialized -u terminalColorBits PATH="$(dirname "$(dirname "${testFile}")")/bin:${PATH}" "${BASH}" --noprofile --norc "${testFile}"
+    testResult=$?
 }
 
 sortArrayLongestFirst() {
