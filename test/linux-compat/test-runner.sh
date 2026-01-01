@@ -18,9 +18,8 @@ else
     done
 fi
 
-# Always ensure rayvn is in the list (it's the test runner)
-# Add it to the beginning if not already present
-if [[ ! " ${projects[@]} " =~ " rayvn " ]]; then
+# Ensure rayvn is in the list
+if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
     projects=("rayvn" "${projects[@]}")
 fi
 
