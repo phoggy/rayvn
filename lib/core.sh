@@ -436,6 +436,15 @@ stripAnsi() {
     echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
 }
 
+maxArrayElementLength() {
+    local -n arrayRef="${1}"
+    local max=0 len element
+    for element in "${arrayRef[@]}"; do
+        len="${#element}"
+        (( len > max )) && max=${len}
+    done
+    echo -n "${max}"
+}
 
 repeat() {
     local str=${1}
@@ -561,6 +570,12 @@ _init_rayvn_core() {
         return 0
     fi
 
+    # Ensure we are being invoked from rayvn.up
+
+    if [[ ! -v rayvnPlatform ]]; then
+        echo -e "\033[0;31m🔺 Run 'source rayvn.up' to initialize rayvn\033[0m"; exit 1
+    fi
+
     # Setup exit handling
 
     declare -g _rayvnExitTasks=()
@@ -624,16 +639,16 @@ _init_rayvn_core() {
         fi
     fi
 
-    # Set some constants
+    # Set some global vars and constants
 
-    declare -grx osName="${ uname; }"
-    declare -grxi onMacOS=$(( osName == "Darwin" ))
-    declare -grxi onLinux=$(( osName == "Linux" ))
+    declare -gxi _debug=0
     declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
-#    declare -gArx _symbols=(
+    declare -grx inContainer=$([[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0)
+
+    #    declare -gArx _symbols=(
 #
 #        # Vertical line variants (UTF-8)
 #
@@ -653,10 +668,6 @@ _init_rayvn_core() {
 #        ['block-left']="▌"      # U+258C Left half block
 #        ['block-right']="▐"     # U+2590 Right half block
 #    )
-
-    # Initialize debug to off
-
-    declare -gxi _debug=0
 
     # Ensure rayvn config dir set to valid directory
 
@@ -704,9 +715,9 @@ _init_rayvn_core() {
 
     # Collect the names of all existing lowercase and underscore prefixed vars if we have not already done so.
     # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those
-    # run as if started from the command line.
+    # run as if started from the command line. Manually add _rayvnCoreInitialized since it is not set yet.
 
-    local var unsetVars=()
+    local var unsetVars=('-u' '_rayvnCoreInitialized')
     IFS=$'\n'
     for var in ${ compgen -v | grep -E '^([a-z]|_[^_])'; }; do
         unsetVars+=("-u")
