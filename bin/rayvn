@@ -278,7 +278,7 @@ runTests() {
 
         # Create map for project messages
 
-        local -A noMatchProjects=()
+        local -A skipTestNames=()
         local matchArg noMatchMsg=''
         for matchArg in "${args[@]}"; do
             (( ${#noMatchMsg} > 0)) && noMatchMsg+=' or '
@@ -294,9 +294,11 @@ runTests() {
         local maxIndex=${#testNames[@]}
 
         # Find maximum project and test name lengths
+
         local maxProjectNameLength="${ maxArrayElementLength projects; }"
         local maxTestNameLength="${ maxArrayElementLength testNames; }"
         (( maxTestNameLength+=3 )) # adjust for pad on either side
+        local messagePadLength=$(( maxProjectNameLength + maxTestNameLength + 6))
 
         # Run tests for all specified projects
 
@@ -450,31 +452,27 @@ collectProjectTests() {
     if [[ -d "${testDir}" ]]; then
         local file fileName testName
         local files=("${testDir}"/test-*.sh)
-        local addTest addedTest=0
 
         for file in "${files[@]}"; do
             fileName="${ basename ${file}; }"
             testName="${fileName#test-}"
             testName="${testName%.sh}"
-            addTest=1
+
+            # Add them all
+
+            testNames+=("${testName}")
+            testFileNames+=("${fileName}")
+            testFiles+=("${file}")
+            skipTestNames+=([${testName}]=0)
+
             if (( hasMatchArg )); then
-                addTest=0
                 for matchArg in "${args[@]}"; do
-                    if [[ "${testName}" =~ ${matchArg} ]]; then
-                        addTest=1
-                        break
+                    if [[ ! "${testName}" =~ ${matchArg} ]]; then
+                        skipTestNames+=([${testName}]=1)
                     fi
                 done
             fi
-
-            if (( addTest )); then
-                testNames+=("${testName}")
-                testFileNames+=("${fileName}")
-                testFiles+=("${file}")
-                addedTest=1
-            fi
         done
-        (( addedTest )) || noMatchProjects+=([${project}]=${noMatchMsg})
     fi
 }
 
@@ -482,7 +480,7 @@ runProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
-    local testName testFile i match
+    local testName testFile i skip
     local indices=()
 
     for (( i=0; i < maxIndex; i++ )); do
@@ -495,37 +493,31 @@ runProjectTests() {
         for i in "${indices[@]}"; do
             testName="${testNames[${i}]}"
             testFile="${testFiles[${i}]}"
-
-            if (( ! inContainer )) || [[ ${testFile} != *linux-*.sh ]]; then
-                runTest "${projectRoot}" "${testFile}" "${failedTestsFile}"
+            skip="${skipTestNames["${testName}"]}"
+            if (( skip )); then
+                skipTest "skipping: does not match ${noMatchMsg}"
+            elif (( inContainer )) && [[ ${testFile} == *linux-*.sh ]]; then
+                skipTest "skipping: linux test in linux container"
             else
-                testNotRun ${testFile} 'skipping, in container'
+                runTest "${projectRoot}" "${testFile}" "${failedTestsFile}"
             fi
         done
     else
-        local match="${noMatchProjects[${project}]}"
-        if [[ -n "${match}" ]]; then
-            projectTestsNotRun "no tests matching ${match}"
-        else
-            projectTestsNotRun "no tests"
-        fi
+        noTests
     fi
 }
 
-projectTestsNotRun() {
-    local message="${1}"
-    local padLen=$(( maxProjectNameLength - ${#project} ))
+noTests() {
+    local padLen=$(( messagePadLength - ${#project} ))
     local padding="${ padSpaces ${padLen}; }"
-    show bold "${project}" plain "${padding}[" italic "${message}" plain "]"
+    show bold "${project}" plain "${padding}" dim red italic "no tests"
 }
 
-testNotRun() {
+skipTest() {
     local message="${1}"
-    local fileName="${ basename ${testFile}; }"
-    local testName="${fileName#test-}"
     local padLen=$(( ${maxTestNameLength} - ${#testName} ))
     local padding="${ padSpaces ${padLen}; }"
-    show bold "${project}" plain "test" cyan "${testName}" plain "${padding}[" italic "${message}" plain "]"
+    show bold "${project}" plain "test" cyan "${testName}" plain "${padding}" dim red italic "${message}"
 }
 
 padSpaces() {
