@@ -274,6 +274,28 @@ runTests() {
 
         (( ${#projects[@]} )) || projects+=(rayvn)
 
+        # Create map for project messages
+
+        local -A noMatchProjects=()
+        local matchArg noMatchMsg=''
+        for matchArg in "${args[@]}"; do
+            (( ${#noMatchMsg} > 0)) && noMatchMsg+=' or '
+            noMatchMsg+="'${matchArg}'"
+        done
+
+        # Find all test files
+
+        local testNames=()
+        local testFiles=()
+        local testFileNames=()
+        forEachProject collectProjectTests
+        local maxIndex=${#testNames[@]}
+
+        # Find maximum project and test name lengths
+        local maxProjectNameLength="${ maxArrayElementLength projects; }"
+        local maxTestNameLength="${ maxArrayElementLength testNames; }"
+        (( maxTestNameLength+=3 )) # adjust for pad on either side
+
         # Run tests for all specified projects
 
         forEachProject runProjectTests
@@ -288,7 +310,7 @@ runTests() {
 
         # Any error logs?
 
-        if (( failedTestCount )); then
+        if (( failedTestCount && ! inContainer )); then
             local answer i
 
             for (( i=0; i < failedTestCount; i++ )); do
@@ -416,37 +438,92 @@ _printLibrary() {
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
+collectProjectTests() {
+    local project="${1}"
+    local projectRoot="${2}"
+    local testDir="${projectRoot}/test"
+    local matchArg testName testFile testFileName
+    local hasMatchArg=${#args[@]}
+
+    if [[ -d "${testDir}" ]]; then
+        local file fileName testName
+        local files=("${testDir}"/test-*.sh)
+        local addTest addedTest=0
+
+        for file in "${files[@]}"; do
+            fileName="${ basename ${file}; }"
+            testName="${fileName#test-}"
+            testName="${testName%.sh}"
+            addTest=1
+            if (( hasMatchArg )); then
+                addTest=0
+                for matchArg in "${args[@]}"; do
+                    if [[ "${testName}" =~ ${matchArg} ]]; then
+                        addTest=1
+                        break
+                    fi
+                done
+            fi
+
+            if (( addTest )); then
+                testNames+=("${testName}")
+                testFileNames+=("${fileName}")
+                testFiles+=("${file}")
+                addedTest=1
+            fi
+        done
+        (( addedTest )) || noMatchProjects+=([${project}]=${noMatchMsg})
+    fi
+}
+
 runProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
-    local testName testFile descriptor testResult
+    local testName testFile i match
+    local indices=()
 
-    if [[ -d "${testDir}" ]]; then
-        pushd "${testDir}" &> /dev/null
-        local testFiles=()
-        if (( ${#args[@]} > 0 )); then
-            for testName in "${args[@]}"; do
-                testFile="test-${testName}.sh"
-                [[ -f "${testFile}" ]] && testFiles+=("${testFile}")
-            done
-            descriptor="matching "
-        else
-            testFiles=(test-*.sh)
+    for (( i=0; i < maxIndex; i++ )); do
+        if [[ ${testFiles[${i}]} == ${testDir}/* ]]; then
+            indices+=("${i}")
         fi
-        popd &> /dev/null
-        if (( ${#testFiles[@]} > 0 )); then
-            sortArrayLongestFirst testFiles
-            declare -i maxLength=$(( $? -8 ))
-            for testFile in "${testFiles[@]}"; do
-                runTest "${projectRoot}" "${testDir}/${testFile}" ${maxLength} "${failedTestsFile}"
-            done
-        else
-            show bold "${project}" plain "(no ${descriptor}tests found)"
-        fi
+    done
+
+    if (( ${#indices} )); then
+        for i in "${indices[@]}"; do
+            testName="${testNames[${i}]}"
+            testFile="${testFiles[${i}]}"
+
+            if (( ! inContainer )) || [[ ${testFile} != *linux-*.sh ]]; then
+                runTest "${projectRoot}" "${testFile}" "${failedTestsFile}"
+            else
+                testNotRun ${testFile} 'skipping, in container'
+            fi
+        done
     else
-        show bold "${project}" plain "(no tests)"
+        local match="${noMatchProjects[${project}]}"
+        if [[ -n "${match}" ]]; then
+            projectTestsNotRun "no tests matching ${match}"
+        else
+            projectTestsNotRun "no tests"
+        fi
     fi
+}
+
+projectTestsNotRun() {
+    local message="${1}"
+    local padLen=$(( maxProjectNameLength - ${#project} ))
+    local padding="${ padSpaces ${padLen}; }"
+    show bold "${project}" plain "${padding}[" italic "${message}" plain "]"
+}
+
+testNotRun() {
+    local message="${1}"
+    local fileName="${ basename ${testFile}; }"
+    local testName="${fileName#test-}"
+    local padLen=$(( ${maxTestNameLength} - ${#testName} ))
+    local padding="${ padSpaces ${padLen}; }"
+    show bold "${project}" plain "test" cyan "${testName}" plain "${padding}[" italic "${message}" plain "]"
 }
 
 padSpaces() {
@@ -457,8 +534,7 @@ padSpaces() {
 runTest() {
     local projectDir="${1}"
     local testFile="${2}"
-    declare -i maxTestNameLength=${3}
-    local failedTestsFile="${4}"
+    local failedTestsFile="${3}"
     local projectName=${ basename "${projectDir}"; }
     assertFileExists "${testFile}"
     local fileName="${ basename ${testFile}; }"
@@ -528,24 +604,8 @@ runTest() {
 executeTestFile() {
     local testFile="${1}"
     shift
-
-    # TODO!! Clean this up! Why can't I set these in _unsetChildVars?
-    # Execute test file with bash, PATH set so rayvn.up can be found
-    # Explicitly unset _rayvnCoreInitialized so core.sh reinitializes with correct color settings
-    executeWithCleanVars "${@}" -u _rayvnCoreInitialized -u terminalColorBits PATH="$(dirname "$(dirname "${testFile}")")/bin:${PATH}" "${BASH}" --noprofile --norc "${testFile}"
+    executeWithCleanVars "${@}" "${BASH}" --noprofile --norc "${testFile}"
     testResult=$?
-}
-
-sortArrayLongestFirst() {
-    local -n arrayRef="${1}"
-    IFS=$'\n' arrayRef=(${ printf "%s\n" "${arrayRef[@]}" | sort -r -n -k1,1 --key=1.1,1.1 --key=1.1,1.1 | awk '{ print length, $0 }' | sort -r -n | cut -d' ' -f2-; })
-    IFS=' '
-
-    if (( ${#arrayRef[@]} > 0 )); then
-        return "${#arrayRef[0]}"
-    else
-         return 0
-    fi
 }
 
 createProject() {
