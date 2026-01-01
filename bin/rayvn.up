@@ -4,9 +4,18 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
+# Verify key requirements
+
 if ! (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-    echo -e "\033[0;31m🔺 rayvn requires bash version 5.2+, found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}\033[0m"
-    exit 1
+    echo -e "\033[0;31m🔺 rayvn requires bash version 5.2+, found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}\033[0m"; exit 1
+else
+    declare -grx osName="${ uname; }"
+    declare -grx onMacOS=$(( osName == "Darwin" ))
+    declare -grx onLinux=$(( osName == "Linux" ))
+    if ! (( onMacOS || onLinux )); then
+        echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${osName}\033[0m"; exit 1
+    fi
+    declare -grx rayvnPlatform="${osName}"
 fi
 
 require() {
