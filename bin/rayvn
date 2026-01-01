@@ -270,9 +270,11 @@ runTests() {
         rm "${testLogDir:?}"/* 2> /dev/null
         local failedTestsFile="${ tempDirPath failed-tests; }"
 
-        # If there are no projects set, choose rayvn
+        # Ensure rayvn is first in the projects list
 
-        (( ${#projects[@]} )) || projects+=(rayvn)
+        if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
+            projects=("rayvn" "${projects[@]}")
+        fi
 
         # Create map for project messages
 
