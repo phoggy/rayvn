@@ -6,9 +6,12 @@
 
 startSpinner() {
     ((isInteractive)) || return 0  # No-op when not interactive
+    local message="${1}"
+    local framesIndex="${2:-0}"
+
     if [[ ! ${_spinnerPid} ]]; then
         _ensureStopOnExit
-        _spinServerMain "${1}" &
+        _spinServerMain "${message}" "${framesIndex}" &
         _spinnerPid=${!}
     fi
 }
@@ -48,43 +51,97 @@ failSpin() {
     fail "${@}"
 }
 
-# shellcheck disable=SC2120
 configureSpinner() {
-    local chars="${1:-${_spinnerDefaultChars}}"; shift
-    local count="${#chars}"
-    local arrayName=${2:-_spinnerDefaultCharsColor}
-    local -n color=${arrayName}
-    local i c
-    _spinnerArray=()
-    for ((i = 0; i < ${count}; i++)); do
-        c="${chars:i:1}"
-        c="${ show "${color[@]}" "${chars:${i}:1}" ;}"
-        _spinnerArray[${i}]="${c}"
-    done
-    _spinnerArraySize=${count}
-    _spinnerMaxIndex=$((${count} - 1))
+    local spinnerIndex=${1:-0}
+    local colorsVarName=${2:-_spinnerDefaultCharsColor}
+
+    (( ${#spinnerIndex} < ${#_frameNames} )) || fail "spinner index must be >= 0 and < ${#_frameNames}"
+    _configuredSpinnerIndex="${spinnerIndex}"
+    local frameVarName="_${_frameNames[${spinnerIndex}]}Frames" # generate var name
+
+    _createSpinnerFrames "${frameVarName}"  "${colorsVarName}"
+}
+
+# shellcheck disable=SC2120
+_createSpinnerFrames() {
+    IFS=' ' # TODO WHY does this need to be fixed here?
+    local -n framesRef="${1}"
+    local -n colorsRef="${2}"
+    local -a colors=("${colorsRef[@]}")
+    local i
+    _framesCount="${#framesRef[@]}"
+
     unset _spinnerPid
+
+    # Generate the frames
+
+    for (( i=0; i < _framesCount; i++ )); do
+        _frames["${i}"]="${ show "${colors[@]}" "${framesRef["${i}"]}"; }"
+    done
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_spinner() {
     require 'rayvn/core' 'rayvn/terminal' 'rayvn/process'
-    configureSpinner
+   # configureSpinner
 }
 
-declare -grx _spinnerDefaultChars='◞◜◝◟◞◜◝◟◞◜◝◟' # other options see https://antofthy.gitlab.io/info/ascii/Spinners.txt
+# TODO: rename to waiting?
+
+# spinner ideas
+#   - https://github.com/sindresorhus/cli-spinners/blob/main/spinners.json
+#   - https://antofthy.gitlab.io/info/ascii/Spinners.txt
+
+declare -grax _snakeFrames=(
+    "◞           "
+    "◞◜          "
+    "◞◜◝         "
+    "◞◜◝◟        "
+    "◞◜◝◟◞       "
+    "◞◜◝◟◞◜      "
+    "◞◜◝◟◞◜◝     "
+    "◞◜◝◟◞◜◝◟    "
+    "◞◜◝◟◞◜◝◟◞   "
+    "◞◜◝◟◞◜◝◟◞◜  "
+    "◞◜◝◟◞◜◝◟◞◜◝ "
+    "◞◜◝◟◞◜◝◟◞◜◝◟"
+    "◞◜◝◟◞◜◝◟◞◜◝ "
+    "◞◜◝◟◞◜◝◟◞◜  "
+    "◞◜◝◟◞◜◝◟◞   "
+    "◞◜◝◟◞◜◝◟    "
+    "◞◜◝◟◞◜◝     "
+    "◞◜◝◟◞◜      "
+    "◞◜◝◟        "
+    "◞◜◝         "
+    "◞◜          "
+)
+
+declare -grax _starFrames=('❀' '❁' '❂' '❃' '❄' '❅' '❆' '❇' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
+
+declare -grax _frameNames=( 'snake' 'star')
+declare -gax _frames=()
+declare _gx _framesCount=0
+declare -g _frameIndex=0
+declare -gx _configuredSpinnerIndex=
+
+# https://medium.com/@kyletmartinez/reverse-engineering-claudes-ascii-spinner-animation-eec2804626e0
+
+#  · (middle dot / bullet)
+#  ✻ (teardrop-spoked asterisk)
+#  ✽ (heavy teardrop-spoked asterisk)
+#  ✶ (six pointed black star)
+#  ✳ (eight spoked asterisk)
+#  ✢ (four balloon-spoked asterisk)
+
+#declare -grx _throbDefaultChars='❀❁❂❃❄❅❆❇❈✦✧✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿' # '✦✧✱✲✳✴✵✶✷✸'
+
 declare -grax _spinnerDefaultCharsColor=(bold blue)
 declare -grx _spinnerCommandPrefix="::"
 declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
 declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
 declare -grx _spinnerDelayInterval='0.25'
 
-declare -ga _spinnerArray=
-declare -g _spinnerArraySize=
-declare -g _spinnerMaxIndex=
-declare -g _spinnerIndex=
-declare -g _spinnerForward=
 declare -g _spinnerPid=
 declare -gi _spinnerCleanupRegistered=0
 
@@ -99,36 +156,45 @@ _printProgressChar() {
     echo -n "${_spinnerArray[${_spinnerIndex}]}"
 }
 
-_beginSpin() {
-    [[ ${1} ]] && echo -n "${1}"
-    cursorSave
-    printf ' '
-    [[ ${_spinnerArraySize} ]] || configureSpinner
-    tput civis
-    _spinnerIndex=0
-    _spinnerForward=true
-    _printProgressChar
+_spinServerMain() {
+    local message="${1}"
+    local spinnerIndex="${2}"
+
+    onServerExit() {
+        exit 0
+    }
+
+    trap "onServerExit" TERM INT HUP
+
+    _beginSpin "${message}" "${spinnerIndex}"
+
+    while true; do
+        _updateFrame
+        sleep "${_spinnerDelayInterval}"
+    done
 }
 
-_nextSpin() {
-    if [[ ${_spinnerForward} ]]; then
-        if ((_spinnerIndex < _spinnerMaxIndex)); then
-            _spinnerIndex=$((_spinnerIndex + 1))
-            _printProgressChar
-        else
-            _spinnerIndex=$((_spinnerIndex - 1))
-            _spinnerForward= # reverse direction
-            printf '\b \b'   # backup and erase 1 character
-        fi
-    elif ((_spinnerIndex > 0)); then
-        _spinnerIndex=$((_spinnerIndex - 1))
-        printf '\b \b' # backup 1 character
-    else
-        _spinnerIndex=0
-        _spinnerForward=true # reverse
-        printf '\b \b'       # backup 1 character
-        _printProgressChar
-    fi
+_beginSpin() {
+    local message="${1}"
+    local spinnerIndex="${2}"
+
+    echo -n "${1}"  # show message
+    cursorSave
+
+    # Make sure we are configured
+
+    (( _framesCount == 0 || spinnerIndex != _configuredSpinnerIndex)) && configureSpinner "${spinnerIndex}"
+
+    # Configure terminal
+
+    tput civis
+}
+
+_updateFrame() {
+    cursorRestore
+    echo -n " ${_frames[${_frameIndex}]}"
+    (( _frameIndex++ ))
+    (( _frameIndex > _framesCount )) && _frameIndex=0 # wrap
 }
 
 _endSpin() {
@@ -137,9 +203,9 @@ _endSpin() {
     _stopSpinner
     cursorRestore
     case ${command} in
-    "${_spinnerEraseCommand}") eraseToEndOfLine ;;
-    "${_spinnerEraseLineCommand}") eraseCurrentLine ;;
-    *) fail "unknown command: ${command}" ;;
+        "${_spinnerEraseCommand}") eraseToEndOfLine ;;
+        "${_spinnerEraseLineCommand}") eraseCurrentLine ;;
+        *) fail "unknown command: ${command}" ;;
     esac
     tput cnorm
     [[ ${message} != '' ]] && echo "${message}"
@@ -147,17 +213,19 @@ _endSpin() {
 
 _spinServerMain() {
     local message="${1}"
+    local framesIndex="${2}"
+
     onServerExit() {
         exit 0
     }
 
     trap "onServerExit" TERM INT HUP
 
-    _beginSpin "${message}"
+    _beginSpin "${message}" "${framesIndex}"
 
     while true; do
-        sleep .25
-        _nextSpin
+        _updateFrame
+        sleep "${_spinnerDelayInterval}"
     done
 }
 
@@ -187,6 +255,11 @@ _testSpinner() {
     local punctuation='.'
     local doneCheck="${_greenCheckMark}"
     local periodCheck="${punctuation} ${doneCheck}"
+
+    startSpinner "Throb" 1
+    sleep 5
+    stopSpinner "${periodCheck}"
+
     startSpinner "Working 1, expect '${periodCheck}' after 10 seconds"
     sleep 10
     stopSpinner "${periodCheck}"
