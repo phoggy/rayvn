@@ -259,7 +259,7 @@ secureEraseVars() {
 }
 
 executeWithCleanVars() {
-   env "${_unsetChildVars[@]}" "${@}"
+    env "${_unsetChildVars[@]}" "${@}"
 }
 
 # Enhanced echo function supporting text color and styles in addition to standard echo
@@ -689,10 +689,10 @@ _init_rayvn_core() {
         _init_noColors
     fi
 
-    # Create 'green' check mark and 'red' cross mark
+    # Create 'success' check mark and 'error' cross mark
 
-    declare -grx _greenCheckMark="${_textFormats['success']}${_checkMark}"
-    declare -grx _redCrossMark="${_textFormats['error']}${_crossMark}"
+    declare -grx _greenCheckMark="${ show success ${_checkMark}; }"
+    declare -grx _redCrossMark="${ show error ${_crossMark}; }"
 
     # Create an error log path
 
