@@ -136,7 +136,7 @@ declare -gx _configuredSpinnerIndex=
 
 #declare -grx _throbDefaultChars='❀❁❂❃❄❅❆❇❈✦✧✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿' # '✦✧✱✲✳✴✵✶✷✸'
 
-declare -grax _spinnerDefaultCharsColor=(bold blue)
+declare -grax _spinnerDefaultCharsColor=(primary)
 declare -grx _spinnerCommandPrefix="::"
 declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
 declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
