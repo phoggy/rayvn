@@ -78,7 +78,7 @@ init() {
     source rayvn.up "${upOptions[@]}" 'rayvn/core'
 
     [[ -n ${command} ]] || usage
-    [[ -n ${debugOptions} ]] && setDebug ${debugOptions}
+    [[ -n ${debugOptions} ]] && setDebug "${debugOptions[@]}"
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
@@ -257,77 +257,6 @@ releaseProject() {
     fi
 }
 
-runTests() {
-    if (( flags['help'] )); then
-        echo "rayvn test [PROJECT] [TEST-NAME]"
-    else
-        require 'rayvn/spinner' 'rayvn/prompt'
-
-        # Setup logging
-
-        local testLogDir="${ configDirPath tests; }" || fail
-        ensureDir "${testLogDir}" || fail
-        rm "${testLogDir:?}"/* 2> /dev/null
-        local failedTestsFile="${ tempDirPath failed-tests; }"
-
-        # Ensure rayvn is first in the projects list
-
-        if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
-            projects=("rayvn" "${projects[@]}")
-        fi
-
-        # Create map for project messages
-
-        local -A skipTestNames=()
-        local matchArg noMatchMsg=''
-        for matchArg in "${args[@]}"; do
-            (( ${#noMatchMsg} > 0)) && noMatchMsg+=' or '
-            noMatchMsg+="'${matchArg}'"
-        done
-
-        # Find all test files
-
-        local testNames=()
-        local testFiles=()
-        local testFileNames=()
-        forEachProject collectProjectTests
-        local maxIndex=${#testNames[@]}
-
-        # Find maximum project and test name lengths
-
-        local maxProjectNameLength="${ maxArrayElementLength projects; }"
-        local maxTestNameLength="${ maxArrayElementLength testNames; }"
-        (( maxTestNameLength+=3 )) # adjust for pad on either side
-        local messagePadLength=$(( maxProjectNameLength + maxTestNameLength + 6))
-
-        # Run tests for all specified projects
-
-        forEachProject runProjectTests
-
-        # Read failed test names from temp file
-
-        local failedTestLogNames=()
-        if [[ -s "${failedTestsFile}" ]]; then
-            mapfile -t failedTestLogNames < "${failedTestsFile}"
-        fi
-        local failedTestCount=${#failedTestLogNames[@]}
-
-        # Any error logs?
-
-        if (( failedTestCount && ! inContainer )); then
-            local answer i
-
-            for (( i=0; i < failedTestCount; i++ )); do
-                confirm "View ${failedTestLogNames[${i}]}?" yes=default no answer 60 || bye
-                if [[ ${answer} == yes ]]; then
-                    echo
-                    cat "${testLogDir}/${failedTestLogNames[${i}]}"
-                    echo
-                fi
-            done
-        fi
-    fi
-}
 
 listProjects() {
     forEachProject _printProject "${args[@]}"
@@ -442,11 +371,83 @@ _printLibrary() {
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
+runTests() {
+    if (( flags['help'] )); then
+        echo "rayvn test [PROJECT] [TEST-NAME]"
+    else
+        require 'rayvn/spinner' 'rayvn/prompt'
+
+        # Setup logging
+
+        local testLogDir="${ configDirPath tests; }" || fail
+        ensureDir "${testLogDir}" || fail
+        rm "${testLogDir:?}"/* 2> /dev/null
+        local failedTestsFile="${ tempDirPath failed-tests; }"
+
+        # Ensure rayvn is first in the projects list
+
+        if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
+            projects=("rayvn" "${projects[@]}")
+        fi
+
+        # Create map for project messages
+
+        local -A skipTestNames=()
+        local matchArg noMatchMsg=''
+        for matchArg in "${args[@]}"; do
+            (( ${#noMatchMsg} > 0)) && noMatchMsg+=' or '
+            noMatchMsg+="'${matchArg}'"
+        done
+
+        # Find all test files
+
+        local testNames=()
+        local testFiles=()
+        local testFileNames=()
+        forEachProject collectProjectTests
+        local maxIndex=${#testNames[@]}
+
+        # Find maximum project and test name lengths to find result column
+
+        local maxProjectNameLength="${ maxArrayElementLength projects; }"
+        local maxTestNameLength="${ maxArrayElementLength testNames; }"
+        local resultColumn=$(( maxProjectNameLength + 1 + maxTestNameLength + 6 ))
+        debugVars maxProjectNameLength maxTestNameLength resultColumn
+
+        # Run tests for all specified projects
+
+        forEachProject runProjectTests
+
+        # Read failed test names from temp file
+
+        local failedTestLogNames=()
+        if [[ -s "${failedTestsFile}" ]]; then
+            mapfile -t failedTestLogNames < "${failedTestsFile}"
+        fi
+        local failedTestCount=${#failedTestLogNames[@]}
+
+        # Any error logs?
+
+        if (( failedTestCount && ! inContainer )); then
+            local answer i
+            echo
+            for (( i=0; i < failedTestCount; i++ )); do
+                confirm "View ${failedTestLogNames[${i}]}?" yes=default no answer 60 || bye
+                if [[ ${answer} == yes ]]; then
+                    echo
+                    cat "${testLogDir}/${failedTestLogNames[${i}]}"
+                    echo
+                fi
+            done
+        fi
+    fi
+}
+
 collectProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
-    local matchArg testName testFile testFileName
+    local testName
     local hasMatchArg=${#args[@]}
 
     if [[ -d "${testDir}" ]]; then
@@ -466,11 +467,13 @@ collectProjectTests() {
             skipTestNames+=([${testName}]=0)
 
             if (( hasMatchArg )); then
+                local matchArg skip=1
                 for matchArg in "${args[@]}"; do
-                    if [[ ! "${testName}" =~ ${matchArg} ]]; then
-                        skipTestNames+=([${testName}]=1)
+                    if [[ "${testName}" =~ ${matchArg} ]]; then
+                        skip=0; break
                     fi
                 done
+                (( skip )) && skipTestNames+=(["${testName}"]=1)
             fi
         done
     fi
@@ -495,11 +498,11 @@ runProjectTests() {
             testFile="${testFiles[${i}]}"
             skip="${skipTestNames["${testName}"]}"
             if (( skip )); then
-                skipTest "skipping: does not match ${noMatchMsg}"
+                skipTest "skipped: does not match ${noMatchMsg}"
             elif (( inContainer )) && [[ ${testFile} == *linux-*.sh ]]; then
-                skipTest "skipping: linux test in linux container"
+                skipTest "skipped: linux test in linux container"
             else
-                runTest "${projectRoot}" "${testFile}" "${failedTestsFile}"
+                runTest "${testName}" "${testFile}" "${failedTestsFile}"
             fi
         done
     else
@@ -508,16 +511,16 @@ runProjectTests() {
 }
 
 noTests() {
-    local padLen=$(( messagePadLength - ${#project} ))
+    local padLen=$(( resultColumn - ${#project} )) # only project name, no 'test' constant
     local padding="${ padSpaces ${padLen}; }"
-    show bold "${project}" plain "${padding}" dim red italic "no tests"
+    show bold "${project}" plain "${padding}" dim warning '◈' plain dim "no tests" # ◈ ➖ ﹣
 }
 
 skipTest() {
     local message="${1}"
-    local padLen=$(( ${maxTestNameLength} - ${#testName} ))
+    local padLen=$(( resultColumn - ${#project} - ${#testName} - 6 ))
     local padding="${ padSpaces ${padLen}; }"
-    show bold "${project}" plain "test" cyan "${testName}" plain "${padding}" dim red italic "${message}"
+    show bold "${project}" plain "test" primary "${testName}" plain "${padding}" dim warning '⨯' plain dim "${message}"
 }
 
 padSpaces() {
@@ -526,38 +529,28 @@ padSpaces() {
 }
 
 runTest() {
-    local projectDir="${1}"
+    local testName="${1}"
     local testFile="${2}"
     local failedTestsFile="${3}"
-    local projectName=${ basename "${projectDir}"; }
     assertFileExists "${testFile}"
-    local fileName="${ basename ${testFile}; }"
-    local testName="${fileName#test-}"
-    testName="${testName%.sh}"
-    local testLogFileName="${projectName}-${testName}.log"
+    local testLogFileName="${project}-${testName}.log"
     local testLogFile="${testLogDir}/${testLogFileName}"
 
-    local status="${ show bold "${projectName}" plain "test" cyan "${testName}" ;}"
-    local padLength=$(( ${maxTestNameLength} - ${#testName} ))
-
-    echo -n "${status}"
+    local padLen=$(( resultColumn - ${#project} - ${#testName} - 6 ))
+    local padding="${ padSpaces ${padLen}; }"
+    show -n bold "${project}" plain "test" primary "${testName}" plain "${padding}"
 
     (
         if [[ -x "${testFile}" ]]; then
-            startSpinner || fail
-            if [[ ${projectName} == "rayvn" && ${testName} == "rayvn-up" ]]; then
+            startSpinner '' 1 || fail
+            if [[ ${project} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
-                    # We must create special conditions for this test so that the process it runs in does
-                    # NOT contain any functions from this process (esp. rayvn.up and core.sh). Using the
-                    # executeWithCleanVars function also ensures that no pre-existing vars are passed.
-                    #
-                    # These preconditions for the test are required so that rayvn init acts exactly as it
-                    # would the first time a user invokes it.
+                    # This test needs some extra vars set as preconditions. Since all tests are executed
+                    # without any rayvn vars, we need to add a couple of them back.
 
-                    # First, export var pointing to the current rayvnHome and binary
-
-                    export rayvnInstallHome="${rayvnHome}"
-                    export rayvnInstallBinary="${rayvnHome}/bin/rayvn"
+                    local exports=()
+                    exports+=(rayvnInstallHome="${rayvnHome}")
+                    exports+=(rayvnInstallBinary="${rayvnHome}/bin/rayvn")
 
                     # Second, export a list of the function names within the test itself so
                     # that it can ensure that no other functions are present, e.g. require
@@ -573,7 +566,7 @@ runTest() {
                     # Finally, run the test without functions or rayvn vars in its env, and without sourcing
                     # any init files.
 
-                    executeTestFile "${testFile}"
+                    executeTestFile "${testFile}" "${exports[@]}"
                 ) &> "${testLogFile}"
 
             else
@@ -581,7 +574,7 @@ runTest() {
             fi
 
             stopSpinner
-            padSpaces ${padLength}
+
             if (( testResult == 0 )); then
                 show " ${_greenCheckMark}" plain dim "log at ${testLogFile}"
             else
