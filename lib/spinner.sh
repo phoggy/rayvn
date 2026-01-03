@@ -283,7 +283,7 @@ _testSpinner() {
     echo
     startSpinner "Snake (bold success), expect REPLACEMENT with 'Work completed ${doneCheck}' after 4 seconds" snake bold success
     sleep 4
-    replaceSpinnerAndRestart "Work completed ${doneCheck}" "Working 3, expect '${punctuation}' after 2 seconds"
+    replaceSpinnerAndRestart "Work completed ${doneCheck}" "More work, expect '${punctuation}' after 2 seconds"
     sleep 2
     stopSpinner "${punctuation}"
 
