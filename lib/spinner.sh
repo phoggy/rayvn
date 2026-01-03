@@ -50,7 +50,7 @@ failSpin() {
 }
 
 _initSpinner() {
-    _spinnerMessage="${1:-''}"
+    _spinnerMessage="${1:- }"
     local frameType="${2:-snake}"
     local frameColors=("${@:3}")
 

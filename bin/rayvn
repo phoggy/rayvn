@@ -542,7 +542,7 @@ runTest() {
 
     (
         if [[ -x "${testFile}" ]]; then
-            startSpinner '' 1 || fail
+            startSpinner "" star || fail
             if [[ ${project} == "rayvn" && ${testName} == "rayvn-up" ]]; then
                 (
                     # This test needs some extra vars set as preconditions. Since all tests are executed
