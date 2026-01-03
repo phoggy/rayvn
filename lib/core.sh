@@ -455,6 +455,24 @@ repeat() {
     echo -n "${result}"
 }
 
+indexOf() {
+    local item="${1}"
+    local -n arrayRef="${2}"
+    local max="${#arrayRef[@]}"
+    local i
+    for (( i=0; i < max; i++ )); do
+        if [[ ${arrayRef[${i}]} == ${item} ]]; then
+            echo ${i}; return 0
+        fi
+    done
+    echo -1
+    return 1
+}
+
+isMemberOf() {
+    indexOf "${1}" "${2}" > /dev/null
+}
+
 padTo() {
     local padBefore=0
     if [[ ${1} == --before ]]; then

@@ -5,10 +5,8 @@
 # Intended for use via: require 'rayvn/spinner'
 
 startSpinner() {
-    ((isInteractive)) || return 0  # No-op when not interactive
-    local message="${1}"
-    local framesIndex="${2:-0}"
-
+    (( isInteractive )) || return 0  # No-op when not interactive
+    _initSpinner "${@}"
     if [[ ! ${_spinnerPid} ]]; then
         _ensureStopOnExit
         _spinServerMain "${message}" "${framesIndex}" &
@@ -51,30 +49,53 @@ failSpin() {
     fail "${@}"
 }
 
-configureSpinner() {
-    local spinnerIndex=${1:-0}
-    local colorsVarName=${2:-_spinnerDefaultCharsColor}
+_initSpinner() {
+    _spinnerMessage="${1:-''}"
+    local frameType="${2:-snake}"
+    local frameColors=("${@:3}")
 
-    (( ${#spinnerIndex} < ${#_frameNames} )) || fail "spinner index must be >= 0 and < ${#_frameNames}"
-    _configuredSpinnerIndex="${spinnerIndex}"
-    local frameVarName="_${_frameNames[${spinnerIndex}]}Frames" # generate var name
+    # Validate type
 
-    _createSpinnerFrames "${frameVarName}"  "${colorsVarName}"
+    isMemberOf "${frameType}" _frameTypes || fail "unknown spinner type '${frameType}', choices are ${_frameTypes[*]}"
+
+    # Generate frame var names
+
+    local frameVarName="_${frameType}Frames"
+    local colorsVarName="_${frameType}Colors"
+
+    # Update colors if none passed
+
+    if (( ${#frameColors[@]} == 0 )); then
+        local -n colorsRef="${colorsVarName}"
+        frameColors=("${colorsRef[@]}")
+    fi
+
+    # Generate frames only if type or colors differ from last time
+
+    if [[ ${frameType} != "${_frameType}"  || ${frameColors[*]} != "${_frameColors[*]}" ]]; then
+        _generateSpinnerFrames "${frameVarName}"  "${frameColors[@]}"
+    fi
+
+    # Save args for next time
+
+    _frameType="${frameType}"
+    _frameColors=("${frameColors[@]}")
+
+    # Make sure that pid is not set
+
+    unset _spinnerPid
 }
 
 # shellcheck disable=SC2120
-_createSpinnerFrames() {
+_generateSpinnerFrames() {
     IFS=' ' # TODO WHY does this need to be fixed here?
     local -n framesRef="${1}"
-    local -n colorsRef="${2}"
-    local -a colors=("${colorsRef[@]}")
+    local colors=("${@:2}")
     local i
-    _framesCount="${#framesRef[@]}"
-
-    unset _spinnerPid
 
     # Generate the frames
 
+    _framesCount="${#framesRef[@]}"
     for (( i=0; i < _framesCount; i++ )); do
         _frames["${i}"]="${ show "${colors[@]}" "${framesRef["${i}"]}"; }"
     done
@@ -84,14 +105,23 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIV
 
 _init_rayvn_spinner() {
     require 'rayvn/core' 'rayvn/terminal' 'rayvn/process'
-   # configureSpinner
 }
 
-# TODO: rename to waiting?
+# Spinner arguments
 
-# spinner ideas
-#   - https://github.com/sindresorhus/cli-spinners/blob/main/spinners.json
-#   - https://antofthy.gitlab.io/info/ascii/Spinners.txt
+declare -g _spinnerMessage=
+declare -g _frameType=
+declare -gax _frameColors=()
+
+# Spinner state
+
+declare -gax _frames=()
+declare _gx _framesCount=0
+declare -g _frameIndex=0
+declare -g _spinnerPid=
+declare -gi _spinnerCleanupRegistered=0
+
+# Spinner types (see https://github.com/sindresorhus/cli-spinners/blob/main/spinners.json for ideas)
 
 declare -grax _snakeFrames=(
     "◞           "
@@ -117,33 +147,18 @@ declare -grax _snakeFrames=(
     "◞◜          "
 )
 
-declare -grax _starFrames=('❀' '❁' '❂' '❃' '❄' '❅' '❆' '❇' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
+declare -grax _snakeColors=(primary)
 
-declare -grax _frameNames=( 'snake' 'star')
-declare -gax _frames=()
-declare _gx _framesCount=0
-declare -g _frameIndex=0
-declare -gx _configuredSpinnerIndex=
+declare -grax _starFrames=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
+declare -grax _starColors=(secondary)
 
-# https://medium.com/@kyletmartinez/reverse-engineering-claudes-ascii-spinner-animation-eec2804626e0
+declare -grax _frameTypes=( 'snake' 'star')
 
-#  · (middle dot / bullet)
-#  ✻ (teardrop-spoked asterisk)
-#  ✽ (heavy teardrop-spoked asterisk)
-#  ✶ (six pointed black star)
-#  ✳ (eight spoked asterisk)
-#  ✢ (four balloon-spoked asterisk)
-
-#declare -grx _throbDefaultChars='❀❁❂❃❄❅❆❇❈✦✧✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿' # '✦✧✱✲✳✴✵✶✷✸'
-
-declare -grax _spinnerDefaultCharsColor=(primary)
 declare -grx _spinnerCommandPrefix="::"
 declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
 declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
 declare -grx _spinnerDelayInterval='0.25'
 
-declare -g _spinnerPid=
-declare -gi _spinnerCleanupRegistered=0
 
 _ensureStopOnExit() {
     if (( ! _spinnerCleanupRegistered )); then
@@ -166,7 +181,7 @@ _spinServerMain() {
 
     trap "onServerExit" TERM INT HUP
 
-    _beginSpin "${message}" "${spinnerIndex}"
+    _beginSpin
 
     while true; do
         _updateFrame
@@ -175,19 +190,19 @@ _spinServerMain() {
 }
 
 _beginSpin() {
-    local message="${1}"
-    local spinnerIndex="${2}"
 
-    echo -n "${1}"  # show message
+    # Show the message then save the resulting cursor position
+
+    echo -n "${_spinnerMessage}"
     cursorSave
-
-    # Make sure we are configured
-
-    (( _framesCount == 0 || spinnerIndex != _configuredSpinnerIndex)) && configureSpinner "${spinnerIndex}"
 
     # Configure terminal
 
     tput civis
+
+    # Init the frame index
+
+    _frameIndex=0
 }
 
 _updateFrame() {
@@ -256,21 +271,24 @@ _testSpinner() {
     local doneCheck="${_greenCheckMark}"
     local periodCheck="${punctuation} ${doneCheck}"
 
-    startSpinner "Throb" 1
+    startSpinner "Star (default color)" star
     sleep 5
     stopSpinner "${periodCheck}"
 
-    startSpinner "Working 1, expect '${periodCheck}' after 10 seconds"
-    sleep 10
+    echo
+    startSpinner "Default type & color, expect '${periodCheck}' after 5 seconds"
+    sleep 5
     stopSpinner "${periodCheck}"
 
-    startSpinner "Working 2, expect REPLACEMENT with 'Work completed ${doneCheck}' after 4 seconds"
+    echo
+    startSpinner "Snake (bold success), expect REPLACEMENT with 'Work completed ${doneCheck}' after 4 seconds" snake bold success
     sleep 4
     replaceSpinnerAndRestart "Work completed ${doneCheck}" "Working 3, expect '${punctuation}' after 2 seconds"
     sleep 2
     stopSpinner "${punctuation}"
 
-    startSpinner "Working 4, expect '${periodCheck}' after 2 seconds"
+    echo
+    startSpinner "Star (bold accent), expect '${periodCheck}' after 2 seconds" star bold accent
     sleep 2
     restartSpinner "${periodCheck}" "Working 5, expect '${punctuation}' after 2 seconds"
     sleep 2
