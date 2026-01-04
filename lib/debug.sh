@@ -216,8 +216,7 @@ _varIsSet() {
 
 _prepareLogFile() {
     local clearLog=${1}
-    configDir="${ configDirPath; }" || fail
-    declare -grx _debugDir="${configDir}/debug"
+    declare -grx _debugDir="${_rayvnConfigDir}/debug"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
     declare -gxi _debugStartLine
 
