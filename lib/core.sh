@@ -67,18 +67,20 @@ makeTempDir() {
 
 configDirPath() {
     local fileName="${1:-}"
-    local -n configRef
-    if [[ ${currentProjectName} == rayvn ]]; then
-        configRef="_rayvnConfigDir"
-    else
-        configVar="_${currentProjectName}ConfigDir"
-        configRef="${configVar}"
-        if [[ -z ${configRef:-} ]]; then
-            configRef="${_rayvnConfigDir}/${currentProjectName}"
-            withUmask 0077 ensureDir "${configRef}"
-        fi
+    local configDir="${_systemConfigDir}/${currentProjectName}"
+
+    # Make sure we create the directory if needed. Do it only once by using a global variable
+
+    local configVarName="_${currentProjectName}ConfigDir"
+    local -n configRef="${configVarName}"
+    if [[ -z ${configRef:-} ]]; then
+        configRef="${configDir}"
+        withUmask 0077 ensureDir "${configDir}"
     fi
-    [[ -n ${fileName} ]] && echo "${configRef}/${fileName}" || echo "${configRef}"
+
+    # Return the path
+
+    [[ -n ${fileName} ]] && echo "${configDir}/${fileName}" || echo "${configDir}"
 }
 
 ensureDir() {
@@ -687,11 +689,10 @@ _init_rayvn_core() {
 #        ['block-right']="▐"     # U+2590 Right half block
 #    )
 
-    # Ensure rayvn config dir set to valid directory
+    # Ensure system config dir set to valid directory
 
-    local configDir="${HOME}/.rayvn"
-    [[ -d ${configDir} ]] || withUmask 0077 ensureDir "${configDir}"
-    declare -grx _rayvnConfigDir="${configDir}"
+    declare -grx _systemConfigDir="${HOME}/.config"
+    [[ -d ${_systemConfigDir} ]] || withUmask 0077 ensureDir "${_systemConfigDir}"
 
     # Set color/style constants if terminal supports them
 
