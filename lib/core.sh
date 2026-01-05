@@ -480,7 +480,8 @@ padString() {
     local width="${2}"
     local position="${3:-after}"
 
-    local currentLength=${#string}
+    local strippedString="${ stripAnsi "${string}"; }"
+    local currentLength=${#strippedString}
     local paddingNeeded=$((width - currentLength))
 
     (( paddingNeeded <= 0 )) && echo -n "${string}" && return 0

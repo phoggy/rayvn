@@ -376,6 +376,7 @@ runTests() {
         echo "rayvn test [PROJECT] [TEST-NAME]"
     else
         require 'rayvn/spinner' 'rayvn/prompt'
+        echo
 
         # Make sure we can ctrl-c out
         unset rayvnNoExitOnCtrlC
