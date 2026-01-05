@@ -3,74 +3,99 @@
 # Theme functions.
 # Intended for use via: require 'rayvn/themes'
 
-
 showCurrentTheme() {
-    _showTheme "${_currentThemeBackground}" "${_currentThemeName}"
+    _displayTheme "${_currentThemeIndex}"
 }
 
 showThemes() {
-    _showThemes Dark
-    _showThemes Light
+    local position="${1:-after}"
+    _displayThemes ${_themeDefaultIndent} ${position}
 }
 
-showDarkThemes() {
-    _showThemes Dark
-}
-
-showLightThemes() {
-    _showThemes Light
-}
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_themes() {
     require 'rayvn/core'
+
+    # Set terminal background type
+
     local type
     type="${ _detectBackground; }"
     declare -grx _assumedBackground=$?
     declare -grx _themeBackground="${type}"
-    declare -grx _defaultThemeName="Material Design"
-}
 
-_themesToArray() {
-    local -n resultArray="${1}"
-    local darkThemes=()
-    local lightThemes=()
-    local indent=29
-    local theme
-    for themeName in "${_themeDisplayNames[@]}"; do
-        darkThemes+=("${ _showTheme "Dark" "${themeName}" "${indent}"; }")
-        lightThemes+=("${ _showTheme "Light" "${themeName}" "${indent}"; }")
+    # Collect display and var names
+
+    local darkNames=()
+    local lightNames=()
+    local darkVars=()
+    local lightVars=()
+    local name
+
+    for name in "${_themeNames[@]}"; do
+        darkNames+=("Dark ${name}")
+        lightNames+=("Light ${name}")
+        darkVars+=("themeDark${name// /}")
+        lightVars+=("themeLight${name// /}")
     done
 
+    # Save them ordered by current background type
+
     if [[ ${_themeBackground} == Dark ]]; then
-        resultArray=("${darkThemes[@]}" "${lightThemes[@]}")
+        declare -grax _themeDisplayNames=("${darkNames[@]}" "${lightNames[@]}")
+        declare -grax _themeVarNames=("${darkVars[@]}" "${lightVars[@]}")
     else
-        resultArray=("${lightThemes[@]}" "${darkThemes[@]}")
+        declare -grax _themeDisplayNames=("${lightNames[@]}" "${darkNames[@]}")
+        declare -grax _themeVarNames=("${lightVars[@]}" "${darkVars[@]}")
     fi
-}
+    declare -grx _themeCount="${#_themeDisplayNames[@]}"
 
+    # Set default indent
 
-_showThemes() {
-    local background="${1:-${_themeBackground}}"
-    local indent=29 themeName
-    for themeName in "${_themeDisplayNames[@]}"; do
-        _showTheme "${background}" "${themeName}" "${indent}"
+    local maxLen
+    maxLen=${ maxArrayElementLength _themeDisplayNames; }
+    declare -grx _themeDefaultIndent=${maxLen}
+ }
+
+_displayThemes() {
+    local indent="${1:-${_themeDefaultIndent}}"
+    local position="${2:-after}"
+
+    for (( i=0; i < _themeCount; i++ )); do
+        _displayTheme ${i} ${indent} ${position}
     done
     echo
 }
 
-_showTheme() {
-    local background="${1}"
-    local themeName="${2}"
-    local indent="${3:-0}"
-    local colorName
-    local themeVar
-    _toThemeVar "${background}" "${themeName}" themeVar
+_displayTheme() {
+    local themeIndex="${1}"
+    local indent="${2:-${_themeDefaultIndent}}"
+    local position="${3:-after}"
+    local displayName boldDisplayName paddedDisplayName
+    local -n themeRef="${_themeVarNames[${themeIndex}]}"
 
-    printf "%${indent}s:" "${ show -n bold "${background} ${themeName}"; }"
+    displayName="${_themeDisplayNames[${themeIndex}]}"
+    paddedDisplayName="${ padString "${displayName}" ${indent} ${position}; }"
+    boldDisplayName="${ show -n bold "${paddedDisplayName}"; }"
 
-    local -n themeRef=${themeVar}
+    #    echo -n 'before |'; padString "Dark Material Design:" 29 before; echo '|'
+   #    echo -n 'center |'; padString "Dark Material Design:" 29 center; echo '|'
+   #    echo -n 'after  |'; padString "Dark Material Design:" 29 after; echo '|'
+
+#    if (( indent == 0 )); then
+#        echo -n "${boldDisplayName}:"
+#    elif (( indentBefore )); then
+#echo 'before'
+#        printf "%${indent}s:" "${boldDisplayName}"
+#    else # after
+#echo 'after'
+#        padding="${ padto ${indent}; }"
+#        echo -n "${boldDisplayName}"
+#        printf "%s:%${actualIndent}s" "${boldDisplayName}" ' '
+#    fi
+
+    show -n bold "${paddedDisplayName}"
     for colorName in "${_themeColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
         printf "%s  %s%s " "${colorCode}" "${colorName} █" $'\e[0m'
@@ -80,16 +105,14 @@ _showTheme() {
 
 # Takes effect on next startup
 _setTheme() {
-    local background="${1}"
-    local themeName="${2}"
-    local themeVar
+    local themeIndex="${1}"
+    local displayName
+    local -n themeRef="${_themeVarNames[${themeIndex}]}"
+    displayName="${_themeDisplayNames[${themeIndex}]}"
 
-    _toThemeVar "${background}" "${themeName}" themeVar
+    # Convert to a 'theme' array with the display name as the first element and the index as the second
 
-    # Convert to a 'theme' array with the background and name as the first elements
-
-    local -n themeRef="${themeVar}"
-    local theme=("${background}" "${themeName}")
+    local theme=("${displayName}" "${themeIndex}")
 
     for colorName in "${_themeColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
@@ -99,15 +122,6 @@ _setTheme() {
     # Store it
 
     declare -p theme > "${_themeConfigFile}" || fail
-}
-
-_toThemeVar() {
-    local background="${1}"
-    local themeName="${2}"
-    local -n returnVarRef=${3}
-    local varName="theme${background}${themeName// /}"
-    declare -p "${varName}" > /dev/null 2>&1 || bye "Unknown theme:" plain bold "\"${background} ${themeName}\""
-    returnVarRef="${varName}"
 }
 
 # Detect dark or light background (by Claude)
@@ -237,8 +251,9 @@ THEME_DATA="--+-+-----+-++(-++(---++++(---+(  THEME DATA  )+---)++++---)++-)++-+
 # Theme color names
 declare -grax _themeColors=(success error warning info muted accent primary secondary)
 
-# Theme display names
-declare -grax _themeDisplayNames=(
+# Theme names
+declare -grax _themeNames=(
+    "Basic"             # 8 bit color, same dark and ligh
     "Material Design"   # Dark and light are the same
     "Flat Design"       # Works on both light and dark
     "Vibrant"           # Custom high-contrast light theme
@@ -614,6 +629,18 @@ declare -grA themeDarkEarth=(
     ["secondary"]=$'\e[38;2;205;133;63m'    # Earth tan
 )
 
+declare -grA themeDarkBasic=(
+    ["success"]=$'\e[92m'                   # bright-green
+    ["error"]=$'\e[91m'                     # bright-red
+    ["warning"]=$'\e[93m'                   # bright-yellow
+    ["info"]=$'\e[34m'                      # blue
+    ["muted"]=$'\e[0m\e[2m'                 # plain dim
+    ["accent"]=$'\e[35m'                    # magenta
+    ["primary"]=$'\e[94m'                   # bright-blue
+    ["secondary"]=$'\e[97m'                 # bright-white
+)
+
+
 # ==============================================================================
 # LIGHT BACKGROUND THEMES
 # ==============================================================================
@@ -974,3 +1001,15 @@ declare -grA themeLightEarth=(
     ["primary"]=$'\e[38;2;0;0;255m'         # Deep earth cyan (adjusted)
     ["secondary"]=$'\e[38;2;152;99;47m'     # Deep earth orange
 )
+
+declare -grA themeLightBasic=(
+    ["success"]=$'\e[92m'                   # bright-green
+    ["error"]=$'\e[91m'                     # bright-red
+    ["warning"]=$'\e[93m'                   # bright-yellow
+    ["info"]=$'\e[34m'                      # blue
+    ["muted"]=$'\e[0m\e[2m'                 # plain dim
+    ["accent"]=$'\e[35m'                    # magenta
+    ["primary"]=$'\e[94m'                   # bright-blue
+    ["secondary"]=$'\e[97m'                 # bright-white
+)
+

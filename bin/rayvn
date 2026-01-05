@@ -377,11 +377,14 @@ runTests() {
     else
         require 'rayvn/spinner' 'rayvn/prompt'
 
+        # Make sure we can ctrl-c out
+        unset rayvnNoExitOnCtrlC
+
         # Setup logging
 
         local testLogDir="${ configDirPath tests; }" || fail
         ensureDir "${testLogDir}" || fail
-        rm "${testLogDir:?}"/* 2> /dev/null
+        rm "${testLogDir:?}"/* 2> /dev/null # remove any existing logs
         local failedTestsFile="${ tempDirPath failed-tests; }"
 
         # Ensure rayvn is first in the projects list

@@ -83,8 +83,21 @@ but a test nonetheless.")
 
 safe='$(evilFunction)'  # single quoted so is not evaluated
 
+declare -a theme=(
+    "Dark Material Design"
+    "1"
+    $'\e[38;2;76;175;80m'
+    $'\e[38;2;244;67;54m'
+    $'\e[38;2;255;193;7m'
+    $'\e[38;2;33;100;255m'
+    $'\e[38;2;128;108;108m'
+    $'\e[38;2;156;39;176m'
+    $'\e[38;2;0;188;252m'
+    $'\e[38;2;255;152;0m'
+)
+
 expectedSafeVars=(projectName projectVersion projectReleaseDate projectDependencies projectHasNoSuchVariable
-                  user1Details user2Details count userBio notes name greeting expectedSafeVars)
+                  user1Details user2Details count userBio notes nickname greeting theme expectedSafeVars)
 
 #----------------------------------------
 # Unsafe variables: all must be discarded

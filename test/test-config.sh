@@ -85,7 +85,8 @@ testSourceSafeStaticVarsWithoutFilter() {
 
         assertProjectValues
         assertNonProjectValues
-    )
+
+    ) || exit 1
 }
 
 testSourceSafeStaticVarsWithFilter() {
@@ -115,7 +116,8 @@ testSourceSafeStaticVarsWithFilter() {
         # Check values
 
         assertProjectValues
-    )
+
+    ) || exit 1
 }
 
 assertNoUnsafeVarsOrFunctionsAreDefined() {
@@ -160,6 +162,7 @@ assertSafeVarsAreDefined() {
     assertVarIsDefined notes
     assertVarIsDefined nickname
     assertVarIsDefined greeting
+    assertVarIsDefined theme
 
     assertVarIsDefined expectedSafeVars
 }

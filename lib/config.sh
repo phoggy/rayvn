@@ -228,15 +228,16 @@ _extractSafeStaticVarsOnly() {
 
 # Written by ChatGPT 4o
 _globalizeDeclarations() {
-    sed '
-        /^\(declare[[:space:]]\+\(-[a-zA-Z]\+[[:space:]]\+\)*\)-g\([a-zA-Z]*[[:space:]]\+\)\?/b end
-        s/^\(declare[[:space:]]\+-\)\([a-zA-Z]\+\)\([[:space:]]\+\)/\1g\2\3/
-        s/^\(declare\)\([[:space:]]\+\)/\1 -g\2/
+    sed -E '
+        /^(declare[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*)-g([a-zA-Z]*[[:space:]]+)?/b end
+        s/^(declare[[:space:]]+-)([a-zA-Z]+)([[:space:]]+)/\1g\2\3/
+        t end
+        s/^(declare)([[:space:]]+)/\1 -g\2/
 
         :end
 
-        /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=(/ {
-            s/^\([[:space:]]*\)\([a-zA-Z_][a-zA-Z0-9_]*\)[[:space:]]*=(\(.*\))$/\1declare -g -a \2=(\3)/
+        /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\(/ {
+            s/^([[:space:]]*)([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=\((.*)\)$/\1declare -g -a \2=(\3)/
         }
     '
 }

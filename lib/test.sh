@@ -53,20 +53,21 @@ assertFunctionIsNotDefined() {
     [[ ${ declare -f "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined: ${ declare -f ${name}; }"
 }
 
+assertVarIsNotDefined() {
+    local name="${1}"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined: ${ declare -f ${name}; }"
+}
+
 assertFunctionIsDefined() {
     local name="${1}"
-    [[ ! ${ declare -f "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is not defined"
+    [[ ${ declare -f "${name}" 2> /dev/null; } ]] || assertionFailed "${name} is not defined"
 }
 
 assertVarIsDefined() {
     local name="${1}"
-    [[ ! ${ declare -p "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is not defined"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] || assertionFailed "${name} is not defined"
 }
 
-assertVarIsNotDefined() {
-    local name="${1}"
-    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined"
-}
 
 assertVarType() {
     local varName="${1}"

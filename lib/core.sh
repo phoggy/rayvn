@@ -475,25 +475,26 @@ isMemberOf() {
     indexOf "${1}" "${2}" > /dev/null
 }
 
-padTo() {
-    local padBefore=0
-    if [[ ${1} == --before ]]; then
-        padBefore=1; shift
-    fi
-    local str="${1}"
-    local targetCol="${2}"
-    local strLen="${#str}"
-    local padLen=$(( targetCol - strLen ))
+padString() {
+    local string="${1}"
+    local width="${2}"
+    local position="${3:-after}"
 
-    if (( padLen > 0 )); then
-        if (( padBefore )); then
-            printf '%*s%s' "${padLen}" '' "${str}"
-        else
-            printf '%s%*s' "${str}" "${padLen}" ''
-        fi
-    else
-        printf '%s' "${str}"
-    fi
+    local currentLength=${#string}
+    local paddingNeeded=$((width - currentLength))
+
+    (( paddingNeeded <= 0 )) && echo -n "${string}" && return 0
+
+    case "${position}" in
+        before|right) printf '%*s' "${width}" "${string}" ;;
+        after|left)   printf '%-*s' "${width}" "${string}" ;;
+        center)
+            local leftPad=$((paddingNeeded / 2))
+            local rightPad=$((paddingNeeded - leftPad))
+            printf '%*s%s%*s' "${leftPad}" '' "${string}" "${rightPad}" ''
+            ;;
+        *) fail "Invalid position: ${position}" ;;
+    esac
 }
 
 warn() {
@@ -516,7 +517,7 @@ redStream() {
     done
 }
 
-assertionFailed() {
+assertionFailed() { # TODO duplicates fail()
     stackTrace "${@}"
     exit 1
 }
@@ -689,10 +690,12 @@ _init_rayvn_core() {
 #        ['block-right']="▐"     # U+2590 Right half block
 #    )
 
-    # Ensure system config dir set to valid directory
+    # Ensure system and rayvn config dirs set to valid directories
 
     declare -grx _systemConfigDir="${HOME}/.config"
+    declare -grx _rayvnConfigDir="${_systemConfigDir}/rayvn"
     [[ -d ${_systemConfigDir} ]] || withUmask 0077 ensureDir "${_systemConfigDir}"
+    [[ -d ${_rayvnConfigDir} ]] || withUmask 0077 ensureDir "${_rayvnConfigDir}"
 
     # Set color/style constants if terminal supports them
 
@@ -760,36 +763,32 @@ _init_rayvn_core() {
 }
 
 _init_theme() {
-    unset theme
-    declare -grx _themeConfigFile="${_rayvnConfigDir}/theme"
+    declare -grx _themeConfigFile="${_rayvnConfigDir}/current.theme"
+    local index
+
+    # load theme config file if it exists
+
     if [[ -e "${_themeConfigFile}" ]]; then
         require 'rayvn/config'
-        sourceConfigFile "${_themeConfigFile}"
-    fi
-    if [[ -z "${theme[0]}" ]]; then
-        if (( terminalColorBits >= 24 )); then
-            theme=(
-                "Dark"                   # 0 background
-                "Material Design"        # 1 name
-                $'\e[38;2;76;175;80m'    # 2 success   (green)
-                $'\e[38;2;244;67;54m'    # 3 error     (red)
-                $'\e[38;2;255;193;7m'    # 4 warning   (amber)
-                $'\e[38;2;33;100;255m'   # 5 info      (blue)
-                $'\e[38;2;128;108;108m'  # 6 muted     (gray)
-                $'\e[38;2;156;39;176m'   # 7 accent    (purple)
-                $'\e[38;2;0;188;252m'    # 8 primary   (cyan)
-                $'\e[38;2;255;152;0m'    # 9 secondary (orange)
-            )
-        else
-            theme=('Dark' 'Basic' '\e[92m' $'\e[91m' $'\e[93m' $'\e[34m' $'\e[36m' $'\e[2m' $'\e[35m' $'\e[96m') # bright-green, bright-red, bright-yellow, blue, cyan, dim, magenta bright-cyan
-        fi
-        declare -p theme > "${_themeConfigFile}" # save it
-        echo -e "\nNOTE: Using default theme '${theme[0]} ${theme[1]}'. Run 'rayvn themes' to change.\n"
+        sourceConfigFile "${_themeConfigFile}" theme
     fi
 
-    declare -grax _currentTheme=("${theme[@]}")
-    declare -grx _currentThemeBackground="${theme[0]}"
-    declare -grx _currentThemeName="${theme[1]}"
+    # create it if theme var not defined
+
+    if [[ ! -v theme ]]; then
+        require 'rayvn/themes'
+        if (( terminalColorBits < 24 )); then
+            index=0  # Basic
+        else
+            index=1  # Dark Material Design
+        fi
+        _setTheme ${index}
+        echo -e "\nNOTE: Using default theme '${_themeDisplayNames[${index}]}'. Run 'rayvn themes' to change.\n"
+    else
+        index=${theme[1]}
+    fi
+
+    declare -grax _currentThemeIndex=${index}
 }
 
 _init_colors() {
@@ -857,14 +856,14 @@ _init_colors() {
 
         # Theme colors
 
-        ['success']=${_currentTheme[2]}
-        ['error']=${_currentTheme[3]}
-        ['warning']=${_currentTheme[4]}
-        ['info']=${_currentTheme[5]}
-        ['muted']=${_currentTheme[6]}
-        ['accent']=${_currentTheme[7]}
-        ['primary']=${_currentTheme[8]}
-        ['secondary']=${_currentTheme[9]}
+        ['success']=${theme[2]}
+        ['error']=${theme[3]}
+        ['warning']=${theme[4]}
+        ['info']=${theme[5]}
+        ['muted']=${theme[6]}
+        ['accent']=${theme[7]}
+        ['primary']=${theme[8]}
+        ['secondary']=${theme[9]}
 
         # Turn off all formats
 
@@ -971,6 +970,7 @@ _onRayvnHup() {
 
 _onRayvnInt() {
     _restoreTerminal
+    [[ -v rayvnNoExitOnCtrlC ]] && return
     show italic red "🔺 exiting (ctrl-c)"
     exit 1
 }
