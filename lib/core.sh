@@ -777,7 +777,7 @@ _init_theme() {
     # create it if theme var not defined
 
     if [[ ! -v theme ]]; then
-        require 'rayvn/themes'
+        require 'rayvn/theme'
         if (( terminalColorBits < 24 )); then
             index=0  # Basic
         else

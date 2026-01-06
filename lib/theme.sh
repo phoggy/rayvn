@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Theme functions.
-# Intended for use via: require 'rayvn/themes'
+# Intended for use via: require 'rayvn/theme'
 
 showCurrentTheme() {
     _displayTheme "${_currentThemeIndex}"
@@ -12,10 +12,31 @@ showThemes() {
     _displayThemes ${_themeDefaultIndent} ${position}
 }
 
+setTheme() {
+    require 'rayvn/prompt'
+    local themes=()
+    local selected
+
+    # Build items array
+
+    for (( i=0; i < _themeCount; i++ )); do
+        local number=
+        local theme=''
+        (( i < 9 )) && number+=' '
+        number+="$(( i+1 ))"
+        number="${ show dim ${number}; }"
+        theme+="${number} ${ _displayTheme ${i}; }"
+        themes+=("${theme}")
+    done
+
+    carousel 'Select theme' selected 60 true "${themes[@]}" || return 1
+    _setTheme "${selected}"
+    show "Set theme to ${ _displayTheme ${selected}; }"
+}
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_rayvn_themes() {
+_init_rayvn_theme() {
     require 'rayvn/core'
 
     # Set terminal background type
@@ -78,22 +99,6 @@ _displayTheme() {
     displayName="${_themeDisplayNames[${themeIndex}]}"
     paddedDisplayName="${ padString "${displayName}" ${indent} ${position}; }"
     boldDisplayName="${ show -n bold "${paddedDisplayName}"; }"
-
-    #    echo -n 'before |'; padString "Dark Material Design:" 29 before; echo '|'
-   #    echo -n 'center |'; padString "Dark Material Design:" 29 center; echo '|'
-   #    echo -n 'after  |'; padString "Dark Material Design:" 29 after; echo '|'
-
-#    if (( indent == 0 )); then
-#        echo -n "${boldDisplayName}:"
-#    elif (( indentBefore )); then
-#echo 'before'
-#        printf "%${indent}s:" "${boldDisplayName}"
-#    else # after
-#echo 'after'
-#        padding="${ padto ${indent}; }"
-#        echo -n "${boldDisplayName}"
-#        printf "%s:%${actualIndent}s" "${boldDisplayName}" ' '
-#    fi
 
     show -n bold "${paddedDisplayName}"
     for colorName in "${_themeColors[@]}"; do

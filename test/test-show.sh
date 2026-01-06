@@ -243,7 +243,7 @@ testCommandSubstitution() {
 }
 
 testThemeColors() {
-    require 'rayvn/themes'
+    require 'rayvn/theme'
     echo ""
     echo "Testing Theme Colors"
     echo "===================="

@@ -15,10 +15,11 @@ usage() {
     echo
     echo "Commands"
     echo
+    echo "    test              Run tests."
+    echo "    theme             Select theme."
     echo "    new TYPE NAME     Create a new project/script/library with the specified NAME."
     echo "    libraries         List libraries."
     echo "    functions         List public functions."
-    echo "    test              Run tests."
     echo "    dependencies      Assert that dependencies are satisfied."
     echo "    register          Register a project."
     echo "    release           Create a new release."
@@ -53,8 +54,9 @@ init() {
 
     while (( $# )) && [[ -z ${command} ]]; do
         case "${1}" in
-            new | create) parseArgs false create "${@:2}" ;;
             test) parseArgs true runTests "${@:2}" ;;
+            theme) parseArgs false theme "${@:2}" ;;
+            new | create) parseArgs false create "${@:2}" ;;
             projects) parseArgs true listProjects "${@:2}" ;;
             libraries) parseArgs true listLibraries "${@:2}" ;;
             functions) parseArgs true listFunctions "${@:2}" ;;
@@ -106,6 +108,11 @@ parseArgs() {
         esac
         shift
     done
+}
+
+theme() {
+    require 'rayvn/theme'
+    setTheme
 }
 
 addIfRayvnExecutable() {
