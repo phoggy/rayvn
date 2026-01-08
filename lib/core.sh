@@ -293,6 +293,7 @@ executeWithCleanVars() {
 #   show IDX 42 "Display 256 color #42"
 #   show RGB 52:208:88 "rgb 52 208 88 colored text"
 #   show "The answer is" bold 42 "not a color code" # numeric values display normally
+#   show "Line 1" nl "Line 2" # insert newline between text
 #
 #   # IMPORTANT: Use 'plain' to reset colors BEFORE applying styles-only
 #   show cyan "colored text" plain dim "dim text (no color)"
@@ -352,6 +353,9 @@ executeWithCleanVars() {
 #
 #   RGB Colors ('truecolor'):
 #     RGB 0-255:0-255:0-255
+#
+#   Special:
+#     nl - inserts a newline character
 #
 #   Reset:
 #     plain
@@ -869,6 +873,10 @@ _init_colors() {
         # Turn off all formats
 
         ['plain']=$'\e[0m'
+
+        # Special formats
+
+        ['nl']=$'\n'
     )
 }
 
@@ -947,6 +955,10 @@ _init_noColors() {
         # Turn off all formats
 
         ['plain']=''
+
+        # Special formats
+
+        ['nl']=$'\n'
     )
 }
 
