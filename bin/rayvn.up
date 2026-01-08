@@ -10,8 +10,8 @@ if ! (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3)
     echo -e "\033[0;31m🔺 rayvn requires bash version 5.2+, found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}\033[0m"; exit 1
 else
     declare -grx osName="${ uname; }"
-    declare -grx onMacOS=$(( osName == "Darwin" ))
-    declare -grx onLinux=$(( osName == "Linux" ))
+    declare -grx onMacOS=${ [[ ${osName} == "Darwin" ]] && echo 1 || echo 0; }
+    declare -grx onLinux=${ [[ ${osName} == "Linux" ]] && echo 1 || echo 0; }
     if ! (( onMacOS || onLinux )); then
         echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${osName}\033[0m"; exit 1
     fi
