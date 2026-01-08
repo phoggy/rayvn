@@ -8,7 +8,7 @@
 #
 # Usage: request <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds]
 # Output: resultVar set to input.
-# Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user cancelled (ESC pressed)
+# Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 request() {
     local prompt="${1}"
@@ -25,11 +25,38 @@ request() {
     fi
 }
 
+# Read user input without echoing it to the terminal.
+#
+# Usage: requestHidden <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds]
+# Output: resultVar set to input.
+# Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
+
+requestHidden() {
+    local prompt="${1}"
+    local -n resultRef="${2}"
+    local cancelOnEmpty="${3:-true}"
+    local timeout="${4:-30}"
+    local result=
+    _prepareHint ' ' 'hidden' 0
+    _preparePrompt "${prompt}" ${timeout} 4
+    read -t ${timeout} -rs result                 # TODO: refactor read loop to make it generic so we can handle ESC here!
+
+    if (( $? > 128 )); then
+        _finalizePrompt _canceledMsgTimeout italic warning
+        return ${_canceledOnTimeout}
+    elif  [[ ${cancelOnEmpty} == true && ! -n ${result} ]]; then
+        _finalizePrompt _canceledMsgEmpty italic warning
+        return ${_canceledOnEmpty}
+    fi
+    echo
+    resultRef="${result}"
+}
+
 # Choose from a list of options, using the arrow keys.
 #
 # Usage: choose <prompt> <choiceIndexVarName>  <timeout seconds> choice0 choice1 ... choiceN
 # Output: choiceIndexVar set to index of selected choice.
-# Exit codes: 0 = success, 124 = timeout, 130 = user cancelled (ESC pressed)
+# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 choose() {
     local prompt="${1}"
@@ -58,7 +85,7 @@ choose() {
 #
 # Usage: carousel <prompt> <choiceIndexVarName> <timeout> <useSeparator> choice0 choice1 ... choiceN
 # Output: choiceIndexVar set to index of selected choice.
-# Exit codes: 0 = success, 124 = timeout, 130 = user cancelled (ESC pressed)
+# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 carousel() {
     local prompt="${1}"
@@ -82,15 +109,15 @@ carousel() {
             (( len > maxLength )) && maxLength=${len}
         done
 
-        # Add 2 for the "> " prefix
-        maxLength=$(( maxLength + 2 ))
+        # Add 2 for the "> " prefix and 4 to extend the line on the right
+        maxLength=$(( maxLength + 6 ))
 
         # Build separator line
         separatorLine=''
         for (( i=0; i < maxLength; i++ )); do
             separatorLine+='─'
         done
-        separatorLine="${ show dim "${separatorLine}" ;}"
+        separatorLine="${ show secondary "${separatorLine}" ;}"
 
         # Clear screen to allow for maximum visible lines and prepare
 
@@ -157,7 +184,7 @@ carousel() {
 #
 # Usage: choose <prompt> <answerOne> <answerTwo> <choiceVarName> [timeout seconds]
 # Output: choiceVar set to chosen answer.
-# Exit codes: 0 = success, 124 = timeout, 130 = user cancelled (ESC pressed)
+# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 confirm() {
     local prompt="${1}"
@@ -216,10 +243,10 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/prompt' PRIVA
 _init_rayvn_prompt() {
     require 'rayvn/core' 'rayvn/terminal'
 
-    declare -gr _cancelledMsgINT='cancelled (ctrl-c)'
-    declare -gr _cancelledMsgEmpty='cancelled (no input)'
-    declare -gr _cancelledMsgEsc='cancelled (escape)'
-    declare -gr _cancelledMsgTimeout='cancelled (timeout)'
+    declare -gr _canceledMsgINT='canceled (ctrl-c)'
+    declare -gr _canceledMsgEmpty='canceled (no input)'
+    declare -gr _canceledMsgEsc='canceled (escape)'
+    declare -gr _canceledMsgTimeout='canceled (timeout)'
     declare -gr _canceledOnEmpty=1
     declare -gr _canceledOnTimeout=124
     declare -gr _canceledOnEsc=130
@@ -254,7 +281,7 @@ _preparePrompt() {
     reserveRows "${requiredLines}"
     _promptRow=${_cursorRow}
     _promptCol="${#_plainPrompt} + 4" # exclude hint, include prefix & trailing space
-    (( _overwriteHint)) && printf '\e[%dG' ${_promptCol} # move cursor before hint
+    (( _overwriteHint )) && printf '\e[%dG' ${_promptCol} # move cursor before hint
     _preparePromptTimer
 }
 
@@ -268,7 +295,7 @@ _preparePromptTimer() {
 _hasPromptTimerExpired() {
     if (( ++_timeoutCheckCount >= 10 )); then
         if (( SECONDS >= _timeoutSeconds )); then
-            _finalizePrompt _cancelledMsgTimeout italic warning
+            _finalizePrompt _canceledMsgTimeout italic warning
             debug "${_timeoutSeconds} second timeout for prompt '${_plainPrompt}'"
             return 0
         fi
@@ -292,7 +319,7 @@ _readPromptInput() {
             '' | $'\n' | $'\r') # Enter
                 if [[ -z "${_userInput// /}" ]]; then
                     if [[ ${cancelOnEmpty} == true ]]; then
-                        _finalizePrompt _cancelledMsgEmpty italic warning
+                        _finalizePrompt _canceledMsgEmpty italic warning
                         return ${_canceledOnEmpty}
                     elif [[ ${returnOnEmpty} == true ]]; then
                         return 0
@@ -378,7 +405,7 @@ _readPromptEscapeSequence() {
     else
 
         # No, so ESC
-        _finalizePrompt _cancelledMsgEsc italic warning
+        _finalizePrompt _canceledMsgEsc italic warning
         return 1
     fi
 }
