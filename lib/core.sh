@@ -140,6 +140,10 @@ projectVersion() {
     )
 }
 
+varIsDefined() {
+    declare -p "${1}" &> /dev/null
+}
+
 assertFileExists() {
     [[ -e ${1} ]] || assertionFailed "${1} not found"
 }

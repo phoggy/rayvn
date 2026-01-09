@@ -70,7 +70,7 @@ debugVarIsSet() {
         [[ ${prefix} ]] && prefix="${ show cyan "${prefix} and" ;} "
         (
             _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is set ->" ;} "
-            if _varIsSet ${var}; then
+            if variableIsDefined ${var}; then
                 declare -p ${var}
             else
                 show red "NOT SET!"
@@ -89,7 +89,7 @@ debugVarIsNotSet() {
         (
             local var="${1}"
             _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is not set ->" ;} "
-            if _varIsSet ${var}; then
+            if variableIsDefined ${var}; then
                 show red "=${!var}"
                 stackTrace
                 echo
@@ -210,7 +210,7 @@ _setDebug() {
     (( status )) && debugStatus
 }
 
-_varIsSet() {
+variableIsDefined() {
     declare -p "${1}" &> /dev/null
 }
 
