@@ -203,7 +203,6 @@ configure() {
     declare -g _loadLibraryDepth=0
     declare -gx currentProjectName
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
-    currentProjectName=${currentProjectName//-/_}
     local projects=() split=() project key
 
     # Init tracing if traceOut is set

@@ -71,7 +71,7 @@ configDirPath() {
 
     # Make sure we create the directory if needed. Do it only once by using a global variable
 
-    local configVarName="_${currentProjectName}ConfigDir"
+    local configVarName="_${currentProjectName//-/_}ConfigDir" # convert hyphens to underscores
     local -n configRef="${configVarName}"
     if [[ -z ${configRef:-} ]]; then
         configRef="${configDir}"
