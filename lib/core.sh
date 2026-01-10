@@ -515,6 +515,9 @@ error() {
 }
 
 fail() {
+    if varIsDefined _spinnerPid; then
+        _exitSpin
+    fi
     stackTrace "${@}"
     exit 1
 }
