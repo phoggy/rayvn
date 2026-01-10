@@ -12,11 +12,11 @@ usage() {
     echo "    -v                Print the version and exit."
     echo "    --version         Print the version with release date and exit."
     echo
-    bye "${@}"
+    bye "$@"
 }
 
 main() {
-    init "${@}"
+    init "$@"
     doSomething
     ${libraryCall}
 }
@@ -25,7 +25,7 @@ main() {
 init() {
     declare -r scriptName=${ baseName "${0}"; }
 
-    while (( ${#} > 0 )); do
+    while (( $# )); do
         case "${1}" in
             -h | --help) usage ;;
             -v) projectVersion ${quotedName}; exit 0 ;;
@@ -48,7 +48,6 @@ doSomething() {
 }
 
 source rayvn.up --add ${quotedName} 'rayvn/core' ${qualifiedName} || exit
-
-main "${@}"
+main "$@"
 
 
