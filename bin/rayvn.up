@@ -203,6 +203,7 @@ configure() {
     declare -g _loadLibraryDepth=0
     declare -gx currentProjectName
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+    currentProjectName=${currentProjectName//-/_}
     local projects=() split=() project key
 
     # Init tracing if traceOut is set
@@ -243,8 +244,8 @@ configure() {
     # Add projects, if any
 
     for project in "${projects[@]}"; do
-        project="${project#"${project%%[![:space:]]*}"}"  # remove leading whitespace
-        project="${project%"${project##*[![:space:]]}"}"  # remove trailing whitespace
+        project="${project#"${project%%[![:space:]]*}"}"    # remove leading whitespace
+        project="${project%"${project##*[![:space:]]}"}"    # remove trailing whitespace
         addProject "${project%%=*}" "${project#*=}"
     done
 
@@ -307,7 +308,7 @@ addRoot() {
         _rayvnProjects[${key}]="${projectRoot}"
 
         # Define a ${project}Home var for project self reference
-        [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName}Home"="${projectRoot}"
+        [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName//-/_}Home"="${projectRoot}"
     fi
     return 0
 }
