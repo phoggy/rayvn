@@ -21,7 +21,16 @@ getOAuthService() {
     local -n clientSecretEnvVar="${providerName^^}_CLIENT_SECRET"
     local clientId="${clientIdEnvVar:-}"
     local clientSecret="${clientSecretEnvVar:-}"
-    _ensureClientIdAndSecret "${providerName}"
+
+    # Check keychain if not in environment
+    if [[ -z "${clientId}" ]]; then
+        clientId=${ secretRetrieve "oauth_${providerName}" "client_id"; }
+    fi
+    if [[ -z "${clientSecret}" ]]; then
+        clientSecret=${ secretRetrieve "oauth_${providerName}" "client_secret"; }
+    fi
+
+    _ensureClientIdAndSecret "${providerName}" clientId clientSecret
     local -n authUrl=${authUrlVarName}
     local -n tokenUrl=${tokenUrlVarName}
     local tokenFile="${_tokensDir}/${providerName}-token.json"
@@ -56,7 +65,7 @@ getOAuthAccessToken() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/oauth' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_oauth() {
-    require 'rayvn/core' 'rayvn/prompt'
+    require 'rayvn/core' 'rayvn/prompt' 'rayvn/secrets'
 
     # Prep our config dir
 
@@ -87,21 +96,16 @@ _init_rayvn_oauth() {
 
 _ensureClientIdAndSecret() {
     local providerName="${1}"
-    local serviceVarName="${2}"
+    local -n clientIdRef="${2}"
+    local -n clientSecretRef="${3}"
 
-    if [[ -z "${clientId}" ]]; then
-        request "Enter your ${providerName^} API OAuth client ID" clientId true || bye 'client ID is required'
-        if [[ -v ${serviceVarName} ]]; then
-            local -n serviceRef="${serviceVarName}"
-            serviceRef+=([${_oAuthIdKey}]="${clientId}")
-        fi
+    if [[ -z "${clientIdRef}" ]]; then
+        request "Enter your ${providerName^} API OAuth client ID" clientIdRef true || bye 'client ID is required'
+        secretStore "oauth_${providerName}" "client_id" "${clientIdRef}"
     fi
-    if [[ -z "${clientSecret}" ]]; then
-        requestHidden "Enter your ${providerName^} API OAuth client secret" clientSecret true || bye 'client secret is required'
-        if [[ -v ${serviceVarName} ]]; then
-            local -n serviceRef="${serviceVarName}"
-            serviceRef+=([${_oAuthIdKey}]="${clientId}")
-        fi
+    if [[ -z "${clientSecretRef}" ]]; then
+        requestHidden "Enter your ${providerName^} API OAuth client secret" clientSecretRef true || bye 'client secret is required'
+        secretStore "oauth_${providerName}" "client_secret" "${clientSecretRef}"
     fi
 }
 
@@ -210,8 +214,14 @@ _setupOAuthService() {
         fail "OAuth token exchange failed: ${error}" nl "${errorDescription}"
     fi
 
-    # Save tokens
-    echo "${tokenResponse}" > "${tokenFile}"
+    # Add expiration timestamp to token response
+    local expiresIn
+    expiresIn=${ echo "${tokenResponse}" | jq -r '.expires_in // 0'; }
+    local expirationTimestamp
+    expirationTimestamp=$(( ${ date +%s; } + expiresIn ))
+
+    # Save tokens with expiration timestamp
+    echo "${tokenResponse}" | jq --arg exp "${expirationTimestamp}" '. + {expiration_timestamp: ($exp | tonumber)}' > "${tokenFile}"
     chmod 600 "${tokenFile}"
 
     show success "Setup complete! Tokens saved to ${tokenFile}"
@@ -227,16 +237,24 @@ _getOAuthAccessToken() {
     local tokenFile="${serviceRef[${_oAuthTokenFileKey}]}"
     local accessToken
     local refreshToken
-    local expiresIn
+    local expirationTimestamp
 
     accessToken=${ jq -r '.access_token // empty' "${tokenFile}"; }
     refreshToken=${ jq -r '.refresh_token // empty' "${tokenFile}"; }
+    expirationTimestamp=${ jq -r '.expiration_timestamp // 0' "${tokenFile}"; }
 
-    # For simplicity, try to refresh the token if we have a refresh token
-    # A more robust solution would check expiration time  TODO update to check expiration time
+    # Check if token is expired
+    local currentTimestamp
+    currentTimestamp=${ date +%s; }
+    local isExpired=false
 
-    if [[ -n "${refreshToken}" ]]; then
-        _ensureClientIdAndSecret "${providerName}" service
+    if [[ ${expirationTimestamp} -eq 0 ]] || [[ ${currentTimestamp} -ge ${expirationTimestamp} ]]; then
+        isExpired=true
+    fi
+
+    # Only refresh if token is expired and we have a refresh token
+    if [[ "${isExpired}" == true ]] && [[ -n "${refreshToken}" ]]; then
+        _ensureClientIdAndSecret "${providerName}" clientId clientSecret
 
         local tokenResponse
         tokenResponse=${ curl -s -X POST "${_googleTokenUrl}" \
@@ -251,8 +269,17 @@ _getOAuthAccessToken() {
 
         if [[ -n "${newAccessToken}" ]]; then
             accessToken="${newAccessToken}"
-            # Update token file
-            jq --arg at "${newAccessToken}" '.access_token = $at' "${tokenFile}" > "${tokenFile}.tmp"
+
+            # Get new expiration time
+            local expiresIn
+            expiresIn=${ echo "${tokenResponse}" | jq -r '.expires_in // 0'; }
+            local newExpirationTimestamp
+            newExpirationTimestamp=$(( ${ date +%s; } + expiresIn ))
+
+            # Update token file with new access token and expiration
+            jq --arg at "${newAccessToken}" --arg exp "${newExpirationTimestamp}" \
+               '.access_token = $at | .expiration_timestamp = ($exp | tonumber)' \
+               "${tokenFile}" > "${tokenFile}.tmp"
             mv "${tokenFile}.tmp" "${tokenFile}"
         fi
     fi
