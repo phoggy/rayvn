@@ -144,6 +144,10 @@ varIsDefined() {
     declare -p "${1}" &> /dev/null
 }
 
+assertVarDefined() {
+    varIsDefined "${1}" || assertionFailed "var ${1} not defined"
+}
+
 assertFileExists() {
     [[ -e ${1} ]] || assertionFailed "${1} not found"
 }
@@ -972,7 +976,7 @@ _init_noColors() {
 _restoreTerminal() {
     if (( isInteractive )); then
         stty sane
-        printf '\e[0K\e[?25h' # Clear to end of line and show cursor in case sane does not
+        printf '\e[0K\e[?25h' > ${terminal} # Clear to end of line and show cursor in case sane does not
     fi
 }
 
