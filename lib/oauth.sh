@@ -6,8 +6,9 @@
 getOAuthService() {
     local providerName="${1,,}" # e.g. 'google'
     local resultMapVarName="${2}"
-    local clientId="${3:-}" # optional: client ID from caller
-    local clientSecret="${4:-}" # optional: client secret from caller
+    local serviceScope="${3}"
+    local clientId="${4:-}" # optional: client ID from caller
+    local clientSecret="${5:-}" # optional: client secret from caller
 
     # First, make sure we know about this provider
 
@@ -31,17 +32,16 @@ getOAuthService() {
     _ensureClientIdAndSecret "${providerName}" clientId clientSecret
     local -n authUrl=${authUrlVarName}
     local -n tokenUrl=${tokenUrlVarName}
-    local tokenFile="${_tokensDir}/${providerName}-token.json"
 
     # Build the service map
 
     local -A _oAuthServiceMap=() # named to avoid collisions with caller vars
     _oAuthServiceMap+=([${_oAuthProviderKey}]="${providerName}")
+    _oAuthServiceMap+=([${_oAuthScopeKey}]="${serviceScope}")
     _oAuthServiceMap+=([${_oAuthIdKey}]="${clientId}")
     _oAuthServiceMap+=([${_oAuthSecretKey}]="${clientSecret}")
     _oAuthServiceMap+=([${_oAuthUrlKey}]="${authUrl}")
     _oAuthServiceMap+=([${_oAuthTokenKey}]="${tokenUrl}")
-    _oAuthServiceMap+=([${_oAuthTokenFileKey}]="${tokenFile}")
 
     # Copy to the callers map variable
 
@@ -65,24 +65,17 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/oauth' PRIVAT
 _init_rayvn_oauth() {
     require 'rayvn/core' 'rayvn/prompt' 'rayvn/secrets'
 
-    # Prep our config dir
-
-    local configDir
-    configDir="${ configDirPath '.tokens'; }"
-    ensureDir "${configDir}"
-    declare -grx _tokensDir="${configDir}"
-
     # Define our service keys so we can validate
 
     declare -grx _oAuthProviderKey='providerName'
+    declare -grx _oAuthScopeKey='scope'
     declare -grx _oAuthIdKey='clientId'
     declare -grx _oAuthSecretKey='clientSecret'
     declare -grx _oAuthUrlKey='authUrl'
     declare -grx _oAuthTokenKey='tokenUrl'
-    declare -grx _oAuthTokenFileKey='tokenFile'
 
-    declare -garx _oAuthServiceKeys=("${_oAuthProviderKey}" "${_oAuthIdKey}" "${_oAuthSecretKey}" \
-                                     "${_oAuthUrlKey}" "${_oAuthTokenKey}" "${_oAuthTokenFileKey}" )
+    declare -garx _oAuthServiceKeys=("${_oAuthProviderKey}" "${_oAuthScopeKey}" "${_oAuthIdKey}" "${_oAuthSecretKey}" \
+                                     "${_oAuthUrlKey}" "${_oAuthTokenKey}" )
 
     # Google provider constants
 
@@ -94,25 +87,27 @@ _init_rayvn_oauth() {
 
 _ensureClientIdAndSecret() {
     local providerName="${1}"
-    local -n clientIdRef="${2}"
-    local -n clientSecretRef="${3}"
+    local clientIdVarName="${2}"
+    local clientSecretVarName="${3}"
+    local -n clientIdRef="${clientIdVarName}"
+    local -n clientSecretRef="${clientSecretVarName}"
 
-    local clientIdFromKeychain=false
-    local clientSecretFromKeychain=false
+    local clientIdFromKeychain=0
+    local clientSecretFromKeychain=0
 
     # Try to get client ID from keychain if not already provided
     if [[ -z "${clientIdRef}" ]]; then
-        clientIdRef=${ secretRetrieve "oauth_${providerName}" "client_id"; }
+        clientIdRef=${ _retrieveSecret 'client_id'; }
         if [[ -n "${clientIdRef}" ]]; then
-            clientIdFromKeychain=true
+            clientIdFromKeychain=1
         fi
     fi
 
     # Try to get client secret from keychain if not already provided
     if [[ -z "${clientSecretRef}" ]]; then
-        clientSecretRef=${ secretRetrieve "oauth_${providerName}" "client_secret"; }
+        clientSecretRef=${ _retrieveSecret 'client_secret'; }
         if [[ -n "${clientSecretRef}" ]]; then
-            clientSecretFromKeychain=true
+            clientSecretFromKeychain=1
         fi
     fi
 
@@ -126,12 +121,12 @@ _ensureClientIdAndSecret() {
         requestHidden "Enter your ${providerName^} API OAuth client secret" clientSecretRef true || bye 'client secret is required'
     fi
 
-    # Store credentials in keychain if not already there
-    if [[ "${clientIdFromKeychain}" == false ]]; then
-        secretStore "oauth_${providerName}" "client_id" "${clientIdRef}"
+    # Store credentials in keychain if we did not already
+    if ((  ! clientIdFromKeychain )); then
+        _storeSecret 'client_id' "${clientIdVarName}"
     fi
-    if [[ "${clientSecretFromKeychain}" == false ]]; then
-        secretStore "oauth_${providerName}" "client_secret" "${clientSecretRef}"
+    if (( ! clientSecretFromKeychain )); then
+        _storeSecret 'client_secret' "${clientSecretVarName}"
     fi
 }
 
@@ -146,28 +141,53 @@ _assertValidOAuthService() {
     done
 }
 
+_storeSecret() {
+    local key="${1}"
+    local -n valueRef="${2}"
+    secretStore "${ _serviceKey; }" "${key}" "${valueRef}"
+}
+
+_retrieveSecret() {
+    local key="${1}"
+    secretRetrieve "${ _serviceKey; }" "${key}"
+}
+
+_deleteSecret() {
+    local key="${1}"
+    secretDelete "${ _serviceKey; }" "${key}"
+}
+
+_serviceKey() {
+    [[ -n ${providerName} ]] || fail "providerName var not in scope" > ${terminal}
+    echo "oauth_${providerName}"
+}
+
 # Capture OAuth authorization code via local HTTP server
 _captureOAuthCode() {
-    local authCode=""
+    local port="${1}"
+    local -n authCodeRef="${2}"
 
     # Create a named pipe for communication
     local pipePath
-    pipePath=${ tempDirPath "oauth_pipe"; }
+    pipePath=${ makeTempFile "oauth_pipe_XXXXXX"; }
+    rm -f "${pipePath}"  # Remove the regular file created by makeTempFile
     mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
-
+debugVars pipePath
     # Start a simple HTTP server using netcat or bash
-    {
+    (
         # Try to use nc (netcat) first for better compatibility
         if command -v nc > /dev/null 2>&1; then
             while true; do
                 # Read HTTP request   TODO: uh, what? How is this 'reading' an http request?
                 local request
-                request=${ echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Authorization Successful</h1><p>You can close this window and return to the terminal.</p></body></html>" | nc -l "${redirectPort}" 2> /dev/null; }
+                request=${ echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Authorization Successful</h1>
+                <p>You can close this window and return to the terminal.</p></body></html>" | nc -l "${port}" 2> /dev/null; }
 
                 # Extract code from request
                 if [[ "${request}" =~ code=([^&[:space:]]+) ]]; then
-                    authCode="${BASH_REMATCH[1]}"
+                    local authCode="${BASH_REMATCH[1]}"
                     echo "${authCode}" > "${pipePath}"
+debugVars authCode
                     break
                 fi
             done
@@ -175,46 +195,50 @@ _captureOAuthCode() {
             # Fallback: use bash with /dev/tcp (requires bash with network support)
             fail "netcat (nc) is required but not found. Please install netcat."
         fi
-    } &
+    ) &
 
     local serverPid=$!
 
     # Read the auth code from the pipe (blocks until server writes it)
-    authCode=${ cat "${pipePath}"; }
+    authCodeRef=${ cat "${pipePath}"; }
 
     # Clean up
     rm -f "${pipePath}"
     kill "${serverPid}" 2> /dev/null || true
-
-    echo "${authCode}"
 }
 
 # Perform OAuth setup
 _setupOAuthService() {
     local serviceVarName="${1}"
     local -n serviceRef="${serviceVarName}"
-    local scope="${2}"
     local authUrl="${serviceRef[${_oAuthUrlKey}]}"
     local tokenUrl="${serviceRef[${_oAuthTokenKey}]}"
     local clientId="${serviceRef[${_oAuthIdKey}]}"
     local clientSecret="${serviceRef[${_oAuthSecretKey}]}"
-    local tokenFile="${serviceRef[${_oAuthTokenFileKey}]}"
+    local authScope="${serviceRef[${_oAuthScopeKey}]}"
 
+    # Delete all secrets for this provider
+
+    local providerName="${serviceRef[${_oAuthProviderKey}]}" # Required for secrets
+    _deleteSecret 'token'
+    _deleteSecret 'client_id'
+    _deleteSecret 'client_secret'
+
+    # Generate authorization URL
     local redirectPort
     redirectPort=${ _findFreePort; }
     local redirectUri="http://localhost:${redirectPort}"
+    local authUrlWithParams="${authUrl}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${authScope}&access_type=offline"
 
-    # Generate authorization URL
-    local authUrlWithParams="${authUrl}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline"
-
+    debugVars authScope redirectPort
     show "Starting local OAuth callback server on port" bold "${redirectPort}"
     show "Opening browser for authorization..."
-    open "${authUrlWithParams}"
+    open "${authUrlWithParams}"  # TODO linux?
 
     # Capture the authorization code from the callback
     local authCode
     show "Waiting for authorization callback..."
-    authCode=${ _captureOAuthCode "${redirectPort}"; }
+    _captureOAuthCode "${redirectPort}" authCode
 
     if [[ -z "${authCode}" ]]; then
         fail "Failed to capture authorization code"
@@ -246,11 +270,16 @@ _setupOAuthService() {
     local expirationTimestamp
     expirationTimestamp=$(( ${ date +%s; } + expiresIn ))
 
-    # Save tokens with expiration timestamp
-    echo "${tokenResponse}" | jq --arg exp "${expirationTimestamp}" '. + {expiration_timestamp: ($exp | tonumber)}' > "${tokenFile}"
-    chmod 600 "${tokenFile}"
+    # Save token with expiration timestamp (compress to single line for keychain storage)
+    local token
+    token=${ echo "${tokenResponse}" | jq -c --arg exp "${expirationTimestamp}" '. + {expiration_timestamp: ($exp | tonumber)}'; }
+    _storeSecret 'token' token
 
-    show success "Setup complete! Tokens saved to ${tokenFile}"
+    # Re-store credentials (they were deleted at the start of setup)
+    _storeSecret 'client_id' clientId
+    _storeSecret 'client_secret' clientSecret
+
+    show success "Setup complete!"
 }
 
 # Get valid access token (refresh if needed)
@@ -260,14 +289,14 @@ _getOAuthAccessToken() {
     local providerName="${serviceRef[${_oAuthProviderKey}]}"
     local clientId="${serviceRef[${_oAuthIdKey}]}"
     local clientSecret="${serviceRef[${_oAuthSecretKey}]}"
-    local tokenFile="${serviceRef[${_oAuthTokenFileKey}]}"
+    local token
     local accessToken
     local refreshToken
     local expirationTimestamp
-
-    accessToken=${ jq -r '.access_token // empty' "${tokenFile}"; }
-    refreshToken=${ jq -r '.refresh_token // empty' "${tokenFile}"; }
-    expirationTimestamp=${ jq -r '.expiration_timestamp // 0' "${tokenFile}"; }
+    token=${ _retrieveSecret token; }
+    accessToken=${ echo "${token}" | jq -r '.access_token // empty'; }
+    refreshToken=${ echo "${token}" | jq -r '.refresh_token // empty'; }
+    expirationTimestamp=${ echo "${token}" | jq -r '.expiration_timestamp // 0'; }
 
     # Check if token is expired
     local currentTimestamp
@@ -302,11 +331,10 @@ _getOAuthAccessToken() {
             local newExpirationTimestamp
             newExpirationTimestamp=$(( ${ date +%s; } + expiresIn ))
 
-            # Update token file with new access token and expiration
-            jq --arg at "${newAccessToken}" --arg exp "${newExpirationTimestamp}" \
-               '.access_token = $at | .expiration_timestamp = ($exp | tonumber)' \
-               "${tokenFile}" > "${tokenFile}.tmp"
-            mv "${tokenFile}.tmp" "${tokenFile}"
+            # Update token with new access token and expiration (compress to single line)
+            token=${ echo "${token}" | jq -c --arg at "${newAccessToken}" --arg exp "${newExpirationTimestamp}" \
+               '.access_token = $at | .expiration_timestamp = ($exp | tonumber)'; }
+            _storeSecret 'token' token
         fi
     fi
 
