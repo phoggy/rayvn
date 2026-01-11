@@ -83,7 +83,7 @@ _secretStoreMacOS() {
         -a "${account}" \
         -s "${service}" \
         -w "${secret}" \
-        -U || fail "Failed to store secret in macOS keychain"
+        -U > /dev/null 2>&1 || fail "Failed to store secret in macOS keychain"
 }
 
 _secretRetrieveMacOS() {
@@ -106,7 +106,7 @@ _secretDeleteMacOS() {
     security delete-generic-password \
         -a "${account}" \
         -s "${service}" \
-        2> /dev/null || true
+        > /dev/null 2>&1 || true
 }
 
 # Linux secret-tool operations using libsecret

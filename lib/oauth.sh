@@ -6,6 +6,8 @@
 getOAuthService() {
     local providerName="${1,,}" # e.g. 'google'
     local resultMapVarName="${2}"
+    local clientId="${3:-}" # optional: client ID from caller
+    local clientSecret="${4:-}" # optional: client secret from caller
 
     # First, make sure we know about this provider
 
@@ -15,21 +17,17 @@ getOAuthService() {
         fail "OAuth service '${providerName}' not supported"
     fi
 
-    # Collect the variables we need
-
-    local -n clientIdEnvVar="${providerName^^}_CLIENT_ID"
-    local -n clientSecretEnvVar="${providerName^^}_CLIENT_SECRET"
-    local clientId="${clientIdEnvVar:-}"
-    local clientSecret="${clientSecretEnvVar:-}"
-
-    # Check keychain if not in environment
+    # If not provided by caller, try environment variables
     if [[ -z "${clientId}" ]]; then
-        clientId=${ secretRetrieve "oauth_${providerName}" "client_id"; }
+        local -n clientIdEnvVar="${providerName^^}_CLIENT_ID"
+        clientId="${clientIdEnvVar:-}"
     fi
     if [[ -z "${clientSecret}" ]]; then
-        clientSecret=${ secretRetrieve "oauth_${providerName}" "client_secret"; }
+        local -n clientSecretEnvVar="${providerName^^}_CLIENT_SECRET"
+        clientSecret="${clientSecretEnvVar:-}"
     fi
 
+    # Ensure we have credentials (checks provided → env → keychain → prompt)
     _ensureClientIdAndSecret "${providerName}" clientId clientSecret
     local -n authUrl=${authUrlVarName}
     local -n tokenUrl=${tokenUrlVarName}
@@ -99,12 +97,40 @@ _ensureClientIdAndSecret() {
     local -n clientIdRef="${2}"
     local -n clientSecretRef="${3}"
 
+    local clientIdFromKeychain=false
+    local clientSecretFromKeychain=false
+
+    # Try to get client ID from keychain if not already provided
+    if [[ -z "${clientIdRef}" ]]; then
+        clientIdRef=${ secretRetrieve "oauth_${providerName}" "client_id"; }
+        if [[ -n "${clientIdRef}" ]]; then
+            clientIdFromKeychain=true
+        fi
+    fi
+
+    # Try to get client secret from keychain if not already provided
+    if [[ -z "${clientSecretRef}" ]]; then
+        clientSecretRef=${ secretRetrieve "oauth_${providerName}" "client_secret"; }
+        if [[ -n "${clientSecretRef}" ]]; then
+            clientSecretFromKeychain=true
+        fi
+    fi
+
+    # Prompt for client ID if still not available
     if [[ -z "${clientIdRef}" ]]; then
         request "Enter your ${providerName^} API OAuth client ID" clientIdRef true || bye 'client ID is required'
-        secretStore "oauth_${providerName}" "client_id" "${clientIdRef}"
     fi
+
+    # Prompt for client secret if still not available
     if [[ -z "${clientSecretRef}" ]]; then
         requestHidden "Enter your ${providerName^} API OAuth client secret" clientSecretRef true || bye 'client secret is required'
+    fi
+
+    # Store credentials in keychain if not already there
+    if [[ "${clientIdFromKeychain}" == false ]]; then
+        secretStore "oauth_${providerName}" "client_id" "${clientIdRef}"
+    fi
+    if [[ "${clientSecretFromKeychain}" == false ]]; then
         secretStore "oauth_${providerName}" "client_secret" "${clientSecretRef}"
     fi
 }
