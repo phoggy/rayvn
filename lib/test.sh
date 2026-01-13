@@ -144,17 +144,13 @@ assertHashKeyIsDefined() {
     local keyName="${2}"
 
     assertHashTableIsDefined "${varName}"
-
-    # TODO: without the quotes araone varName, the line below screws up function name syntax color (white instead of blue), but executes fine
-    # BashSupport author is aware and suggested quote fix, so the quotes might be removable in the future.
-
-    [[ -v "${varName}"[${keyName}] ]] || assertionFailed "${varName}[${keyName}] is NOT defined"
+    [[ -v ${varName}[${keyName}] ]] || assertionFailed "${varName}[${keyName}] is NOT defined"
 }
 
 assertHashKeyIsNotDefined() {
     local varName="${1}"
     local keyName="${2}"
-    [[ -v "${varName}"[${keyName}] ]] && assertionFailed "${varName}[${keyName}] is defined"
+    [[ -v ${varName}[${keyName}] ]] && assertionFailed "${varName}[${keyName}] is defined"
 }
 
 assertHashValue() {
