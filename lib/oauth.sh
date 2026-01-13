@@ -172,22 +172,20 @@ _captureOAuthCode() {
     pipePath=${ makeTempFile "oauth_pipe_XXXXXX"; }
     rm -f "${pipePath}"  # Remove the regular file created by makeTempFile
     mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
-debugVars pipePath
+
     # Start a simple HTTP server using netcat or bash
     (
         # Try to use nc (netcat) first for better compatibility
         if command -v nc > /dev/null 2>&1; then
             while true; do
-                # Read HTTP request   TODO: uh, what? How is this 'reading' an http request?
+                # Read HTTP request
                 local request
-                request=${ echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>Authorization Successful</h1>
-                <p>You can close this window and return to the terminal.</p></body></html>" | nc -l "${port}" 2> /dev/null; }
+                request=${ (echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"; _oAuthSuccessHtml) | nc -l "${port}" 2> /dev/null; }
 
                 # Extract code from request
                 if [[ "${request}" =~ code=([^&[:space:]]+) ]]; then
                     local authCode="${BASH_REMATCH[1]}"
                     echo "${authCode}" > "${pipePath}"
-debugVars authCode
                     break
                 fi
             done
@@ -209,6 +207,7 @@ debugVars authCode
 
 # Perform OAuth setup
 _setupOAuthService() {
+
     local serviceVarName="${1}"
     local -n serviceRef="${serviceVarName}"
     local authUrl="${serviceRef[${_oAuthUrlKey}]}"
@@ -230,21 +229,20 @@ _setupOAuthService() {
     local redirectUri="http://localhost:${redirectPort}"
     local authUrlWithParams="${authUrl}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${authScope}&access_type=offline"
 
-    debugVars authScope redirectPort
-    show "Starting local OAuth callback server on port" bold "${redirectPort}"
+    debug "Starting local OAuth callback server on port ${redirectPort}"
     show "Opening browser for authorization..."
-    open "${authUrlWithParams}"  # TODO linux?
+    openUrl "${authUrlWithParams}"
 
     # Capture the authorization code from the callback
     local authCode
-    show "Waiting for authorization callback..."
+    show -n "Waiting for authorization callback"
     _captureOAuthCode "${redirectPort}" authCode
 
     if [[ -z "${authCode}" ]]; then
         fail "Failed to capture authorization code"
     fi
 
-    show success "Authorization code received"
+    echo " ${_greenCheckMark}"
 
     # Exchange authorization code for tokens
     local tokenResponse
@@ -358,4 +356,65 @@ _findFreePort() {
 
     # Fallback if no free port found in range
     fail "Could not find a free port in range ${startPort}-${maxPort}"
+}
+
+_oAuthSuccessHtml() {
+    cat <<'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Authorization Successful</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 48px 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 440px;
+            width: 100%;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        h1 {
+            color: #1a202c;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        p {
+            color: #718096;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">✓</div>
+        <h1>Authorization Successful</h1>
+        <p>You can close this window and return to the terminal.</p>
+    </div>
+</body>
+</html>
+EOF
 }

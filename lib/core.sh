@@ -268,6 +268,26 @@ secureEraseVars() {
     done
 }
 
+openUrl() {
+    local url="${1}"
+
+    case "${OSTYPE}" in
+        darwin*)
+            open "${url}" || fail "failed to open URL"
+            ;;
+        linux*)
+            if command -v xdg-open > /dev/null 2>&1; then
+                xdg-open "${url}" || fail "failed to open URL"
+            else
+                fail "xdg-open not found - install xdg-utils package"
+            fi
+            ;;
+        *)
+            fail "unsupported operating system: ${OSTYPE}"
+            ;;
+    esac
+}
+
 executeWithCleanVars() {
     env "${_unsetChildVars[@]}" "${@}"
 }
