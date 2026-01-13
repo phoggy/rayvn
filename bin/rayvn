@@ -17,7 +17,7 @@ usage() {
     echo
     echo "    test              Run tests."
     echo "    theme             Select theme."
-    echo "    new TYPE NAME     Create a new project/script/library with the specified NAME."
+    echo "    new TYPE NAME     Create a new project/script/library/test with the specified NAME."
     echo "    libraries         List libraries."
     echo "    functions         List public functions."
     echo "    dependencies      Assert that dependencies are satisfied."
@@ -182,9 +182,9 @@ create() {
         local type=${args[0]}
         local name=${args[1]}
         local command=
-        [[ -n "${type}" ]] || bye "one of 'project', 'script' or 'library' required"
+        [[ -n "${type}" ]] || bye "one of 'project', 'script' 'library' or 'test' required"
         case ${type} in
-            project | script | library) ;;
+            project | script | library | test) ;;
             *) bye "unknown type: ${type}"
         esac
         [[ -n "${name}" ]] || bye "name required"
@@ -196,6 +196,7 @@ create() {
             project) createProject;;
             script) createScript ;;
             library) createLibrary ;;
+            test) createTest ;;
         esac
     fi
 }
@@ -529,7 +530,7 @@ noTests() {
 
 skipTest() {
     local message="${1}"
-    local padLen=$(( resultColumn - ${#project} - ${#testName} - 6 ))
+    local padLen=$(( resultColumn - ${#project} - ${#testName} - 5 ))
     local padding="${ padSpaces ${padLen}; }"
     show bold "${project}" plain "test" primary "${testName}" plain "${padding}" dim warning '⨯' plain dim "${message}"
 }
@@ -658,9 +659,9 @@ createProject() {
     local libraryName="example"
     local libraryNameInitialCap="Example"
 
-    substituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
-    substituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
-    substituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
+    copyFileAndSubstituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
+    copyFileAndSubstituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
+    copyFileAndSubstituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${projectName}" || fail
 
     # Add and commit
@@ -696,7 +697,7 @@ _createAndPushFormula() {
     # vars set in caller
     local projectNameInitialCap="${projectName^}"
 
-    substituteVars "${formulaTemplate}" "${formulaFile}" projectNameInitialCap repoUrl projectName || fail
+    copyFileAndSubstituteVars "${formulaTemplate}" "${formulaFile}" projectNameInitialCap repoUrl projectName || fail
     commitAndPushFormulaToRayvnCentral "${projectName}" "claim project name '${projectName}'"
 }
 
@@ -720,7 +721,7 @@ createScript() {
     local quotedName="'${projectName}'"
     local qualifiedName=
     local libraryCall='# ...'
-    substituteVars "${templateFile}" "${scriptFile}" quotedName qualifiedName libraryCall || fail
+    copyFileAndSubstituteVars "${templateFile}" "${scriptFile}" quotedName qualifiedName libraryCall || fail
 
     chmod +x "${scriptFile}" || fail
     git add "${scriptFile}" || fail
@@ -744,11 +745,29 @@ createLibrary() {
     local libraryName="${name}"
     local libraryNameInitialCap="${name^}"
 
-    substituteVars "${templateFile}" "${libraryFile}" projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
+    copyFileAndSubstituteVars "${templateFile}" "${libraryFile}" projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
 
     git add "${libraryFile}" || fail
 
     show "Created" blue "lib/${name}.sh"
+}
+
+createTest() {
+    local projectRoot projectName
+    local templateFile="${templateDir}/test-template.sh"
+    getProjectRoot projectRoot projectName
+
+    local testDir="${projectRoot}/test"
+    local testFileName="test-${name}.sh"
+    local testFile="${testDir}/${testFileName}"
+    ensureDir "${testDir}"
+    assertFileDoesNotExist "${testFile}"
+
+    cp "${templateFile}" "${testFile}"|| fail
+    chmod +x "${testFile}" || fail
+    git add "${testFile}" || fail
+
+    show "Created" blue "test/${testFileName}"
 }
 
 getProjectRoot() {
@@ -764,7 +783,7 @@ getProjectRoot() {
     projectNameRef="${_projectName}"
 }
 
-substituteVars() {
+copyFileAndSubstituteVars() {
     local inputFile=${1}
     local outputFile=${2}
     local varList=("${@:3}")
