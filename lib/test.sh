@@ -23,6 +23,10 @@ assertEqual() {
     [[ ${1} == "${2}" ]] || assertionFailed "${msg}"
 }
 
+assertEqualIgnoreCase() {
+    assertEqual "${1,,}" "${2,,}" "${3:-"assert ${1} == ${2} ignore case failed"}"
+}
+
 assertNotInPath() {
     local executable="${1}"
     local path="${ command -v ${executable}; }"
