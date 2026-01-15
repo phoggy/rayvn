@@ -18,7 +18,7 @@ request() {
     _prepareHint '  ' 'type your answer here' 1
     _preparePrompt "${prompt}" ${timeout} 4
     if _readPromptInput ${cancelOnEmpty}; then
-        resultRef="${_userInput}"
+        resultRef="${_promptInput}"
         return 0
     else
         return $?
@@ -216,7 +216,7 @@ confirm() {
     while true; do
         if _readPromptInput false ${returnOnEmpty}; then
 
-            local result="${_userInput,,}"
+            local result="${_promptInput,,}"
             if [[ ${result} == "${answerOne,,}" || ${result} == "${answerTwo,,}" ]]; then
                 resultRef="${result}"
                 return 0
@@ -262,7 +262,27 @@ _init_rayvn_prompt() {
     declare -g _overwriteHint
     declare -g _timeoutSeconds
     declare -gi _timeoutCheckCount
-    declare -g _userInput
+    declare -g _promptInput
+    declare -g _echoPromptInput
+
+    declare -g _cancelOnEmpty
+    declare -g _returnOnEmpty
+
+    declare -g _upKeyHandler
+    declare -g _upKeyFunction
+
+    declare -g _downKeyHandler
+    declare -g _downKeyFunction
+
+    declare -g _leftKeyHandler
+    declare -g _leftKeyFunction
+
+    declare -g _rightKeyHandler
+    declare -g _rightKeyFunction
+
+    declare -g _collectInput
+
+    declare -g _finalizeFunction
 }
 
 _prepareHint() {
@@ -288,7 +308,7 @@ _preparePrompt() {
 _preparePromptTimer() {
     _timeoutSeconds=${timeout}
     _timeoutCheckCount=0
-    _userInput=
+    _promptInput=
     SECONDS=0 # Reset bash seconds counter
 }
 
@@ -309,7 +329,7 @@ _readPromptInput() {
     local returnOnEmpty="${2:-''}"
     local key esc
     stty cbreak -echo # turn off buffering and input echo
-    _userInput=
+    _promptInput=
     cursorShow
 
     while true; do
@@ -317,7 +337,7 @@ _readPromptInput() {
             (( _overwriteHint )) && _clearHint
             case "${key}" in
             '' | $'\n' | $'\r') # Enter
-                if [[ -z "${_userInput// /}" ]]; then
+                if [[ -z "${_promptInput// /}" ]]; then
                     if [[ ${cancelOnEmpty} == true ]]; then
                         _finalizePrompt _canceledMsgEmpty italic warning
                         return ${_canceledOnEmpty}
@@ -326,13 +346,13 @@ _readPromptInput() {
                     fi
                     # ignore
                 else
-                    _finalizePrompt _userInput primary
+                    _finalizePrompt _promptInput primary
                     return 0
                 fi
                 ;;
             $'\177' | $'\b') # Backspace
-                if [[ -n "${_userInput}" ]]; then
-                    _userInput="${_userInput%?}"
+                if [[ -n "${_promptInput}" ]]; then
+                    _promptInput="${_promptInput%?}"
                     printf '\b \b'
                 fi
                 ;;
@@ -341,7 +361,7 @@ _readPromptInput() {
                 ;;
             *)
                 if [[ "${key}" =~ [[:print:]] ]]; then
-                    _userInput+="${key}"
+                    _promptInput+="${key}"
                     printf '%s' "${key}"
                 fi
                 ;;
@@ -430,9 +450,10 @@ _select() {
     local selected
     local key i
 
+    _configureReadPrompt --up '_selectUp' --down '_selectDown' --finalize '_selectFinalize' --returnOnEmpty
     ${prepareFunction}
-    _selectChoice || return $?
-    _selectFinalize 0
+    ${paintFunction}
+    _readPrompt || return $?
     return 0
 }
 
@@ -454,45 +475,6 @@ _selectDown() {
     ${paintFunction}
 }
 
-_selectChoice() {
-    ${paintFunction}
-    stty cbreak -echo
-    while true; do
-        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-            case "${key}" in
-            '' | $'\n' | $'\r')
-
-            # Enter
-                selected="${choices[${currentChoice}]}"
-                choiceIndexRef=${currentChoice}
-                break ;;
-
-            $'\e') # Escape, maybe a sequence
-
-                if _readPromptEscapeSequence key; then
-                    case "${key}" in
-                    'u') _selectUp ;;   # up arrow
-                    'd') _selectDown ;; # down arrow
-                    *) ;;        # ignore others
-                    esac
-                else
-                    _selectFinalize 1 # ESC
-                    return ${_canceledOnEsc}
-                fi
-                ;;
-
-            *) # ignore anything else
-                ;;
-            esac
-        fi
-
-        if _hasPromptTimerExpired; then
-            _selectFinalize 1
-            return ${_canceledOnTimeout}
-        fi
-    done
-}
-
 _selectFinalize() {
     local failed="${1}"
 
@@ -506,6 +488,106 @@ _selectFinalize() {
 
     # Finalize the prompt if success (already done if failed).
 
-    (( ! failed )) && _finalizePrompt selected primary
+    if (( ! failed )); then
+        selected="${choices[${currentChoice}]}"
+        choiceIndexRef=${currentChoice}
+        _finalizePrompt selected primary
+    fi
+}
+
+_configureReadPrompt() {
+
+    # Clear all then set from arguments
+
+    _echoPromptInput=0
+    _cancelOnEmpty=0
+    _returnOnEmpty=0
+    _upKeyHandler=0
+    _upKeyFunction=
+    _downKeyHandler=0
+    _downKeyFunction=
+    _leftKeyHandler=0
+    _leftKeyFunction=
+    _rightKeyHandler=0
+    _rightKeyFunction=
+    _collectInput=0
+    _finalizeFunction=
+    _promptInput=
+
+    while (( $# )); do
+        case "$1" in
+            --echo) _echoPromptInput=1 ;;
+            --cancelOnEmpty) _cancelOnEmpty=1 ;;
+            --returnOnEmpty) _returnOnEmpty=1 ;;
+            --collect) _collectInput=1 ;;
+            --up) shift; _upKeyHandler=1; _upKeyFunction="$1" ;;
+            --down) shift; _downKeyHandler=1; _downKeyFunction="$1" ;;
+            --left) shift; _leftKeyHandler=1; _leftKeyFunction="$1" ;;
+            --right) shift; _rightKeyHandler=1; _rightKeyFunction="$1" ;;
+            --finalize) shift; _finalizeFunction="$1" ;;
+            *) fail "Unknown configuration option: $1" ;;
+        esac
+        shift
+    done
+
+    [[ -n "${_finalizeFunction}" ]] || fail "finalize function name is required"
+}
+
+_readPrompt() {
+    stty cbreak -echo
+    while true; do
+        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+            (( _overwriteHint )) && _clearHint
+
+            case "${key}" in
+                '' | $'\n' | $'\r') # Enter
+                    if [[ -z "${_promptInput// /}" ]]; then
+                        if (( _cancelOnEmpty )); then
+                            _finalizePrompt _canceledMsgEmpty italic warning
+                            return ${_canceledOnEmpty}
+                        elif (( _returnOnEmpty )); then
+                            ${_finalizeFunction} 0
+                            return 0
+                        fi
+                    else
+                        ${_finalizeFunction} 0
+                        return 0
+                    fi
+                    ;;
+
+            $'\e') # Escape, maybe a sequence
+
+                if _readPromptEscapeSequence key; then
+                    case "${key}" in
+                        'u') (( _upKeyHandler )) && ${_upKeyFunction} ;;       # up arrow
+                        'd') (( _downKeyHandler )) && ${_downKeyFunction} ;;   # down arrow
+                        'l') (( _leftKeyHandler )) && ${_leftKeyFunction} ;;   # left arrow
+                        'r') (( _rightKeyHandler )) && ${_rightKeyFunction} ;; # right arrow
+                        *) ;; # ignore others
+                    esac
+                else
+                    ${_finalizeFunction} 1 # ESC
+                    return ${_canceledOnEsc}
+                fi
+                ;;
+
+            $'\177' | $'\b') # Backspace
+                if (( _collectInput )) && [[ -n "${_promptInput}" ]]; then
+                    _promptInput="${_promptInput%?}"
+                    (( _echoPromptInput )) && printf '\b \b'
+                fi
+                ;;
+
+            *)
+                if (( _collectInput )) && [[ "${key}" =~ [[:print:]] ]]; then
+                    _promptInput+="${key}"
+                    (( _echoPromptInput )) && printf '%s' "${key}"
+                fi
+                ;;
+            esac
+        fi
+
+        _hasPromptTimerExpired && return ${_canceledOnTimeout}
+    done
 }
 
