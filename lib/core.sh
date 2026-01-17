@@ -605,6 +605,7 @@ debugEnabled() { return 1; }
 debugDir() { :; }
 debugStatus() { echo 'debug disabled'; }
 debugBinary() { :; }
+debugVar() { :; }
 debugVars() { :; }
 debugVarIsSet() { :; }
 debugVarIsNotSet() { :; }

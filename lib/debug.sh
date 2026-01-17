@@ -55,10 +55,18 @@ debugBinary() {
     fi
 }
 
+debugVar() {
+    debugVars "${@}"
+}
+
 debugVars() {
     if (( _debug )); then
-        _debugEchoNoNewline
-        declare -p "${@}" >&3 2> /dev/null;
+        local line
+        while (( $# )); do
+            line="${ declare -p "${1}" 2> /dev/null; }"
+            [[ -n "${line}" ]] && _debugEcho "${line}" || _debugEcho "${1} not defined"
+            shift
+        done
     fi
     return 0
 }
