@@ -6,24 +6,34 @@
 
 # Read user input.
 #
-# Usage: request <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds]
+# Usage: request <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds] [true/false hidden]
 # Output: resultVar set to input.
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 request() {
     local prompt="${1}"
-    local -n resultRef="${2}"
+    local resultVarName="${2}"
     local cancelOnEmpty="${3:-true}"
     local timeout="${4:-30}"
-    _prepareHint '  ' 'type your answer here' 1
-    _preparePrompt "${prompt}" ${timeout} 4
-    if _readPromptInput ${cancelOnEmpty}; then
-        resultRef="${_promptInput}"
-        return 0
+    local hide=${5:-false}
+    local flags=()
+    local hint
+    local clearHint=
+    [[ ${cancelOnEmpty} == true ]] && flags+=('--cancelOnEmpty')
+    if [[ ${hide} == true ]]; then
+        flags+=('--hide')
+        hint='hidden'
     else
-        return $?
+        flags+=('--clearHint')
+        hint='type your answer here'
     fi
-}
+
+    # Configure and run
+
+    _prompt --success '_promptInputSuccess' --result "${resultVarName}" --reserveRows 4 \
+            --hint "${hint}" --prompt "${prompt}" --collect --timeout "${timeout}" ${flags[*]}
+ }
+
 
 # Read user input without echoing it to the terminal.
 #
@@ -32,24 +42,25 @@ request() {
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 requestHidden() {
-    local prompt="${1}"
-    local -n resultRef="${2}"
-    local cancelOnEmpty="${3:-true}"
-    local timeout="${4:-30}"
-    local result=
-    _prepareHint ' ' 'hidden' 0
-    _preparePrompt "${prompt}" ${timeout} 4
-    read -t ${timeout} -rs result                 # TODO: refactor read loop to make it generic so we can handle ESC here!
+    request "${1}" "${2}" "${3:-true}" "${4:-30}" true
+}
 
-    if (( $? > 128 )); then
-        _finalizePrompt _canceledMsgTimeout italic warning
-        return ${_canceledOnTimeout}
-    elif  [[ ${cancelOnEmpty} == true && ! -n ${result} ]]; then
-        _finalizePrompt _canceledMsgEmpty italic warning
-        return ${_canceledOnEmpty}
-    fi
-    echo
-    resultRef="${result}"
+
+_promptInputSuccess() {
+    _promptSuccess "${_promptInput}"
+}
+
+_promptSelectSuccess() {
+    _promptInput="${choices[${_currentPromptIndex}]}"
+    _promptSuccess "${_currentPromptIndex}"
+}
+
+_promptSuccess() {
+    local result="${1}"
+    local -n resultVarRef="${_promptResultVarName}"
+    _finalizePrompt _promptInput primary
+    resultVarRef="${result}"
+    return 0
 }
 
 # Choose from a list of options, using the arrow keys.
@@ -60,14 +71,14 @@ requestHidden() {
 
 choose() {
     local prompt="${1}"
-    local -n choiceIndexRef="${2}"
+    local resultVarName="${2}"
     local timeout="${3}"
     local choices=("${@:4}")
 
     _choosePaint() {
         cursorTo ${_cursorRow} 0
-        for (( i=0; i <= maxChoices; i++ )); do
-            if (( i == currentChoice)); then
+        for (( i=0; i <= _maxPromptIndex; i++ )); do
+            if (( i == _currentPromptIndex)); then
                 show bold ">" primary "${choices[${i}]}"
             else
                 show primary "  ${choices[${i}]}"
@@ -77,7 +88,7 @@ choose() {
 
     # Run it
 
-    _select _selectPrepare _choosePaint
+    _select null _choosePaint "${prompt}" "${resultVarName}" "${timeout}" 'choices'
 }
 
 # Carousel chooser with fixed cursor in the middle and scrolling items.
@@ -89,43 +100,16 @@ choose() {
 
 carousel() {
     local prompt="${1}"
-    local -n choiceIndexRef="${2}"
+    local resultVarName="${2}"
     local timeout="${3}"
     local useSeparator="${4}"
     local choices=("${@:5}")
-    local visibleRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
-    local maxLength=0
+    local maxChoices="${#choices[@]}"
+    local visibleRows reserveRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
+    local maxLineLength=0
+    local len stripped
 
-    _carouselPrepare() {
-        local len stripped
-
-        # Calculate display parameters
-        _carouselCalculateDisplay
-
-        # Calculate maximum item length (strip escape sequences for accurate length)
-        for (( i=0; i <= maxChoices; i++ )); do
-            stripped="${ stripAnsi "${choices[${i}]}"; }"
-            len=${#stripped}
-            (( len > maxLength )) && maxLength=${len}
-        done
-
-        # Add 2 for the "> " prefix and 4 to extend the line on the right
-        maxLength=$(( maxLength + 6 ))
-
-        # Build separator line
-        separatorLine=''
-        for (( i=0; i < maxLength; i++ )); do
-            separatorLine+='─'
-        done
-        separatorLine="${ show secondary "${separatorLine}" ;}"
-
-        # Clear screen to allow for maximum visible lines and prepare
-
-        clear
-        _selectPrepare
-    }
-
-    _carouselCalculateDisplay() {
+    _carouselInit() {
         # Get terminal height
         local termHeight=$(tput lines)
 
@@ -143,6 +127,27 @@ carousel() {
 
         # Position for items
         displayStartRow=3
+
+        # Calculate maximum item length (strip escape sequences for accurate length)
+        for (( i=0; i <= maxChoices; i++ )); do
+            stripped="${ stripAnsi "${choices[${i}]}"; }"
+            len=${#stripped}
+            (( len > maxLineLength )) && maxLineLength=${len}
+        done
+
+        # Add 2 for the "> " prefix and 4 to extend the line on the right
+        maxLineLength=$(( maxLineLength + 6 ))
+
+        # Build separator line
+        separatorLine=''
+        for (( i=0; i < maxLineLength; i++ )); do
+            separatorLine+='─'
+        done
+        separatorLine="${ show secondary "${separatorLine}" ;}"
+
+        # Clear screen to allow for maximum visible lines
+
+        clear
     }
 
     _carouselPaint() {
@@ -152,7 +157,7 @@ carousel() {
         # Paint items in a window around current selection
         for (( offset=-itemsAbove; offset <= itemsBelow; offset++ )); do
             # Calculate wrapped index
-            i=$(( (currentChoice + offset + (maxChoices + 1) * 100) % (maxChoices + 1) ))
+            i=$(( (_currentPromptIndex + offset + (maxChoices + 1) * 100) % (maxChoices + 1) ))
 
             # Show separator line above cursor item (only once, when we reach cursor)
             (( offset == 0 )) && echo "${separatorLine}"
@@ -173,9 +178,9 @@ carousel() {
         done
     }
 
-    # Run it
+    # Configure and run
 
-    _select _carouselPrepare _carouselPaint
+    _select _carouselInit _carouselPaint "${prompt}" "${resultVarName}" "${timeout}" 'choices'
 }
 
 # Request that the user confirm one of two choices. By default, the user must type one of the two
@@ -187,6 +192,7 @@ carousel() {
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 confirm() {
+fail "confirm() not updated, TODO!" # TODO: update to use _readPrompt and left/right arrows to select
     local prompt="${1}"
     local answerOne="${2}"
     local answerTwo="${3}"
@@ -198,15 +204,15 @@ confirm() {
     if [[ ${answerOne} == *'=default' ]]; then
         answerOne="${answerOne%=default}"
         defaultAnswer=${answerOne}
-        _overwriteHint=0
+        _clearPromptHint=0
         returnOnEmpty=true
-        _hint=" ${ show -n dim italic "[" ;}${ show -n italic cyan "${answerOne}" ;}${ show -n dim italic "/${answerTwo}]" ;}"
+        _promptHint=" ${ show -n dim italic "[" ;}${ show -n italic cyan "${answerOne}" ;}${ show -n dim italic "/${answerTwo}]" ;}"
     elif [[ ${answerTwo} == *'=default' ]]; then
         answerTwo="${answerTwo%=default}"
         defaultAnswer=${answerTwo}
-        _overwriteHint=0
+        _clearPromptHint=0
         returnOnEmpty=true
-        _hint=" ${ show -n dim italic "[${answerOne}/" ;}${ show -n italic cyan "${answerTwo}" ;}${ show -n dim italic "]" ;}"
+        _promptHint=" ${ show -n dim italic "[${answerOne}/" ;}${ show -n italic cyan "${answerTwo}" ;}${ show -n dim italic "]" ;}"
     else
         _prepareHint ' ' "${answerOne}/${answerTwo}"
     fi
@@ -254,19 +260,24 @@ _init_rayvn_prompt() {
     # Shared global state (safe since bash is single threaded!).
     # Only valid during execution of public functions.
 
-    declare -g _hint
+    declare -g _plainPromptHint
     declare -g _prompt
+    declare -g _plainPrompt
     declare -g _promptRow
     declare -gi _promptCol
-    declare -g _plainPrompt
-    declare -g _overwriteHint
+    declare -g _promptHint
+    declare -g _promptHintSpace
+    declare -ga _promptChoices
+    declare -g _clearPromptHint
     declare -g _timeoutSeconds
     declare -gi _timeoutCheckCount
+    declare -g _promptResultVarName
     declare -g _promptInput
-    declare -g _echoPromptInput
+    declare -g _promptEcho
+    declare -g _promptPaintFunction
+    declare -g _promptSuccessFunction
 
     declare -g _cancelOnEmpty
-    declare -g _returnOnEmpty
 
     declare -g _upKeyHandler
     declare -g _upKeyFunction
@@ -281,35 +292,12 @@ _init_rayvn_prompt() {
     declare -g _rightKeyFunction
 
     declare -g _collectInput
+    declare -g _promptReserveRows
+    declare -g _promptClearRows
 
-    declare -g _finalizeFunction
-}
-
-_prepareHint() {
-    local initialSpace="${1}"
-    local hint="${2}"
-    _overwriteHint="${3:0}"
-    _hint="${initialSpace}${ show -n muted italic "[${hint}]" ;}"
-}
-
-_preparePrompt() {
-    _plainPrompt="${1}"
-    local timeout="${2}"
-    local requiredLines="${3}"
-    _prompt="${ show -n bold success "?" plain bold "${_plainPrompt}" ;}${_hint} "
-    echo -n "${_prompt}"
-    reserveRows "${requiredLines}"
-    _promptRow=${_cursorRow}
-    _promptCol="${#_plainPrompt} + 4" # exclude hint, include prefix & trailing space
-    (( _overwriteHint )) && printf '\e[%dG' ${_promptCol} # move cursor before hint
-    _preparePromptTimer
-}
-
-_preparePromptTimer() {
-    _timeoutSeconds=${timeout}
-    _timeoutCheckCount=0
-    _promptInput=
-    SECONDS=0 # Reset bash seconds counter
+    declare -ga choices
+    declare -g _currentPromptIndex
+    declare -g _maxPromptIndex
 }
 
 _hasPromptTimerExpired() {
@@ -334,7 +322,7 @@ _readPromptInput() {
 
     while true; do
         if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-            (( _overwriteHint )) && _clearHint
+            (( _overwritePromptHint )) && _clearHint
             case "${key}" in
             '' | $'\n' | $'\r') # Enter
                 if [[ -z "${_promptInput// /}" ]]; then
@@ -374,7 +362,8 @@ _readPromptInput() {
 }
 
 _clearHint() {
-    _overwriteHint=0
+    _overwritePromptHint=0
+    _clearPromptHint=0
     printf '\e[%dG\e[K' ${_promptCol}
 }
 
@@ -431,77 +420,73 @@ _readPromptEscapeSequence() {
 }
 
 _finalizePrompt() {
-    local -n inputVarRef="${1}"
+    local -n resultMessageRef="${1}"
     local formats=("${@:2}")
+
+    # Reposition cursor to after the prompt and save it
+
     cursorTo ${_promptRow} ${_promptCol}
+    cursorSave
+
+    # Clear any text after the prompt
+
     eraseToEndOfLine
-    show "${formats[@]}" "${inputVarRef}"
+    for (( i=0; i <= _maxPromptIndex; i++ )); do
+        cursorDownOneAndEraseLine
+    done
+
+    # Restore cursor and show result message
+
+    cursorRestore
+    show "${formats[@]}" "${resultMessageRef}"
+
+    # Restore terminal settings
+
     stty "${_originalStty}"
 }
 
 # Select function shared by choose() and carousel()
 
 _select() {
-    local prepareFunction="${1}"
+    local initFunction="${1}"
     local paintFunction="${2}"
-    local maxChoices=$(( ${#choices[@]} - 1 ))
-    local currentChoice=0
-    local reserveRows=$(( maxChoices + 3 ))
-    local selected
-    local key i
+    local prompt="${3}"
+    local resultVarName="${4}"
+    local timeout="${5}"
+    local choicesVarName=${6}
 
-    _configureReadPrompt --up '_selectUp' --down '_selectDown' --finalize '_selectFinalize' --returnOnEmpty
-    ${prepareFunction}
-    ${paintFunction}
-    _readPrompt || return $?
-    return 0
-}
+    # Configure and run
 
-_selectPrepare() {
-    _prepareHint ' ' 'use arrows to move'
-    _preparePrompt "${prompt}" ${timeout} ${reserveRows}
-    cursorHide
-    echo
-    (( _cursorRow++ )) # adjust for echo
+    _prompt --init "${initFunction}" --paint "${paintFunction}" --success '_promptSelectSuccess'  \
+            --result "${resultVarName}" --timeout "${timeout}" \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices ${choicesVarName} \
+            --up '_selectUp' --down '_selectDown'
 }
 
 _selectUp() {
-    (( currentChoice == 0 )) && currentChoice=${maxChoices} || (( currentChoice-- ))
-    ${paintFunction}
+    (( _currentPromptIndex == 0 )) && _currentPromptIndex="${_maxPromptIndex}" || (( _currentPromptIndex-- ))
+    "${_promptPaintFunction}"
 }
 
 _selectDown() {
-    (( currentChoice == ${maxChoices} )) && currentChoice=0 || (( currentChoice++ ))
-    ${paintFunction}
+    (( _currentPromptIndex == "${_maxPromptIndex}" )) && _currentPromptIndex=0 || (( _currentPromptIndex++ ))
+    "${_promptPaintFunction}"
 }
 
-_selectFinalize() {
-    local failed="${1}"
+# Configure and run prompt
+_prompt() {
 
-    # Clear choices
+    # Set defaults then update from arguments
 
-    cursorTo ${_promptRow} ${_promptCol}
-    for (( i=0; i <= maxChoices; i++ )); do
-        cursorDownOneAndEraseLine
-    done
-    cursorTo $(( _promptRow+1 )) 0
+    local initFunction='null'
+    local choicesVarName
 
-    # Finalize the prompt if success (already done if failed).
-
-    if (( ! failed )); then
-        selected="${choices[${currentChoice}]}"
-        choiceIndexRef=${currentChoice}
-        _finalizePrompt selected primary
-    fi
-}
-
-_configureReadPrompt() {
-
-    # Clear all then set from arguments
-
-    _echoPromptInput=0
+    _promptInput=
+    _promptPaintFunction=
+    _promptSuccessFunction=
+    _promptResultVarName=
+    _promptEcho=1
     _cancelOnEmpty=0
-    _returnOnEmpty=0
     _upKeyHandler=0
     _upKeyFunction=
     _downKeyHandler=0
@@ -511,46 +496,118 @@ _configureReadPrompt() {
     _rightKeyHandler=0
     _rightKeyFunction=
     _collectInput=0
-    _finalizeFunction=
-    _promptInput=
+    _promptClearRows=0
+    _promptReserveRows=0
+    _currentPromptIndex=0
+    _maxPromptIndex=0
+    _prompt=
+    _plainPrompt=
+    _plainPromptHint=
+    _promptHint=
+    _promptHintSpace=' '
+    _promptChoices=()
+    _clearPromptHint=
+    _timeoutSeconds=60 # long default
+    _timeoutCheckCount=0
 
     while (( $# )); do
         case "$1" in
-            --echo) _echoPromptInput=1 ;;
+            --prompt) shift; _plainPrompt="$1" ;;
+            --hint) shift; _plainPromptHint="$1" ;;
+            --hintSpace) shift; _promptHintSpace="$1" ;;
+            --clearHint) _clearPromptHint=1 ;;
+            --init) shift; initFunction="$1" ;;
+            --paint) shift; _promptPaintFunction="$1" ;;
+            --success) shift; _promptSuccessFunction="$1" ;;
+            --result) shift; _promptResultVarName="$1" ;;
+            --reserveRows) shift; _promptReserveRows="$1" ;;
+            --choices) shift; choicesVarName="$1" ;;
+            --hide) _promptEcho=0 ;;
             --cancelOnEmpty) _cancelOnEmpty=1 ;;
-            --returnOnEmpty) _returnOnEmpty=1 ;;
             --collect) _collectInput=1 ;;
             --up) shift; _upKeyHandler=1; _upKeyFunction="$1" ;;
             --down) shift; _downKeyHandler=1; _downKeyFunction="$1" ;;
             --left) shift; _leftKeyHandler=1; _leftKeyFunction="$1" ;;
             --right) shift; _rightKeyHandler=1; _rightKeyFunction="$1" ;;
-            --finalize) shift; _finalizeFunction="$1" ;;
+            --timeout) shift; _timeoutSeconds="$1" ;;
+            --maxIndex) shift; _maxPromptIndex="$1" ;;
             *) fail "Unknown configuration option: $1" ;;
         esac
         shift
     done
 
-    [[ -n "${_finalizeFunction}" ]] || fail "finalize function name is required"
+    [[ -n ${_promptSuccessFunction} ]] || fail "success function is required"
+    [[ -n ${_promptResultVarName} ]] || fail "result var name is required"
+
+    # Init choices if supplied
+
+    if [[ -n "${choicesVarName}" ]]; then
+        local -n choicesRef="${choicesVarName}"
+        _promptChoices=("${choicesRef[@]}")
+        _maxPromptIndex=$(( ${#choicesRef[@]} - 1 ))
+        _promptReserveRows=$(( _maxPromptIndex + 3 ))
+    fi
+
+    # Call init function if set
+
+    [[ ${initFunction} != 'null' ]] && "${initFunction}"
+
+    # Reset bash seconds counter
+
+    SECONDS=0
+
+    # Prepare and execute
+
+    _preparePrompt
+    _executePrompt
 }
 
-_readPrompt() {
+_preparePrompt() {
+
+    # Initialize & show hint and prompt
+
+    _promptHint="${_promptHintSpace}${ show -n muted italic "[${_plainPromptHint}]" ;}"
+    _prompt="${ show -n bold success "?" plain bold "${_plainPrompt}" ;}${_promptHint} "
+    echo -n "${_prompt}"
+
+    # Reserve rows below prompt and set prompt row/col
+
+    reserveRows "${_promptReserveRows}"
+    _promptRow=${_cursorRow}
+    _promptCol="${#_plainPrompt} + 4" # exclude hint, include prefix & trailing space
+
+    # Move the cursor before the hint if it is supposed to be overwritten
+
+    (( _overwritePromptHint )) && printf '\e[%dG' ${_promptCol}
+
+    # Are we preparing for select?
+
+    if (( _maxPromptIndex )); then
+
+        # Yes, do a bit more
+        cursorHide
+        echo
+        (( _cursorRow++ )) # adjust for echo
+    fi
+
+    # Paint if function is set
+
+    [[ -n ${_promptPaintFunction} ]] && "${_promptPaintFunction}"
+}
+
+_executePrompt() {
     stty cbreak -echo
     while true; do
         if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-            (( _overwriteHint )) && _clearHint
+            (( _clearPromptHint )) && _clearHint
 
             case "${key}" in
                 '' | $'\n' | $'\r') # Enter
-                    if [[ -z "${_promptInput// /}" ]]; then
-                        if (( _cancelOnEmpty )); then
-                            _finalizePrompt _canceledMsgEmpty italic warning
-                            return ${_canceledOnEmpty}
-                        elif (( _returnOnEmpty )); then
-                            ${_finalizeFunction} 0
-                            return 0
-                        fi
+                    if (( _cancelOnEmpty )) && [[ -z "${_promptInput// /}" ]]; then
+                        _finalizePrompt _canceledMsgEmpty italic warning
+                        return "${_canceledOnEmpty}"
                     else
-                        ${_finalizeFunction} 0
+                        ${_promptSuccessFunction}
                         return 0
                     fi
                     ;;
@@ -566,28 +623,28 @@ _readPrompt() {
                         *) ;; # ignore others
                     esac
                 else
-                    ${_finalizeFunction} 1 # ESC
-                    return ${_canceledOnEsc}
+                    _finalizePrompt _canceledMsgEsc italic warning
+                    return "${_canceledOnEsc}"
                 fi
                 ;;
 
             $'\177' | $'\b') # Backspace
                 if (( _collectInput )) && [[ -n "${_promptInput}" ]]; then
                     _promptInput="${_promptInput%?}"
-                    (( _echoPromptInput )) && printf '\b \b'
+                    (( _promptEcho )) && printf '\b \b'
                 fi
                 ;;
 
             *)
                 if (( _collectInput )) && [[ "${key}" =~ [[:print:]] ]]; then
                     _promptInput+="${key}"
-                    (( _echoPromptInput )) && printf '%s' "${key}"
+                    (( _promptEcho )) && echo -n "${key}"
                 fi
                 ;;
             esac
         fi
 
-        _hasPromptTimerExpired && return ${_canceledOnTimeout}
+        _hasPromptTimerExpired && return "${_canceledOnTimeout}"
     done
 }
 
