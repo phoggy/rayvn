@@ -86,7 +86,7 @@ carousel() {
     local useSeparator="${4}"
     local timeout="${5:-${_defaultPromptTimeout}}"
 
-    local visibleRows rowsPerItem displayStartRow separatorLine
+    local visibleRows rowsPerItem displayStartRow
     local maxLineLength=0
     local strippedLen stripped strippedLen
     local cursorRow windowStart totalVisibleItems
@@ -145,13 +145,6 @@ carousel() {
         # Add 2 for the "> " prefix and 4 to extend the line on the right
         maxLineLength=$(( maxLineLength + 6 ))
 
-        # Build separator line
-        separatorLine=''
-        for (( i=0; i < maxLineLength; i++ )); do
-            separatorLine+='─'
-        done
-        separatorLine="${ show secondary "${separatorLine}" ;}"
-
         # Clear screen to allow for maximum visible lines
         clear
     }
@@ -172,9 +165,6 @@ carousel() {
             # Calculate actual index (with wrapping)
             local i=$(( (windowStart + offset) % (_maxPromptChoicesIndex + 1) ))
 
-            # Show separator line above cursor item
-            # (( offset == cursorRow )) && echo "${separatorLine}"
-
             # Show the item
             if (( offset == cursorRow )); then
                 # This is the cursor position
@@ -182,9 +172,6 @@ carousel() {
             else
                 echo "  ${numberedChoices[${i}]}"
             fi
-
-            # Show separator line below cursor item
-            # (( offset == cursorRow )) && echo "${separatorLine}"
 
             # Add blank separator line if requested
             [[ ${useSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]] && echo
