@@ -30,7 +30,7 @@ request() {
 
     # Configure and run
 
-    _prompt --success '_promptInputSuccess' --result "${resultVarName}" --reserveRows 4 \
+    _prompt --success '_textPromptSuccess' --result "${resultVarName}" --reserveRows 4 \
             --hint "${hint}" --prompt "${prompt}" --collect --timeout "${timeout}" ${flags[*]}
  }
 
@@ -283,6 +283,7 @@ _init_rayvn_prompt() {
     declare -g _maxPromptIndex
 }
 
+SECTION="--+-+-----+-++(-++(---++++(---+( generic support functions )+---)++++---)++-)++-+------+-+--"
 
 # Configure and run prompt
 _prompt() {
@@ -526,10 +527,6 @@ _hasPromptTimerExpired() {
     return ${_canceledOnTimeout}
 }
 
-_promptInputSuccess() {
-    _promptSuccess "${_promptInput}"
-}
-
 _promptSuccess() {
     local result="${1}"
     local -n resultVarRef="${_promptResultVarName}"
@@ -564,7 +561,14 @@ _finalizePrompt() {
     stty "${_originalStty}"
 }
 
-SECTION="--+-+-----+-++(-++(---++++(---+( choose/carousel support )+---)++++---)++-)++-+------+-+--"
+
+SECTION="--+-+-----+-++(-++(---++++(---+( text input support )+---)++++---)++-)++-+------+-+--"
+
+_textPromptSuccess() {
+    _promptSuccess "${_promptInput}"
+}
+
+SECTION="--+-+-----+-++(-++(---++++(---+( arrow key selection support )+---)++++---)++-)++-+------+-+--"
 
 _select() {
     local initFunction="${1}"
@@ -576,7 +580,7 @@ _select() {
 
     # Configure and run
 
-    _prompt --init "${initFunction}" --paint "${paintFunction}" --success '_promptSelectSuccess'  \
+    _prompt --init "${initFunction}" --paint "${paintFunction}" --success '_selectPromptSuccess'  \
             --result "${resultVarName}" --timeout "${timeout}" \
             --hint 'use arrows to move' --prompt "${prompt}" --choices ${choicesVarName} \
             --up '_selectUp' --down '_selectDown'
@@ -592,7 +596,7 @@ _selectDown() {
     "${_promptPaintFunction}"
 }
 
-_promptSelectSuccess() {
+_selectPromptSuccess() {
     _promptInput="${choices[${_currentPromptIndex}]}"
     _promptSuccess "${_currentPromptIndex}"
 }
