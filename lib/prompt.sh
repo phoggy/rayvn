@@ -45,24 +45,6 @@ requestHidden() {
     request "${1}" "${2}" "${3:-true}" "${4:-30}" true
 }
 
-
-_promptInputSuccess() {
-    _promptSuccess "${_promptInput}"
-}
-
-_promptSelectSuccess() {
-    _promptInput="${choices[${_currentPromptIndex}]}"
-    _promptSuccess "${_currentPromptIndex}"
-}
-
-_promptSuccess() {
-    local result="${1}"
-    local -n resultVarRef="${_promptResultVarName}"
-    _finalizePrompt _promptInput primary
-    resultVarRef="${result}"
-    return 0
-}
-
 # Choose from a list of options, using the arrow keys.
 #
 # Usage: choose <prompt> <choiceIndexVarName>  <timeout seconds> choice0 choice1 ... choiceN
@@ -183,16 +165,17 @@ carousel() {
     _select _carouselInit _carouselPaint "${prompt}" "${resultVarName}" "${timeout}" 'choices'
 }
 
-# Request that the user confirm one of two choices. By default, the user must type one of the two
-# answers. If one of the answers should be considered a default when only the <enter> key is pressed,
-# that answer should have '=default' appended to it (e.g. yes=default).
+# Request that the user choose 'yes' or 'no'. To have 'no'
 #
-# Usage: choose <prompt> <answerOne> <answerTwo> <choiceVarName> [timeout seconds]
+# Usage: choose <prompt> <choiceVarName> ['no'] [timeout seconds]
 # Output: choiceVar set to chosen answer.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 confirm() {
 fail "confirm() not updated, TODO!" # TODO: update to use _readPrompt and left/right arrows to select
+
+    # Do you want to continue? yes no
+
     local prompt="${1}"
     local answerOne="${2}"
     local answerTwo="${3}"
@@ -300,178 +283,6 @@ _init_rayvn_prompt() {
     declare -g _maxPromptIndex
 }
 
-_hasPromptTimerExpired() {
-    if (( ++_timeoutCheckCount >= 10 )); then
-        if (( SECONDS >= _timeoutSeconds )); then
-            _finalizePrompt _canceledMsgTimeout italic warning
-            debug "${_timeoutSeconds} second timeout for prompt '${_plainPrompt}'"
-            return 0
-        fi
-        _timeoutCheckCount=0
-    fi
-    return ${_canceledOnTimeout}
-}
-
-_readPromptInput() {
-    local cancelOnEmpty=${1}
-    local returnOnEmpty="${2:-''}"
-    local key esc
-    stty cbreak -echo # turn off buffering and input echo
-    _promptInput=
-    cursorShow
-
-    while true; do
-        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-            (( _overwritePromptHint )) && _clearHint
-            case "${key}" in
-            '' | $'\n' | $'\r') # Enter
-                if [[ -z "${_promptInput// /}" ]]; then
-                    if [[ ${cancelOnEmpty} == true ]]; then
-                        _finalizePrompt _canceledMsgEmpty italic warning
-                        return ${_canceledOnEmpty}
-                    elif [[ ${returnOnEmpty} == true ]]; then
-                        return 0
-                    fi
-                    # ignore
-                else
-                    _finalizePrompt _promptInput primary
-                    return 0
-                fi
-                ;;
-            $'\177' | $'\b') # Backspace
-                if [[ -n "${_promptInput}" ]]; then
-                    _promptInput="${_promptInput%?}"
-                    printf '\b \b'
-                fi
-                ;;
-            $'\e') # Escape
-                _readPromptEscapeSequence esc || return ${_canceledOnEsc}
-                ;;
-            *)
-                if [[ "${key}" =~ [[:print:]] ]]; then
-                    _promptInput+="${key}"
-                    printf '%s' "${key}"
-                fi
-                ;;
-            esac
-        fi
-
-        _hasPromptTimerExpired && return ${_canceledOnTimeout}
-
-    done
-}
-
-_clearHint() {
-    _overwritePromptHint=0
-    _clearPromptHint=0
-    printf '\e[%dG\e[K' ${_promptCol}
-}
-
-_readPromptEscapeSequence() {
-    local -n resultVar="${1}"
-    local c
-
-    # Is there more input?
-
-    if read -n1 -t 0.1 c; then
-
-        # Yes, it is an escape sequence
-
-        case "${c}" in
-
-            '[') # CSI sequence, read up to 3 more characters and process last
-
-                for (( i = 0; i < 3; i++ )); do
-                    if ! read -n1 -t 0.1 c; then
-                        break # timeout, assume we already read the last char
-                    fi
-
-                    case "${c}" in
-                        'A') resultVar='u'; break ;;  # Up
-                        'B') resultVar='d'; break ;;  # Down
-                        'C') resultVar='r'; break ;;  # Right
-                        'D') resultVar='l'; break ;;  # Left
-                          *) resultVar='?'; break ;;  # Unknown/don't care
-                    esac
-                done
-                ;;
-
-            *)  # Non-CSI escape sequence, consume and log it if debug is enabled.
-                #
-                # NOTE: it is certainly possible that reading these extra characters will
-                # break subsequent input, but ctrl-c is always available. Could simply
-                # fail here if it becomes an issue.
-
-                local debugBuffer="${c}"
-                while read -n1 -t 0.05 c; do
-                    debugBuffer+="${c}"
-                done
-                debugBinary "Unknown keyboard ESC sequence: " "${debugBuffer}"
-                resultVar='?'
-            ;;
-        esac
-        return 0
-    else
-
-        # No, so ESC
-        _finalizePrompt _canceledMsgEsc italic warning
-        return 1
-    fi
-}
-
-_finalizePrompt() {
-    local -n resultMessageRef="${1}"
-    local formats=("${@:2}")
-
-    # Reposition cursor to after the prompt and save it
-
-    cursorTo ${_promptRow} ${_promptCol}
-    cursorSave
-
-    # Clear any text after the prompt
-
-    eraseToEndOfLine
-    for (( i=0; i <= _maxPromptIndex; i++ )); do
-        cursorDownOneAndEraseLine
-    done
-
-    # Restore cursor and show result message
-
-    cursorRestore
-    show "${formats[@]}" "${resultMessageRef}"
-
-    # Restore terminal settings
-
-    stty "${_originalStty}"
-}
-
-# Select function shared by choose() and carousel()
-
-_select() {
-    local initFunction="${1}"
-    local paintFunction="${2}"
-    local prompt="${3}"
-    local resultVarName="${4}"
-    local timeout="${5}"
-    local choicesVarName=${6}
-
-    # Configure and run
-
-    _prompt --init "${initFunction}" --paint "${paintFunction}" --success '_promptSelectSuccess'  \
-            --result "${resultVarName}" --timeout "${timeout}" \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices ${choicesVarName} \
-            --up '_selectUp' --down '_selectDown'
-}
-
-_selectUp() {
-    (( _currentPromptIndex == 0 )) && _currentPromptIndex="${_maxPromptIndex}" || (( _currentPromptIndex-- ))
-    "${_promptPaintFunction}"
-}
-
-_selectDown() {
-    (( _currentPromptIndex == "${_maxPromptIndex}" )) && _currentPromptIndex=0 || (( _currentPromptIndex++ ))
-    "${_promptPaintFunction}"
-}
 
 # Configure and run prompt
 _prompt() {
@@ -648,3 +459,140 @@ _executePrompt() {
     done
 }
 
+_readPromptEscapeSequence() {
+    local -n resultVar="${1}"
+    local c
+
+    # Is there more input?
+
+    if read -n1 -t 0.1 c; then
+
+        # Yes, it is an escape sequence
+
+        case "${c}" in
+
+            '[') # CSI sequence, read up to 3 more characters and process last
+
+                for (( i = 0; i < 3; i++ )); do
+                    if ! read -n1 -t 0.1 c; then
+                        break # timeout, assume we already read the last char
+                    fi
+
+                    case "${c}" in
+                    'A') resultVar='u'; break ;;  # Up
+                    'B') resultVar='d'; break ;;  # Down
+                    'C') resultVar='r'; break ;;  # Right
+                    'D') resultVar='l'; break ;;  # Left
+                    *) resultVar='?'; break ;;  # Unknown/don't care
+                    esac
+                done
+                ;;
+
+            *)  # Non-CSI escape sequence, consume and log it if debug is enabled.
+                    #
+                    # NOTE: it is certainly possible that reading these extra characters will
+                    # break subsequent input, but ctrl-c is always available. Could simply
+                    # fail here if it becomes an issue.
+
+                local debugBuffer="${c}"
+                while read -n1 -t 0.05 c; do
+                    debugBuffer+="${c}"
+                done
+                debugBinary "Unknown keyboard ESC sequence: " "${debugBuffer}"
+                resultVar='?'
+                ;;
+            esac
+        return 0
+    else
+        return 1 # No, so ESC
+    fi
+}
+
+_clearHint() {
+    _overwritePromptHint=0
+    _clearPromptHint=0
+    printf '\e[%dG\e[K' ${_promptCol}
+}
+
+_hasPromptTimerExpired() {
+    if (( ++_timeoutCheckCount >= 10 )); then
+        if (( SECONDS >= _timeoutSeconds )); then
+            _finalizePrompt _canceledMsgTimeout italic warning
+            debug "${_timeoutSeconds} second timeout for prompt '${_plainPrompt}'"
+            return 0
+        fi
+        _timeoutCheckCount=0
+    fi
+    return ${_canceledOnTimeout}
+}
+
+_promptInputSuccess() {
+    _promptSuccess "${_promptInput}"
+}
+
+_promptSuccess() {
+    local result="${1}"
+    local -n resultVarRef="${_promptResultVarName}"
+    _finalizePrompt _promptInput primary
+    resultVarRef="${result}"
+    return 0
+}
+
+_finalizePrompt() {
+    local -n resultMessageRef="${1}"
+    local formats=("${@:2}")
+
+    # Reposition cursor to after the prompt and save it
+
+    cursorTo ${_promptRow} ${_promptCol}
+    cursorSave
+
+    # Clear any text after the prompt
+
+    eraseToEndOfLine
+    for (( i=0; i <= _maxPromptIndex; i++ )); do
+        cursorDownOneAndEraseLine
+    done
+
+    # Restore cursor and show result message
+
+    cursorRestore
+    show "${formats[@]}" "${resultMessageRef}"
+
+    # Restore terminal settings
+
+    stty "${_originalStty}"
+}
+
+SECTION="--+-+-----+-++(-++(---++++(---+( choose/carousel support )+---)++++---)++-)++-+------+-+--"
+
+_select() {
+    local initFunction="${1}"
+    local paintFunction="${2}"
+    local prompt="${3}"
+    local resultVarName="${4}"
+    local timeout="${5}"
+    local choicesVarName=${6}
+
+    # Configure and run
+
+    _prompt --init "${initFunction}" --paint "${paintFunction}" --success '_promptSelectSuccess'  \
+            --result "${resultVarName}" --timeout "${timeout}" \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices ${choicesVarName} \
+            --up '_selectUp' --down '_selectDown'
+}
+
+_selectUp() {
+    (( _currentPromptIndex == 0 )) && _currentPromptIndex="${_maxPromptIndex}" || (( _currentPromptIndex-- ))
+    "${_promptPaintFunction}"
+}
+
+_selectDown() {
+    (( _currentPromptIndex == "${_maxPromptIndex}" )) && _currentPromptIndex=0 || (( _currentPromptIndex++ ))
+    "${_promptPaintFunction}"
+}
+
+_promptSelectSuccess() {
+    _promptInput="${choices[${_currentPromptIndex}]}"
+    _promptSuccess "${_currentPromptIndex}"
+}
