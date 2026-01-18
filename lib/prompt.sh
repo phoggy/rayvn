@@ -90,6 +90,7 @@ carousel() {
     local maxLineLength=0
     local strippedLen stripped strippedLen
     local cursorRow windowStart totalVisibleItems
+    local previousCursorRow previousWindowStart
     local numberedChoices=()
     local cursor="${ show bold '>'; }"
 
@@ -113,6 +114,8 @@ carousel() {
         # Initialize cursor at top and window at start
         cursorRow=0
         windowStart=0
+        previousCursorRow=-1
+        previousWindowStart=-1
 
         # Build numberedChoices array and calculate max length
         local numberPlaces=${ numericPlaces $(( _maxPromptChoicesIndex + 1 )) 1; }
@@ -150,32 +153,60 @@ carousel() {
     }
 
     _carouselPaint() {
-        # Move to display start and clear all display rows
-        cursorTo "${displayStartRow}" 0
-        for (( i=0; i < visibleRows; i++ )); do
-            eraseToEndOfLine
-            echo
-        done
+        # Check if we need full repaint (window scrolled) or just cursor move
+        if (( windowStart != previousWindowStart )); then
+            # Window scrolled - redraw all items without clearing first to reduce flicker
+            local row=${displayStartRow}
 
-        # Move back to display start
-        cursorTo "${displayStartRow}" 0
+            for (( offset=0; offset < totalVisibleItems; offset++ )); do
+                local i=$(( (windowStart + offset) % (_maxPromptChoicesIndex + 1) ))
 
-        # Paint visible items starting from windowStart
-        for (( offset=0; offset < totalVisibleItems; offset++ )); do
-            # Calculate actual index (with wrapping)
-            local i=$(( (windowStart + offset) % (_maxPromptChoicesIndex + 1) ))
+                cursorTo ${row} 0
+                eraseToEndOfLine
+                if (( offset == cursorRow )); then
+                    echo -n "${cursor} ${numberedChoices[${i}]}"
+                else
+                    echo -n "  ${numberedChoices[${i}]}"
+                fi
 
-            # Show the item
-            if (( offset == cursorRow )); then
-                # This is the cursor position
-                echo "${cursor} ${numberedChoices[${i}]}"
-            else
-                echo "  ${numberedChoices[${i}]}"
+                (( row++ ))
+
+                # Add separator line if needed
+                if [[ ${useSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]]; then
+                    cursorTo ${row} 0
+                    eraseToEndOfLine
+                    echo -n ""
+                    (( row++ ))
+                fi
+            done
+        else
+            # Partial update - only cursor moved within window
+            if (( previousCursorRow >= 0 )); then
+                # Calculate row position accounting for separators
+                local rowOffset=$(( previousCursorRow * rowsPerItem ))
+                local row=$(( displayStartRow + rowOffset ))
+
+                # Redraw old cursor line (remove cursor)
+                local i=$(( (windowStart + previousCursorRow) % (_maxPromptChoicesIndex + 1) ))
+                cursorTo ${row} 0
+                eraseToEndOfLine
+                echo -n "  ${numberedChoices[${i}]}"
             fi
 
-            # Add blank separator line if requested
-            [[ ${useSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]] && echo
-        done
+            # Calculate new row position
+            local rowOffset=$(( cursorRow * rowsPerItem ))
+            local row=$(( displayStartRow + rowOffset ))
+
+            # Redraw new cursor line (add cursor)
+            local i=$(( (windowStart + cursorRow) % (_maxPromptChoicesIndex + 1) ))
+            cursorTo ${row} 0
+            eraseToEndOfLine
+            echo -n "${cursor} ${numberedChoices[${i}]}"
+        fi
+
+        # Update previous positions
+        previousCursorRow=${cursorRow}
+        previousWindowStart=${windowStart}
     }
 
     _carouselUp() {
