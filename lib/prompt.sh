@@ -612,7 +612,7 @@ _hasPromptTimerExpired() {
 _promptSuccess() {
     local result="${1}"
     local -n resultVarRef="${_promptResultVarName}"
-    _finalizePrompt _promptInput primary
+    _finalizePrompt _promptInput primary   # TODO make this color a variable, unset if _promptChoices and items are colored!
     resultVarRef="${result}"
     return 0
 }
