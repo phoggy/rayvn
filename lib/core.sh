@@ -123,6 +123,18 @@ trim() {
     echo "${value}"
 }
 
+numericPlaces() {
+    local count="${1}"
+    local startValue="${2:-0}"
+
+    [[ -z "${count}" ]] && fail "numericPlaces: count required"
+    [[ ! "${count}" =~ ^[0-9]+$ ]] && fail "numericPlaces: count must be a positive integer"
+    [[ ! "${startValue}" =~ ^[0-1]$ ]] && fail "numericPlaces: start value must be 0 or 1"
+    (( count == 0 )) && fail "numericPlaces: count must be at least 1"
+    local maxValue=$(( count + (startValue - 1) )) # adjust count by -1 if startValue == 0 and by 0 if startValue == 1
+    echo "${#maxValue}" # return count of digits
+}
+
 projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
