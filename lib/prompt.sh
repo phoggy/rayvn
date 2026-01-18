@@ -14,26 +14,25 @@ request() {
     local prompt="${1}"
     local resultVarName="${2}"
     local cancelOnEmpty="${3:-true}"
-    local timeout="${4:-30}"
+    local timeout="${4:-${_defaultPromptTimeout}}"
     local hide=${5:-false}
-    local flags=()
+    local args=()
     local hint
     local clearHint=
-    [[ ${cancelOnEmpty} == true ]] && flags+=('--cancelOnEmpty')
+    [[ ${cancelOnEmpty} == true ]] && args+=('--cancelOnEmpty')
     if [[ ${hide} == true ]]; then
-        flags+=('--hide')
         hint='hidden'
+        args+=('--hide')
     else
-        flags+=('--clearHint')
         hint='type your answer here'
+        args+=('--clearHint')
     fi
 
     # Configure and run
 
-    _prompt --success '_textPromptSuccess' --result "${resultVarName}" --reserveRows 4 \
-            --hint "${hint}" --prompt "${prompt}" --collect --timeout "${timeout}" ${flags[*]}
+    _prompt --prompt "${prompt}" --hint "${hint}" --result "${resultVarName}" --timeout "${timeout}" \
+            --reserveRows 4 --collect "${args[@]}" --success '_textPromptSuccess'
  }
-
 
 # Read user input without echoing it to the terminal.
 #
@@ -42,35 +41,35 @@ request() {
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 requestHidden() {
-    request "${1}" "${2}" "${3:-true}" "${4:-30}" true
+    request "${1}" "${2}" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
 }
 
 # Choose from a list of options, using the arrow keys.
 #
-# Usage: choose <prompt> <choiceIndexVarName>  <timeout seconds> choice0 choice1 ... choiceN
+# Usage: choose <prompt> <choicesArrayVarName> <resultVarName> <timeout seconds>
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 choose() {
     local prompt="${1}"
-    local resultVarName="${2}"
-    local timeout="${3}"
-    local choices=("${@:4}")
+    local choicesVarName="${2}"
+    local resultVarName="${3}"
+    local timeout="${4:-${_defaultPromptTimeout}}"
 
     _choosePaint() {
         cursorTo ${_cursorRow} 0
-        for (( i=0; i <= _maxPromptIndex; i++ )); do
-            if (( i == _currentPromptIndex)); then
-                show bold ">" primary "${choices[${i}]}"
+        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
+            if (( i == _currentPromptChoiceIndex)); then
+                show bold ">" primary "${_promptChoices[${i}]}"
             else
-                show primary "  ${choices[${i}]}"
+                show primary "  ${_promptChoices[${i}]}"
             fi
         done
     }
 
     # Run it
 
-    _select null _choosePaint "${prompt}" "${resultVarName}" "${timeout}" 'choices'
+    _selectPrompt "${prompt}" "${choicesVarName}" "${resultVarName}" "${timeout}" none _choosePaint
 }
 
 # Carousel chooser with fixed cursor in the middle and scrolling items.
@@ -82,12 +81,12 @@ choose() {
 
 carousel() {
     local prompt="${1}"
-    local resultVarName="${2}"
-    local timeout="${3}"
+    local choicesVarName="${2}"
+    local resultVarName="${3}"
     local useSeparator="${4}"
-    local choices=("${@:5}")
-    local maxChoices="${#choices[@]}"
-    local visibleRows reserveRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
+    local timeout="${5:-${_defaultPromptTimeout}}"
+
+    local visibleRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
     local maxLineLength=0
     local len stripped
 
@@ -97,7 +96,7 @@ carousel() {
 
         # Reserve space for prompt and margins
         visibleRows=$(( termHeight - 6 ))
-        reserveRows=$(( visibleRows + 3 ))
+        _promptReserveRows=$(( visibleRows + 3 )) # Note that this replaces the value set in _prompt
 
         # Rows per item (1 for item, +1 if separator)
         [[ ${useSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
@@ -111,8 +110,8 @@ carousel() {
         displayStartRow=3
 
         # Calculate maximum item length (strip escape sequences for accurate length)
-        for (( i=0; i <= maxChoices; i++ )); do
-            stripped="${ stripAnsi "${choices[${i}]}"; }"
+        for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
+            stripped="${ stripAnsi "${_promptChoices[${i}]}"; }"
             len=${#stripped}
             (( len > maxLineLength )) && maxLineLength=${len}
         done
@@ -134,12 +133,12 @@ carousel() {
 
     _carouselPaint() {
         # Move to display start
-        cursorTo ${displayStartRow} 0
+        cursorTo "${displayStartRow}" 0
 
         # Paint items in a window around current selection
         for (( offset=-itemsAbove; offset <= itemsBelow; offset++ )); do
             # Calculate wrapped index
-            i=$(( (_currentPromptIndex + offset + (maxChoices + 1) * 100) % (maxChoices + 1) ))
+            i=$(( (_currentPromptChoiceIndex + offset + (_maxPromptChoicesIndex + 1) * 100) % (_maxPromptChoicesIndex + 1) ))
 
             # Show separator line above cursor item (only once, when we reach cursor)
             (( offset == 0 )) && echo "${separatorLine}"
@@ -147,9 +146,9 @@ carousel() {
             # Show the item
             if (( offset == 0 )); then
                 # This is the cursor position (middle)
-                show bold ">" primary "${choices[${i}]}"
+                show bold ">" primary "${_promptChoices[${i}]}"
             else
-                show primary "  ${choices[${i}]}"
+                show primary "  ${_promptChoices[${i}]}"
             fi
 
             # Show separator line below cursor item (only once, immediately after cursor)
@@ -162,7 +161,7 @@ carousel() {
 
     # Configure and run
 
-    _select _carouselInit _carouselPaint "${prompt}" "${resultVarName}" "${timeout}" 'choices'
+    _selectPrompt "${prompt}" "${choicesVarName}" "${resultVarName}" "${timeout}" _carouselInit _carouselPaint
 }
 
 # Request that the user choose 'yes' or 'no'. To have 'no'
@@ -180,7 +179,7 @@ fail "confirm() not updated, TODO!" # TODO: update to use _readPrompt and left/r
     local answerOne="${2}"
     local answerTwo="${3}"
     local -n resultRef="${4}"
-    local timeout="${6:-30}"
+    local timeout="${6:-${_defaultPromptTimeout}}"
     local defaultAnswer=
     local returnOnEmpty=''
 
@@ -239,6 +238,7 @@ _init_rayvn_prompt() {
     declare -gr _canceledOnEmpty=1
     declare -gr _canceledOnTimeout=124
     declare -gr _canceledOnEsc=130
+    declare -gr _defaultPromptTimeout=30
 
     # Shared global state (safe since bash is single threaded!).
     # Only valid during execution of public functions.
@@ -250,7 +250,6 @@ _init_rayvn_prompt() {
     declare -gi _promptCol
     declare -g _promptHint
     declare -g _promptHintSpace
-    declare -ga _promptChoices
     declare -g _clearPromptHint
     declare -g _timeoutSeconds
     declare -gi _timeoutCheckCount
@@ -276,11 +275,10 @@ _init_rayvn_prompt() {
 
     declare -g _collectInput
     declare -g _promptReserveRows
-    declare -g _promptClearRows
 
-    declare -ga choices
-    declare -g _currentPromptIndex
-    declare -g _maxPromptIndex
+    declare -ga _promptChoices
+    declare -g _currentPromptChoiceIndex
+    declare -g _maxPromptChoicesIndex
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( generic support functions )+---)++++---)++-)++-+------+-+--"
@@ -290,7 +288,7 @@ _prompt() {
 
     # Set defaults then update from arguments
 
-    local initFunction='null'
+    local initFunction='none'
     local choicesVarName
 
     _promptInput=
@@ -308,10 +306,9 @@ _prompt() {
     _rightKeyHandler=0
     _rightKeyFunction=
     _collectInput=0
-    _promptClearRows=0
     _promptReserveRows=0
-    _currentPromptIndex=0
-    _maxPromptIndex=0
+    _currentPromptChoiceIndex=0
+    _maxPromptChoicesIndex=0
     _prompt=
     _plainPrompt=
     _plainPromptHint=
@@ -342,7 +339,7 @@ _prompt() {
             --left) shift; _leftKeyHandler=1; _leftKeyFunction="$1" ;;
             --right) shift; _rightKeyHandler=1; _rightKeyFunction="$1" ;;
             --timeout) shift; _timeoutSeconds="$1" ;;
-            --maxIndex) shift; _maxPromptIndex="$1" ;;
+            --maxIndex) shift; _maxPromptChoicesIndex="$1" ;;
             *) fail "Unknown configuration option: $1" ;;
         esac
         shift
@@ -353,16 +350,17 @@ _prompt() {
 
     # Init choices if supplied
 
+debugVar choicesVarName
     if [[ -n "${choicesVarName}" ]]; then
         local -n choicesRef="${choicesVarName}"
         _promptChoices=("${choicesRef[@]}")
-        _maxPromptIndex=$(( ${#choicesRef[@]} - 1 ))
-        _promptReserveRows=$(( _maxPromptIndex + 3 ))
+        _maxPromptChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
+        _promptReserveRows=$(( _maxPromptChoicesIndex + 3 ))
     fi
-
+debugVar _promptChoices _maxPromptChoicesIndex _promptReserveRows
     # Call init function if set
 
-    [[ ${initFunction} != 'null' ]] && "${initFunction}"
+    [[ ${initFunction} != 'none' ]] && "${initFunction}"
 
     # Reset bash seconds counter
 
@@ -394,7 +392,7 @@ _preparePrompt() {
 
     # Are we preparing for select?
 
-    if (( _maxPromptIndex )); then
+    if (( _maxPromptChoicesIndex )); then
 
         # Yes, do a bit more
         cursorHide
@@ -547,7 +545,7 @@ _finalizePrompt() {
     # Clear any text after the prompt
 
     eraseToEndOfLine
-    for (( i=0; i <= _maxPromptIndex; i++ )); do
+    for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
         cursorDownOneAndEraseLine
     done
 
@@ -570,33 +568,33 @@ _textPromptSuccess() {
 
 SECTION="--+-+-----+-++(-++(---++++(---+( arrow key selection support )+---)++++---)++-)++-+------+-+--"
 
-_select() {
-    local initFunction="${1}"
-    local paintFunction="${2}"
-    local prompt="${3}"
-    local resultVarName="${4}"
-    local timeout="${5}"
-    local choicesVarName=${6}
+_selectPrompt() {
+    local prompt="${1}"
+    local choicesVarName=${2}
+    local resultVarName="${3}"
+    local timeout="${4}"
+    local initFunction="${5}"
+    local paintFunction="${6}"
 
     # Configure and run
 
-    _prompt --init "${initFunction}" --paint "${paintFunction}" --success '_selectPromptSuccess'  \
-            --result "${resultVarName}" --timeout "${timeout}" \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices ${choicesVarName} \
-            --up '_selectUp' --down '_selectDown'
+    _prompt --init "${initFunction}" --paint "${paintFunction}" --up '_selectPromptUp' --down '_selectPromptDown' \
+            --success '_selectPromptSuccess' \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --timeout "${timeout}" \
+            --result "${resultVarName}"
 }
 
-_selectUp() {
-    (( _currentPromptIndex == 0 )) && _currentPromptIndex="${_maxPromptIndex}" || (( _currentPromptIndex-- ))
+_selectPromptUp() {
+    (( _currentPromptChoiceIndex == 0 )) && _currentPromptChoiceIndex="${_maxPromptChoicesIndex}" || (( _currentPromptChoiceIndex-- ))
     "${_promptPaintFunction}"
 }
 
-_selectDown() {
-    (( _currentPromptIndex == "${_maxPromptIndex}" )) && _currentPromptIndex=0 || (( _currentPromptIndex++ ))
+_selectPromptDown() {
+    (( _currentPromptChoiceIndex == "${_maxPromptChoicesIndex}" )) && _currentPromptChoiceIndex=0 || (( _currentPromptChoiceIndex++ ))
     "${_promptPaintFunction}"
 }
 
 _selectPromptSuccess() {
-    _promptInput="${choices[${_currentPromptIndex}]}"
-    _promptSuccess "${_currentPromptIndex}"
+    _promptInput="${_promptChoices[${_currentPromptChoiceIndex}]}"
+    _promptSuccess "${_currentPromptChoiceIndex}"
 }

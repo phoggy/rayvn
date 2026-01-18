@@ -15,7 +15,7 @@ showThemes() {
 setTheme() {
     require 'rayvn/prompt'
     local themes=()
-    local selected
+    local themeIndex
 
     # Build items array
 
@@ -29,9 +29,9 @@ setTheme() {
         themes+=("${theme}")
     done
 
-    carousel 'Select theme' selected 60 true "${themes[@]}" || return 1
-    _setTheme "${selected}"
-    show "Set theme to ${ _displayTheme ${selected}; }"
+    carousel 'Select theme' themes themeIndex true || return 1
+    _setTheme "${themeIndex}"
+    show "Set theme to ${ _displayTheme "${themeIndex}"; }"
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
