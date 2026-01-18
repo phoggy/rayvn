@@ -86,10 +86,12 @@ carousel() {
     local useSeparator="${4}"
     local timeout="${5:-${_defaultPromptTimeout}}"
 
-    local visibleRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
+    local visibleRows rowsPerItem displayStartRow separatorLine
     local maxLineLength=0
-    local len stripped
+    local strippedLen stripped strippedLen
+    local cursorRow windowStart totalVisibleItems
     local numberedChoices=()
+    local cursor="${ show bold '>'; }"
 
     _carouselInit() {
         # Get terminal height
@@ -102,28 +104,42 @@ carousel() {
         # Rows per item (1 for item, +1 if separator)
         [[ ${useSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
 
-        # Calculate items above and below cursor (cursor is in middle)
-        local totalItems=$(( visibleRows / rowsPerItem ))
-        itemsAbove=$(( totalItems / 2 ))
-        itemsBelow=$(( totalItems - itemsAbove - 1 ))
+        # Calculate total visible items
+        totalVisibleItems=$(( visibleRows / rowsPerItem ))
 
         # Position for items
         displayStartRow=3
 
-        # Build numberedChoices array
-        local numberPlaces=${ numericPlaces ${_maxPromptChoicesIndex} 1; }
+        # Initialize cursor at top and window at start
+        cursorRow=0
+        windowStart=0
+
+        # Build numberedChoices array and calculate max length
+        local numberPlaces=${ numericPlaces $(( _maxPromptChoicesIndex + 1 )) 1; }
         local number numberedChoice
-        for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
+        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
+
+            # Update max length
+            len=${#_promptChoices[${i}]}
+            stripped="${ stripAnsi "${_promptChoices[${i}]}"; }"
+            strippedLen=${#stripped}
+            (( strippedLen > maxLineLength )) && maxLineLength=${strippedLen}
+
+            # Add choice to numberedChoices array, coloring it only if it was not already
             number="${ printf '%*s' "${numberPlaces}" "$(( i + 1 ))"; }"
-            numberedChoice="${ show dim "${number}." plain "${_promptChoices[${i}]}"; }"
+            if (( len == strippedLen )); then
+                numberedChoice="${ show dim "${number}." plain primary "${_promptChoices[${i}]}"; }"
+            else
+                numberedChoice="${ show dim "${number}." plain "${_promptChoices[${i}]}"; }"
+            fi
             numberedChoices+=( "${numberedChoice}" )
         done
 
         # Calculate maximum item length (strip escape sequences for accurate length)
-        for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
+        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
             stripped="${ stripAnsi "${numberedChoices[${i}]}"; }"
-            len=${#stripped}
-            (( len > maxLineLength )) && maxLineLength=${len}
+            strippedLen=${#stripped}
+            (( strippedLen > maxLineLength )) && maxLineLength=${strippedLen}
         done
 
         # Add 2 for the "> " prefix and 4 to extend the line on the right
@@ -137,41 +153,81 @@ carousel() {
         separatorLine="${ show secondary "${separatorLine}" ;}"
 
         # Clear screen to allow for maximum visible lines
-
         clear
     }
 
     _carouselPaint() {
-        # Move to display start
+        # Move to display start and clear all display rows
+        cursorTo "${displayStartRow}" 0
+        for (( i=0; i < visibleRows; i++ )); do
+            eraseToEndOfLine
+            echo
+        done
+
+        # Move back to display start
         cursorTo "${displayStartRow}" 0
 
-        # Paint items in a window around current selection
-        for (( offset=-itemsAbove; offset <= itemsBelow; offset++ )); do
-            # Calculate wrapped index
-            i=$(( (_currentPromptChoiceIndex + offset + (_maxPromptChoicesIndex + 1) * 100) % (_maxPromptChoicesIndex + 1) ))
+        # Paint visible items starting from windowStart
+        for (( offset=0; offset < totalVisibleItems; offset++ )); do
+            # Calculate actual index (with wrapping)
+            local i=$(( (windowStart + offset) % (_maxPromptChoicesIndex + 1) ))
 
-            # Show separator line above cursor item (only once, when we reach cursor)
-            (( offset == 0 )) && echo "${separatorLine}"
+            # Show separator line above cursor item
+            # (( offset == cursorRow )) && echo "${separatorLine}"
 
             # Show the item
-            if (( offset == 0 )); then
-                # This is the cursor position (middle)
-                show bold ">" primary "${numberedChoices[${i}]}"
+            if (( offset == cursorRow )); then
+                # This is the cursor position
+                echo "${cursor} ${numberedChoices[${i}]}"
             else
-                show primary "  ${numberedChoices[${i}]}"
+                echo "  ${numberedChoices[${i}]}"
             fi
 
-            # Show separator line below cursor item (only once, immediately after cursor)
-            (( offset == 0 )) && echo "${separatorLine}"
+            # Show separator line below cursor item
+            # (( offset == cursorRow )) && echo "${separatorLine}"
 
-            # Add blank separator line if requested (but not adjacent to cursor separators)
-            [[ ${useSeparator} == true && ${offset} -lt ${itemsBelow} && ${offset} != -1 && ${offset} != 0 ]] && echo
+            # Add blank separator line if requested
+            [[ ${useSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]] && echo
         done
     }
 
-    # Configure and run
+    _carouselUp() {
+        if (( cursorRow > 0 )); then
+            # Move cursor up within window
+            (( cursorRow-- ))
+            (( _currentPromptChoiceIndex-- ))
+        else
+            # Cursor at top, scroll window up
+            (( _currentPromptChoiceIndex-- ))
+            if (( _currentPromptChoiceIndex < 0 )); then
+                _currentPromptChoiceIndex=${_maxPromptChoicesIndex}
+            fi
+            windowStart=$(( (_currentPromptChoiceIndex + (_maxPromptChoicesIndex + 1)) % (_maxPromptChoicesIndex + 1) ))
+        fi
+        "${_promptPaintFunction}"
+    }
 
-    _selectPrompt "${prompt}" "${choicesVarName}" "${resultVarName}" "${timeout}" _carouselInit _carouselPaint
+    _carouselDown() {
+        if (( cursorRow < totalVisibleItems - 1 )); then
+            # Move cursor down within window
+            (( cursorRow++ ))
+            (( _currentPromptChoiceIndex++ ))
+        else
+            # Cursor at bottom, scroll window down
+            (( _currentPromptChoiceIndex++ ))
+            if (( _currentPromptChoiceIndex > _maxPromptChoicesIndex )); then
+                _currentPromptChoiceIndex=0
+            fi
+            windowStart=$(( (_currentPromptChoiceIndex - cursorRow + (_maxPromptChoicesIndex + 1)) % (_maxPromptChoicesIndex + 1) ))
+        fi
+        "${_promptPaintFunction}"
+    }
+
+    # Configure and run
+    _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown \
+            --success '_selectPromptSuccess' \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --timeout "${timeout}" \
+            --result "${resultVarName}"
 }
 
 # Request that the user choose 'yes' or 'no'. To have 'no'
