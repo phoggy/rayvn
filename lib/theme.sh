@@ -14,18 +14,14 @@ showThemes() {
 
 setTheme() {
     require 'rayvn/prompt'
+    local theme
     local themes=()
     local themeIndex
 
     # Build items array
 
     for (( i=0; i < _themeCount; i++ )); do
-        local number=
-        local theme=''
-        (( i < 9 )) && number+=' '
-        number+="$(( i+1 ))"
-        number="${ show dim ${number}; }"
-        theme+="${number} ${ _displayTheme ${i}; }"
+        theme="${ _displayTheme ${i}; }"
         themes+=("${theme}")
     done
 

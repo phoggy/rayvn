@@ -89,6 +89,7 @@ carousel() {
     local visibleRows itemsAbove itemsBelow rowsPerItem displayStartRow separatorLine offset
     local maxLineLength=0
     local len stripped
+    local numberedChoices=()
 
     _carouselInit() {
         # Get terminal height
@@ -109,9 +110,18 @@ carousel() {
         # Position for items
         displayStartRow=3
 
+        # Build numberedChoices array
+        local numberPlaces=${ numericPlaces ${_maxPromptChoicesIndex} 1; }
+        local number numberedChoice
+        for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
+            number="${ printf '%*s' "${numberPlaces}" "$(( i + 1 ))"; }"
+            numberedChoice="${ show dim "${number}." plain "${_promptChoices[${i}]}"; }"
+            numberedChoices+=( "${numberedChoice}" )
+        done
+
         # Calculate maximum item length (strip escape sequences for accurate length)
         for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
-            stripped="${ stripAnsi "${_promptChoices[${i}]}"; }"
+            stripped="${ stripAnsi "${numberedChoices[${i}]}"; }"
             len=${#stripped}
             (( len > maxLineLength )) && maxLineLength=${len}
         done
@@ -146,9 +156,9 @@ carousel() {
             # Show the item
             if (( offset == 0 )); then
                 # This is the cursor position (middle)
-                show bold ">" primary "${_promptChoices[${i}]}"
+                show bold ">" primary "${numberedChoices[${i}]}"
             else
-                show primary "  ${_promptChoices[${i}]}"
+                show primary "  ${numberedChoices[${i}]}"
             fi
 
             # Show separator line below cursor item (only once, immediately after cursor)
