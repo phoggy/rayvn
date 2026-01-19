@@ -28,7 +28,7 @@ debugStatus() {
     if (( _debug )); then
         local prefix=
         local suffix=
-        prefix="${ show "${_debugPrefixColor}" italic 'debug ⮕ '; }"
+        prefix="${ show accent italic 'debug ⮕ '; }"
         if [[ -n ${_debugLogFile} ]]; then
             local show=
             [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]"; }"
@@ -75,9 +75,9 @@ debugVarIsSet() {
     if (( _debug )); then
         local var="${1}"
         local prefix="${2}"
-        [[ ${prefix} ]] && prefix="${ show cyan "${prefix} and" ;} "
+        [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
-            _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is set ->" ;} "
+            _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is set ->" ;} "
             if variableIsDefined ${var}; then
                 declare -p ${var}
             else
@@ -93,10 +93,10 @@ debugVarIsNotSet() {
     if (( _debug )); then
         local var="${1}"
         local prefix="${2}"
-        [[ ${prefix} ]] && prefix="${ show cyan "${prefix} and" ;} "
+        [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
             local var="${1}"
-            _debugEchoNoNewline "${prefix}${ show blue "expect '${var}' is not set ->" ;} "
+            _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is not set ->" ;} "
             if variableIsDefined ${var}; then
                 show red "=${!var}"
                 stackTrace
@@ -154,7 +154,6 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/debug' PRIVAT
 declare -gx _debugOut=
 declare -gx _debugPrefix=
 declare -gx _debugShowLogOnExit=0
-declare -gx _debugPrefixColor="magenta"
 declare -gx _debugRemote=0
 
 _init_rayvn_debug() {
@@ -199,15 +198,15 @@ _setDebug() {
     if [[ -n ${_debugOut} ]]; then
         exec 3>> "${_debugOut}"
         if ((isInteractive)); then
-            _debugPrefix="${ show ${_debugPrefixColor} 'debug: ';}"
+            _debugPrefix="${ show accent 'debug: ';}"
         else
             _debugPrefix="debug: "
         fi
 
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
-            echo -n $'\e[2J\e[H' > ${_debugOut} # clear remote terminal
-            show -e bold green "BEGIN" blue "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
+            echo -n $'\e[2J\e[H' >&3 # clear remote terminal
+            show -e bold green "BEGIN" primary "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
         fi
     else
         _prepareLogFile ${clearLog}
@@ -253,7 +252,7 @@ _debugExit() {
     exec 3>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
-        show -e bold green "\nEND   " blue "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
+        show -e bold green "\nEND   " primary "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
     fi
 }
 
@@ -278,7 +277,7 @@ _printDebugLog() {
 
             (( _debugStartLine++ ))
             startLine="${ tail -n +${_debugStartLine} "${_debugLogFile}" | head -n 1; }"
-            show bold blue "${startLine}"
+            show bold primary "${startLine}"
 
             # print remaining lines
 
@@ -287,7 +286,7 @@ _printDebugLog() {
 
             # print a closing line
 
-            show bold blue "____________________________________________________________________________"
+            show bold primary "____________________________________________________________________________"
             printf "${closing}\n"
         }
     fi
