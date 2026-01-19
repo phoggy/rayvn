@@ -400,7 +400,7 @@ _prompt() {
     _promptHintSpace=' '
     _promptChoices=()
     _clearPromptHint=
-    _timeoutSeconds=60 # long default
+    _timeoutSeconds="${_defaultPromptTimeout}"
     _timeoutCheckCount=0
 
     while (( $# )); do
@@ -408,22 +408,22 @@ _prompt() {
             --prompt) shift; _plainPrompt="$1" ;;
             --hint) shift; _plainPromptHint="$1" ;;
             --hintSpace) shift; _promptHintSpace="$1" ;;
-            --clearHint) _clearPromptHint=1 ;;
             --init) shift; initFunction="$1" ;;
             --paint) shift; _promptPaintFunction="$1" ;;
             --success) shift; _promptSuccessFunction="$1" ;;
             --result) shift; _promptResultVarName="$1" ;;
             --reserveRows) shift; _promptReserveRows="$1" ;;
             --choices) shift; choicesVarName="$1" ;;
-            --hide) _promptEcho=0 ;;
-            --cancelOnEmpty) _cancelOnEmpty=1 ;;
-            --collect) _collectInput=1 ;;
             --up) shift; _upKeyHandler=1; _upKeyFunction="$1" ;;
             --down) shift; _downKeyHandler=1; _downKeyFunction="$1" ;;
             --left) shift; _leftKeyHandler=1; _leftKeyFunction="$1" ;;
             --right) shift; _rightKeyHandler=1; _rightKeyFunction="$1" ;;
             --timeout) shift; _timeoutSeconds="$1" ;;
             --maxIndex) shift; _maxPromptChoicesIndex="$1" ;;
+            --hide) _promptEcho=0 ;;
+            --cancelOnEmpty) _cancelOnEmpty=1 ;;
+            --clearHint) _clearPromptHint=1 ;;
+            --collect) _collectInput=1 ;;
             *) fail "Unknown configuration option: $1" ;;
         esac
         shift
@@ -434,14 +434,13 @@ _prompt() {
 
     # Init choices if supplied
 
-debugVar choicesVarName
     if [[ -n "${choicesVarName}" ]]; then
         local -n choicesRef="${choicesVarName}"
         _promptChoices=("${choicesRef[@]}")
         _maxPromptChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
         _promptReserveRows=$(( _maxPromptChoicesIndex + 3 ))
     fi
-debugVar _promptChoices _maxPromptChoicesIndex _promptReserveRows
+
     # Call init function if set
 
     [[ ${initFunction} != 'none' ]] && "${initFunction}"
@@ -597,7 +596,7 @@ _clearHint() {
     printf '\e[%dG\e[K' ${_promptCol}
 }
 
-_hasPromptTimerExpired() {
+_hasPromptTimerExpired() {                    # TODO option to reset SECONDS to 0 on any keystroke (e.g. for carousel)
     if (( ++_timeoutCheckCount >= 10 )); then
         if (( SECONDS >= _timeoutSeconds )); then
             _finalizePrompt _canceledMsgTimeout italic warning
