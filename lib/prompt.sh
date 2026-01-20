@@ -60,16 +60,29 @@ choose() {
         cursorTo ${_cursorRow} 0
         for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
             if (( i == _currentPromptChoiceIndex)); then
-                show bold ">" primary "${_promptChoices[${i}]}"
+                echo "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
             else
-                show primary "  ${_promptChoices[${i}]}"
+                echo "    ${_promptDisplayChoices[$i]}"
             fi
         done
     }
 
-    # Run it
+    _chooseUp() {
+        (( _currentPromptChoiceIndex == 0 )) && _currentPromptChoiceIndex="${_maxPromptChoicesIndex}" || (( _currentPromptChoiceIndex-- ))
+        _choosePaint
+    }
 
-    _selectPrompt "${prompt}" "${choicesVarName}" "${resultVarName}" "${timeout}" none _choosePaint
+    _chooseDown() {
+        (( _currentPromptChoiceIndex == "${_maxPromptChoicesIndex}" )) && _currentPromptChoiceIndex=0 || (( _currentPromptChoiceIndex++ ))
+        "${_promptPaintFunction}"
+        _choosePaint
+    }
+
+    # Configure and run it. Don't use --reserveRows N so that it will be set automatically
+
+    _prompt --paint _choosePaint --up _chooseUp --down _chooseDown --success _arrowPromptSuccess \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --numberChoices \
+            --timeout "${timeout}" --result "${resultVarName}"
 }
 
 # Carousel chooser with fixed cursor in the middle and scrolling items.
@@ -86,73 +99,39 @@ carousel() {
     local useSeparator="${4}"
     local timeout="${5:-${_defaultPromptTimeout}}"
 
-    local visibleRows rowsPerItem displayStartRow
-    local maxLineLength=0
-    local strippedLen stripped strippedLen
-    local cursorRow windowStart totalVisibleItems
-    local previousCursorRow previousWindowStart
-    local numberedChoices=()
-    local cursor="${ show bold '>'; }"
+    # Get terminal height
+    local termHeight=$(tput lines)
+
+    # Reserve space for prompt and margins
+    local visibleRows=$(( termHeight - 6 ))
+
+    # Rows per item (1 for item, +1 if separator)
+    local rowsPerItem
+    [[ ${useSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
+
+    # Calculate total visible items
+    local totalVisibleItems=$(( visibleRows / rowsPerItem ))
+
+    # Position for items
+    local displayStartRow=3
+
+    # Initialize cursor at top and window at start
+
+    local cursorRow=0
+    local windowStart=0
+    local previousCursorRow=-1
+    local previousWindowStart=-1
+
+    # Clear screen to allow for maximum visible lines
+    clear # TODO: if remove clear, replace with: printf '\n\n'
 
     _carouselInit() {
-        # Get terminal height
-        local termHeight=$(tput lines)
-
-        # Reserve space for prompt and margins
-        visibleRows=$(( termHeight - 6 ))
-        _promptReserveRows=$(( visibleRows + 3 )) # Note that this replaces the value set in _prompt
-
-        # Rows per item (1 for item, +1 if separator)
-        [[ ${useSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
-
-        # Calculate total visible items
-        totalVisibleItems=$(( visibleRows / rowsPerItem ))
-
-        # Position for items
-        displayStartRow=3
-
-        # Initialize cursor at top and window at start
-        cursorRow=0
-        windowStart=0
-        previousCursorRow=-1
-        previousWindowStart=-1
-
-        # Build numberedChoices array and calculate max length
-        local numberPlaces=${ numericPlaces $(( _maxPromptChoicesIndex + 1 )) 1; }
-        local number numberedChoice
-        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
-
-            # Update max length
-            len=${#_promptChoices[${i}]}
-            stripped="${ stripAnsi "${_promptChoices[${i}]}"; }"
-            strippedLen=${#stripped}
-            (( strippedLen > maxLineLength )) && maxLineLength=${strippedLen}
-
-            # Add choice to numberedChoices array, coloring it only if it was not already
-            number="${ printf '%*s' "${numberPlaces}" "$(( i + 1 ))"; }"
-            if (( len == strippedLen )); then
-                numberedChoice="${ show dim "${number}." plain primary "${_promptChoices[${i}]}"; }"
-            else
-                numberedChoice="${ show dim "${number}." plain "${_promptChoices[${i}]}"; }"
-            fi
-            numberedChoices+=( "${numberedChoice}" )
-        done
-
-        # Calculate maximum item length (strip escape sequences for accurate length)
-        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
-            stripped="${ stripAnsi "${numberedChoices[${i}]}"; }"
-            strippedLen=${#stripped}
-            (( strippedLen > maxLineLength )) && maxLineLength=${strippedLen}
-        done
-
-        # Add 2 for the "> " prefix and 4 to extend the line on the right
-        maxLineLength=$(( maxLineLength + 6 ))
-
-        # Clear screen to allow for maximum visible lines
-        clear
+        # Override in case rowsPerItem > 1
+        _promptReserveRows="${totalVisibleItems}"
     }
 
     _carouselPaint() {
+
         # Check if we need full repaint (window scrolled) or just cursor move
         if (( windowStart != previousWindowStart )); then
             # Window scrolled - redraw all items without clearing first to reduce flicker
@@ -164,9 +143,9 @@ carousel() {
                 cursorTo ${row} 0
                 eraseToEndOfLine
                 if (( offset == cursorRow )); then
-                    echo -n "${cursor} ${numberedChoices[${i}]}"
+                    echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
                 else
-                    echo -n "  ${numberedChoices[${i}]}"
+                    echo -n "    ${_promptDisplayChoices[$i]}"
                 fi
 
                 (( row++ ))
@@ -190,7 +169,7 @@ carousel() {
                 local i=$(( (windowStart + previousCursorRow) % (_maxPromptChoicesIndex + 1) ))
                 cursorTo ${row} 0
                 eraseToEndOfLine
-                echo -n "  ${numberedChoices[${i}]}"
+                echo -n "    ${_promptDisplayChoices[$i]}"
             fi
 
             # Calculate new row position
@@ -201,7 +180,7 @@ carousel() {
             local i=$(( (windowStart + cursorRow) % (_maxPromptChoicesIndex + 1) ))
             cursorTo ${row} 0
             eraseToEndOfLine
-            echo -n "${cursor} ${numberedChoices[${i}]}"
+            echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
         fi
 
         # Update previous positions
@@ -222,7 +201,7 @@ carousel() {
             fi
             windowStart=$(( (_currentPromptChoiceIndex + (_maxPromptChoicesIndex + 1)) % (_maxPromptChoicesIndex + 1) ))
         fi
-        "${_promptPaintFunction}"
+        _carouselPaint
     }
 
     _carouselDown() {
@@ -238,14 +217,14 @@ carousel() {
             fi
             windowStart=$(( (_currentPromptChoiceIndex - cursorRow + (_maxPromptChoicesIndex + 1)) % (_maxPromptChoicesIndex + 1) ))
         fi
-        "${_promptPaintFunction}"
+        _carouselPaint
     }
 
     # Configure and run
-    _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown \
-            --success '_selectPromptSuccess' \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --timeout "${timeout}" \
-            --result "${resultVarName}"
+
+    _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --numberChoices \
+            --reserveRows "${totalVisibleItems}" --timeout "${timeout}" --result "${resultVarName}"
 }
 
 # Request that the user choose 'yes' or 'no'. To have 'no'
@@ -361,6 +340,9 @@ _init_rayvn_prompt() {
     declare -g _promptReserveRows
 
     declare -ga _promptChoices
+    declare -ga _promptDisplayChoices
+    declare -g _promptSuccessColor
+    declare -g _promptChoicesCursor
     declare -g _currentPromptChoiceIndex
     declare -g _maxPromptChoicesIndex
 }
@@ -391,15 +373,14 @@ _prompt() {
     _rightKeyFunction=
     _collectInput=0
     _promptReserveRows=0
-    _currentPromptChoiceIndex=0
-    _maxPromptChoicesIndex=0
     _prompt=
     _plainPrompt=
     _plainPromptHint=
     _promptHint=
     _promptHintSpace=' '
-    _promptChoices=()
+    _promptSuccessColor='primary'
     _clearPromptHint=
+    _numberPromptChoices=0
     _timeoutSeconds="${_defaultPromptTimeout}"
     _timeoutCheckCount=0
 
@@ -413,13 +394,14 @@ _prompt() {
             --success) shift; _promptSuccessFunction="$1" ;;
             --result) shift; _promptResultVarName="$1" ;;
             --reserveRows) shift; _promptReserveRows="$1" ;;
-            --choices) shift; choicesVarName="$1" ;;
+            --choices) shift; _setPromptChoices "$1" ;;
             --up) shift; _upKeyHandler=1; _upKeyFunction="$1" ;;
             --down) shift; _downKeyHandler=1; _downKeyFunction="$1" ;;
             --left) shift; _leftKeyHandler=1; _leftKeyFunction="$1" ;;
             --right) shift; _rightKeyHandler=1; _rightKeyFunction="$1" ;;
             --timeout) shift; _timeoutSeconds="$1" ;;
             --maxIndex) shift; _maxPromptChoicesIndex="$1" ;;
+            --numberChoices) _numberPromptChoices=1; _updateNumericPromptChoices  ;;
             --hide) _promptEcho=0 ;;
             --cancelOnEmpty) _cancelOnEmpty=1 ;;
             --clearHint) _clearPromptHint=1 ;;
@@ -432,16 +414,7 @@ _prompt() {
     [[ -n ${_promptSuccessFunction} ]] || fail "success function is required"
     [[ -n ${_promptResultVarName} ]] || fail "result var name is required"
 
-    # Init choices if supplied
-
-    if [[ -n "${choicesVarName}" ]]; then
-        local -n choicesRef="${choicesVarName}"
-        _promptChoices=("${choicesRef[@]}")
-        _maxPromptChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
-        _promptReserveRows=$(( _maxPromptChoicesIndex + 3 ))
-    fi
-
-    # Call init function if set
+    # Call init function if provided
 
     [[ ${initFunction} != 'none' ]] && "${initFunction}"
 
@@ -453,6 +426,52 @@ _prompt() {
 
     _preparePrompt
     _executePrompt
+}
+
+_setPromptChoices() {
+    local -n choicesRef="$1"
+    _currentPromptChoiceIndex=0
+    _promptChoices=("${choicesRef[@]}")
+    _maxPromptChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
+    _promptChoicesCursor="${ show bold '>'; }"
+
+    # Set reserve rows if not set already
+
+    (( ! _promptReserveRows )) && _promptReserveRows=$(( _maxPromptChoicesIndex + 3 ))
+
+    # Are the choices already colored?
+
+    if containsAnsi "${_promptChoices[0]}"; then
+
+        # Yes, so don't color the display choices or the finalized prompt
+
+        _promptDisplayChoices=("${_promptChoices[@]}")
+        _promptSuccessColor=''
+    else
+
+        # No, so color the display choices and the finalized prompt
+
+        for (( i=0; i <= _maxPromptChoicesIndex; i++  )); do
+            _promptDisplayChoices[$i]="${ show primary "${_promptChoices[$i]}"; }"
+        done
+        _promptSuccessColor='primary'
+    fi
+
+    # Make sure they are numbered if requested and not done already
+
+    _updateNumericPromptChoices
+}
+
+_updateNumericPromptChoices() {
+    if (( _numberPromptChoices )); then
+        local number
+        local places=${ numericPlaces $(( _maxPromptChoicesIndex + 1 )) 1; }
+        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
+            number="${ printNumber $(( $i +1 )) ${places} ; }"
+            _promptDisplayChoices[$i]="${ show dim "${number}." plain "${_promptDisplayChoices[${i}]}"; }"
+        done
+        _numberPromptChoices=0 # don't do this again
+    fi
 }
 
 _preparePrompt() {
@@ -480,7 +499,6 @@ _preparePrompt() {
         # Yes, do a bit more
         cursorHide
         echo
-        (( _cursorRow++ )) # adjust for echo
     fi
 
     # Paint if function is set
@@ -600,7 +618,6 @@ _hasPromptTimerExpired() {                    # TODO option to reset SECONDS to 
     if (( ++_timeoutCheckCount >= 10 )); then
         if (( SECONDS >= _timeoutSeconds )); then
             _finalizePrompt _canceledMsgTimeout italic warning
-            debug "${_timeoutSeconds} second timeout for prompt '${_plainPrompt}'"
             return 0
         fi
         _timeoutCheckCount=0
@@ -611,8 +628,8 @@ _hasPromptTimerExpired() {                    # TODO option to reset SECONDS to 
 _promptSuccess() {
     local result="${1}"
     local -n resultVarRef="${_promptResultVarName}"
-    _finalizePrompt _promptInput primary   # TODO make this color a variable, unset if _promptChoices and items are colored!
     resultVarRef="${result}"
+    _finalizePrompt _promptInput "${_promptSuccessColor}"
     return 0
 }
 
@@ -628,9 +645,12 @@ _finalizePrompt() {
     # Clear any text after the prompt
 
     eraseToEndOfLine
-    for (( i=0; i < _maxPromptChoicesIndex; i++ )); do
-        cursorDownOneAndEraseLine
-    done
+    if (( _maxPromptChoicesIndex )); then
+debug "erasing ${_maxPromptChoicesIndex} choices from row ${_promptRow} col ${_promptCol}"
+        for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
+            cursorDownOneAndEraseLine
+        done
+    fi
 
     # Restore cursor and show result message
 
@@ -651,33 +671,7 @@ _textPromptSuccess() {
 
 SECTION="--+-+-----+-++(-++(---++++(---+( arrow key selection support )+---)++++---)++-)++-+------+-+--"
 
-_selectPrompt() {
-    local prompt="${1}"
-    local choicesVarName=${2}
-    local resultVarName="${3}"
-    local timeout="${4}"
-    local initFunction="${5}"
-    local paintFunction="${6}"
-
-    # Configure and run
-
-    _prompt --init "${initFunction}" --paint "${paintFunction}" --up '_selectPromptUp' --down '_selectPromptDown' \
-            --success '_selectPromptSuccess' \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --timeout "${timeout}" \
-            --result "${resultVarName}"
-}
-
-_selectPromptUp() {
-    (( _currentPromptChoiceIndex == 0 )) && _currentPromptChoiceIndex="${_maxPromptChoicesIndex}" || (( _currentPromptChoiceIndex-- ))
-    "${_promptPaintFunction}"
-}
-
-_selectPromptDown() {
-    (( _currentPromptChoiceIndex == "${_maxPromptChoicesIndex}" )) && _currentPromptChoiceIndex=0 || (( _currentPromptChoiceIndex++ ))
-    "${_promptPaintFunction}"
-}
-
-_selectPromptSuccess() {
+_arrowPromptSuccess() {
     _promptInput="${_promptChoices[${_currentPromptChoiceIndex}]}"
     _promptSuccess "${_currentPromptChoiceIndex}"
 }
