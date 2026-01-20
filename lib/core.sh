@@ -124,15 +124,21 @@ trim() {
 }
 
 numericPlaces() {
-    local count="${1}"
+    local maxValue="${1}"
     local startValue="${2:-0}"
 
-    [[ -z "${count}" ]] && fail "numericPlaces: count required"
-    [[ ! "${count}" =~ ^[0-9]+$ ]] && fail "numericPlaces: count must be a positive integer"
+    [[ -z "${maxValue}" ]] && fail "numericPlaces: max value required"
+    (( maxValue == 0 )) && fail "numericPlaces: max value must be at least 1"
+    [[ ! "${maxValue}" =~ ^[0-9]+$ ]] && fail "numericPlaces: max value must be a positive integer"
     [[ ! "${startValue}" =~ ^[0-1]$ ]] && fail "numericPlaces: start value must be 0 or 1"
-    (( count == 0 )) && fail "numericPlaces: count must be at least 1"
-    local maxValue=$(( count + (startValue - 1) )) # adjust count by -1 if startValue == 0 and by 0 if startValue == 1
+    local maxValue=$(( maxValue + (startValue - 1) )) # adjust count by -1 if startValue == 0 and by 0 if startValue == 1
     echo "${#maxValue}" # return count of digits
+}
+
+printNumber() {
+    local number="${1}"
+    local places=${2-:1}
+    printf '%*s' "${places}" "${number}"
 }
 
 projectVersion() {
@@ -480,6 +486,10 @@ copyMap() {
 
 stripAnsi() {
     echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+containsAnsi() {
+    [[ "${1}" =~ $'\e[' ]]
 }
 
 maxArrayElementLength() {
