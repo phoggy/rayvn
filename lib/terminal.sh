@@ -58,6 +58,14 @@ cursorTo() {
     printf '\e[%i;%iH' ${1} ${2:-0}
 }
 
+cursorToColumn() {
+    printf '\e[%dG' "${1}"
+}
+
+cursorToColumnAndEraseToEndOfLine() {
+    printf '\e[%dG\e[K' "${1}"
+}
+
 cursorUpOneAndEraseLine() {
     echo -n "${_cursorUpOneAndEraseLine}"
 }
