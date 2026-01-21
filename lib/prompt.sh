@@ -57,7 +57,7 @@ choose() {
     local timeout="${4:-${_defaultPromptTimeout}}"
 
     _choosePaint() {
-        cursorTo ${_cursorRow} 0
+        cursorTo $(( _cursorRow + 2 )) 0
         for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
             if (( i == _currentPromptChoiceIndex)); then
                 echo "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
@@ -123,12 +123,7 @@ carousel() {
     local previousWindowStart=-1
 
     # Clear screen to allow for maximum visible lines
-    clear # TODO: if remove clear, replace with: printf '\n\n'
-
-    _carouselInit() {
-        # Override in case rowsPerItem > 1
-        _promptReserveRows="${totalVisibleItems}"
-    }
+    clear # TODO: only do this if remaining visible rows is < available. IOW, don't take up the whole window by default!
 
     _carouselPaint() {
 
@@ -222,7 +217,7 @@ carousel() {
 
     # Configure and run
 
-    _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
+    _prompt --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
             --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --numberChoices \
             --reserveRows "${totalVisibleItems}" --timeout "${timeout}" --result "${resultVarName}"
 }
@@ -496,9 +491,9 @@ _preparePrompt() {
 
     if (( _maxPromptChoicesIndex )); then
 
-        # Yes, do a bit more
+        # Yes, hide the cursor
+
         cursorHide
-        echo
     fi
 
     # Paint if function is set
@@ -646,7 +641,6 @@ _finalizePrompt() {
 
     eraseToEndOfLine
     if (( _maxPromptChoicesIndex )); then
-debug "erasing ${_maxPromptChoicesIndex} choices from row ${_promptRow} col ${_promptCol}"
         for (( i=0; i <= _maxPromptChoicesIndex; i++ )); do
             cursorDownOneAndEraseLine
         done
