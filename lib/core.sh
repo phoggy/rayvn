@@ -823,7 +823,7 @@ _init_rayvn_core() {
 
 _init_theme() {
     declare -grx _themeConfigFile="${_rayvnConfigDir}/current.theme"
-    local index
+    local index=0
 
     # load theme config file if it exists
 
@@ -842,7 +842,7 @@ _init_theme() {
             index=1  # Dark Material Design
         fi
         _setTheme ${index}
-        echo -e "\nNOTE: Using default theme '${_themeDisplayNames[${index}]}'. Run 'rayvn themes' to change.\n"
+        echo -e "\nNOTE: Using default theme '${_themeNames[${index}]}'. Run 'rayvn themes' to change.\n"
     else
         index=${theme[1]}
     fi
