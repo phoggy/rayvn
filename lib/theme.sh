@@ -16,7 +16,7 @@ setTheme() {
     require 'rayvn/prompt'
     local theme
     local themes=()
-    local themeIndex
+    local selectedIndex
 
     # Build items array
 
@@ -25,22 +25,19 @@ setTheme() {
         themes+=("${theme}")
     done
 
-    carousel 'Select theme' themes themeIndex true || return 1
-    _setTheme "${themeIndex}"
-    show "Set theme to ${ _displayTheme "${themeIndex}"; }"
+    carousel 'Select theme' themes selectedIndex true "${_currentThemeIndex}" || return 1
+    if (( selectedIndex == _currentThemeIndex )); then
+        show "No change, theme is still" bold "${_themeNames[${selectedIndex}]}"
+    else
+        _setTheme "${selectedIndex}"
+        show "Theme changed to" bold "${_themeNames[${selectedIndex}]}"
+    fi
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_theme() {
     require 'rayvn/core'
-
-    # Set terminal background type
-
-    local type
-    type="${ _detectBackground; }"
-    declare -grx _assumedBackground=$?
-    declare -grx _themeBackground="${type}"
 
     # Collect display and var names
 
@@ -50,23 +47,18 @@ _init_rayvn_theme() {
     local lightVars=()
     local name
 
-    for name in "${_themeNames[@]}"; do
+    for name in "${_themeBaseNames[@]}"; do
         darkNames+=("Dark ${name}")
         lightNames+=("Light ${name}")
         darkVars+=("themeDark${name// /}")
         lightVars+=("themeLight${name// /}")
     done
 
-    # Save them ordered by current background type
+    # Create full name and var name arrays
 
-    if [[ ${_themeBackground} == Dark ]]; then
-        declare -grax _themeDisplayNames=("${darkNames[@]}" "${lightNames[@]}")
-        declare -grax _themeVarNames=("${darkVars[@]}" "${lightVars[@]}")
-    else
-        declare -grax _themeDisplayNames=("${lightNames[@]}" "${darkNames[@]}")
-        declare -grax _themeVarNames=("${lightVars[@]}" "${darkVars[@]}")
-    fi
-    declare -grx _themeCount="${#_themeDisplayNames[@]}"
+    declare -grax _themeNames=("${darkNames[@]}" "${lightNames[@]}")
+    declare -grax _themeVarNames=("${darkVars[@]}" "${lightVars[@]}")
+    declare -grx _themeCount="${#_themeNames[@]}"
 
     # Set default indent
 
@@ -92,7 +84,7 @@ _displayTheme() {
     local displayName boldDisplayName paddedDisplayName
     local -n themeRef="${_themeVarNames[${themeIndex}]}"
 
-    displayName="${_themeDisplayNames[${themeIndex}]}"
+    displayName="${_themeNames[${themeIndex}]}"
     paddedDisplayName="${ padString "${displayName}" ${indent} ${position}; }"
     boldDisplayName="${ show -n bold "${paddedDisplayName}"; }"
 
@@ -109,12 +101,12 @@ _setTheme() {
     local themeIndex="${1}"
     local displayName
     local -n themeRef="${_themeVarNames[${themeIndex}]}"
-    displayName="${_themeDisplayNames[${themeIndex}]}"
+    displayName="${_themeNames[${themeIndex}]}"
 
     # Convert to a 'theme' array with the display name as the first element and the index as the second
 
     local theme=("${displayName}" "${themeIndex}")
-
+debugVar displayName themeIndex theme
     for colorName in "${_themeColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
         theme+=("${colorCode}")
@@ -253,7 +245,7 @@ THEME_DATA="--+-+-----+-++(-++(---++++(---+(  THEME DATA  )+---)++++---)++-)++-+
 declare -grax _themeColors=(success error warning info muted accent primary secondary)
 
 # Theme names
-declare -grax _themeNames=(
+declare -grax _themeBaseNames=(
     "Basic"             # 8 bit color, same dark and ligh
     "Material Design"   # Dark and light are the same
     "Flat Design"       # Works on both light and dark
