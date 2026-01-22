@@ -847,7 +847,7 @@ _init_theme() {
         index=${theme[1]}
     fi
 
-    declare -grax _currentThemeIndex=${index}
+    declare -grx _currentThemeIndex=${index}
 }
 
 _init_colors() {
