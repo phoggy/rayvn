@@ -59,7 +59,7 @@ choose() {
     _choosePaint() {
         cursorTo "${_promptChoicesStartRow}" 0
         for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
-            if (( i == _promptCurrentChoiceIndex)); then
+            if (( i == _promptChoiceIndex)); then
                 echo "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
             else
                 echo "    ${_promptDisplayChoices[$i]}"
@@ -68,12 +68,12 @@ choose() {
     }
 
     _chooseUp() {
-        (( _promptCurrentChoiceIndex == 0 )) && _promptCurrentChoiceIndex="${_promptMaxChoicesIndex}" || (( _promptCurrentChoiceIndex-- ))
+        (( _promptChoiceIndex == 0 )) && _promptChoiceIndex="${_promptMaxChoicesIndex}" || (( _promptChoiceIndex-- ))
         _choosePaint
     }
 
     _chooseDown() {
-        (( _promptCurrentChoiceIndex == "${_promptMaxChoicesIndex}" )) && _promptCurrentChoiceIndex=0 || (( _promptCurrentChoiceIndex++ ))
+        (( _promptChoiceIndex == "${_promptMaxChoicesIndex}" )) && _promptChoiceIndex=0 || (( _promptChoiceIndex++ ))
         "${_promptPaintFunction}"
         _choosePaint
     }
@@ -88,7 +88,7 @@ choose() {
 # Carousel chooser with fixed cursor in the middle and scrolling items.
 # Assumes there are more items than can fit on screen.
 #
-# Usage: carousel <prompt> <choiceIndexVarName> <timeout> <useSeparator> choice0 choice1 ... choiceN
+# Usage: carousel <prompt> <choicesVarName> <resultIndexVarName> [<addSeparator>] [<startIndex>] [<timeout>]
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -96,36 +96,54 @@ carousel() {
     local prompt="${1}"
     local choicesVarName="${2}"
     local resultVarName="${3}"
-    local useSeparator="${4}"
-    local timeout="${5:-${_defaultPromptTimeout}}"
+    local addSeparator="${4:-false}"
+    local startIndex="${5:-0}"
+    local timeout="${6:-${_defaultPromptTimeout}}"
 
-    # Get terminal height
-    local termHeight=$(tput lines)
-
-    # Reserve space for prompt and margins
-    local visibleRows=$(( termHeight - 6 ))
-
-    # Rows per item (1 for item, +1 if separator)
+    local totalVisibleItems
     local rowsPerItem
-    [[ ${useSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
+    local cursorRow
+    local windowStart
+    local previousCursorRow
+    local previousWindowStart
 
-    # Calculate total visible items
-    local totalVisibleItems=$(( visibleRows / rowsPerItem ))
+    _carouselInit() {
+    debug "_carouselInit, _promptChoiceIndex=${_promptChoiceIndex}"
+        # Get terminal height
+        local termHeight=$(tput lines)
 
-    # Initialize cursor at top and window at start
+        # Reserve space for prompt and margins
+        local visibleRows=$(( termHeight - 6 ))
 
-    local cursorRow=0
-    local windowStart=0
-    local previousCursorRow=-1
-    local previousWindowStart=-1
+        # Rows per item (1 for item, +1 if separator)
+        [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
 
-    # Clear screen to allow for maximum visible lines
-    clear # TODO: only do this if remaining visible rows is < available. IOW, don't take up the whole window by default!
+        # Calculate total visible items
+        totalVisibleItems=$(( visibleRows / rowsPerItem ))
+
+        # Initialize cursor and window position based on startIndex
+        # If startIndex fits in visible window, show it at its position
+        # Otherwise, position it at top of window and scroll window to show it
+        if (( _promptChoiceIndex < totalVisibleItems )); then
+            cursorRow=${_promptChoiceIndex}
+            windowStart=0
+        else
+            cursorRow=0
+            windowStart=${_promptChoiceIndex}
+        fi
+    debugVar cursorRow
+        previousCursorRow=-1
+        previousWindowStart=-1
+
+        # Clear screen to allow for maximum visible lines
+        # TODO: only do this if remaining visible rows is < available. IOW, don't take up the whole window by default!
+        clear
+    }
 
     _carouselPaint() {
         # Check if we need full repaint (window scrolled) or just cursor move
         if (( windowStart != previousWindowStart )); then
-            # Window scrolled - redraw all items without clearing first to reduce flicker
+            # Window scrolled - redraw all items without clearing all to reduce flicker
             local row=${_promptChoicesStartRow}
 
             for (( offset=0; offset < totalVisibleItems; offset++ )); do
@@ -142,7 +160,7 @@ carousel() {
                 (( row++ ))
 
                 # Add separator line if needed
-                if [[ ${useSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]]; then
+                if [[ ${addSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]]; then
                     cursorTo ${row} 0
                     eraseToEndOfLine
                     echo -n ""
@@ -177,45 +195,49 @@ carousel() {
         # Update previous positions
         previousCursorRow=${cursorRow}
         previousWindowStart=${windowStart}
+        debug "PAINT: ${_promptChoiceIndex}"
     }
 
     _carouselUp() {
         if (( cursorRow > 0 )); then
             # Move cursor up within window
             (( cursorRow-- ))
-            (( _promptCurrentChoiceIndex-- ))
+            (( _promptChoiceIndex-- ))
         else
             # Cursor at top, scroll window up
-            (( _promptCurrentChoiceIndex-- ))
-            if (( _promptCurrentChoiceIndex < 0 )); then
-                _promptCurrentChoiceIndex=${_promptMaxChoicesIndex}
+            (( _promptChoiceIndex-- ))
+            if (( _promptChoiceIndex < 0 )); then
+                _promptChoiceIndex=${_promptMaxChoicesIndex}
             fi
-            windowStart=$(( (_promptCurrentChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
+            windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
         fi
+        debug "   UP: ${_promptChoiceIndex}"
         _carouselPaint
     }
 
     _carouselDown() {
-        if (( cursorRow < totalVisibleItems - 1 )); then
+        if (( cursorRow < totalVisibleItems - 1 && _promptChoiceIndex < _promptMaxChoicesIndex )); then
             # Move cursor down within window
             (( cursorRow++ ))
-            (( _promptCurrentChoiceIndex++ ))
+            (( _promptChoiceIndex++ ))
         else
             # Cursor at bottom, scroll window down
-            (( _promptCurrentChoiceIndex++ ))
-            if (( _promptCurrentChoiceIndex > _promptMaxChoicesIndex)); then
-                _promptCurrentChoiceIndex=0
+            (( _promptChoiceIndex++ ))
+            if (( _promptChoiceIndex > _promptMaxChoicesIndex)); then
+                _promptChoiceIndex=0
             fi
-            windowStart=$(( (_promptCurrentChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
+            windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
         fi
+        debug " DOWN: ${_promptChoiceIndex}"
         _carouselPaint
     }
 
     # Configure and run
 
-    _prompt --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --numberChoices \
-            --reserveRows "${totalVisibleItems}" --timeout "${timeout}" --result "${resultVarName}"
+    _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
+            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --startIndex "${startIndex}" \
+            --numberChoices --reserveRows "${totalVisibleItems}" --timeout "${timeout}"\
+            --result "${resultVarName}"
 }
 
 # Request that the user choose 'yes' or 'no'. To have 'no'
@@ -310,8 +332,8 @@ _init_rayvn_prompt() {
     declare -g _promptReserveRows
     declare -g _promptCollectInput
     declare -ga _promptChoices
-    declare -g _numberPromptChoices
-    declare -g _promptCurrentChoiceIndex
+    declare -g _promptNumberChoices
+    declare -g _promptChoiceIndex
 
     # Callback functions
 
@@ -360,8 +382,8 @@ _prompt() {
     _promptReserveRows=0
     _promptCollectInput=0
     _promptChoices=()
-    _numberPromptChoices=0
-    _promptCurrentChoiceIndex=0
+    _promptNumberChoices=0
+    _promptChoiceIndex=0
 
     # Callback functions
 
@@ -402,8 +424,8 @@ _prompt() {
             --left) shift; _promptLeftKeyFunction="$1" ;;
             --right) shift; _promptRightKeyFunction="$1" ;;
             --timeout) shift; _promptTimeoutSeconds="$1" ;;
-            --maxIndex) shift; _promptMaxChoicesIndex="$1" ;;
-            --numberChoices) _numberPromptChoices=1; _updateNumericPromptChoices  ;;
+            --startIndex) shift; _promptChoiceIndex="$1" ;;
+            --numberChoices) _promptNumberChoices=1; _updateNumericPromptChoices  ;;
             --hide) _promptEcho=0 ;;
             --cancelOnEmpty) _promptCancelOnEmpty=1 ;;
             --clearHint) _promptClearHint=1 ;;
@@ -432,9 +454,9 @@ _prompt() {
 
 _setPromptChoices() {
     local -n choicesRef="$1"
-    _promptCurrentChoiceIndex=0
     _promptChoices=("${choicesRef[@]}")
     _promptMaxChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
+debugVar _promptMaxChoicesIndex
     _promptChoicesCursor="${ show bold '>'; }"
 
     # Set reserve rows if not set already
@@ -465,14 +487,14 @@ _setPromptChoices() {
 }
 
 _updateNumericPromptChoices() {
-    if (( _numberPromptChoices )); then
+    if (( _promptNumberChoices )); then
         local number
         local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
         for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
             number="${ printNumber $(( $i +1 )) ${places} ; }"
             _promptDisplayChoices[$i]="${ show dim "${number}." plain "${_promptDisplayChoices[${i}]}"; }"
         done
-        _numberPromptChoices=0 # don't do this again
+        _promptNumberChoices=0 # don't do this again
     fi
 }
 
@@ -675,6 +697,7 @@ _textPromptSuccess() {
 SECTION="--+-+-----+-++(-++(---++++(---+( arrow key selection support )+---)++++---)++-)++-+------+-+--"
 
 _arrowPromptSuccess() {
-    _promptInput="${_promptChoices[${_promptCurrentChoiceIndex}]}"
-    _promptSuccess "${_promptCurrentChoiceIndex}"
+    _promptInput="${_promptChoices[${_promptChoiceIndex}]}"
+debug "calling _promptSuccess with index ${_promptChoiceIndex}"
+    _promptSuccess "${_promptChoiceIndex}"
 }
