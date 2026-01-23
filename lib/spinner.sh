@@ -3,13 +3,32 @@
 
 # Library supporting progress spinner
 # Intended for use via: require 'rayvn/spinner'
+#
+# IMPORTANT: The spinner runs in a background process and uses 'tput civis' to hide
+# the cursor globally. Before any foreground terminal interaction (prompts, user input,
+# or other tput commands), you MUST call stopSpinner() first. Otherwise, the user will
+# be typing with an invisible cursor or terminal state may become inconsistent.
+#
+# Example:
+#   startSpinner "Processing..."
+#   doWork
+#   stopSpinner "Done"
+#   prompt "Continue?" # Safe - cursor is now visible
 
 startSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive
     _initSpinner "${@}"
     if [[ ! ${_spinnerPid} ]]; then
         _ensureStopOnExit
-        _spinServerMain "${message}" "${framesIndex}" &
+
+        # Show the message then save the resulting cursor position
+
+        echo -n "${_spinnerMessage} "
+        cursorPosition _spinnerRow _spinnerCol
+
+        # Start the server in the background and save its PID
+
+        _spinServerMain &
         _spinnerPid=${!}
     fi
 }
@@ -72,14 +91,14 @@ _initSpinner() {
 
     # Generate frames only if type or colors differ from last time
 
-    if [[ ${frameType} != "${_frameType}"  || ${frameColors[*]} != "${_frameColors[*]}" ]]; then
+    if [[ ${frameType} != "${_spinnerFrameType}"  || ${frameColors[*]} != "${_spinnerFrameColors[*]}" ]]; then
         _generateSpinnerFrames "${frameVarName}"  "${frameColors[@]}"
     fi
 
     # Save args for next time
 
-    _frameType="${frameType}"
-    _frameColors=("${frameColors[@]}")
+    _spinnerFrameType="${frameType}"
+    _spinnerFrameColors=("${frameColors[@]}")
 
     # Make sure that pid is not set
 
@@ -95,9 +114,9 @@ _generateSpinnerFrames() {
 
     # Generate the frames
 
-    _framesCount="${#framesRef[@]}"
-    for (( i=0; i < _framesCount; i++ )); do
-        _frames["${i}"]="${ show "${colors[@]}" "${framesRef["${i}"]}"; }"
+    _spinnerFramesCount="${#framesRef[@]}"
+    for (( i=0; i < _spinnerFramesCount; i++ )); do
+        _spinnerFrames["${i}"]="${ show "${colors[@]}" "${framesRef["${i}"]}"; }"
     done
 }
 
@@ -110,16 +129,18 @@ _init_rayvn_spinner() {
 # Spinner arguments
 
 declare -g _spinnerMessage=
-declare -g _frameType=
-declare -gax _frameColors=()
+declare -g _spinnerFrameType=
+declare -gax _spinnerFrameColors=()
 
 # Spinner state
 
-declare -gax _frames=()
-declare _gx _framesCount=0
-declare -g _frameIndex=0
+declare -gax _spinnerFrames=()
+declare _gx _spinnerFramesCount=0
+declare -g _spinnerFrameIndex=0
 declare -g _spinnerPid=
 declare -gi _spinnerCleanupRegistered=0
+declare -g _spinnerRow
+declare -g _spinnerCol
 
 # Spinner types (see https://github.com/sindresorhus/cli-spinners/blob/main/spinners.json for ideas)
 
@@ -172,8 +193,6 @@ _printProgressChar() {
 }
 
 _spinServerMain() {
-    local message="${1}"
-    local spinnerIndex="${2}"
 
     onServerExit() {
         exit 0
@@ -182,7 +201,6 @@ _spinServerMain() {
     trap "onServerExit" TERM INT HUP
 
     _beginSpin
-
     while true; do
         _updateFrame
         sleep "${_spinnerDelayInterval}"
@@ -191,53 +209,49 @@ _spinServerMain() {
 
 _beginSpin() {
 
-    # Show the message then save the resulting cursor position
-
-    echo -n "${_spinnerMessage}"
-    cursorSave
-
-    # Configure terminal
-
+    # Hide the cursor globally (affects all terminal output!)
+    # See header documentation about stopping spinner before any user interaction.
+debugVars _spinnerRow _spinnerCol
     tput civis
 
     # Init the frame index
 
-    _frameIndex=0
+    _spinnerFrameIndex=0
 }
 
 _updateFrame() {
-    cursorRestore
-    echo -n " ${_frames[${_frameIndex}]}"
-    (( _frameIndex++ ))
-    (( _frameIndex > _framesCount )) && _frameIndex=0 # wrap
+    cursorTo ${_spinnerRow} ${_spinnerCol}
+    echo -n "${_spinnerFrames[${_spinnerFrameIndex}]}"
+    (( _spinnerFrameIndex++ ))
+    (( _spinnerFrameIndex > _spinnerFramesCount)) && _spinnerFrameIndex=0 # wrap
 }
 
 _endSpin() {
     local command="${1}"
     local message="${2}"
     _stopSpinner
-    cursorRestore
+    cursorTo ${_spinnerRow} ${_spinnerCol}
+
     case ${command} in
         "${_spinnerEraseCommand}") eraseToEndOfLine ;;
         "${_spinnerEraseLineCommand}") eraseCurrentLine ;;
         *) fail "unknown command: ${command}" ;;
     esac
-    tput cnorm
-    [[ ${message} != '' ]] && echo "${message}"
+
+  #  tput cnorm # restore cursor
+
+    [[ -n "${message}" ]] && echo "${message}"
 }
 
 _spinServerMain() {
-    local message="${1}"
-    local framesIndex="${2}"
 
-    onServerExit() {
+    onSpinServerExit() {
         exit 0
     }
 
-    trap "onServerExit" TERM INT HUP
+    trap "onSpinServerExit" TERM INT HUP
 
-    _beginSpin "${message}" "${framesIndex}"
-
+    _beginSpin
     while true; do
         _updateFrame
         sleep "${_spinnerDelayInterval}"
@@ -247,8 +261,14 @@ _spinServerMain() {
 _spinExit() {
     if [[ ${_spinnerPid} ]]; then
         # Abnormal exit, clean up
+debug 'BEGIN _spinExit, calling stopSpinnerAndEraseLine()'
+debugVars _spinnerRow _spinnerCol
         stopSpinnerAndEraseLine
+debug 'calling _stopSpinner()'
+
         _stopSpinner
+debug 'END _spinExit'
+
     fi
 }
 
