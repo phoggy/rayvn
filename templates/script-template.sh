@@ -32,7 +32,7 @@ init() {
             --version) projectVersion ${quotedName} true; exit 0 ;;
             --debug) setDebug showOnExit ;;
             --debug-new) setDebug clearLog showOnExit ;;
-            --debug-out) setDebug tty "${terminal}" ;;
+            --debug-out) setDebug tty "${ tty; }" ;;
             --debug-tty) shift; setDebug tty "${1}" ;;
             *) usage "Unknown option: ${1}" ;;
         esac
