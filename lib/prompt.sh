@@ -36,7 +36,7 @@ request() {
 
 # Read user input without echoing it to the terminal.
 #
-# Usage: requestHidden <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds]
+# Usage: requestHidden <prompt> <resultVarName> [true/false cancelOnEmpty] [timeout seconds]
 # Output: resultVar set to input.
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -46,7 +46,7 @@ requestHidden() {
 
 # Choose from a list of options, using the arrow keys.
 #
-# Usage: choose <prompt> <choicesArrayVarName> <resultVarName> <timeout seconds>
+# Usage: choose <prompt> <choicesArrayVarName> <resultVarName> [timeout seconds]
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -88,7 +88,7 @@ choose() {
 # Carousel chooser with fixed cursor in the middle and scrolling items.
 # Assumes there are more items than can fit on screen.
 #
-# Usage: carousel <prompt> <choicesVarName> <resultIndexVarName> [<addSeparator>] [<startIndex>] [<timeout>]
+# Usage: carousel <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [timeout seconds]
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -108,7 +108,6 @@ carousel() {
     local previousWindowStart
 
     _carouselInit() {
-    debug "_carouselInit, _promptChoiceIndex=${_promptChoiceIndex}"
         # Get terminal height
         local termHeight=$(tput lines)
 
@@ -131,7 +130,6 @@ carousel() {
             cursorRow=0
             windowStart=${_promptChoiceIndex}
         fi
-    debugVar cursorRow
         previousCursorRow=-1
         previousWindowStart=-1
 
@@ -195,7 +193,6 @@ carousel() {
         # Update previous positions
         previousCursorRow=${cursorRow}
         previousWindowStart=${windowStart}
-        debug "PAINT: ${_promptChoiceIndex}"
     }
 
     _carouselUp() {
@@ -211,7 +208,6 @@ carousel() {
             fi
             windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
         fi
-        debug "   UP: ${_promptChoiceIndex}"
         _carouselPaint
     }
 
@@ -228,7 +224,6 @@ carousel() {
             fi
             windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
         fi
-        debug " DOWN: ${_promptChoiceIndex}"
         _carouselPaint
     }
 
@@ -317,7 +312,7 @@ _init_rayvn_prompt() {
     declare -gr _defaultPromptTimeout=30
 
     # Shared global state (safe since bash is single threaded!).
-    # Only valid during execution of public functions.
+    # Only valid during execution of a public function.
 
     # API inputs
 
@@ -361,10 +356,10 @@ _init_rayvn_prompt() {
 
 SECTION="--+-+-----+-++(-++(---++++(---+( generic support functions )+---)++++---)++-)++-+------+-+--"
 
-# Configure and run prompt
+# Configure and execute prompt
 _prompt() {
 
-    # Set defaults then update from arguments
+    # Set defaults
 
     local initFunction='none'
     local choicesVarName
@@ -408,6 +403,8 @@ _prompt() {
     _promptMaxChoicesIndex=0
     _promptSuccessColor='primary'
 
+    # Update defaults from arguments
+
     while (( $# )); do
         case "$1" in
             --prompt) shift; _promptPlain="$1" ;;
@@ -442,10 +439,6 @@ _prompt() {
 
     [[ ${initFunction} != 'none' ]] && "${initFunction}"
 
-    # Reset bash seconds counter
-
-    SECONDS=0
-
     # Prepare and execute
 
     _preparePrompt
@@ -456,7 +449,6 @@ _setPromptChoices() {
     local -n choicesRef="$1"
     _promptChoices=("${choicesRef[@]}")
     _promptMaxChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
-debugVar _promptMaxChoicesIndex
     _promptChoicesCursor="${ show bold '>'; }"
 
     # Set reserve rows if not set already
@@ -532,7 +524,9 @@ _preparePrompt() {
 }
 
 _executePrompt() {
+    SECONDS=0 # Reset seconds counter
     stty cbreak -echo
+
     while true; do
         if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
             ((_promptClearHint)) && _clearHint
@@ -698,6 +692,5 @@ SECTION="--+-+-----+-++(-++(---++++(---+( arrow key selection support )+---)++++
 
 _arrowPromptSuccess() {
     _promptInput="${_promptChoices[${_promptChoiceIndex}]}"
-debug "calling _promptSuccess with index ${_promptChoiceIndex}"
     _promptSuccess "${_promptChoiceIndex}"
 }
