@@ -562,6 +562,7 @@ error() {
 
 fail() {
     if varIsDefined _spinnerPid; then
+        local inRayvnFail=1
         _spinExit
     fi
     stackTrace "${@}"
