@@ -12,6 +12,14 @@ usage() {
     echo "    -v                Print the version and exit."
     echo "    --version         Print the version with release date and exit."
     echo
+    echo "Debug Options:"
+    echo
+    echo "    --debug           Enable debug logging, show on exit"
+    echo "    --debug-new       Enable debug logging with cleared log, show on exit"
+    echo "    --debug-out       Send debug output to current terminal"
+    echo "    --debug-tty TTY   Send debug output to specific terminal (e.g., /dev/ttys001)"
+    echo "    --debug-tty .     Read tty path from \${HOME}/.debug.tty file"
+    echo
     bye "$@"
 }
 
