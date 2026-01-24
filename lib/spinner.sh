@@ -63,8 +63,7 @@ stopSpinner() {
     _endSpin "${command}" "${message}"
 }
 
-failSpin() {
-    _spinExit
+failSpin() { # TODO remove all uses of this and just call fail
     fail "${@}"
 }
 
@@ -180,7 +179,6 @@ declare -grx _spinnerEraseCommand="${_spinnerCommandPrefix}eraseSpinner"
 declare -grx _spinnerEraseLineCommand="${_spinnerCommandPrefix}eraseLine"
 declare -grx _spinnerDelayInterval='0.25'
 
-
 _ensureStopOnExit() {
     if (( ! _spinnerCleanupRegistered )); then
         addExitHandler _spinExit
@@ -192,27 +190,12 @@ _printProgressChar() {
     echo -n "${_spinnerArray[${_spinnerIndex}]}"
 }
 
-_spinServerMain() {
-
-    onServerExit() {
-        exit 0
-    }
-
-    trap "onServerExit" TERM INT HUP
-
-    _beginSpin
-    while true; do
-        _updateFrame
-        sleep "${_spinnerDelayInterval}"
-    done
-}
-
 _beginSpin() {
 
     # Hide the cursor globally (affects all terminal output!)
     # See header documentation about stopping spinner before any user interaction.
-debugVars _spinnerRow _spinnerCol
-    tput civis
+
+    tput civis  # hide cursor
 
     # Init the frame index
 
@@ -230,15 +213,23 @@ _endSpin() {
     local command="${1}"
     local message="${2}"
     _stopSpinner
-    cursorTo ${_spinnerRow} ${_spinnerCol}
 
+    # Restore cursor visibility
+
+    tput cnorm
+
+    # Move cursor back to start of spinner, with column adjusted for space added to message
+
+    cursorTo ${_spinnerRow} $(( _spinnerCol - 1 ))
+
+    # Erase the spinner
     case ${command} in
         "${_spinnerEraseCommand}") eraseToEndOfLine ;;
         "${_spinnerEraseLineCommand}") eraseCurrentLine ;;
         *) fail "unknown command: ${command}" ;;
     esac
 
-  #  tput cnorm # restore cursor
+    # If there's a message, print it.
 
     [[ -n "${message}" ]] && echo "${message}"
 }
@@ -261,14 +252,8 @@ _spinServerMain() {
 _spinExit() {
     if [[ ${_spinnerPid} ]]; then
         # Abnormal exit, clean up
-debug 'BEGIN _spinExit, calling stopSpinnerAndEraseLine()'
-debugVars _spinnerRow _spinnerCol
-        stopSpinnerAndEraseLine
-debug 'calling _stopSpinner()'
-
-        _stopSpinner
-debug 'END _spinExit'
-
+        stopSpinner
+        echo > /dev/tty # Ensure not buffered in stdout
     fi
 }
 
@@ -280,37 +265,9 @@ _stopSpinner() {
         # 500ms between TERM and KILL.
 
         if ! waitForProcessExit ${_spinnerPid} 4000 10 500; then
-            fail "spinner process didn't respond to signals"
+            local errMsg="spinner process ${_spinnerPid} didn't respond to signals"
+            [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
         fi
         _spinnerPid=
     fi
-}
-
-_testSpinner() {
-    local punctuation='.'
-    local doneCheck="${_greenCheckMark}"
-    local periodCheck="${punctuation} ${doneCheck}"
-
-    startSpinner "Star (default color)" star
-    sleep 5
-    stopSpinner "${periodCheck}"
-
-    echo
-    startSpinner "Default type & color, expect '${periodCheck}' after 5 seconds"
-    sleep 5
-    stopSpinner "${periodCheck}"
-
-    echo
-    startSpinner "Snake (bold success), expect REPLACEMENT with 'Work completed ${doneCheck}' after 4 seconds" snake bold success
-    sleep 4
-    replaceSpinnerAndRestart "Work completed ${doneCheck}" "More work, expect '${punctuation}' after 2 seconds"
-    sleep 2
-    stopSpinner "${punctuation}"
-
-    echo
-    startSpinner "Star (bold accent), expect '${periodCheck}' after 2 seconds" star bold accent
-    sleep 2
-    restartSpinner "${periodCheck}" "Working 5, expect '${punctuation}' after 2 seconds"
-    sleep 2
-    stopSpinner "${punctuation}"
 }
