@@ -195,6 +195,13 @@ _setDebug() {
         shift
     done
 
+    if [[ ${_debugOut} == '.' ]]; then
+        local ttyFile
+        ttyFile="${HOME}/.debug.tty"
+        assertFileExists "${ttyFile}"
+        _debugOut="${ cat "${ttyFile}"; }"
+    fi
+
     if [[ -n ${_debugOut} ]]; then
         exec 3>> "${_debugOut}"
         if ((isInteractive)); then
