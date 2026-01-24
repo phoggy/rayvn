@@ -41,7 +41,51 @@ To see the set of public functions available in a library:
 ravyn list 'rayvn/core'
 ```
 
-Private functions are any that have an underscore prefix. Private functions are always subject to change, so *should not be used!* 
+Private functions are any that have an underscore prefix. Private functions are always subject to change, so *should not be used!*
+
+## Debugging rayvn applications
+
+All rayvn applications support debug options via the `rayvn/debug` library. Use debug functions to generate diagnostic output that can be sent to a log file or separate terminal.
+
+### Debug Options
+
+- `--debug` - Enable debug logging, show output on exit
+- `--debug-new` - Enable debug logging with cleared log file, show output on exit
+- `--debug-out` - Send debug output to current terminal (uses `tty`)
+- `--debug-tty /dev/ttys001` - Send debug output to specific terminal device
+- `--debug-tty .` - Read tty path from `${HOME}/.debug.tty` file
+
+### Using Debug Functions
+
+After requiring `rayvn/debug` (automatically included with `rayvn/core`), you can use:
+
+```bash
+debug "variable value: ${myVar}"
+debug "processing item ${i} of ${total}"
+```
+
+Debug output is only generated when debug mode is enabled via command-line options.
+
+### Example
+
+Direct TTY specification:
+```bash
+# Terminal 1: Find your TTY
+$ tty
+/dev/ttys001
+
+# Terminal 2: Run your script with debug output to Terminal 1
+$ my-rayvn-app --debug-tty /dev/ttys001
+```
+
+Using .debug.tty file:
+```bash
+# Terminal 1: Write your tty to the file
+$ tty > ~/.debug.tty
+
+# Terminal 2: Run your script
+$ my-rayvn-app --debug-tty .
+```
 
 ## Developing rayvn projects
 
