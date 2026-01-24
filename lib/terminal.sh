@@ -24,7 +24,7 @@ cursorPosition() {
 
     # Read the response character by character until we get 'R'
 
-    while IFS= read -r -n1 c </dev/tty; do
+    while IFS= read -r -n1 c < /dev/tty; do
         response+="${c}"
         [[ "${c}" == 'R' ]] && break
     done
@@ -43,47 +43,47 @@ cursorPosition() {
 
 # Save/restore will not work correctly if scrolling occurs, use reserveRows() to prevent.
 cursorSave() {
-    echo -n "${_cursorSave}"
+    echo -n "${_cursorSave}" > /dev/tty
 }
 
 cursorRestore() {
-    echo -n "${_cursorRestore}"
+    echo -n "${_cursorRestore}" > /dev/tty
 }
 
 cursorUp() {
-    echo -n "${_cursorUp}"
+    echo -n "${_cursorUp}" > /dev/tty
 }
 
 cursorTo() {
-    printf '\e[%i;%iH' ${1} ${2:-0}
+    printf '\e[%i;%iH' ${1} ${2:-0} > /dev/tty
 }
 
 cursorToColumn() {
-    printf '\e[%dG' "${1}"
+    printf '\e[%dG' "${1}" > /dev/tty
 }
 
 cursorToColumnAndEraseToEndOfLine() {
-    printf '\e[%dG\e[K' "${1}"
+    printf '\e[%dG\e[K' "${1}" > /dev/tty
 }
 
 cursorUpOneAndEraseLine() {
-    echo -n "${_cursorUpOneAndEraseLine}"
+    echo -n "${_cursorUpOneAndEraseLine}" > /dev/tty
 }
 
 cursorDownOneAndEraseLine() {
-    echo -n "${_cursorDownOneAndEraseLine}"
+    echo -n "${_cursorDownOneAndEraseLine}" > /dev/tty
 }
 
 eraseToEndOfLine() {
-    echo -n "${_eraseToEndOfLine}"
+    echo -n "${_eraseToEndOfLine}" > /dev/tty
 }
 
 eraseCurrentLine() {
-    echo -n "${_eraseCurrentLine}"
+    echo -n "${_eraseCurrentLine}" > /dev/tty
 }
 
 clearTerminal() {
-    echo -n "${_clearTerminal}"
+    echo -n "${_clearTerminal}" > /dev/tty
 }
 
 reserveRows() {
@@ -105,7 +105,7 @@ reserveRows() {
         # Move to the last line and force scrolling
 
         cursorTo ${terminalHeight} 0
-        printf '\n%.0s' ${ seq 1 ${scrollRows}; }
+        printf '\n%.0s' ${ seq 1 ${scrollRows}; } > /dev/tty
 
         # Restore cursor to adjusted row and original column
 
@@ -121,50 +121,24 @@ _init_rayvn_terminal() {
 
     # Save original terminal settings (only when interactive)
     [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g; }"
+
+    declare -grx _eraseToEndOfLine=$'\e[0K'
+    declare -grx _eraseCurrentLine=$'\e[2K\r' # \r leaves cursor ar line start
+    declare -grx _cursorUpOneAndEraseLine=$'\e[A\e[2K\r'
+    declare -grx _cursorDownOneAndEraseLine=$'\e[B\e[2K\r'
+    declare -grx _clearTerminal=$'\e[2J\e[H'
+
+    declare -gr _cursorHide=$'\e[?25l'
+    declare -gr _cursorShow=$'\e[?25h'
+    declare -gr _cursorUp=$'\e[A'
+    declare -gr _cursorDown=$'\e[B'
+    declare -gr _cursorPosition=$'\e[6n'
+    declare -gr _cursorSave=$'\e[s'
+    declare -gr _cursorRestore=$'\e[u'
+    declare -gr _cursorParsePattern=$'\e\\[([0-9]+);([0-9]+)R'
+    declare -gi _cursorRow=
+    declare -gi _cursorCol=
 }
 
-declare -grx _eraseToEndOfLine=$'\e[0K'
-declare -grx _eraseCurrentLine=$'\e[2K\r' # \r leaves cursor ar line start
-declare -grx _cursorUpOneAndEraseLine=$'\e[A\e[2K\r'
-declare -grx _cursorDownOneAndEraseLine=$'\e[B\e[2K\r'
-declare -grx _clearTerminal=$'\e[2J\e[H'
-
-declare -gr _cursorHide=$'\e[?25l'
-declare -gr _cursorShow=$'\e[?25h'
-declare -gr _cursorUp=$'\e[A'
-declare -gr _cursorDown=$'\e[B'
-declare -gr _cursorPosition=$'\e[6n'
-declare -gr _cursorSave=$'\e[s'
-declare -gr _cursorRestore=$'\e[u'
-declare -gr _cursorParsePattern=$'\e\\[([0-9]+);([0-9]+)R'
-declare -gi _cursorRow=
-declare -gi _cursorCol=
-
-
-# Untested, probably not needed
-#
-#declare -gi _cursorRowStack=()
-#declare -gi _cursorColStack=()
-#declare -gi _cursorStackLength=0
-#
-#cursorPush() {
-#    local row col
-#    cursorPosition row col
-#    _cursorRowStack[_cursorStackLength]=("${row}")
-#    _cursorColStack[_cursorStackLength]=("${col}")
-#    (( _cursorStackIndex+=1 ))
-#}
-#
-#cursorPop() {
-#    if (( _cursorStackIndex > 0 )); then
-#        (( _cursorStackIndex-=1 ))
-#        printf '\e[%d;%dH' ${_cursorRowStack[_cursorStackIndex]} ${_cursorColStack[_cursorStackIndex]}
-#        if (( _cursorStackIndex == 0 )); then
-#            # clear stack
-#            _cursorRowStack=()
-#            _cursorColStack=()
-#        fi
-#    fi
-#}
 
 
