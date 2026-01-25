@@ -120,15 +120,39 @@ carousel() {
         # Calculate total visible items
         totalVisibleItems=$(( visibleRows / rowsPerItem ))
 
+        # Don't show more items than exist (prevents duplicates)
+        local totalItems=$(( _promptMaxChoicesIndex + 1 ))
+        if (( totalVisibleItems > totalItems )); then
+            totalVisibleItems=${totalItems}
+        fi
+
+        # Clamp _promptChoiceIndex to valid range
+        if (( _promptChoiceIndex < 0 )); then
+            _promptChoiceIndex=0
+        elif (( _promptChoiceIndex > _promptMaxChoicesIndex )); then
+            _promptChoiceIndex=${_promptMaxChoicesIndex}
+        fi
+
         # Initialize cursor and window position based on startIndex
-        # If startIndex fits in visible window, show it at its position
-        # Otherwise, position it at top of window and scroll window to show it
         if (( _promptChoiceIndex < totalVisibleItems )); then
+            # Item fits in first window - no scrolling needed
             cursorRow=${_promptChoiceIndex}
             windowStart=0
         else
-            cursorRow=0
-            windowStart=${_promptChoiceIndex}
+            # Need to scroll - position item at top of window
+            # But clamp windowStart so we don't scroll past the list end
+            local maxWindowStart=$(( _promptMaxChoicesIndex - totalVisibleItems + 1 ))
+            if (( maxWindowStart < 0 )); then maxWindowStart=0; fi
+
+            if (( _promptChoiceIndex <= maxWindowStart )); then
+                # Can show item at top without scrolling past end
+                windowStart=${_promptChoiceIndex}
+                cursorRow=0
+            else
+                # Would scroll past end - position window at end, adjust cursor
+                windowStart=${maxWindowStart}
+                cursorRow=$(( _promptChoiceIndex - windowStart ))
+            fi
         fi
         previousCursorRow=-1
         previousWindowStart=-1
@@ -363,6 +387,7 @@ _prompt() {
 
     local initFunction='none'
     local choicesVarName
+    local numericChoices=0
 
     # API inputs
 
@@ -479,7 +504,7 @@ _setPromptChoices() {
 }
 
 _updateNumericPromptChoices() {
-    if (( _promptNumberChoices )); then
+    if (( _promptNumberChoices && _promptMaxChoicesIndex )); then
         local number
         local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
         for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
