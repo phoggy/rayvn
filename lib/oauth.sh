@@ -316,24 +316,35 @@ _getOAuthAccessToken() {
           -d "refresh_token=${refreshToken}" \
           -d "grant_type=refresh_token"; }
 
+        # Check for errors in token response
+        local error
+        error=${ echo "${tokenResponse}" | jq -r '.error // empty'; }
+        if [[ -n "${error}" ]]; then
+            local errorDescription
+            errorDescription=${ echo "${tokenResponse}" | jq -r '.error_description // empty'; }
+            fail "OAuth token refresh failed: ${error}" nl "${errorDescription}" nl "Run with --setup to re-authenticate"
+        fi
+
         # Update access token but keep refresh token
         local newAccessToken
         newAccessToken=${ echo "${tokenResponse}" | jq -r '.access_token // empty'; }
 
-        if [[ -n "${newAccessToken}" ]]; then
-            accessToken="${newAccessToken}"
-
-            # Get new expiration time
-            local expiresIn
-            expiresIn=${ echo "${tokenResponse}" | jq -r '.expires_in // 0'; }
-            local newExpirationTimestamp
-            newExpirationTimestamp=$(( ${ date +%s; } + expiresIn ))
-
-            # Update token with new access token and expiration (compress to single line)
-            token=${ echo "${token}" | jq -c --arg at "${newAccessToken}" --arg exp "${newExpirationTimestamp}" \
-               '.access_token = $at | .expiration_timestamp = ($exp | tonumber)'; }
-            _storeSecret 'token' token
+        if [[ -z "${newAccessToken}" ]]; then
+            fail "OAuth token refresh returned empty access token. Run with --setup to re-authenticate"
         fi
+
+        accessToken="${newAccessToken}"
+
+        # Get new expiration time
+        local expiresIn
+        expiresIn=${ echo "${tokenResponse}" | jq -r '.expires_in // 0'; }
+        local newExpirationTimestamp
+        newExpirationTimestamp=$(( ${ date +%s; } + expiresIn ))
+
+        # Update token with new access token and expiration (compress to single line)
+        token=${ echo "${token}" | jq -c --arg at "${newAccessToken}" --arg exp "${newExpirationTimestamp}" \
+            '.access_token = $at | .expiration_timestamp = ($exp | tonumber)'; }
+        _storeSecret 'token' token
     fi
 
     echo "${accessToken}"
