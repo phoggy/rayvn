@@ -78,8 +78,11 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
                 reason="${ show ':' bold italic "${functionName}()" plain error "already defined by library '${source}'"; }"
             fi
         fi
-        ${failed} "failed to load shared library '${qualifiedName}'${reason}"
-
+        if (( loadingRayvnCore )); then
+            echo "failed to load shared library '${qualifiedName}'${reason}"
+        else
+            ${failed} "failed to load shared library '${qualifiedName}'${reason}"
+        fi
     else
         # Add it to our list of sources
 
@@ -274,7 +277,7 @@ configure() {
         ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugStatus']='rayvn/debug'
         ['debugBinary']='rayvn/debug' ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug'
         ['debugVarIsNotSet']='rayvn/debug' ['debugFile']='rayvn/debug' ['debugJson']='rayvn/debug' ['debugStack']='rayvn/debug'
-        ['debugEnvironment']='rayvn/debug' ['debug']='rayvn/debug')
+        ['debugTraceOn']='rayvn/debug' ['debugTraceOff']='rayvn/debug' ['debugEnvironment']='rayvn/debug')
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 

@@ -135,6 +135,20 @@ debugStack() {
     fi
 }
 
+debugTraceOn() {
+    (( $# )) && debug "${@}"
+    debug "${ show bold "BEGIN CODE TRACE ----------------------------------"; }"
+    export BASH_XTRACEFD=3
+    set -x 2>&3
+}
+
+debugTraceOff() {
+    unset BASH_XTRACEFD=
+    set +x
+    debug "${ show bold "END CODE TRACE ------------------------------------"; }"
+    (( $# )) && debug "${@}"
+}
+
 debugEnvironment() {
     if (( _debug )); then
         local fileName="${1}.env"
@@ -212,7 +226,7 @@ _setDebug() {
 
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
-            echo -n $'\e[2J\e[H' >&3 # clear remote terminal
+            echo -ne $'\e[2J\e[H' >&3 # clear remote terminal
             show -e bold green "BEGIN" primary "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
         fi
     else
@@ -259,7 +273,7 @@ _debugExit() {
     exec 3>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
-        show -e bold green "\nEND   " primary "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
+        show -e bold green "\nEND" primary "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
     fi
 }
 

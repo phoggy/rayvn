@@ -635,6 +635,8 @@ debugVarIsNotSet() { :; }
 debugFile() { :; }
 debugJson() { :; }
 debugStack() { :; }
+debugTraceOn() { :; }
+debugTraceOff() { :; }
 debugEnvironment() { :; }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
