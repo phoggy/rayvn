@@ -707,10 +707,10 @@ _finalizePrompt() {
         done
     fi
 
-    # Restore cursor and show result message
+    # Restore cursor and show result message if not hidden
 
     cursorRestore
-    show "${formats[@]}" "${resultMessageRef}"
+    (( _promptEcho )) && show "${formats[@]}" "${resultMessageRef}" || echo
 
     # Restore terminal settings
 
