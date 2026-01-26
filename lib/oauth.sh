@@ -144,22 +144,17 @@ _assertValidOAuthService() {
 _storeSecret() {
     local key="${1}"
     local -n valueRef="${2}"
-    secretStore "${ _serviceKey; }" "${key}" "${valueRef}"
+    secretStore "oauth_${providerName}" "${key}" "${valueRef}"
 }
 
 _retrieveSecret() {
     local key="${1}"
-    secretRetrieve "${ _serviceKey; }" "${key}"
+    secretRetrieve "oauth_${providerName}" "${key}"
 }
 
 _deleteSecret() {
     local key="${1}"
-    secretDelete "${ _serviceKey; }" "${key}"
-}
-
-_serviceKey() {
-    [[ -n ${providerName} ]] || fail "providerName var not in scope" > ${terminal}
-    echo "oauth_${providerName}"
+    secretDelete "oauth_${providerName}" "${key}"
 }
 
 # Capture OAuth authorization code via local HTTP server
@@ -167,10 +162,8 @@ _captureOAuthCode() {
     local port="${1}"
     local -n authCodeRef="${2}"
 
-    # Create a named pipe for communication
-    local pipePath
-    pipePath=${ makeTempFile "oauth_pipe_XXXXXX"; }
-    rm -f "${pipePath}"  # Remove the regular file created by makeTempFile
+    # Create a named pipe for communication (use /tmp directly to avoid temp dir cleanup issues)
+    local pipePath="/tmp/oauth_pipe_$$_${RANDOM}"
     mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
 
     # Start a simple HTTP server using netcat or bash
