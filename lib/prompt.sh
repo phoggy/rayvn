@@ -85,10 +85,11 @@ choose() {
             --timeout "${timeout}" --result "${resultVarName}"
 }
 
-# Carousel chooser with fixed cursor in the middle and scrolling items.
-# Assumes there are more items than can fit on screen.
+# Carousel chooser with scrolling items.
+# Usage: carousel <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [maxVisible] [timeout seconds]
+# If maxVisible is not passed, or is set to 0, uses all lines below the current cursor to display items; if < 0, clears and
+# uses entire terminal.
 #
-# Usage: carousel <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [timeout seconds]
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -98,7 +99,13 @@ carousel() {
     local resultVarName="${3}"
     local addSeparator="${4:-false}"
     local startIndex="${5:-0}"
-    local timeout="${6:-${_defaultPromptTimeout}}"
+    local maxVisibleItems="${6:-0}"
+    local timeout="${7:-${_defaultPromptTimeout}}"
+
+    if (( maxVisibleItems < 0 )); then
+        clear
+        maxVisibleItems=0
+    fi
 
     local totalVisibleItems
     local rowsPerItem
@@ -106,20 +113,25 @@ carousel() {
     local windowStart
     local previousCursorRow
     local previousWindowStart
+    local reserveRows
+
+    # Calculate rowsPerItem and totalVisibleItems before calling _prompt
+    # so we can pass the correct reserveRows value
+    [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
+
+    if (( maxVisibleItems > 0 )); then
+        totalVisibleItems=${maxVisibleItems}
+    else
+        # Calculate based on terminal height
+        local termHeight=$(tput lines)
+        local visibleRows=$(( termHeight - 6 ))
+        totalVisibleItems=$(( visibleRows / rowsPerItem ))
+    fi
+
+    # Calculate rows to reserve (items * rows per item)
+    reserveRows=$(( totalVisibleItems * rowsPerItem + 1 ))
 
     _carouselInit() {
-        # Get terminal height
-        local termHeight=$(tput lines)
-
-        # Reserve space for prompt and margins
-        local visibleRows=$(( termHeight - 6 ))
-
-        # Rows per item (1 for item, +1 if separator)
-        [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
-
-        # Calculate total visible items
-        totalVisibleItems=$(( visibleRows / rowsPerItem ))
-
         # Don't show more items than exist (prevents duplicates)
         local totalItems=$(( _promptMaxChoicesIndex + 1 ))
         if (( totalVisibleItems > totalItems )); then
@@ -156,10 +168,6 @@ carousel() {
         fi
         previousCursorRow=-1
         previousWindowStart=-1
-
-        # Clear screen to allow for maximum visible lines
-        # TODO: only do this if remaining visible rows is < available. IOW, don't take up the whole window by default!
-        clear
     }
 
     _carouselPaint() {
@@ -255,7 +263,7 @@ carousel() {
 
     _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
             --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --startIndex "${startIndex}" \
-            --numberChoices --reserveRows "${totalVisibleItems}" --timeout "${timeout}"\
+            --numberChoices --reserveRows "${reserveRows}" --timeout "${timeout}"\
             --result "${resultVarName}"
 }
 
@@ -571,12 +579,13 @@ _executePrompt() {
 
                 if _readPromptEscapeSequence key; then
                     case "${key}" in
-                        'u') [[ -v _promptUpKeyFunction ]] && ${_promptUpKeyFunction} ;; # up arrow
+                        'u') [[ -v _promptUpKeyFunction ]] && ${_promptUpKeyFunction} ;;       # up arrow
                         'd') [[ -v _promptDownKeyFunction ]] && ${_promptDownKeyFunction} ;;   # down arrow
                         'l') [[ -v _promptLeftKeyFunction ]] && ${_promptLeftKeyFunction} ;;   # left arrow
                         'r') [[ -v _promptRightKeyFunction ]] && ${_promptRightKeyFunction} ;; # right arrow
                         *) ;; # ignore others
                     esac
+                    SECONDS=0 # Reset timer
                 else
                     _finalizePrompt _canceledMsgEsc italic warning
                     return "${_promptCanceledOnEscError}"
@@ -587,6 +596,7 @@ _executePrompt() {
                 if ((_promptCollectInput)) && [[ -n "${_promptInput}" ]]; then
                     _promptInput="${_promptInput%?}"
                     (( _promptEcho )) && printf '\b \b'
+                    SECONDS=0 # Reset timer
                 fi
                 ;;
 
@@ -594,6 +604,7 @@ _executePrompt() {
                 if ((_promptCollectInput)) && [[ "${key}" =~ [[:print:]] ]]; then
                     _promptInput+="${key}"
                     (( _promptEcho )) && echo -n "${key}"
+                    SECONDS=0 # Reset timer
                 fi
                 ;;
             esac
@@ -623,11 +634,11 @@ _readPromptEscapeSequence() {
                     fi
 
                     case "${c}" in
-                    'A') resultVar='u'; break ;;  # Up
-                    'B') resultVar='d'; break ;;  # Down
-                    'C') resultVar='r'; break ;;  # Right
-                    'D') resultVar='l'; break ;;  # Left
-                    *) resultVar='?'; break ;;  # Unknown/don't care
+                        'A') resultVar='u'; break ;;  # Up
+                        'B') resultVar='d'; break ;;  # Down
+                        'C') resultVar='r'; break ;;  # Right
+                        'D') resultVar='l'; break ;;  # Left
+                        *)   resultVar='?'; break ;;  # Unknown/don't care
                     esac
                 done
                 ;;
@@ -658,7 +669,7 @@ _clearHint() {
     cursorToColumnAndEraseToEndOfLine ${_promptCol}
 }
 
-_hasPromptTimerExpired() {                    # TODO option to reset SECONDS to 0 on any keystroke (e.g. for carousel)
+_hasPromptTimerExpired() {
     if (( ++_promptTimeoutCheckCount >= 10 )); then
         if (( SECONDS >= _promptTimeoutSeconds)); then
             _finalizePrompt _canceledMsgTimeout italic warning

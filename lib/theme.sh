@@ -63,7 +63,7 @@ _init_rayvn_theme() {
     # Set default indent
 
     local maxLen
-    maxLen=${ maxArrayElementLength _themeDisplayNames; }
+    maxLen=${ maxArrayElementLength _themeNames; }
     declare -grx _themeDefaultIndent=${maxLen}
  }
 
@@ -87,8 +87,8 @@ _displayTheme() {
     displayName="${_themeNames[${themeIndex}]}"
     paddedDisplayName="${ padString "${displayName}" ${indent} ${position}; }"
     boldDisplayName="${ show -n bold "${paddedDisplayName}"; }"
-
     show -n bold "${paddedDisplayName}"
+
     for colorName in "${_themeColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
         printf "%s  %s%s " "${colorCode}" "${colorName} █" $'\e[0m'
@@ -630,7 +630,7 @@ declare -grA themeDarkBasic=(
     ["muted"]=$'\e[0m\e[2m'                 # plain dim
     ["accent"]=$'\e[35m'                    # magenta
     ["primary"]=$'\e[94m'                   # bright-blue
-    ["secondary"]=$'\e[97m'                 # bright-white
+    ["secondary"]=$'\e[93m'                 # bright-yellow
 )
 
 
@@ -1003,6 +1003,6 @@ declare -grA themeLightBasic=(
     ["muted"]=$'\e[0m\e[2m'                 # plain dim
     ["accent"]=$'\e[35m'                    # magenta
     ["primary"]=$'\e[94m'                   # bright-blue
-    ["secondary"]=$'\e[97m'                 # bright-white
+    ["secondary"]=$'\e[93m'                 # bright-yellow
 )
 
