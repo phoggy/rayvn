@@ -40,7 +40,7 @@ request() {
 # Output: resultVar set to input.
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
-requestHidden() {
+secureRequest() {
     request "${1}" "${2}" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
 }
 
@@ -549,6 +549,12 @@ _preparePrompt() {
 
         cursorHide
         _promptChoicesStartRow=$(( _promptRow + 2 ))
+
+    elif (( _promptEcho == 0 )); then
+
+        # No, but we are hiding the input so hid the cursor
+
+        cursorHide
     fi
 
     # Paint if function is set
@@ -692,9 +698,12 @@ _finalizePrompt() {
     local -n resultMessageRef="${1}"
     local formats=("${@:2}")
 
-    # Reposition cursor to after the prompt and save it
+    # If this was hidden input, we want to keep the hint.
+    # Reposition cursor to after the prompt/hint and save it.
 
-    cursorTo ${_promptRow} ${_promptCol}
+    local column=${_promptCol}
+    (( _promptEcho )) || (( column += ( ${#_promptPlainHint} + 2 ) ))
+    cursorTo ${_promptRow} ${column}
     cursorSave
 
     # Clear any text after the prompt
@@ -730,3 +739,8 @@ _arrowPromptSuccess() {
     _promptInput="${_promptChoices[${_promptChoiceIndex}]}"
     _promptSuccess "${_promptChoiceIndex}"
 }
+
+# TODO
+#    2. Auto number if N > ? (&& not arg?)
+#    3. choose: rename carousel
+#    4. confirm:  two args + index of default answer. Paint side by side, in order, with selected success color and error?
