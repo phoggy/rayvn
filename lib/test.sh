@@ -9,18 +9,18 @@
 assertNotInFile() {
     local match="${1}"
     local file="${2}"
-    grep -e "${match}" "${file}" > /dev/null && assertionFailed "'${match}' found in file ${file}."
+    grep -e "${match}" "${file}" > /dev/null && fail "'${match}' found in file ${file}."
 }
 
 assertInFile() {
     local match="${1}"
     local file="${2}"
-    grep -e "${match}" "${file}" > /dev/null 2>&1  || assertionFailed "'${match}' not found in file ${file}."
+    grep -e "${match}" "${file}" > /dev/null 2>&1  || fail "'${match}' not found in file ${file}."
 }
 
 assertEqual() {
     local msg="${3:-"assert ${1} == ${2} failed"}"
-    [[ ${1} == "${2}" ]] || assertionFailed "${msg}"
+    [[ ${1} == "${2}" ]] || fail "${msg}"
 }
 
 assertEqualIgnoreCase() {
@@ -30,46 +30,46 @@ assertEqualIgnoreCase() {
 assertNotInPath() {
     local executable="${1}"
     local path="${ command -v ${executable}; }"
-    [[ ${path} == '' ]] || assertionFailed "${executable} was found in PATH at ${path}"
+    [[ ${path} == '' ]] || fail "${executable} was found in PATH at ${path}"
 }
 
 assertInPath() {
     local executable="${1}"
     local expectedPath="${2}"
     local foundPath="${ command -v ${executable}; }"
-    [[ ${foundPath} ]] || assertionFailed "${executable} was not found in PATH"
+    [[ ${foundPath} ]] || fail "${executable} was not found in PATH"
     assertFile "${foundPath}"
     local realPath="${ realpath ${foundPath}; }"
 
     if [[ ${expectedPath} ]]; then
         if [[ ${realPath} == "${foundPath}" ]]; then
             if [[ ${foundPath} != "${expectedPath}" ]]; then
-                assertionFailed "${executable} found at ${foundPath}, expected ${expectedPath}"
+                fail "${executable} found at ${foundPath}, expected ${expectedPath}"
             fi
         elif ! [[ ${foundPath} == "${expectedPath}" || ${realPath} == "${expectedPath}" ]]; then
-            assertionFailed "${executable} found at ${foundPath} --> ${realPath}, expected ${expectedPath}"
+            fail "${executable} found at ${foundPath} --> ${realPath}, expected ${expectedPath}"
         fi
     fi
 }
 
 assertFunctionIsNotDefined() {
     local name="${1}"
-    [[ ${ declare -f "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined: ${ declare -f ${name}; }"
+    [[ ${ declare -f "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }"
 }
 
 assertVarIsNotDefined() {
     local name="${1}"
-    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && assertionFailed "${name} is defined: ${ declare -f ${name}; }"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }"
 }
 
 assertFunctionIsDefined() {
     local name="${1}"
-    [[ ${ declare -f "${name}" 2> /dev/null; } ]] || assertionFailed "${name} is not defined"
+    [[ ${ declare -f "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
 }
 
 assertVarIsDefined() {
     local name="${1}"
-    [[ ${ declare -p "${name}" 2> /dev/null; } ]] || assertionFailed "${name} is not defined"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
 }
 
 
@@ -79,7 +79,7 @@ assertVarType() {
 
     local declaration
     if ! declaration="${ declare -p "${varName}" 2> /dev/null; }"; then
-        assertionFailed "${varName} is not defined"
+        fail "${varName} is not defined"
     fi
 
     local actualFlags="${declaration#*-}"
@@ -90,7 +90,7 @@ assertVarType() {
     sortedActual="${ echo "${actualFlags}" | grep -o . | sort | tr -d '\n'; }"
 
     if [[ "${sortedExpected}" != "${sortedActual}" ]]; then
-        assertionFailed "${varName} has -${sortedActual}, expected -${sortedExpected}"
+        fail "${varName} has -${sortedActual}, expected -${sortedExpected}"
     fi
 }
 
@@ -100,7 +100,7 @@ assertVarEquals() {
     local -n varRef="${varName}"
     assertVarIsDefined "${varName}"
     if [[ ${varRef} != "${expected}" ]]; then
-        assertionFailed "${varName}=${varRef}, expected ${expected}"
+        fail "${varName}=${varRef}, expected ${expected}"
     fi
 }
 
@@ -110,7 +110,7 @@ assertVarContains() {
     local -n varRef="${varName}"
     assertVarIsDefined "${varName}"
     if [[ ${varRef} != *"${expected}"* ]]; then
-        assertionFailed "${varName}=${varRef}, expected ${expected}"
+        fail "${varName}=${varRef}, expected ${expected}"
     fi
 }
 
@@ -124,18 +124,18 @@ assertArrayEquals() {
     if (( arrayLen == expectedLen )); then
         for (( i=0; i < arrayLen; i++ )); do
             if [[ ${arrayRef[${i}]} != "${expected[${i}]}" ]]; then
-                assertionFailed "${varName}[${i}]=${arrayRef[${i}]}, expected ${expected[${i}]}"
+                fail "${varName}[${i}]=${arrayRef[${i}]}, expected ${expected[${i}]}"
             fi
         done
     else
-        assertionFailed "${varName} length=${arrayLen}, expected ${expectedLen}"
+        fail "${varName} length=${arrayLen}, expected ${expectedLen}"
     fi
 }
 
 assertHashTableIsDefined() {
     local varName=${1}
     assertVarIsDefined ${varName}
-    [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || assertionFailed "${varName} is not a hash table"
+    [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
 }
 
 assertHashTableIsNotDefined() {
@@ -148,13 +148,13 @@ assertHashKeyIsDefined() {
     local keyName="${2}"
 
     assertHashTableIsDefined "${varName}"
-    [[ -v ${varName}[${keyName}] ]] || assertionFailed "${varName}[${keyName}] is NOT defined"
+    [[ -v ${varName}[${keyName}] ]] || fail "${varName}[${keyName}] is NOT defined"
 }
 
 assertHashKeyIsNotDefined() {
     local varName="${1}"
     local keyName="${2}"
-    [[ -v ${varName}[${keyName}] ]] && assertionFailed "${varName}[${keyName}] is defined"
+    [[ -v ${varName}[${keyName}] ]] && fail "${varName}[${keyName}] is defined"
 }
 
 assertHashValue() {
@@ -164,7 +164,7 @@ assertHashValue() {
     assertHashKeyIsDefined "${varName}" "${keyName}"
 
     local actualValue="${ eval echo \$"{${varName}[${keyName}]}"; }" # complexity required to use variables for var and key
-    [[ ${actualValue} == "${expectedValue}" ]] || assertionFailed "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
+    [[ ${actualValue} == "${expectedValue}" ]] || fail "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
 }
 
 ### PATH functions ----------------------------------------------------------------------------------------
