@@ -38,30 +38,34 @@ rootDirPath() {
 }
 
 tempDirPath() {
-    ensureTempDir
+    _ensureRayvnTempDir
     local fileName="${1:-}"
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
-ensureTempDir() {
-    if [[ -z ${_rayvnTempDir:-} ]]; then
+_ensureRayvnTempDir() {
+    if [[ ! -n ${_rayvnTempDir} ]]; then
         declare -grx _rayvnTempDir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi
 }
 
 makeTempFile() {
-    ensureTempDir
-    local fileName="${1:-XXXXXXXXXXX}" # create random file name if not present
-    local file="${ mktemp "${_rayvnTempDir}/${fileName}"; }"
-    # chmod 600 "${file}" || fail "chmod failed on ${file}"
+    _ensureRayvnTempDir
+    local file="${ mktemp "${_rayvnTempDir}/${1:-XXXXXX}"; }" # random file name if not passed
     echo "${file}"
 }
 
+makeTempPipe() {
+    _ensureRayvnTempDir
+    local pipePath="${_rayvnTempDir}/${1:-XXXXXX}" # random file name if not passed
+    mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
+    echo "${pipePath}"
+}
+
 makeTempDir() {
-    ensureTempDir
-    local dirName="${1:-XXXXXXXXXXX}" # create random dir name if not present
-    local directory="${ mktemp "${_rayvnTempDir}/${dirName}"; }"
+    _ensureRayvnTempDir
+    local directory="${ mktemp "${_rayvnTempDir}/${1:-XXXXXX}"; }"  # random file name if not passed
     echo "${directory}"
 }
 
@@ -99,7 +103,7 @@ makeDir() {
 }
 
 assertIsInteractive() {
-    (( isInteractive )) || assertionFailed "must be run interactively"
+    (( isInteractive )) || fail "must be run interactively"
 }
 
 addExitHandler() {
@@ -163,27 +167,27 @@ varIsDefined() {
 }
 
 assertVarDefined() {
-    varIsDefined "${1}" || assertionFailed "var ${1} not defined"
+    varIsDefined "${1}" || fail "var ${1} not defined"
 }
 
 assertFileExists() {
-    [[ -e ${1} ]] || assertionFailed "${1} not found"
+    [[ -e ${1} ]] || fail "${1} not found"
 }
 
 assertFile() {
     local file="${1}"
     local description="${2:-file}"
     assertFileExists "${file}"
-    [[ -f ${1} ]] || assertionFailed "${1} is not an ${description}"
+    [[ -f ${1} ]] || fail "${1} is not an ${description}"
 }
 
 assertDirectory() {
     assertFileExists "${1}"
-    [[ -d ${1} ]] || assertionFailed "${1} is not a directory"
+    [[ -d ${1} ]] || fail "${1} is not a directory"
 }
 
 assertFileDoesNotExist() {
-    [[ -e "${1}" ]] && assertionFailed "${1} already exists"
+    [[ -e "${1}" ]] && fail "${1} already exists"
 }
 
 assertPathWithinDirectory() {
@@ -192,7 +196,7 @@ assertPathWithinDirectory() {
     local absoluteFile absoluteDir
     absoluteFile=${ realpath "${filePath}" 2>/dev/null;} || fail
     absoluteDir=${ realpath "${dirPath}" 2>/dev/null;} || fail
-    [[ "${absoluteFile}" == ${absoluteDir}/* ]] || assertionFailed "${filePath} is not within ${dirPath}"
+    [[ "${absoluteFile}" == ${absoluteDir}/* ]] || fail "${filePath} is not within ${dirPath}"
 }
 
 assertValidFileName() {
@@ -247,12 +251,12 @@ _setFileSystemVar() {
     local description="${3}"
     local isDir="${4}"
 
-    [[ ${file} ]] || assertionFailed "${description} path is required"
-    [[ -e ${file} ]] || assertionFailed "${file} not found"
+    [[ ${file} ]] || fail "${description} path is required"
+    [[ -e ${file} ]] || fail "${file} not found"
     if [[ ${isDir} == true ]]; then
-        [[ -d ${file} ]] || assertionFailed "${file} is not a directory"
+        [[ -d ${file} ]] || fail "${file} is not a directory"
     else
-        [[ -f ${file} ]] || assretFailed "${file} is not a file"
+        [[ -f ${file} ]] || fail "${file} is not a file"
     fi
     local realFile="${ realpath "${file}" 2>/dev/null; }"
     resultVar="${realFile}"
@@ -553,11 +557,11 @@ padString() {
 }
 
 warn() {
-    show warning "⚠️ ${1}" "${@:2}" >&2
+    show warning "⚠️ ${1}" "${@:2}" > ${terminal}
 }
 
 error() {
-    show error "🔺 ${1}" "${@:2}" >&2
+    show error "🔺 ${1}" "${@:2}" > ${terminal}
 }
 
 fail() {
@@ -565,20 +569,17 @@ fail() {
         local inRayvnFail=1
         _spinExit
     fi
-    stackTrace "${@}"
+    stackTrace "${@}" > "${terminal}"
     exit 1
 }
 
 redStream() {
     local error
-    while read error; do
-        show red "${error}"
-    done
-}
-
-assertionFailed() { # TODO duplicates fail()
-    stackTrace "${@}"
-    exit 1
+    {
+        while read error; do
+            show red "${error}"
+        done
+    } > "${terminal}"
 }
 
 bye() {
@@ -596,7 +597,7 @@ stackTrace() {
     (( ${#message[@]} )) && error "${@}"
 
     if ((depth > 2)); then
-        [[ ${caller} == "assertionFailed" || ${caller} == "fail" || ${caller} == "bye" ]] && start=2
+        [[ ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
 
     for ((i = start; i < depth; i++)); do
@@ -707,10 +708,10 @@ _init_rayvn_core() {
     else
 
         # No. Ensure FD 3 exists and points to original stdout, then set terminal
-        # to use it and remember we are not interactive.
+        # to use it (via /dev/fd/3 so it works as a redirect path).
 
-        [[ -t 3 ]] || exec 3>&1
-        declare -grx terminal="&3"
+        [[ -e /dev/fd/3 ]] || exec 3>&1
+        declare -grx terminal="/dev/fd/3"
         declare -grxi isInteractive=0
 
         # Unless a special flag is set, turn off colors
