@@ -25,7 +25,7 @@ setTheme() {
         themes+=("${theme}")
     done
 
-    carousel 'Select theme' themes selectedIndex true "${_currentThemeIndex}" || return 1
+    choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" || return 1
     if (( selectedIndex == _currentThemeIndex )); then
         show "No change, theme is still" bold "${_themeNames[${selectedIndex}]}"
     else

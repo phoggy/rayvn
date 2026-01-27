@@ -45,55 +45,14 @@ secureRequest() {
 }
 
 # Choose from a list of options, using the arrow keys.
-#
-# Usage: choose <prompt> <choicesArrayVarName> <resultVarName> [timeout seconds]
-# Output: choiceIndexVar set to index of selected choice.
-# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
-
-choose() {
-    local prompt="${1}"
-    local choicesVarName="${2}"
-    local resultVarName="${3}"
-    local timeout="${4:-${_defaultPromptTimeout}}"
-
-    _choosePaint() {
-        cursorTo "${_promptChoicesStartRow}" 0
-        for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
-            if (( i == _promptChoiceIndex)); then
-                echo "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
-            else
-                echo "    ${_promptDisplayChoices[$i]}"
-            fi
-        done
-    }
-
-    _chooseUp() {
-        (( _promptChoiceIndex == 0 )) && _promptChoiceIndex="${_promptMaxChoicesIndex}" || (( _promptChoiceIndex-- ))
-        _choosePaint
-    }
-
-    _chooseDown() {
-        (( _promptChoiceIndex == "${_promptMaxChoicesIndex}" )) && _promptChoiceIndex=0 || (( _promptChoiceIndex++ ))
-        "${_promptPaintFunction}"
-        _choosePaint
-    }
-
-    # Configure and run it. Don't use --reserveRows N so that it will be set automatically
-
-    _prompt --paint _choosePaint --up _chooseUp --down _chooseDown --success _arrowPromptSuccess \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --numberChoices \
-            --timeout "${timeout}" --result "${resultVarName}"
-}
-
-# Carousel chooser with scrolling items.
-# Usage: carousel <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [maxVisible] [timeout seconds]
+# Usage: choose <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [maxVisible] [timeout seconds]
 # If maxVisible is not passed, or is set to 0, uses all lines below the current cursor to display items; if < 0, clears and
 # uses entire terminal.
 #
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
-carousel() {
+choose() {
     local prompt="${1}"
     local choicesVarName="${2}"
     local resultVarName="${3}"
@@ -573,7 +532,7 @@ _executePrompt() {
             case "${key}" in
                 '' | $'\n' | $'\r') # Enter
                     if ((_promptCancelOnEmpty)) && [[ -z "${_promptInput// /}" ]]; then
-                        _finalizePrompt _canceledMsgEmpty italic warning
+                        _finalizePrompt _promptCanceledMsgEmpty italic warning
                         return "${_promptCanceledOnEmptyError}"
                     else
                         ${_promptSuccessFunction}
@@ -593,7 +552,7 @@ _executePrompt() {
                     esac
                     SECONDS=0 # Reset timer
                 else
-                    _finalizePrompt _canceledMsgEsc italic warning
+                    _finalizePrompt _promptCanceledMsgEsc italic warning
                     return "${_promptCanceledOnEscError}"
                 fi
                 ;;
@@ -678,7 +637,7 @@ _clearHint() {
 _hasPromptTimerExpired() {
     if (( ++_promptTimeoutCheckCount >= 10 )); then
         if (( SECONDS >= _promptTimeoutSeconds)); then
-            _finalizePrompt _canceledMsgTimeout italic warning
+            _finalizePrompt _promptCanceledMsgTimeout italic warning
             return 0
         fi
         _promptTimeoutCheckCount=0
@@ -695,14 +654,24 @@ _promptSuccess() {
 }
 
 _finalizePrompt() {
-    local -n resultMessageRef="${1}"
+    local messageVarName="${1}"
     local formats=("${@:2}")
+    local -n resultMessageRef="${messageVarName}"
+    local isError isSecure
+    local column=${_promptCol}
+
+    if [[ ${messageVarName} == _promptCanceled* ]]; then
+        isError=1
+        isSecure=0 # Force it so we overwrite hint and echo error msg
+    else
+        isError=0
+        isSecure=${ (( _promptEcho )) && echo 0 || echo 1; }
+    fi
 
     # If this was hidden input, we want to keep the hint.
     # Reposition cursor to after the prompt/hint and save it.
 
-    local column=${_promptCol}
-    (( _promptEcho )) || (( column += ( ${#_promptPlainHint} + 2 ) ))
+    (( isSecure )) || (( column += ( ${#_promptPlainHint} + 2 ) ))
     cursorTo ${_promptRow} ${column}
     cursorSave
 
@@ -719,7 +688,7 @@ _finalizePrompt() {
     # Restore cursor and show result message if not hidden
 
     cursorRestore
-    (( _promptEcho )) && show "${formats[@]}" "${resultMessageRef}" || echo
+    (( ! isSecure )) && show "${formats[@]}" "${resultMessageRef}" || echo
 
     # Restore terminal settings
 
@@ -741,6 +710,6 @@ _arrowPromptSuccess() {
 }
 
 # TODO
-#    2. Auto number if N > ? (&& not arg?)
-#    3. choose: rename carousel
-#    4. confirm:  two args + index of default answer. Paint side by side, in order, with selected success color and error?
+#    1. choose is reserving too many rows? try: play prompt
+#    2. Auto number if N > ? (&& not arg?). Again: play prompt
+#    3. confirm:  two args + index of default answer. Paint side by side, in order, with selected success color and error?
