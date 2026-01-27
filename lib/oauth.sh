@@ -118,7 +118,7 @@ _ensureClientIdAndSecret() {
 
     # Prompt for client secret if still not available
     if [[ -z "${clientSecretRef}" ]]; then
-        requestHidden "Enter your ${providerName^} API OAuth client secret" clientSecretRef true || bye 'client secret is required'
+        secureRequest "Enter your ${providerName^} API OAuth client secret" clientSecretRef true || bye 'client secret is required'
     fi
 
     # Store credentials in keychain if we did not already
@@ -162,12 +162,15 @@ _captureOAuthCode() {
     local port="${1}"
     local -n authCodeRef="${2}"
 
-    # Create a named pipe for communication (use /tmp directly to avoid temp dir cleanup issues)
-    local pipePath="/tmp/oauth_pipe_$$_${RANDOM}"
-    mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
+    # Create a named pipe for communication
+    local pipePath
+    pipePath=${ makeTempPipe "oauth_pipe_XXXXXX"; }
 
     # Start a simple HTTP server using netcat or bash
     (
+        # Clear traps inherited from parent to prevent cleanup interference
+        trap - EXIT INT TERM HUP
+
         # Try to use nc (netcat) first for better compatibility
         if command -v nc > /dev/null 2>&1; then
             while true; do
