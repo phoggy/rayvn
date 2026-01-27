@@ -179,7 +179,11 @@ _init_rayvn_debug() {
 }
 
 _debugEcho() {
-    echo "${_debugPrefix}${*}" >&4
+    if (( _debugRemote )); then
+        printf '%s\r\n' "${_debugPrefix}${*}" >&4
+    else
+        echo "${_debugPrefix}${*}" >&4
+    fi
 }
 
 _debugEchoNoNewline() {
