@@ -226,7 +226,7 @@ _setDebug() {
 
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
-            echo -ne $'\e[2J\e[H' >&4 # clear remote terminal
+            echo -n $'\e[2J\e[H' >&4 # clear remote terminal
             show -e bold green "BEGIN" primary "debug output from pid ${BASHPID} ----------------------------------\n"  > ${_debugOut}
         fi
     else
