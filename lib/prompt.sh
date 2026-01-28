@@ -7,6 +7,9 @@
 # Read user input.
 #
 # Usage: request <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds] [true/false hidden]
+#
+# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity.
+#
 # Output: resultVar set to input.
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -37,6 +40,9 @@ request() {
 # Read user input without echoing it to the terminal.
 #
 # Usage: requestHidden <prompt> <resultVarName> [true/false cancelOnEmpty] [timeout seconds]
+#
+# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity.
+#
 # Output: resultVar set to input.
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
@@ -44,10 +50,17 @@ secureRequest() {
     request "${1}" "${2}" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
 }
 
-# Choose from a list of options, using the arrow keys.
-# Usage: choose <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [maxVisible] [timeout seconds]
+# Choose from a list of options using the arrow keys.
+#
+# Usage: choose <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [numberChoices]
+#               [maxVisible] [timeout seconds]
+#
+# If numberChoices is > 0 choices will be numbered, and if < 0, numbers will be added only if there are non-visible choices.
+#
 # If maxVisible is not passed, or is set to 0, uses all lines below the current cursor to display items; if < 0, clears and
 # uses entire terminal.
+#
+# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity.
 #
 # Output: choiceIndexVar set to index of selected choice.
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
@@ -58,8 +71,9 @@ choose() {
     local resultVarName="${3}"
     local addSeparator="${4:-false}"
     local startIndex="${5:-0}"
-    local maxVisibleItems="${6:-0}"
-    local timeout="${7:-${_defaultPromptTimeout}}"
+    local numberChoices="${6:-0}"
+    local maxVisibleItems="${7:-0}"
+    local timeout="${8:-${_defaultPromptTimeout}}"
     local totalVisibleItems
     local rowsPerItem
     local cursorRow
@@ -67,17 +81,19 @@ choose() {
     local previousCursorRow
     local previousWindowStart
     local reserveRows
+    local args=()
+    local nonVisibleItems=0
+    local hint='↑↓ arrows to move, ESC to cancel'
 
     # Before calling _prompt, we need to know the correct # of rows to
-    # reserve. First, get the itemCount
+    # reserve. First, get the itemCount, rowsPerItem and extraLines
 
     local -n choicesArray="${choicesVarName}"
     local itemCount="${#choicesArray[@]}"
-
-    # Set rowsPerItem
     [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
+    local extraLines=${ (( rowsPerItem == 1 )) && echo 2 || echo 1; }
 
-    # Now determine totalVisibleItems
+    # Determine totalVisibleItems
 
     if (( maxVisibleItems > 0 )); then
         if (( maxVisibleItems > itemCount )); then
@@ -94,16 +110,31 @@ choose() {
 
         local availableRows=$(tput lines)
         local visibleRows=$(( availableRows - 6 ))
-
         totalVisibleItems=$(( visibleRows / rowsPerItem ))
         (( totalVisibleItems > itemCount )) && totalVisibleItems=${itemCount}
     fi
 
-    # Finally, calculate rows to reserve
-    local extraLines=${ (( rowsPerItem == 1 )) && echo 2 || echo 1; }
+    # Calculate rows to reserve
+
     reserveRows=$(( (totalVisibleItems * rowsPerItem) + extraLines ))
 
-    _carouselInit() {
+    # Count non-visible items
+
+    (( totalVisibleItems < itemCount )) && nonVisibleItems=$(( itemCount - totalVisibleItems ))
+
+    # Decide whether to number the items
+
+    if (( numberChoices > 0 )); then
+        args+=('--numberChoices')
+    elif (( numberChoices < 0 && nonVisibleItems )); then
+        args+=('--numberChoices') # we have non-visible items
+    fi
+
+    # Update hint if there are non-visible items
+
+    (( nonVisibleItems )) && hint+=", ${nonVisibleItems} items not visible"
+
+    _chooseInit() {
         # Don't show more items than exist (prevents duplicates)
         local totalItems=$(( _promptMaxChoicesIndex + 1 ))
         if (( totalVisibleItems > totalItems )); then
@@ -142,7 +173,7 @@ choose() {
         previousWindowStart=-1
     }
 
-    _carouselPaint() {
+    _choosePaint() {
         # Check if we need full repaint (window scrolled) or just cursor move
         if (( windowStart != previousWindowStart )); then
             # Window scrolled - redraw all items without clearing all to reduce flicker
@@ -199,7 +230,7 @@ choose() {
         previousWindowStart=${windowStart}
     }
 
-    _carouselUp() {
+    _chooseUp() {
         if (( cursorRow > 0 )); then
             # Move cursor up within window
             (( cursorRow-- ))
@@ -212,10 +243,10 @@ choose() {
             fi
             windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
         fi
-        _carouselPaint
+        _choosePaint
     }
 
-    _carouselDown() {
+    _chooseDown() {
         if (( cursorRow < totalVisibleItems - 1 && _promptChoiceIndex < _promptMaxChoicesIndex )); then
             # Move cursor down within window
             (( cursorRow++ ))
@@ -228,14 +259,14 @@ choose() {
             fi
             windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
         fi
-        _carouselPaint
+        _choosePaint
     }
 
     # Configure and run
 
-    _prompt --init _carouselInit --paint _carouselPaint --up _carouselUp --down _carouselDown --success _arrowPromptSuccess \
-            --hint 'use arrows to move' --prompt "${prompt}" --choices "${choicesVarName}" --startIndex "${startIndex}" \
-            --numberChoices --reserveRows "${reserveRows}" --timeout "${timeout}"\
+    _prompt --init _chooseInit --paint _choosePaint --up _chooseUp --down _chooseDown --success _arrowPromptSuccess \
+            --hint "${hint}" --prompt "${prompt}" --choices "${choicesVarName}" --startIndex "${startIndex}" \
+            --reserveRows "${reserveRows}" --timeout "${timeout}" "${args[@]}" \
             --result "${resultVarName}"
 }
 
@@ -723,6 +754,4 @@ _arrowPromptSuccess() {
 }
 
 # TODO
-#    1. choose is reserving too many rows? try: play prompt
-#    2. Auto number if N > ? (&& not arg?). Again: play prompt
 #    3. confirm:  two args + index of default answer. Paint side by side, in order, with selected success color and error?
