@@ -60,12 +60,6 @@ choose() {
     local startIndex="${5:-0}"
     local maxVisibleItems="${6:-0}"
     local timeout="${7:-${_defaultPromptTimeout}}"
-
-    if (( maxVisibleItems < 0 )); then
-        clear
-        maxVisibleItems=0
-    fi
-
     local totalVisibleItems
     local rowsPerItem
     local cursorRow
@@ -74,20 +68,38 @@ choose() {
     local previousWindowStart
     local reserveRows
 
-    # Calculate rowsPerItem and totalVisibleItems before calling _prompt
-    # so we can pass the correct reserveRows value
+    # Before calling _prompt, we need to know the correct # of rows to
+    # reserve. First, get the itemCount
+
+    local -n choicesArray="${choicesVarName}"
+    local itemCount="${#choicesArray[@]}"
+
+    # Set rowsPerItem
     [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
 
+    # Now determine totalVisibleItems
+
     if (( maxVisibleItems > 0 )); then
-        totalVisibleItems=${maxVisibleItems}
+        if (( maxVisibleItems > itemCount )); then
+            totalVisibleItems=${itemCount}
+        else
+            totalVisibleItems=${maxVisibleItems}
+        fi
     else
-        # Calculate based on terminal height
-        local termHeight=$(tput lines)
-        local visibleRows=$(( termHeight - 6 ))
+        # Clear the screen if maxVisibleItems is negative
+
+        (( maxVisibleItems < 0 )) && clear
+
+        # Calculate based on terminal height and item count
+
+        local availableRows=$(tput lines)
+        local visibleRows=$(( availableRows - 6 ))
+        (( visibleRows > itemCount)) && visibleRows=$(( itemCount + 2 )) # clamp
+
         totalVisibleItems=$(( visibleRows / rowsPerItem ))
     fi
 
-    # Calculate rows to reserve (items * rows per item)
+    # Finally, calculate rows to reserve
     reserveRows=$(( totalVisibleItems * rowsPerItem + 1 ))
 
     _carouselInit() {
@@ -660,7 +672,7 @@ _finalizePrompt() {
     local isError isSecure
     local column=${_promptCol}
 
-    if [[ ${messageVarName} == _promptCanceled* ]]; then
+    if [[ ${messageVarName} =~ _promptCancel ]]; then
         isError=1
         isSecure=0 # Force it so we overwrite hint and echo error msg
     else
@@ -671,7 +683,7 @@ _finalizePrompt() {
     # If this was hidden input, we want to keep the hint.
     # Reposition cursor to after the prompt/hint and save it.
 
-    (( isSecure )) || (( column += ( ${#_promptPlainHint} + 2 ) ))
+    (( isSecure )) && (( column += ( ${#_promptPlainHint} + 2 ) ))
     cursorTo ${_promptRow} ${column}
     cursorSave
 
