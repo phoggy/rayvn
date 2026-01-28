@@ -94,13 +94,14 @@ choose() {
 
         local availableRows=$(tput lines)
         local visibleRows=$(( availableRows - 6 ))
-        (( visibleRows > itemCount)) && visibleRows=$(( itemCount + 2 )) # clamp
 
         totalVisibleItems=$(( visibleRows / rowsPerItem ))
+        (( totalVisibleItems > itemCount )) && totalVisibleItems=${itemCount}
     fi
 
     # Finally, calculate rows to reserve
-    reserveRows=$(( totalVisibleItems * rowsPerItem + 1 ))
+    local extraLines=${ (( rowsPerItem == 1 )) && echo 2 || echo 1; }
+    reserveRows=$(( (totalVisibleItems * rowsPerItem) + extraLines ))
 
     _carouselInit() {
         # Don't show more items than exist (prevents duplicates)
