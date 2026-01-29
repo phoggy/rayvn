@@ -796,7 +796,7 @@ _init_rayvn_core() {
 
     # Force these readonly since we have to handle them specially in rayvn.up
 
-    declare -fr fail printStack
+    (( _rayvnSetFunctionsReadOnly )) && declare -fr fail printStack
 
     # Collect the names of all existing lowercase and underscore prefixed vars if we have not already done so.
     # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those

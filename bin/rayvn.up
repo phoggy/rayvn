@@ -98,8 +98,8 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
             _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
             if [[ ${functionName} == _init_* ]]; then
                 [[ ${functionName} == "${initFunction}" ]] && hasInitFunction=1
-            else
-                declare -rf "${functionName}"
+            elif (( _rayvnSetFunctionsReadOnly )); then
+                declare -fr "${functionName}"
             fi
         done
 
@@ -204,6 +204,7 @@ configure() {
     declare -ga _rayvnUpUnsetIds=()
     declare -g _required=()
     declare -g _loadLibraryDepth=0
+    declare -grx _rayvnSetFunctionsReadOnly=${ [[ -n ${doNotSetFunctionsReadOnly} ]] && echo 0 || echo 1; }
     declare -gx currentProjectName
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
     local projects=() split=() project key
@@ -253,7 +254,7 @@ configure() {
 
     # Set our persistent public/private functions readonly
 
-    declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
+    (( _rayvnSetFunctionsReadOnly )) && declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
 
     # Instead of enforcing library namespaces, we set all functions in each library as readonly to prevent
     # collisions. This is not truly scalable, but is reasonable for now given the very small expected user base.
