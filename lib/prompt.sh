@@ -21,7 +21,6 @@ request() {
     local hide=${5:-false}
     local args=()
     local hint
-    local clearHint=
     [[ ${cancelOnEmpty} == true ]] && args+=('--cancelOnEmpty')
     if [[ ${hide} == true ]]; then
         hint='hidden'
@@ -34,7 +33,8 @@ request() {
     # Configure and run
 
     _prompt --prompt "${prompt}" --hint "${hint}" --result "${resultVarName}" --timeout "${timeout}" \
-            --reserveRows 4 --collect "${args[@]}" --success '_textPromptSuccess'
+            --reserveRows 4 --collect "${args[@]}" \
+            --success '_textPromptSuccess'
  }
 
 # Read user input without echoing it to the terminal.
@@ -48,6 +48,59 @@ request() {
 
 secureRequest() {
     request "${1}" "${2}" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
+}
+
+# Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
+#
+# Usage: confirm <prompt> <answer1> <answer2> <choiceIndexVarName> [true/false defaultAnswerTwo] [timeout seconds]
+#
+# Answer 1 will be selected first by default. For an important action (e.g. deleting / creating something), consider
+# making it a *little* harder to select the positive choice so that two key presses (arrow and enter) are required.
+# There are two ways to accomplish this:
+#
+#    1. Pass the negative answer first, or
+#    2. Pass 'true' for defaultAnswerTwo to maintain a consistent answer sequence across invocations
+#
+# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity.
+#
+# Output: choiceIndexVar set to 0 for answer 1 or 1 for answer 2
+# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
+
+confirm() {
+    local prompt="${1}"
+    local promptChoices=("${2}" "${3}")
+    local resultVarName="${4}"
+    local defaultAnswerTwo="${5:-false}"
+    local timeout="${6:-${_defaultPromptTimeout}}"
+    local startIndex=0
+    local display=()
+    [[ ${defaultAnswerTwo} == true ]] && startIndex=1
+
+    _confirmInit() {
+        display[0]="${ show -n success "${_promptDisplayChoices[0]}"; } ${_promptDisplayChoices[1]}${_promptHint}"
+        display[1]="${_promptDisplayChoices[0]} ${ show -n success "${_promptDisplayChoices[1]}"; }${_promptHint}"
+        _promptClearHint=0
+    }
+
+    _confirmPaint() {
+        cursorTo "${_promptRow}" "${_promptCol}"
+        echo -n "${display[${_promptChoiceIndex}]} "
+    }
+
+    _confirmLeft() {
+        (( _promptChoiceIndex == 1 )) && _promptChoiceIndex=0
+        _confirmPaint
+    }
+
+    _confirmRight() {
+        (( _promptChoiceIndex == 0 )) && _promptChoiceIndex=1
+        _confirmPaint
+    }
+
+    _prompt --prompt "${prompt}" --hint '↔ arrows to move, ESC to cancel'  --result "${resultVarName}" \
+            --choices promptChoices --startIndex "${startIndex}" --doNotColorChoices --clearHint \
+            --reserveRows 4 --timeout "${timeout}"  \
+            --init _confirmInit --paint _confirmPaint --left _confirmLeft --right _confirmRight --success _arrowPromptSuccess
 }
 
 # Choose from a list of options using the arrow keys.
@@ -83,7 +136,6 @@ choose() {
     local reserveRows
     local args=()
     local nonVisibleItems=0
-    local hint='↑↓ arrows to move, ESC to cancel'
 
     # Before calling _prompt, we need to know the correct # of rows to
     # reserve. First, get the itemCount, rowsPerItem and extraLines
@@ -264,72 +316,10 @@ choose() {
 
     # Configure and run
 
-    _prompt --init _chooseInit --paint _choosePaint --up _chooseUp --down _chooseDown --success _arrowPromptSuccess \
-            --hint "${hint}" --prompt "${prompt}" --choices "${choicesVarName}" --startIndex "${startIndex}" \
+    _prompt --prompt "${prompt}" --hint '↑↓ arrows to move, ESC to cancel' --result "${resultVarName}" \
+            --choices "${choicesVarName}" --startIndex "${startIndex}" \
             --reserveRows "${reserveRows}" --timeout "${timeout}" "${args[@]}" \
-            --result "${resultVarName}"
-}
-
-# Request that the user choose 'yes' or 'no'. To have 'no'
-#
-# Usage: choose <prompt> <choiceVarName> ['no'] [timeout seconds]
-# Output: choiceVar set to chosen answer.
-# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
-
-confirm() {
-fail "confirm() not updated, TODO!" # TODO: update to use _readPrompt and left/right arrows to select
-
-    # Do you want to continue? yes no
-
-    local prompt="${1}"
-    local answerOne="${2}"
-    local answerTwo="${3}"
-    local -n resultRef="${4}"
-    local timeout="${6:-${_defaultPromptTimeout}}"
-    local defaultAnswer=
-    local returnOnEmpty=''
-
-    if [[ ${answerOne} == *'=default' ]]; then
-        answerOne="${answerOne%=default}"
-        defaultAnswer=${answerOne}
-        _promptClearHint=0
-        returnOnEmpty=true
-        _promptHint=" ${ show -n dim italic "[" ;}${ show -n italic cyan "${answerOne}" ;}${ show -n dim italic "/${answerTwo}]" ;}"
-    elif [[ ${answerTwo} == *'=default' ]]; then
-        answerTwo="${answerTwo%=default}"
-        defaultAnswer=${answerTwo}
-        _promptClearHint=0
-        returnOnEmpty=true
-        _promptHint=" ${ show -n dim italic "[${answerOne}/" ;}${ show -n italic cyan "${answerTwo}" ;}${ show -n dim italic "]" ;}"
-    else
-        _prepareHint ' ' "${answerOne}/${answerTwo}"
-    fi
-
-    _preparePrompt "${prompt}" ${timeout} 3
-
-    while true; do
-        if _readPromptInput false ${returnOnEmpty}; then
-
-            local result="${_promptInput,,}"
-            if [[ ${result} == "${answerOne,,}" || ${result} == "${answerTwo,,}" ]]; then
-                resultRef="${result}"
-                return 0
-            elif [[ -n ${defaultAnswer} && ${result} == '' ]]; then
-                _finalizePrompt defaultAnswer primary
-                resultRef="${defaultAnswer}"
-                return 0
-            else
-
-                # Update hint and retry
-
-                hint="${ show -n bold green "[${answerOne}/${answerTwo}]" ;}"
-                cursorTo ${_cursorRow} ${_promptCol}
-                echo -n "${hint} "
-            fi
-        else
-            return $?
-        fi
-    done
+            --init _chooseInit --paint _choosePaint --up _chooseUp --down _chooseDown --success _arrowPromptSuccess
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/prompt' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -367,6 +357,7 @@ _init_rayvn_prompt() {
 
     # Callback functions
 
+    declare -g _promptInitFunction
     declare -g _promptPaintFunction
     declare -g _promptUpKeyFunction
     declare -g _promptDownKeyFunction
@@ -382,9 +373,11 @@ _init_rayvn_prompt() {
     declare -g _promptRow
     declare -g _promptCol
     declare -g _promptTimeoutCheckCount
+    declare -g _promptChoicesVarName
     declare -ga _promptDisplayChoices
     declare -g _promptChoicesStartRow
     declare -g _promptChoicesCursor
+    declare -g _promptDoNotColorChoices
     declare -g _promptMaxChoicesIndex
     declare -g _promptSuccessColor
 }
@@ -394,13 +387,7 @@ SECTION="--+-+-----+-++(-++(---++++(---+( generic support functions )+---)++++--
 # Configure and execute prompt
 _prompt() {
 
-    # Set defaults
-
-    local initFunction='none'
-    local choicesVarName
-    local numericChoices=0
-
-    # API inputs
+    # Set API input defaults
 
     _promptPlain=
     _promptPlainHint=
@@ -412,12 +399,14 @@ _prompt() {
     _promptClearHint=
     _promptReserveRows=0
     _promptCollectInput=0
+    _promptChoicesVarName=
     _promptChoices=()
     _promptNumberChoices=0
     _promptChoiceIndex=0
 
-    # Callback functions
+    # Set Callback function defaults
 
+    _promptInitFunction=
     _promptPaintFunction=
     _promptUpKeyFunction=
     _promptDownKeyFunction=
@@ -425,7 +414,7 @@ _prompt() {
     _promptRightKeyFunction=
     _promptSuccessFunction=
 
-    # Internal state
+    # Set internal state defaults
 
     _prompt=
     _promptHint=
@@ -434,6 +423,7 @@ _prompt() {
     _promptCol=
     _promptTimeoutCheckCount=0
     _promptChoicesCursor=
+    _promptDoNotColorChoices=0
     _promptDisplayChoices=()
     _promptChoicesStartRow=0
     _promptMaxChoicesIndex=0
@@ -446,19 +436,20 @@ _prompt() {
             --prompt) shift; _promptPlain="$1" ;;
             --hint) shift; _promptPlainHint="$1" ;;
             --hintSpace) shift; _promptHintSpace="$1" ;;
-            --init) shift; initFunction="$1" ;;
+            --init) shift; _promptInitFunction="$1" ;;
             --paint) shift; _promptPaintFunction="$1" ;;
             --success) shift; _promptSuccessFunction="$1" ;;
             --result) shift; _promptResultVarName="$1" ;;
             --reserveRows) shift; _promptReserveRows="$1" ;;
-            --choices) shift; _setPromptChoices "$1" ;;
             --up) shift; _promptUpKeyFunction="$1" ;;
             --down) shift; _promptDownKeyFunction="$1" ;;
             --left) shift; _promptLeftKeyFunction="$1" ;;
             --right) shift; _promptRightKeyFunction="$1" ;;
             --timeout) shift; _promptTimeoutSeconds="$1" ;;
             --startIndex) shift; _promptChoiceIndex="$1" ;;
-            --numberChoices) _promptNumberChoices=1; _updateNumericPromptChoices  ;;
+            --choices) shift; _promptChoicesVarName="$1" ;;
+            --numberChoices) _promptNumberChoices=1  ;;
+            --doNotColorChoices) _promptDoNotColorChoices=1 ;;
             --hide) _promptEcho=0 ;;
             --cancelOnEmpty) _promptCancelOnEmpty=1 ;;
             --clearHint) _promptClearHint=1 ;;
@@ -471,64 +462,15 @@ _prompt() {
     [[ -n ${_promptSuccessFunction} ]] || fail "success function is required"
     [[ -n ${_promptResultVarName} ]] || fail "result var name is required"
 
-    # Call init function if provided
-
-    [[ ${initFunction} != 'none' ]] && "${initFunction}"
-
     # Prepare and execute
 
     _preparePrompt
     _executePrompt
 }
 
-_setPromptChoices() {
-    local -n choicesRef="$1"
-    _promptChoices=("${choicesRef[@]}")
-    _promptMaxChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
-    _promptChoicesCursor="${ show bold '>'; }"
-
-    # Set reserve rows if not set already
-
-    (( ! _promptReserveRows )) && _promptReserveRows=$(( _promptMaxChoicesIndex + 3 ))
-
-    # Are the choices already colored?
-
-    if containsAnsi "${_promptChoices[0]}"; then
-
-        # Yes, so don't color the display choices or the finalized prompt
-
-        _promptDisplayChoices=("${_promptChoices[@]}")
-        _promptSuccessColor=''
-    else
-
-        # No, so color the display choices and the finalized prompt
-
-        for (( i=0; i <= _promptMaxChoicesIndex; i++  )); do
-            _promptDisplayChoices[$i]="${ show primary "${_promptChoices[$i]}"; }"
-        done
-        _promptSuccessColor='primary'
-    fi
-
-    # Make sure they are numbered if requested and not done already
-
-    _updateNumericPromptChoices
-}
-
-_updateNumericPromptChoices() {
-    if (( _promptNumberChoices && _promptMaxChoicesIndex )); then
-        local number
-        local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
-        for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
-            number="${ printNumber $(( $i +1 )) ${places} ; }"
-            _promptDisplayChoices[$i]="${ show dim "${number}." plain "${_promptDisplayChoices[${i}]}"; }"
-        done
-        _promptNumberChoices=0 # don't do this again
-    fi
-}
-
 _preparePrompt() {
 
-    # Initialize & show hint and prompt
+    # Initialize/show hint and prompt
 
     _promptHint="${_promptHintSpace}${ show -n muted italic "[${_promptPlainHint}]" ;}"
     _prompt="${ show -n bold success "?" plain bold "${_promptPlain}" ;}${_promptHint} "
@@ -542,27 +484,78 @@ _preparePrompt() {
 
     # Move the cursor before the hint if it is supposed to be overwritten
 
-    (( _overwritePromptHint )) && cursorToColumn "${_promptCol}"
+    (( _promptClearHint )) && cursorToColumn "${_promptCol}"
 
-    # Are we preparing for select?
+    # Do we have choices?
 
-    if (( _promptMaxChoicesIndex )); then
+    if [[ -n ${_promptChoicesVarName} ]]; then
 
-        # Yes, hide the cursor
+        # Yes, hide the cursor, prepare choices and set start row
 
         cursorHide
-        _promptChoicesStartRow=$(( _promptRow + 2 ))
+        _preparePromptChoices
+        _promptChoicesStartRow=$(( _promptRow + 2 )) # ignored in confirm()
 
     elif (( _promptEcho == 0 )); then
 
-        # No, but we are hiding the input so hid the cursor
+        # No, but we are hiding the input so hide the cursor
 
         cursorHide
     fi
 
-    # Paint if function is set
+    # Call init function if provided
+
+    [[ -n ${_promptInitFunction} ]] && "${_promptInitFunction}"
+
+    # Call paint if function is set
 
     [[ -n ${_promptPaintFunction} ]] && "${_promptPaintFunction}"
+}
+
+_preparePromptChoices() {
+    local -n choicesRef="${_promptChoicesVarName}"
+    _promptChoices=("${choicesRef[@]}")
+    _promptMaxChoicesIndex=$(( ${#_promptChoices[@]} - 1 ))
+    _promptChoicesCursor="${ show bold '>'; }"
+
+    # Set reserve rows if not set already
+
+    (( ! _promptReserveRows )) && _promptReserveRows=$(( _promptMaxChoicesIndex + 3 ))
+
+    # Were we explicitly told not to color choices?
+
+    if (( _promptDoNotColorChoices )); then
+
+        _promptDisplayChoices=("${_promptChoices[@]}")
+        _promptSuccessColor='primary'
+
+    elif containsAnsi "${_promptChoices[0]}"; then
+
+        # No but they are already colored, so don't color the display choices or the finalized prompt
+
+        _promptDisplayChoices=("${_promptChoices[@]}")
+        _promptSuccessColor=''
+
+    else
+
+        # No, so color the display choices and the finalized prompt
+
+        for (( i=0; i <= _promptMaxChoicesIndex; i++  )); do
+            _promptDisplayChoices[$i]="${ show primary "${_promptChoices[$i]}"; }"
+        done
+        _promptSuccessColor='primary'
+    fi
+
+    # Number the choices if we are supposed to
+
+    if (( _promptNumberChoices && _promptMaxChoicesIndex )); then
+        local number
+        local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
+        for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
+            number="${ printNumber $(( $i +1 )) ${places} ; }"
+            _promptDisplayChoices[$i]="${ show dim "${number}." plain "${_promptDisplayChoices[${i}]}"; }"
+        done
+    fi
 }
 
 _executePrompt() {
@@ -571,7 +564,7 @@ _executePrompt() {
 
     while true; do
         if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
-            ((_promptClearHint)) && _clearHint
+            (( _promptClearHint )) && _clearHint
 
             case "${key}" in
                 '' | $'\n' | $'\r') # Enter
@@ -673,7 +666,6 @@ _readPromptEscapeSequence() {
 }
 
 _clearHint() {
-    _overwritePromptHint=0
     _promptClearHint=0
     cursorToColumnAndEraseToEndOfLine ${_promptCol}
 }
@@ -752,6 +744,3 @@ _arrowPromptSuccess() {
     _promptInput="${_promptChoices[${_promptChoiceIndex}]}"
     _promptSuccess "${_promptChoiceIndex}"
 }
-
-# TODO
-#    3. confirm:  two args + index of default answer. Paint side by side, in order, with selected success color and error?
