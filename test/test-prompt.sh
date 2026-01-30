@@ -41,6 +41,17 @@ main() {
 
 init() {
     _installMocks
+
+    # process any debug args
+    while (( $# )); do
+        case "${1}" in
+            --debug) setDebug showOnExit ;;
+            --debug-new) setDebug clearLog showOnExit ;;
+            --debug-out) setDebug tty "${ tty; }" ;;
+            --debug-tty) shift; setDebug tty "${1}" ;;
+        esac
+        shift
+    done
 }
 
 _installMocks() {
@@ -90,6 +101,7 @@ testRequestBasicInput() {
         request "Name" result false < <(printf 'hello\n') > /dev/null
         local exitCode=$?
         assertEqual "${exitCode}" "0" "request basic input: exit code"
+debugVar result
         assertEqual "${result}" "hello" "request basic input: result"
     ) || exit 1
 }

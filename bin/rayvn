@@ -42,6 +42,7 @@ main() {
 }
 
 init() {
+    declare -g debugCommand=()
     declare -g debugOptions=()
     declare -g command=
     declare -g projects=()
@@ -63,10 +64,10 @@ init() {
             dependencies) parseArgs true projectDependencies "${@:2}" ;;
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
-            --debug) debugOptions=('showOnExit') ;;
-            --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
-            --debug-out) debugOptions=('tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('tty' "${1}") ;;
+            --debug) debugCommand=('--debug') ;debugOptions=('showOnExit') ;;
+            --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showOnExit') ;;
+            --debug-out) debugCommand=('--debug-out') ;debugOptions=('tty' "${ tty; }") ;;
+            --debug-tty) shift; debugCommand=('--debug-tty' "${1}") ;debugOptions=('tty' "${1}") ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -h | --help | help) command='usage' ;;
@@ -80,7 +81,7 @@ init() {
     source rayvn.up "${upOptions[@]}" 'rayvn/core'
 
     [[ -n ${command} ]] || usage
-    [[ -n ${debugOptions} ]] && setDebug "${debugOptions[@]}"
+    [[ -n "${debugOptions}" ]] && setDebug "${debugOptions[@]}"
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
@@ -604,7 +605,7 @@ runTest() {
 executeTestFile() {
     local testFile="${1}"
     shift
-    executeWithCleanVars "${@}" "${BASH}" --noprofile --norc "${testFile}"
+    executeWithCleanVars "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
     testResult=$?
 }
 
