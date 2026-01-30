@@ -19,23 +19,38 @@ release () {
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _releasePackageFile "${version}" "${releaseDate}" || fail
     _doRelease "${ghRepo}" "${version}" || fail
-    _updateFormula "${ghRepo}" "${project}" "${version}" "${releaseDate}" || fail
+
+    # Update Homebrew formula if the tap repo is available
+    if [[ -d "${_rayvnCentralTapRepoDir:-}" ]]; then
+        _updateFormula "${ghRepo}" "${project}" "${version}" "${releaseDate}" || fail
+    else
+        echo
+        show dim "Skipping Homebrew formula update (tap repo not found)"
+    fi
+
     _restorePackageFile "${version}" || fail
 
     echo
     show bold blue "${project} ${version} release completed"
     echo
-    if [[ ${releaseDeleted} ]]; then
-        show bold "The existing ${version} brew release of ${project} was updated. Please run the following:"
-        echo "brew uninstall ${project} && brew install ${project} && brew test ${project}"
-    elif brew list ${project} &> /dev/null; then
-        show bold "The ${version} brew release of ${project} was previously installed. Please run the following:"
-        echo "brew update && brew upgrade ${project} && brew test ${project}"
-        echo
-        echo "If you get a sha256 mismatch, look for the tar file described as 'Already downloaded', delete it and retry."
+
+    # Post-release instructions: adapt to available package manager
+    if [[ -d "${_rayvnCentralTapRepoDir:-}" ]]; then
+        if [[ ${releaseDeleted} ]]; then
+            show bold "The existing ${version} brew release of ${project} was updated. Please run the following:"
+            echo "brew uninstall ${project} && brew install ${project} && brew test ${project}"
+        elif brew list ${project} &> /dev/null; then
+            show bold "The ${version} brew release of ${project} was previously installed. Please run the following:"
+            echo "brew update && brew upgrade ${project} && brew test ${project}"
+            echo
+            echo "If you get a sha256 mismatch, look for the tar file described as 'Already downloaded', delete it and retry."
+        else
+            show bold "The ${project} project is not installed via brew. Please run the following:"
+            echo "brew install ${project} && brew test ${project}"
+        fi
     else
-        show bold "The ${project} project is not installed via brew. Please run the following:"
-        echo "brew install ${project} && brew test ${project}"
+        show bold "To use the new release via Nix:"
+        echo "nix run github:phoggy/${project}"
     fi
     echo
 }

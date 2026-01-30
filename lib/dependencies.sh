@@ -43,12 +43,24 @@ UNSUPPORTED="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/dependencies' 
 
 _init_rayvn_dependencies() {
     require 'rayvn/core' 'rayvn/config'
+    # Detect if running from Nix store — if so, dependencies are guaranteed by the flake
+    declare -gi _runningUnderNix=0
+    if [[ ${rayvnHome:-} == /nix/store/* ]]; then
+        _runningUnderNix=1
+    fi
 }
 
 _assertProjectDependencies() {
     local projectName="${1}"
     declare -i quiet="${2:-0}"
     local errMsg
+
+    # Under Nix, all dependencies are guaranteed by the flake
+    if (( _runningUnderNix )); then
+        (( ! quiet )) && echo -n "Checking ${ show bold "${projectName}" ;} project dependencies: " && echo "skipped (Nix) ${_greenCheckMark}"
+        return 0
+    fi
+
     (( ! quiet )) && echo -n "Checking ${ show bold "${projectName}" ;} project dependencies: "
 
     # Load project dependencies and assert that all projects referenced in require calls are present
@@ -310,8 +322,11 @@ _dependencyFailed() {
             fi
             errMsg+=" Try '${command}'"
             appendedMsg=1
+        elif command -v nix &> /dev/null; then
+            errMsg+=" Try 'nix run github:phoggy/${currentProjectName}'"
+            appendedMsg=1
         else
-            fail "Homebrew is required, see https://brew.sh/"
+            fail "Homebrew or Nix is required, see https://brew.sh/ or https://nixos.org/download/"
         fi
     fi
     if [[ -n ${url} ]]; then

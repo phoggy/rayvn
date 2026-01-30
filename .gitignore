@@ -11,3 +11,6 @@ profile
 # Claude
 .claude/
 
+# Nix
+result
+
