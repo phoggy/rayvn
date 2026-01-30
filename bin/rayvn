@@ -441,13 +441,14 @@ runTests() {
         # Any error logs?
 
         if (( failedTestCount && ! inContainer )); then
-            local answer i
+            local answer i logFile
             echo
             for (( i=0; i < failedTestCount; i++ )); do
-                confirm "View ${failedTestLogNames[${i}]}?" yes=default no answer 60 || bye
-                if [[ ${answer} == yes ]]; then
+                confirm "View ${failedTestLogNames[${i}]}?" yes no answer || bye
+                if (( answer == 0 )); then
+                    local logFile="${testLogDir}/${failedTestLogNames[${i}]}"
                     echo
-                    cat "${testLogDir}/${failedTestLogNames[${i}]}"
+                    cat "${logFile}"
                     echo
                 fi
             done
@@ -495,7 +496,7 @@ runProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
-    local testName testFile i skip
+    local testName testFile promptIndex skip
     local indices=()
 
     for (( i=0; i < maxIndex; i++ )); do
