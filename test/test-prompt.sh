@@ -101,7 +101,6 @@ testRequestBasicInput() {
         request "Name" result false < <(printf 'hello\n') > /dev/null
         local exitCode=$?
         assertEqual "${exitCode}" "0" "request basic input: exit code"
-debugVar result
         assertEqual "${result}" "hello" "request basic input: result"
     ) || exit 1
 }

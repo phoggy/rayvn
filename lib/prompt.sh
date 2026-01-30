@@ -682,9 +682,9 @@ _hasPromptTimerExpired() {
 }
 
 _promptSuccess() {
-    local result="${1}"
+    local _promptSuccessValue="${1}"
     local -n resultVarRef="${_promptResultVarName}"
-    resultVarRef="${result}"
+    resultVarRef="${_promptSuccessValue}"
     _finalizePrompt _promptInput "${_promptSuccessColor}"
     return 0
 }
