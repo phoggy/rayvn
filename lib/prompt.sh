@@ -97,7 +97,7 @@ confirm() {
         _confirmPaint
     }
 
-    _prompt --prompt "${prompt}" --hint '↔ arrows to move, ESC to cancel'  --result "${resultVarName}" \
+    _prompt --prompt "${prompt}" --hint 'left/right arrows to switch, ESC to cancel'  --result "${resultVarName}" \
             --choices promptChoices --startIndex "${startIndex}" --doNotColorChoices --clearHint \
             --reserveRows 4 --timeout "${timeout}"  \
             --init _confirmInit --paint _confirmPaint --left _confirmLeft --right _confirmRight --success _arrowPromptSuccess
@@ -237,9 +237,9 @@ choose() {
                 cursorTo ${row} 0
                 eraseToEndOfLine
                 if (( offset == cursorRow )); then
-                    echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
+                    echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${promptIndex}]}"
                 else
-                    echo -n "    ${_promptDisplayChoices[$i]}"
+                    echo -n "    ${_promptDisplayChoices[${promptIndex}]}"
                 fi
 
                 (( row++ ))
@@ -263,7 +263,7 @@ choose() {
                 local i=$(( (windowStart + previousCursorRow) % (_promptMaxChoicesIndex + 1) ))
                 cursorTo ${row} 0
                 eraseToEndOfLine
-                echo -n "    ${_promptDisplayChoices[$i]}"
+                echo -n "    ${_promptDisplayChoices[${promptIndex}]}"
             fi
 
             # Calculate new row position
@@ -274,7 +274,7 @@ choose() {
             local i=$(( (windowStart + cursorRow) % (_promptMaxChoicesIndex + 1) ))
             cursorTo ${row} 0
             eraseToEndOfLine
-            echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[$i]}"
+            echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${promptIndex}]}"
         fi
 
         # Update previous positions
