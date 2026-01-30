@@ -20,45 +20,20 @@ release () {
     _releasePackageFile "${version}" "${releaseDate}" || fail
     _doRelease "${ghRepo}" "${version}" || fail
 
-    # Update Homebrew formula if the tap repo is available
-    if [[ -d "${_rayvnCentralTapRepoDir:-}" ]]; then
-        _updateFormula "${ghRepo}" "${project}" "${version}" "${releaseDate}" || fail
-    else
-        echo
-        show dim "Skipping Homebrew formula update (tap repo not found)"
-    fi
-
     _restorePackageFile "${version}" || fail
 
     echo
     show bold blue "${project} ${version} release completed"
     echo
-
-    # Post-release instructions: adapt to available package manager
-    if [[ -d "${_rayvnCentralTapRepoDir:-}" ]]; then
-        if [[ ${releaseDeleted} ]]; then
-            show bold "The existing ${version} brew release of ${project} was updated. Please run the following:"
-            echo "brew uninstall ${project} && brew install ${project} && brew test ${project}"
-        elif brew list ${project} &> /dev/null; then
-            show bold "The ${version} brew release of ${project} was previously installed. Please run the following:"
-            echo "brew update && brew upgrade ${project} && brew test ${project}"
-            echo
-            echo "If you get a sha256 mismatch, look for the tar file described as 'Already downloaded', delete it and retry."
-        else
-            show bold "The ${project} project is not installed via brew. Please run the following:"
-            echo "brew install ${project} && brew test ${project}"
-        fi
-    else
-        show bold "To use the new release via Nix:"
-        echo "nix run github:phoggy/${project}"
-    fi
+    show bold "To use the new release via Nix:"
+    echo "nix run github:phoggy/${project}"
     echo
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_release() {
-    require 'rayvn/prompt' 'rayvn/central'
+    require 'rayvn/prompt'
 }
 
 _checkExistingRelease() {
@@ -142,72 +117,6 @@ _deleteRelease() {
     gh release delete ${versionTag} --cleanup-tag || fail "failed to delete release ${versionTag}"
 }
 
-_updateFormula() {
-    local ghRepo="${1}"
-    local project="${2}"
-    local version="${3}"
-    local releaseDate="${4}"
-    local versionTag="v${version}"
-    local formulaFileName="${project}.rb"
-    local formulaFile="${_rayvnCentralFormulaDir}/${formulaFileName}"
-    local formulaBackupFile="${formulaFile}.bak"
-
-    # update the version, releaseDate, url and sha256
-
-    _updateBrewFormula "${ghRepo}" "${project}" "${version}" "${releaseDate}" "${formulaFile}" || fail
-
-    # Did the file change?
-
-    if ! diff -q "${formulaFile}" "${formulaBackupFile}" > /dev/null; then
-
-        # Yes
-
-        _printHeader "Formula updated, doing commit and push"
-        (
-            cd "${brewFormulaDir}" || fail "cd ${brewFormulaDir} failed!"
-
-            git commit -q -m "Update for ${versionTag} release." "${formulaFileName}" || fail "commit failed!"
-            git push || fail
-            rm "${formulaBackupFile}" || fail
-        )
-
-    else
-        echo "No change was made in ${formulaFileName}, so was not committed"
-        rm "${formulaBackupFile}" || fail
-    fi
-}
-
-_updateBrewFormula() {
-    local ghRepo="${1}"
-    local project="${2}"
-    local version="${3}"
-    local releaseDate="${4}"
-    local formulaFile="${5}"
-    local hash=
-
-    _printHeader "Updating brew formula ${formulaFile}"
-
-    if [[ -f ${formulaFile} ]]; then
-        if _gitHubReleaseHash ${ghRepo} ${project} ${version} 'hash'; then
-            [[ ${hash} ]] || fail "no hash!"
-
-            # replace version, url, sha256 and releaseDate
-
-            sed -i.bak "s|version \"[0-9]\+\.[0-9]\+\.[0-9]\+\"|version \"${version}\"|; \
-                        s|sha256 \"[a-fA-F0-9]\{64\}\"|sha256 \"${hash}\"|;   \
-                        s|\(url \".*tags/v\)[0-9.]\+|\1${version}.|;  \
-                        s|release_date = \".*\"|release_date = \"${releaseDate}\"|" "${formulaFile}"
-
-            echo "Replaced version, url and sha256 values in '${formulaFile}'"
-
-            _updateBrewFormulaDependencies "${project}" "${formulaFile}"
-        else
-            fail
-        fi
-    else
-        fail "${formulaFile} not found"
-    fi
-}
 
 _updateExistingTagIfRequired() {
     local ghRepo="${1}"
@@ -328,58 +237,6 @@ _ensureRepoIsUpToDate() {
     else
         echo "Your local '${branch}' branch is up to date with the remote."
     fi
-}
-
-_gitHubReleaseHash() {
-    _printHeader "Getting sha256 for release"
-
-    local ghRepo="${1}"
-    local project="${2}"
-    local version="${3}"
-    local versionTag="v${version}"
-    local -n result="${4}"
-    local url="https://github.com/${ghRepo}/archive/refs/tags/${versionTag}.tar.gz"
-    local sha256
-
-    echo "Computing sha256 for ${project} release ${versionTag} file at'${url}'"
-    sha256="${ curl -L --no-progress-meter --fail "${url}" | shasum -a 256 | cut -d' ' -f1; }" || fail
-    echo "sha256 ${sha256}"
-    result="${sha256}"
-}
-
-_updateBrewFormulaDependencies() {
-    require 'rayvn/dependencies'
-    local project="${1}"
-    local formulaFile="${2}"
-    local tempFile="${ makeTempFile "${project}.rb"; }" || fail
-    local dependencies=()
-    local minVersions=()
-    declare -i found=0
-
-    # Get dependencies
-
-    _collectProjectDependencies "${project}" dependencies minVersions true
-
-    # Update using temp file
-
-    while IFS= read -r line; do
-        if [[ "${line}" =~ ^[[:space:]]*depends_on[[:space:]] ]]; then
-            if (( ! found )); then
-                for dep in "${dependencies[@]}"; do
-                    echo "  depends_on \"${dep}\"" >> "${tempFile}"
-                done
-                found=1
-            fi
-            continue  # skip original depends_on
-        fi
-        echo "${line}" >> "${tempFile}"
-    done < "${formulaFile}"
-
-    # Overwrite the formula file
-
-    mv "${tempFile}" "${formulaFile}"
-
-    echo "Updated dependencies in ${formulaFile}"
 }
 
 _printHeader() {

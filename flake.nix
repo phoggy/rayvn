@@ -49,9 +49,12 @@
             # Install rayvn.pkg
             cp rayvn.pkg "$out/"
 
-            # Wrap rayvn with runtime dependencies on PATH
+            # Wrap rayvn with runtime dependencies on PATH.
+            # Include $out/bin so that 'source rayvn.up' (PATH lookup) finds
+            # rayvn.up in the same store path, and rayvn.up can resolve the
+            # project root via BASH_SOURCE.
             wrapProgram "$out/bin/rayvn" \
-              --prefix PATH : "${pkgs.lib.makeBinPath runtimeDeps}"
+              --prefix PATH : "$out/bin:${pkgs.lib.makeBinPath runtimeDeps}"
 
             # Wrap rayvn.up — it's sourced not executed, so we create a
             # wrapper script that sets up the environment then sources the real file.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Manages rayvn-central project registration and homebrew formulas.
+# Manages rayvn-central project registration.
 # Intended for use via: require 'rayvn/central'
 
 registerProjectOnRayvnCentral() {
@@ -64,69 +64,35 @@ getProjectRegistryPath() {
     echo "${_rayvnCentralRegistryRepoDir}/${projectName}"
 }
 
-# Returns the path to the project formula file, which may not exist
-getProjectFormulaPath() {
-    local projectName="${1}"
-    echo "${_rayvnCentralFormulaDir}/${projectName}.rb"
-}
-
-# Add, commit and push a formula file to rayvn central
-pushFormulaToRayvnCentral() {
-    local file="${1}"
-    local commitMessage="${2}"
-    assertFile "${file}"
-    assertPathWithinDirectory "${file}" "${_rayvnCentralTapRepoDir}"
-    [[ -n ${commitMessage} ]] || fail "commit message required"
-    (
-        cd "${_rayvnCentralTapRepoDir}" || fail
-        git add "${file}" || fail
-        git commit -m "${commitMessage}" || fail
-        git push --quiet || fail
-    )
-}
-
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/central' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_central() {
     require 'rayvn/prompt'
     local configDir
 
-    # We need rayvn-central repositories cloned locally into a rayvn-central dir.
-    # This mapping just simplifies usage.
+    # We need the rayvn-central registry repo cloned locally.
 
     configDir="${ configDirPath; }"
     declare -gr _rayvnCentralReposDir="${configDir}/rayvn-central"
-
-    # Repository directories
-
     declare -gr _rayvnCentralRegistryRepoDir="${_rayvnCentralReposDir}/registry"
-    declare -gr _rayvnCentralTapRepoDir="${_rayvnCentralReposDir}/homebrew-tap"
-
-    # Content directories
-
     declare -gr _rayvnCentralRegistryDir="${_rayvnCentralRegistryRepoDir}/registry"
-    declare -gr _rayvnCentralFormulaDir="${_rayvnCentralTapRepoDir}/Formula"
 
-    # Do we already have the repos?
+    # Do we already have the repo?
 
     if [[ ! -d "${_rayvnCentralReposDir}" ]]; then
 
-        # Nope, so clone them
+        # Nope, so clone it
         (
             cd "${configDir}" || fail
-            mkdir rayvn-central || faile
+            mkdir rayvn-central || fail
             echo "Cloning rayvn-central registry repo"
             git clone --quiet "https://github.com/rayvn-central/registry" ${_rayvnCentralRegistryRepoDir} || fail
-            echo "Cloning rayvn-central tap repo"
-            git clone --quiet "https://github.com/rayvn-central/homebrew-tap" ${_rayvnCentralTapRepoDir} || fail
         )
     else
 
-        # Yes, ensure they are current
+        # Yes, ensure it is current
         (
             cd "${_rayvnCentralRegistryRepoDir}" || fail
-            git pull --quiet > /dev/null || fail
-            cd "${_rayvnCentralTapRepoDir}" || fail
             git pull --quiet > /dev/null || fail
         )
     fi

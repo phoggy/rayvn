@@ -694,15 +694,6 @@ createProject() {
     remindIfNotInPath "${binDir}"
 }
 
-_createAndPushFormula() {
-    local formulaTemplate="${templateDir}/formula-template.rb"
-    # vars set in caller
-    local projectNameInitialCap="${projectName^}"
-
-    copyFileAndSubstituteVars "${formulaTemplate}" "${formulaFile}" projectNameInitialCap repoUrl projectName || fail
-    commitAndPushFormulaToRayvnCentral "${projectName}" "claim project name '${projectName}'"
-}
-
 remindIfNotInPath() {
     local binDir="${1}"
     if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
