@@ -232,7 +232,7 @@ choose() {
             local row=${_promptChoicesStartRow}
 
             for (( offset=0; offset < totalVisibleItems; offset++ )); do
-                local i=$(( (windowStart + offset) % (_promptMaxChoicesIndex + 1) ))
+                local promptIndex=$(( (windowStart + offset) % (_promptMaxChoicesIndex + 1) ))
 
                 cursorTo ${row} 0
                 eraseToEndOfLine
@@ -540,8 +540,8 @@ _preparePromptChoices() {
 
         # No, so color the display choices and the finalized prompt
 
-        for (( i=0; i <= _promptMaxChoicesIndex; i++  )); do
-            _promptDisplayChoices[$i]="${ show primary "${_promptChoices[$i]}"; }"
+        for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++  )); do
+            _promptDisplayChoices[$promptIndex]="${ show primary "${_promptChoices[$promptIndex]}"; }"
         done
         _promptSuccessColor='primary'
     fi
@@ -551,9 +551,9 @@ _preparePromptChoices() {
     if (( _promptNumberChoices && _promptMaxChoicesIndex )); then
         local number
         local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
-        for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
-            number="${ printNumber $(( $i +1 )) ${places} ; }"
-            _promptDisplayChoices[$i]="${ show dim "${number}." plain "${_promptDisplayChoices[${i}]}"; }"
+        for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++ )); do
+            number="${ printNumber $(( $promptIndex +1 )) ${places} ; }"
+            _promptDisplayChoices[$promptIndex]="${ show dim "${number}." plain "${_promptDisplayChoices[${promptIndex}]}"; }"
         done
     fi
 }
@@ -630,7 +630,7 @@ _readPromptEscapeSequence() {
 
             '[') # CSI sequence, read up to 3 more characters and process last
 
-                for (( i = 0; i < 3; i++ )); do
+                for (( promptIndex=0; promptIndex < 3; promptIndex++ )); do
                     if ! read -n1 -t 0.1 c; then
                         break # timeout, assume we already read the last char
                     fi
@@ -716,7 +716,7 @@ _finalizePrompt() {
     eraseToEndOfLine
     if (( _promptMaxChoicesIndex )); then
         cursorDownOneAndEraseLine
-        for (( i=0; i <= _promptMaxChoicesIndex; i++ )); do
+        for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++ )); do
             cursorDownOneAndEraseLine
         done
     fi
