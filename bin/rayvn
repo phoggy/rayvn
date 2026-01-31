@@ -620,6 +620,7 @@ createProject() {
     local packageTemplate="${templateDir}/package-template.sh"
     local scriptTemplate="${templateDir}/script-template.sh"
     local libraryTemplate="${templateDir}/library-template.sh"
+    local readmeTemplate="${templateDir}/readme-template.md"
 
     echo
     show bold "Creating project '${projectName}' in" blue "'${PWD}'"
@@ -665,6 +666,7 @@ createProject() {
     copyFileAndSubstituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
     copyFileAndSubstituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${projectName}" || fail
+    copyFileAndSubstituteVars "${readmeTemplate}" './README.md' projectName || fail
 
     # Add and commit
 
