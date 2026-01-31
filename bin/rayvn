@@ -629,7 +629,7 @@ createProject() {
 
     declare -i createdRepo=0
     local answer formulaFile repoUrl
-    confirm "Create new GitHub repo for project '${projectName}'?" yes=default no answer || bye
+    confirm "Create new GitHub repo for project '${projectName}'?" yes no answer || bye
     if [[ "${answer}" == "yes" ]]; then
         if ! gh auth status --active &> /dev/null; then
             confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
