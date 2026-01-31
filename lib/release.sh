@@ -73,8 +73,8 @@ _doRelease() {
 
 _releasePackageFile() {
     local version="${1}"
-    local releaseDate="${2}"
-    _updatePackageFile "${version}" "${releaseDate}"
+    local date="${2}"
+    _updatePackageFile "${version}" "${date}"
 }
 
 _restorePackageFile() {
@@ -84,12 +84,12 @@ _restorePackageFile() {
 
 _updatePackageFile() {
     local version="${1}"
-    local releaseDate="${2}"
+    local _releaseDate="${2}"
     local versionTag="v${version}"
     local pkgFile='rayvn.pkg'
     local commitMessage=
 
-    if [[ ${releaseDate} ]]; then
+    if [[ ${_releaseDate} ]]; then
         commitMessage="Release ${versionTag} rayvn.pkg update."
     else
         versionTag="${versionTag}+"
@@ -99,7 +99,7 @@ _updatePackageFile() {
     _printHeader "${commitMessage}"
 
     sed -i.bak -e "s/^\([[:space:]]*projectVersion=\).*$/\1\'${version}\'/" \
-               -e "s/^\([[:space:]]*projectReleaseDate=\).*$/\1\'${releaseDate}\'/" \
+               -e "s/^\([[:space:]]*projectReleaseDate=\).*$/\1\'${_releaseDate}\'/" \
                "${pkgFile}"  || fail
 
     rm "${pkgFile}.bak" || fail
