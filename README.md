@@ -5,11 +5,24 @@
 
 A simple bash shared library manager and a collection of shared libraries.
 
+### Prerequisites
+
+Requires [Nix](https://nixos.org/). To install:
+
+```bash
+curl -L https://nixos.org/nix/install | sh
+```
+
 ### Installation
 
 ```bash
-$ brew tap phoggy/rayvn # hopefully a temporary step
-$ brew install rayvn
+nix run github:phoggy/rayvn
+```
+
+To build locally:
+
+```bash
+nix build
 ```
 
 # Developing With rayvn
