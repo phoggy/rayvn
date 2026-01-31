@@ -20,7 +20,6 @@ usage() {
     echo "    new TYPE NAME     Create a new project/script/library/test with the specified NAME."
     echo "    libraries         List libraries."
     echo "    functions         List public functions."
-    echo "    dependencies      Assert that dependencies are satisfied."
     echo "    register          Register a project."
     echo "    release           Create a new release."
     echo
@@ -61,7 +60,6 @@ init() {
             projects) parseArgs true listProjects "${@:2}" ;;
             libraries) parseArgs true listLibraries "${@:2}" ;;
             functions) parseArgs true listFunctions "${@:2}" ;;
-            dependencies) parseArgs true projectDependencies "${@:2}" ;;
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
             --debug) debugCommand=('--debug') ;debugOptions=('showOnExit') ;;
@@ -199,20 +197,6 @@ create() {
             library) createLibrary ;;
             test) createTest ;;
         esac
-    fi
-}
-
-projectDependencies() {
-    if (( flags['help'] )); then
-        echo "rayvn dependencies [PROJECT] [--assert] [-q | --quiet]"
-    else
-        require 'rayvn/dependencies'
-        ensureAtFront projects rayvn
-        if (( flags['assert'] )); then
-            assertProjectDependencies projects flags['quiet']
-        else
-            listProjectDependencies projects flags['quiet']
-        fi
     fi
 }
 
@@ -657,12 +641,11 @@ createProject() {
 
     local quotedName="'${projectName}'"
     local qualifiedName="'${projectName}/example'"
-    local rayvnVersion="'${ projectVersion rayvn | cut -d' ' -f2; }'"
     local libraryCall='myExampleLibraryFunction'
     local libraryName="example"
     local libraryNameInitialCap="Example"
 
-    copyFileAndSubstituteVars "${packageTemplate}" './rayvn.pkg' quotedName rayvnVersion || fail
+    copyFileAndSubstituteVars "${packageTemplate}" './rayvn.pkg' quotedName || fail
     copyFileAndSubstituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
     copyFileAndSubstituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${projectName}" || fail

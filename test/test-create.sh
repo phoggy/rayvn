@@ -72,14 +72,13 @@ testNewProject() {
 
         local quotedName="'${projectName}'"
         local qualifiedName="'${projectName}/example'"
-        local rayvnVersion="'0.0.0'"
         local libraryCall='myExampleLibraryFunction'
         local libraryName="example"
         local libraryNameInitialCap="Example"
 
         # Copy and substitute templates (same order as createProject)
 
-        _copyFileAndSubstituteVars "${templateDir}/package-template.sh" './rayvn.pkg' quotedName rayvnVersion || fail "rayvn.pkg copy failed"
+        _copyFileAndSubstituteVars "${templateDir}/package-template.sh" './rayvn.pkg' quotedName || fail "rayvn.pkg copy failed"
         _copyFileAndSubstituteVars "${templateDir}/library-template.sh" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail "example.sh copy failed"
         _copyFileAndSubstituteVars "${templateDir}/script-template.sh" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail "script copy failed"
         chmod +x "./bin/${projectName}" || fail "chmod failed"

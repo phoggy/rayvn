@@ -5,17 +5,3 @@
 projectName='rayvn'
 projectVersion='0.1.9'
 projectReleaseDate=''
-
-declare -A projectDependencies=(
-    [bash_min]='5.3.0'
-    [bash_extract]=0
-    [bash_brew]=true
-
-    [awk_min]='20250116'
-    [awk_extract]=2
-    [awk_brew]=true
-
-    [gh_min]='2.74.1'
-    [gh_extract]=2
-    [gh_brew]=true
-)

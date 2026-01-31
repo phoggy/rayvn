@@ -208,6 +208,6 @@ assertNonProjectValues() {
                             "This is a paragraph. It should be multiple lines and can be split across multiple lines: don't end quote, just continue with backslashes inside the same quoted string. This is a test of the emergency broadcast system. It is only a test! Yes, really. It is a pretty boring test, but a test nonetheless."
 }
 
-source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/config' 'rayvn/dependencies'
+source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/config'
 
 main "${@}"
