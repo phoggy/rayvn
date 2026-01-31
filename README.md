@@ -25,6 +25,8 @@ To build locally:
 nix build
 ```
 
+All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
+
 # Developing With rayvn
 
 ## Using rayvn within scripts
