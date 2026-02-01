@@ -66,6 +66,17 @@
             runHook postInstall
           '';
 
+          # patchShebangs rewrites #!/usr/bin/env bash to the non-interactive
+          # bash, which lacks builtins like compgen. Restore the shebangs so
+          # they resolve via PATH, where the wrapper provides bash-interactive.
+          postFixup = ''
+            for f in "$out/bin/.rayvn-wrapped" "$out/bin/rayvn.up" "$out/lib/"*.sh; do
+              if [ -f "$f" ]; then
+                sed -i "1s|^#\\!.*/bin/bash.*|#!/usr/bin/env bash|" "$f"
+              fi
+            done
+          '';
+
           meta = with pkgs.lib; {
             description = "Shared bash library system for managing executables and libraries";
             homepage = "https://github.com/phoggy/rayvn";
