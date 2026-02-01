@@ -125,9 +125,11 @@ testNewProject() {
         # Verify README.md content
 
         assertInFile "# testproj" "${projectDir}/README.md"
+        assertInFile "nix profile install github:phoggy/testproj" "${projectDir}/README.md"
         assertInFile "nix run github:phoggy/testproj" "${projectDir}/README.md"
         assertInFile "nix build" "${projectDir}/README.md"
         assertInFile "rayvn" "${projectDir}/README.md"
+        assertInFile "install.determinate.systems/nix" "${projectDir}/README.md"
         assertInFile "nixos.org/nix/install" "${projectDir}/README.md"
 
         # Verify git repo has at least one commit

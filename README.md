@@ -1,19 +1,42 @@
-![My Logo](etc/rayvn-logo.png)
+![My Logo](etc/rayvn.png)
 
 # rayvn
 /ˈreɪ.vən/
 
-A simple bash shared library manager and a collection of shared libraries.
+A bash shared library manager and a set of shared libraries.
 
 ### Prerequisites
 
-Requires [Nix](https://nixos.org/). To install:
+Requires [Nix](https://nixos.org/). To install on Mac with Apple silicon or Linux:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+To install on Mac x86:
 
 ```bash
 curl -L https://nixos.org/nix/install | sh
 ```
 
+Both installers create a `/nix` volume and take a few minutes to complete. Answer yes to any
+prompts and allow any system dialogs that pop up. Once complete, open a new terminal before
+continuing.
+
+If you used the x86 installer, enable flakes:
+
+```bash
+mkdir -p ~/.config/nix
+echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+```
+
 ### Installation
+
+```bash
+nix profile install github:phoggy/rayvn
+```
+
+To run without installing:
 
 ```bash
 nix run github:phoggy/rayvn
@@ -25,9 +48,9 @@ To build locally:
 nix build
 ```
 
-All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
-
 # Developing With rayvn
+
+All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
 
 ## Using rayvn within scripts
 
@@ -51,7 +74,7 @@ The `require` function can be called lazily, e.g. within a function.
 
 Calling `require` multiple times for the same library will only load it on the first call, subsequent calls will just count the request.
 
-To see the set of public functions available in a library: 
+To see the set of public functions available in a library:
 ```bash
 ravyn list 'rayvn/core'
 ```
@@ -109,5 +132,3 @@ First `cd` to the directory where you want your project to live, then:
 $ rayvn create project "my-name"
 ```
 This will generate a skeleton project.
-         
-
