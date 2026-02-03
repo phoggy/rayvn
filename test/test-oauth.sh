@@ -99,9 +99,7 @@ testAssertValidOAuthServiceNullValue() {
         [tokenUrl]="https://oauth2.googleapis.com/token"
     )
     local caught=0
-    (
-        _assertValidOAuthService nullService
-    ) 3> /dev/null &> /dev/null || caught=1
+    ( _quietFail=1; _assertValidOAuthService nullService ) &> /dev/null || caught=1
     (( caught == 1 )) || fail "validation should fail when a key has value 'null'"
 }
 

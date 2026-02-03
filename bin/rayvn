@@ -96,6 +96,7 @@ parseArgs() {
             -q | --quiet) flags+=(['quiet']=1) ;;
             --assert) flags+=(['assert']=1) ;;
             --local) flags+=(['local']=1) ;;
+            --nix) flags+=(['nix']=1) ;;
             --debug) debugOptions=('showOnExit') ;;
             --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
             --debug-out) debugOptions=('tty' "${ tty; }") ;;
@@ -370,7 +371,10 @@ _printLibrary() {
 
 runTests() {
     if (( flags['help'] )); then
-        echo "rayvn test [PROJECT] [TEST-NAME]"
+        echo "rayvn test [PROJECT] [TEST-NAME] [--nix]"
+    elif (( flags['nix'] )); then
+        # Re-exec within nix develop environment
+        exec nix develop --command rayvn test "${projects[@]}" "${args[@]}"
     else
         require 'rayvn/spinner' 'rayvn/prompt'
         echo

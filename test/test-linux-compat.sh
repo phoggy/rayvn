@@ -12,6 +12,17 @@ fi
 
 # Get the directory containing this script
 script_dir="${ dirname "${BASH_SOURCE[0]}"; }"
+
+# If running from Nix store, use the git working directory instead
+# (Docker can't mount /nix/store paths on macOS)
+if [[ "${script_dir}" == /nix/store/* ]]; then
+    # Must be run from the rayvn source directory
+    if [[ ! -f "rayvn.pkg" ]] || [[ ! -d "test/linux-compat" ]]; then
+        fail "When running via nix develop, run from the rayvn source directory"
+    fi
+    script_dir="./test"
+fi
+
 linux_compat_dir="${script_dir}/linux-compat"
 
 # Check if linux-compat directory exists

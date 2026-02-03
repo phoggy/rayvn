@@ -105,9 +105,7 @@ testInitSpinnerStarType() {
 
 testInitSpinnerInvalidType() {
     local caught=0
-    (
-        _initSpinner "test" "bogus"
-    ) 3> /dev/null &> /dev/null || caught=1
+    ( _quietFail=1; _initSpinner "test" "bogus" ) &> /dev/null || caught=1
     (( caught == 1 )) || fail "invalid frame type 'bogus' should have failed"
 }
 
@@ -153,24 +151,33 @@ testFrameGenerationCustomColors() {
 # --- isInteractive guards ---
 
 testNonInteractiveStartSpinner() {
-    # isInteractive is already 0 in non-interactive mode
+    # Skip if running interactively
+    (( isInteractive )) && return 0
     startSpinner "test"
     [[ -z ${_spinnerPid} ]] || fail "startSpinner should be a no-op when not interactive"
 }
 
 testNonInteractiveStopSpinner() {
+    # Skip if running interactively
+    (( isInteractive )) && return 0
     stopSpinner "test"  # Should return 0 without doing anything
 }
 
 testNonInteractiveRestartSpinner() {
+    # Skip if running interactively
+    (( isInteractive )) && return 0
     restartSpinner "done" "new"  # Should return 0 without doing anything
 }
 
 testNonInteractiveReplaceSpinnerAndRestart() {
+    # Skip if running interactively
+    (( isInteractive )) && return 0
     replaceSpinnerAndRestart "done" "new"  # Should return 0 without doing anything
 }
 
 testNonInteractiveStopSpinnerAndEraseLine() {
+    # Skip if running interactively
+    (( isInteractive )) && return 0
     stopSpinnerAndEraseLine "done"  # Should return 0 without doing anything
 }
 
