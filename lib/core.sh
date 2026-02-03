@@ -33,6 +33,10 @@ withUmask() {
     return "${status}"
 }
 
+binaryPath() {
+    type -p "${1}" || fail "'${1}' not found"
+}
+
 rootDirPath() {
     echo "${rayvnRootDir}/${1}"
 }
@@ -148,7 +152,8 @@ printNumber() {
 projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
-    local pkgFile="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/rayvn.pkg"
+    local -n projectHome="${projectName//-/_}Home"
+    local pkgFile="${projectHome}/rayvn.pkg"
     assertFileExists "${pkgFile}"
     (
         require 'rayvn/config'
@@ -731,6 +736,7 @@ _init_rayvn_core() {
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
     declare -grx inContainer=$([[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0)
+    declare -grx inNix=$([[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0)
 
     #    declare -gArx _symbols=(
 #

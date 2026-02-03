@@ -309,9 +309,6 @@ addRoot() {
     if  [[ ! -v _rayvnProjects[${key}] ]]; then
         projectRoot="${ realpath "${projectRoot}"; }" || fail "Could not resolve real path of: ${projectRoot}"
         _rayvnProjects[${key}]="${projectRoot}"
-
-        # Define a ${project}Home var for project self reference
-        [[ ${keySuffix} == "${_projectRootSuffix}" ]] && declare -grx "${projectName//-/_}Home"="${projectRoot}"
     fi
     return 0
 }
@@ -338,9 +335,18 @@ addProject() {
         addProjectFromExecutable "${projectName}" "${projectRoot}"
     fi
 
-    # Add library root if it exists
+    # Resolve resource root: where lib/, etc/, rayvn.pkg live.
+    # Normal git clone: same as project root.
+    # Nix profile layout: share/<project>/ under project root.
 
-    local libraryRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}/lib"
+    local resolvedRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}"
+    local resourceRoot="${resolvedRoot}"
+    [[ -d "${resolvedRoot}/share/${projectName}" ]] && resourceRoot="${resolvedRoot}/share/${projectName}"
+    declare -grx "${projectName//-/_}Home"="${resourceRoot}"
+
+    # Add library root if it exists (under resource root)
+
+    local libraryRoot="${resourceRoot}/lib"
     if [[ -d "${libraryRoot}" ]]; then
         addRoot "${projectName}" "${_libraryRootSuffix}" "${libraryRoot}"
     fi

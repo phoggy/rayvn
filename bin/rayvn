@@ -118,7 +118,7 @@ addIfRayvnExecutable() {
     [[ ${command} == 'create' ]] && return 1
     local name="${1}"
     local path root rayvnPkgFile
-    path="${ which "${name}"; }"
+    path="${ type -p "${name}"; }"
     if [[ -n "${path}" ]]; then
 
         # Get root directory
@@ -131,6 +131,7 @@ addIfRayvnExecutable() {
         # See if there is a rayvn.pkg file
 
         rayvnPkgFile="${root}/rayvn.pkg"
+        [[ -f "${rayvnPkgFile}" ]] || rayvnPkgFile="${root}/share/${name}/rayvn.pkg"
         if [[ -f ${rayvnPkgFile} ]]; then
             addProject "${name}=${root}"
             return 0

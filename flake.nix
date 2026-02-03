@@ -35,19 +35,19 @@
             install -Dm755 bin/rayvn.up "$out/bin/rayvn.up"
 
             # Install lib/
-            mkdir -p "$out/lib"
-            cp lib/*.sh "$out/lib/"
+            mkdir -p "$out/share/rayvn/lib"
+            cp lib/*.sh "$out/share/rayvn/lib/"
 
             # Install templates/
-            mkdir -p "$out/templates"
-            cp templates/* "$out/templates/"
+            mkdir -p "$out/share/rayvn/templates"
+            cp templates/* "$out/share/rayvn/templates/"
 
             # Install etc/
-            mkdir -p "$out/etc"
-            cp -r etc/* "$out/etc/"
+            mkdir -p "$out/share/rayvn/etc"
+            cp -r etc/* "$out/share/rayvn/etc/"
 
             # Install rayvn.pkg
-            cp rayvn.pkg "$out/"
+            cp rayvn.pkg "$out/share/rayvn/"
 
             # Wrap rayvn with runtime dependencies on PATH.
             # Include $out/bin so that 'source rayvn.up' (PATH lookup) finds
@@ -70,7 +70,7 @@
           # bash, which lacks builtins like compgen. Restore the shebangs so
           # they resolve via PATH, where the wrapper provides bash-interactive.
           postFixup = ''
-            for f in "$out/bin/.rayvn-wrapped" "$out/bin/rayvn.up" "$out/lib/"*.sh; do
+            for f in "$out/bin/.rayvn-wrapped" "$out/bin/rayvn.up" "$out/share/rayvn/lib/"*.sh; do
               if [ -f "$f" ]; then
                 sed -i "1s|^#\\!.*/bin/bash.*|#!/usr/bin/env bash|" "$f"
               fi
