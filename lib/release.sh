@@ -43,10 +43,22 @@ _checkExistingRelease() {
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
-        confirm "Release ${versionTag} already exists. Delete it? " y n choiceIndex || bye
-        if (( choiceIndex == 0 )); then
-            _deleteRelease ${version} || fail
-        fi
+        fail "Release ${versionTag} already exists."
+
+# TODO _deleteRelease failed
+#        HTTP 422: Validation Failed (https://api.github.com/repos/phoggy/rayvn/releases)
+#        Release.tag_name already exists
+#        🔺 release v0.2.2 failed!
+#        _doRelease() /Users/batsatt/dev/rayvn/lib/release.sh:63 -> fail()
+#        release() /Users/batsatt/dev/rayvn/lib/release.sh:19 -> _doRelease()
+#        releaseProject() /Users/batsatt/dev/rayvn/bin/rayvn:253 -> release()
+#        main() /Users/batsatt/dev/rayvn/bin/rayvn:40 -> releaseProject()
+#        main() /Users/batsatt/dev/rayvn/bin/rayvn:801 -> main()
+
+#        confirm "Release ${versionTag} already exists. Delete it? " y n choiceIndex || bye
+#        if (( choiceIndex == 0 )); then
+#            _deleteRelease ${version} || fail
+#        fi
     else
         echo "Release ${versionTag} does not exist."
     fi
