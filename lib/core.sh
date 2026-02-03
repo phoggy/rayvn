@@ -34,7 +34,9 @@ withUmask() {
 }
 
 binaryPath() {
-    type -p "${1}" || fail "'${1}' not found"
+    local name="${1}"
+    local errMsg="${2:-"'${name}' not found"}"
+    type -p "${name}" || fail "${errMsg}"
 }
 
 rootDirPath() {
@@ -735,8 +737,8 @@ _init_rayvn_core() {
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
     declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
-    declare -grx inContainer=$([[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0)
-    declare -grx inNix=$([[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0)
+    declare -grx inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
+    declare -grx inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
 
     #    declare -gArx _symbols=(
 #
