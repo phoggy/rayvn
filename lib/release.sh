@@ -19,6 +19,7 @@ release () {
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _releasePackageFile "${version}" "${releaseDate}" || fail
     _doRelease "${ghRepo}" "${version}" || fail
+    _verifyNixBuild "${ghRepo}" "${version}" || fail
 
     _restorePackageFile "${version}" || fail
 
@@ -108,6 +109,14 @@ _updatePackageFile() {
     fi
     echo
     cat "${pkgFile}"
+}
+
+_verifyNixBuild() {
+    local ghRepo="${1}"
+    local versionTag="v${2}"
+    _printHeader "Verifying Nix build for ${versionTag}"
+    nix build "github:${ghRepo}/${versionTag}" --no-link || fail "Nix build failed for ${versionTag}"
+    echo "Nix build succeeded."
 }
 
 _deleteRelease() {
