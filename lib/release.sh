@@ -14,6 +14,7 @@ release () {
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
+    _runNixTests "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _updateFlakeVersion "${version}" || fail
     _updateFlakeLock || fail
@@ -63,6 +64,15 @@ _checkExistingRelease() {
     else
         echo "Release ${versionTag} does not exist."
     fi
+}
+
+_runNixTests() {
+    local project="${1}"
+
+    _printHeader "Running tests in Nix environment"
+
+    nix develop --command rayvn test "${project}" || fail "Tests failed in Nix environment"
+    echo "All tests passed in Nix environment."
 }
 
 _updateFlakeVersion() {
