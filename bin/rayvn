@@ -36,8 +36,10 @@ usage() {
 
 main() {
     init "${@}"
-    ${command} "${args[@]}"
+    local result=0
+    ${command} "${args[@]}" || result=$?
     echo
+    return ${result}
 }
 
 init() {
@@ -426,18 +428,21 @@ runTests() {
 
         # Any error logs?
 
-        if (( failedTestCount && ! inContainer )); then
-            local answer i logFile
-            echo
-            for (( i=0; i < failedTestCount; i++ )); do
-                confirm "View ${failedTestLogNames[${i}]}?" yes no answer || bye
-                if (( answer == 0 )); then
-                    local logFile="${testLogDir}/${failedTestLogNames[${i}]}"
-                    echo
-                    cat "${logFile}"
-                    echo
-                fi
-            done
+        if (( failedTestCount )); then
+            if (( ! inContainer )); then
+                local answer i logFile
+                echo
+                for (( i=0; i < failedTestCount; i++ )); do
+                    confirm "View ${failedTestLogNames[${i}]}?" yes no answer || bye
+                    if (( answer == 0 )); then
+                        local logFile="${testLogDir}/${failedTestLogNames[${i}]}"
+                        echo
+                        cat "${logFile}"
+                        echo
+                    fi
+                done
+            fi
+            return 1
         fi
     fi
 }

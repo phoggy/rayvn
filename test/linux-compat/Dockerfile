@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     locales \
     unzip \
+    libsecret-tools \
+    gnome-keyring \
+    dbus-x11 \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate en_US.UTF-8 locale to avoid locale warnings
@@ -77,6 +80,10 @@ WORKDIR /workspace
 
 # Switch to non-root user
 USER testuser
+
+# Configure git for testuser (required by test-create)
+RUN git config --global user.name "Test User" && \
+    git config --global user.email "testuser@example.com"
 
 # Install Nix in single-user mode (as testuser)
 RUN curl -L https://nixos.org/nix/install | bash -s -- --no-daemon && \

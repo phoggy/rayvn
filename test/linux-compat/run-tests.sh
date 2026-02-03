@@ -155,6 +155,12 @@ else
 fi
 echo ""
 
+# Start D-Bus session and unlock gnome-keyring (required by test-secrets)
+if command -v dbus-launch &> /dev/null && command -v gnome-keyring-daemon &> /dev/null; then
+    eval "$(dbus-launch --sh-syntax)"
+    echo "" | gnome-keyring-daemon --unlock --components=secrets &> /dev/null || true
+fi
+
 # Collect available projects
 available_projects=()
 for project in rayvn valt wardn; do
