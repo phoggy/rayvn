@@ -15,6 +15,7 @@ release () {
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
+    _updateFlakeVersion "${version}" || fail
     _updateFlakeLock || fail
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
@@ -62,6 +63,21 @@ _checkExistingRelease() {
     else
         echo "Release ${versionTag} does not exist."
     fi
+}
+
+_updateFlakeVersion() {
+    local version="${1}"
+    local flakeFile='flake.nix'
+
+    _printHeader "Updating flake.nix version to ${version}"
+
+    # Update version in flake.nix
+    sed -i.bak "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
+    rm "${flakeFile}.bak" || fail
+
+    git commit -m "Release v${version} flake.nix update" "${flakeFile}" || fail
+    git push || fail
+    echo "flake.nix version updated to ${version}"
 }
 
 _doRelease() {
