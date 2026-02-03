@@ -8,7 +8,6 @@ release () {
     local version="${2}"
     local project="${ghRepo#*/}"
     local releaseDeleted=
-    local releaseDate="${ _timeStamp; }"
 
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
@@ -17,11 +16,10 @@ release () {
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
-    _releasePackageFile "${version}" "${releaseDate}" || fail
+    _updateFlakeLock || fail
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
-
-    _restorePackageFile "${version}" || fail
+    _markPostRelease "${version}" || fail
 
     echo
     show bold blue "${project} ${version} release completed"
@@ -56,10 +54,6 @@ _checkExistingRelease() {
     fi
 }
 
-_timeStamp() {
-    date "+%Y-%m-%d %H:%M:%S %Z"
-}
-
 _doRelease() {
     local ghRepo="${1}"
     local version="${2}"
@@ -72,43 +66,39 @@ _doRelease() {
     git fetch --tags origin || fail "failed to fetch tags"
 }
 
-_releasePackageFile() {
+_markPostRelease() {
     local version="${1}"
-    local date="${2}"
-    _updatePackageFile "${version}" "${date}"
-}
-
-_restorePackageFile() {
-    local version="${1}"
-    _updatePackageFile "${version}" ""
-}
-
-_updatePackageFile() {
-    local version="${1}"
-    local _releaseDate="${2}"
-    local versionTag="v${version}"
     local pkgFile='rayvn.pkg'
-    local commitMessage=
 
-    if [[ ${_releaseDate} ]]; then
-        commitMessage="Release ${versionTag} rayvn.pkg update."
-    else
-        versionTag="${versionTag}+"
-        commitMessage="Post release ${versionTag} rayvn.pkg update."
-    fi
+    _printHeader "Marking post-release version ${version}+"
 
-    _printHeader "${commitMessage}"
-
-    sed -i.bak -e "s/^\([[:space:]]*projectVersion=\).*$/\1\'${version}\'/" \
-               -e "s/^\([[:space:]]*projectReleaseDate=\).*$/\1\'${_releaseDate}\'/" \
-               "${pkgFile}"  || fail
+    # Update rayvn.pkg with post-release version (append +) and clear date
+    sed -i.bak -e "s/^projectVersion='[^']*'/projectVersion='${version}+'/" \
+               -e "s/^projectReleaseDate='[^']*'/projectReleaseDate=''/" \
+               "${pkgFile}" || fail
 
     rm "${pkgFile}.bak" || fail
-    if git commit -m "${commitMessage}" ${pkgFile}; then
-        git push || fail
+    git commit -m "Post-release v${version}+ rayvn.pkg update" "${pkgFile}" || fail
+    git push || fail
+    echo "rayvn.pkg updated to ${version}+"
+}
+
+_updateFlakeLock() {
+    _printHeader "Updating flake.lock"
+
+    # Run nix build to ensure flake.lock is current
+    nix build --no-link || fail "nix build failed"
+    echo "Nix build succeeded."
+
+    # Check if flake.lock changed
+    if [[ -n ${ git status --porcelain flake.lock; } ]]; then
+        git add flake.lock || fail "failed to stage flake.lock"
+        git commit -m "Update flake.lock" flake.lock || fail "failed to commit flake.lock"
+        git push || fail "failed to push flake.lock"
+        echo "flake.lock updated and pushed."
+    else
+        echo "flake.lock unchanged."
     fi
-    echo
-    cat "${pkgFile}"
 }
 
 _verifyNixBuild() {
@@ -125,7 +115,6 @@ _deleteRelease() {
 
     gh release delete ${versionTag} --cleanup-tag || fail "failed to delete release ${versionTag}"
 }
-
 
 _updateExistingTagIfRequired() {
     local ghRepo="${1}"

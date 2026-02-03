@@ -46,8 +46,19 @@
             mkdir -p "$out/share/rayvn/etc"
             cp -r etc/* "$out/share/rayvn/etc/"
 
-            # Install rayvn.pkg
-            cp rayvn.pkg "$out/share/rayvn/"
+            # Install rayvn.pkg with version metadata
+            # Remove existing version properties, then append current values from flake
+            sed '/^projectVersion=/d; /^projectReleaseDate=/d; /^projectFlake=/d; /^projectBuildRev=/d; /^projectNixpkgsRev=/d' \
+                rayvn.pkg > "$out/share/rayvn/rayvn.pkg"
+            cat >> "$out/share/rayvn/rayvn.pkg" <<EOF
+
+# Version metadata (added by Nix build)
+projectVersion='$version'
+projectReleaseDate='$(date "+%Y-%m-%d %H:%M:%S %Z")'
+projectFlake='github:phoggy/rayvn/v$version'
+projectBuildRev='${self.shortRev or "dev"}'
+projectNixpkgsRev='${nixpkgs.shortRev}'
+EOF
 
             # Wrap rayvn with runtime dependencies on PATH.
             # Include $out/bin so that 'source rayvn.up' (PATH lookup) finds

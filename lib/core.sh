@@ -163,7 +163,7 @@ projectVersion() {
         if [[ ${projectReleaseDate} ]]; then
             [[ ${verbose} ]] && description=" (released ${projectReleaseDate})"
         else
-            [[ ${verbose} ]] && description=" (pre-release)"
+            [[ ${verbose} ]] && description=" (development)"
         fi
         echo "${projectName} ${projectVersion}${description}"
     )
