@@ -40,6 +40,18 @@ echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
 nix profile add github:phoggy/rayvn
 ```
 
+To install a specific version:
+
+```bash
+nix profile add github:phoggy/rayvn/v0.2.4
+```
+
+To upgrade to the latest version:
+
+```bash
+nix profile upgrade rayvn
+```
+
 To run without installing:
 
 ```bash

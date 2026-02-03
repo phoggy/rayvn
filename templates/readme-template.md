@@ -37,6 +37,18 @@ echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
 nix profile add github:phoggy/${projectName}
 ```
 
+To install a specific version:
+
+```bash
+nix profile add github:phoggy/${projectName}/v0.1.0
+```
+
+To upgrade to the latest version:
+
+```bash
+nix profile upgrade ${projectName}
+```
+
 To run without installing:
 
 ```bash
