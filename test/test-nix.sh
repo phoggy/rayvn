@@ -25,7 +25,7 @@ init() {
 
     # Graceful skip if nix is not available
     if ! command -v nix &> /dev/null; then
-        log "nix not available, skipping"
+        echo "nix not available, skipping"
         exit 0
     fi
 
@@ -33,9 +33,11 @@ init() {
 }
 
 testNixBuild() {
+    echo "nix build path:${rayvnHome}"
     local storePath
     storePath=${ nix build "path:${rayvnHome}" --no-link --print-out-paths 2>/dev/null; }
     [[ -n "${storePath}" ]] || fail "nix build should produce a store path"
+    echo "store path: ${storePath}"
 
     # Assert expected layout
     assertFileExists "${storePath}/bin/rayvn"
@@ -44,9 +46,11 @@ testNixBuild() {
     assertDirectory "${storePath}/share/rayvn/templates"
     assertDirectory "${storePath}/share/rayvn/etc"
     assertFileExists "${storePath}/share/rayvn/rayvn.pkg"
+    echo "nix build layout verified"
 }
 
 testNixProfileInstall() {
+    echo "nix profile install path:${rayvnHome} --profile ${testProfile}"
     nix profile install "path:${rayvnHome}" --profile "${testProfile}" 2>/dev/null \
         || fail "nix profile install should succeed"
 
@@ -55,6 +59,7 @@ testNixProfileInstall() {
     local version
     version=${ "${testProfile}/bin/rayvn" -v 2>&1; }
     [[ "${version}" == rayvn* ]] || fail "rayvn -v should start with 'rayvn', got: ${version}"
+    echo "nix profile install verified: ${version}"
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/test'
