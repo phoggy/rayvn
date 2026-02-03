@@ -431,11 +431,11 @@ runTests() {
 
         if (( failedTestCount )); then
             if (( ! inContainer )); then
-                local answer i logFile
+                local choiceIndex i logFile
                 echo
                 for (( i=0; i < failedTestCount; i++ )); do
-                    confirm "View ${failedTestLogNames[${i}]}?" yes no answer || bye
-                    if (( answer == 0 )); then
+                    confirm "View ${failedTestLogNames[${i}]}?" yes no choiceIndex || bye
+                    if (( choiceIndex == 0 )); then
                         local logFile="${testLogDir}/${failedTestLogNames[${i}]}"
                         echo
                         cat "${logFile}"
@@ -619,7 +619,7 @@ createProject() {
     echo
 
     declare -i createdRepo=0
-    local answer formulaFile repoUrl
+    local choiceIndex formulaFile repoUrl
 
     if (( flags['local'] )); then
         # --local flag: skip GitHub, just create local git repo
@@ -628,11 +628,11 @@ createProject() {
         git init --initial-branch=main || fail
     else
         require 'rayvn/prompt' 'rayvn/central'
-        confirm "Create new GitHub repo for project '${projectName}'?" yes no answer || bye
-        if [[ "${answer}" == "yes" ]]; then
+        confirm "Create new GitHub repo for project '${projectName}'?" yes no choiceIndex || bye
+        if (( choiceIndex == 0 )); then
             if ! gh auth status --active &> /dev/null; then
-                confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
-                if [[ "${answer}" == "y" ]]; then
+                confirm "Need to authenticate. Do you have a GitHub account?" y n choiceIndex || bye
+                if (( choiceIndex == 0 )); then
                     gh auth login || exit
                 else
                     bye "Please go to https://github.com/ and create an account first."

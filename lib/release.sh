@@ -7,7 +7,6 @@ release () {
     local ghRepo="${1}"
     local version="${2}"
     local project="${ghRepo#*/}"
-    local releaseDeleted=
 
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
@@ -39,15 +38,14 @@ _checkExistingRelease() {
     local ghRepo="${1}"
     local version="${2}"
     local versionTag="v${version}"
-    local answer
+    local choiceIndex
     _printHeader "Checking if release ${versionTag} already exists"
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
-        confirm "Release ${versionTag} exists. Delete it? " y n answer || bye
-        if [[ "${answer}" == "y" ]]; then
+        confirm "Release ${versionTag} already exists. Delete it? " y n choiceIndex || bye
+        if (( choiceIndex == 0 )); then
             _deleteRelease ${version} || fail
-            releaseDeleted=true
         fi
     else
         echo "Release ${versionTag} does not exist."
