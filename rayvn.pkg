@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
 projectName='rayvn'
-projectVersion='0.2.2+'
+projectVersion='0.2.3+'
 projectReleaseDate=''
