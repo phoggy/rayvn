@@ -65,6 +65,9 @@ SHELL ["/usr/local/bin/bash", "-c"]
 # Create a non-root user for running tests
 RUN useradd -m -s /bin/bash testuser
 
+# Prepare Nix store directory for single-user install
+RUN mkdir -m 0755 /nix && chown testuser:testuser /nix
+
 # Copy test runner script into the image (must be done before switching to testuser)
 COPY test-runner.sh /usr/local/bin/test-runner.sh
 RUN chmod 755 /usr/local/bin/test-runner.sh
@@ -74,6 +77,13 @@ WORKDIR /workspace
 
 # Switch to non-root user
 USER testuser
+
+# Install Nix in single-user mode (as testuser)
+RUN curl -L https://nixos.org/nix/install | bash -s -- --no-daemon && \
+    mkdir -p /home/testuser/.config/nix && \
+    echo 'experimental-features = nix-command flakes' > /home/testuser/.config/nix/nix.conf
+
+ENV PATH="/home/testuser/.nix-profile/bin:${PATH}"
 
 # Default command
 CMD ["/bin/bash"]
