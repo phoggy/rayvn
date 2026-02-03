@@ -95,6 +95,7 @@ parseArgs() {
             -h | --help) flags+=(['help']=1) ;;
             -q | --quiet) flags+=(['quiet']=1) ;;
             --assert) flags+=(['assert']=1) ;;
+            --local) flags+=(['local']=1) ;;
             --debug) debugOptions=('showOnExit') ;;
             --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
             --debug-out) debugOptions=('tty' "${ tty; }") ;;
@@ -179,7 +180,7 @@ printUsage() {
 
 create() {
     if (( flags['help'] )); then
-        echo "rayvn new project|script|library NAME"
+        echo "rayvn new project|script|library|test NAME [--local]"
     else
         local type=${args[0]}
         local name=${args[1]}
@@ -611,34 +612,42 @@ createProject() {
     local scriptTemplate="${templateDir}/script-template.sh"
     local libraryTemplate="${templateDir}/library-template.sh"
     local readmeTemplate="${templateDir}/readme-template.md"
+    local flakeTemplate="${templateDir}/flake-template.nix"
 
     echo
     show bold "Creating project '${projectName}' in" blue "'${PWD}'"
     echo
 
-    require 'rayvn/prompt' 'rayvn/central'
-
     declare -i createdRepo=0
     local answer formulaFile repoUrl
-    confirm "Create new GitHub repo for project '${projectName}'?" yes no answer || bye
-    if [[ "${answer}" == "yes" ]]; then
-        if ! gh auth status --active &> /dev/null; then
-            confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
-            if [[ "${answer}" == "y" ]]; then
-                gh auth login || exit
-            else
-                bye "Please go to https://github.com/ and create an account first."
-            fi
-        fi
-        gh repo create "${projectName}" --add-readme --private --clone || fail
-        cd "${projectRoot}" || fail
-        repoUrl="${ git remote get-url origin; }"
-        registerProjectOnRayvnCentral "${projectName}" || fail
-        createdRepo=1
-    else
+
+    if (( flags['local'] )); then
+        # --local flag: skip GitHub, just create local git repo
         makeDir "${projectRoot}" > /dev/null
         cd "${projectRoot}" || fail
         git init --initial-branch=main || fail
+    else
+        require 'rayvn/prompt' 'rayvn/central'
+        confirm "Create new GitHub repo for project '${projectName}'?" yes no answer || bye
+        if [[ "${answer}" == "yes" ]]; then
+            if ! gh auth status --active &> /dev/null; then
+                confirm "Need to authenticate. Do you have a GitHub account?" y n answer || bye
+                if [[ "${answer}" == "y" ]]; then
+                    gh auth login || exit
+                else
+                    bye "Please go to https://github.com/ and create an account first."
+                fi
+            fi
+            gh repo create "${projectName}" --add-readme --private --clone || fail
+            cd "${projectRoot}" || fail
+            repoUrl="${ git remote get-url origin; }"
+            registerProjectOnRayvnCentral "${projectName}" || fail
+            createdRepo=1
+        else
+            makeDir "${projectRoot}" > /dev/null
+            cd "${projectRoot}" || fail
+            git init --initial-branch=main || fail
+        fi
     fi
     makeDir "${binDir}" > /dev/null
     makeDir "${libDir}" > /dev/null
@@ -656,6 +665,7 @@ createProject() {
     copyFileAndSubstituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${projectName}" || fail
     copyFileAndSubstituteVars "${readmeTemplate}" './README.md' projectName || fail
+    copyFileAndSubstituteVars "${flakeTemplate}" './flake.nix' projectName || fail
 
     # Add and commit
 

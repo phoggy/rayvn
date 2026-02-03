@@ -2,10 +2,6 @@
 # shellcheck disable=SC2155
 
 # Tests for 'rayvn new project', 'rayvn new script', and 'rayvn new library'.
-#
-# Since createProject() is interactive (uses confirm), we simulate the non-interactive
-# parts using the actual template files and copyFileAndSubstituteVars. Then we test
-# 'rayvn new script' and 'rayvn new library' as real commands on the created project.
 
 main() {
     init "${@}"
@@ -32,29 +28,6 @@ init() {
     declare -grx workDir="${ tempDirPath; }/test-create"
     mkdir -p "${workDir}"
 
-    # Locate template directory
-    declare -grx templateDir="${rayvnHome}/templates"
-}
-
-# Replicates copyFileAndSubstituteVars from bin/rayvn so we can test templates directly
-_copyFileAndSubstituteVars() {
-    local inputFile=${1}
-    local outputFile=${2}
-    local varList=("${@:3}")
-
-    [[ -z ${inputFile} || -z ${outputFile} || ${#varList[@]} -eq 0 ]] &&
-        fail "Usage: _copyFileAndSubstituteVars inputFile outputFile <varName> [<varName> ...]"
-
-    local sedExprs=()
-    for varName in "${varList[@]}"; do
-        local value=${!varName}
-        value=${value//\\/\\\\}
-        value=${value//&/\\&}
-        value=${value//\//\\/}
-        sedExprs+=("-e" "s/\${${varName}}/${value}/g")
-    done
-
-    sed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
 
 testNewProject() {
@@ -62,30 +35,10 @@ testNewProject() {
         local projectName="testproj"
         local projectDir="${workDir}/${projectName}"
 
-        # Simulate createProject (local git init path, no GitHub)
-
-        mkdir -p "${projectDir}/bin" "${projectDir}/lib" || exit 1
-        cd "${projectDir}" || exit 1
-        git init --initial-branch=main > /dev/null 2>&1 || exit 1
-
-        # Set up substitution variables (same as createProject)
-
-        local quotedName="'${projectName}'"
-        local qualifiedName="'${projectName}/example'"
-        local libraryCall='myExampleLibraryFunction'
-        local libraryName="example"
-        local libraryNameInitialCap="Example"
-
-        # Copy and substitute templates (same order as createProject)
-
-        _copyFileAndSubstituteVars "${templateDir}/package-template.sh" './rayvn.pkg' quotedName || fail "rayvn.pkg copy failed"
-        _copyFileAndSubstituteVars "${templateDir}/library-template.sh" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail "example.sh copy failed"
-        _copyFileAndSubstituteVars "${templateDir}/script-template.sh" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail "script copy failed"
-        chmod +x "./bin/${projectName}" || fail "chmod failed"
-        _copyFileAndSubstituteVars "${templateDir}/readme-template.md" './README.md' projectName || fail "README.md copy failed"
-
-        git add --all > /dev/null 2>&1
-        git commit -m "initial commit" > /dev/null 2>&1
+        cd "${workDir}" || exit 1
+        rayvn new project "${projectName}" --local > /dev/null 2>&1
+        local exitCode=$?
+        assertEqual "${exitCode}" "0" "rayvn new project exit code"
 
         # Verify directory structure
 
@@ -100,6 +53,7 @@ testNewProject() {
         assertFileExists "${projectDir}/bin/${projectName}"
         assertFileExists "${projectDir}/lib/example.sh"
         assertFileExists "${projectDir}/README.md"
+        assertFileExists "${projectDir}/flake.nix"
 
         # Verify bin script is executable
 
@@ -133,10 +87,21 @@ testNewProject() {
         assertInFile "install.determinate.systems/nix" "${projectDir}/README.md"
         assertInFile "nixos.org/nix/install" "${projectDir}/README.md"
 
+        # Verify flake.nix content
+
+        assertInFile 'description = "testproj' "${projectDir}/flake.nix"
+        assertInFile 'pname = "testproj"' "${projectDir}/flake.nix"
+        assertInFile 'rayvn.url = "github:phoggy/rayvn"' "${projectDir}/flake.nix"
+        assertInFile "projectVersion=" "${projectDir}/flake.nix"
+        assertInFile "projectReleaseDate=" "${projectDir}/flake.nix"
+        assertInFile "projectFlake=" "${projectDir}/flake.nix"
+        assertInFile "projectBuildRev=" "${projectDir}/flake.nix"
+        assertInFile "projectNixpkgsRev=" "${projectDir}/flake.nix"
+
         # Verify git repo has at least one commit
 
         local commitCount
-        commitCount=$( git rev-list --count HEAD 2>/dev/null )
+        commitCount=$( git -C "${projectDir}" rev-list --count HEAD 2>/dev/null )
         [[ ${commitCount} -ge 1 ]] || fail "project should have at least one git commit"
 
     ) || exit 1
