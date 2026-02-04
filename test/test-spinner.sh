@@ -105,7 +105,7 @@ testInitSpinnerStarType() {
 
 testInitSpinnerInvalidType() {
     local caught=0
-    ( _quietFail=1; _initSpinner "test" "bogus" ) &> /dev/null || caught=1
+    ( nonInteractive=1; _initSpinner "test" "bogus" ) &> /dev/null || caught=1
     (( caught == 1 )) || fail "invalid frame type 'bogus' should have failed"
 }
 

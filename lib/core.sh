@@ -576,7 +576,7 @@ fail() {
         local inRayvnFail=1
         _spinExit
     fi
-    (( _quietFail )) || stackTrace "${@}" > "${terminal}"
+    stackTrace "${@}" > "${terminal}"
     exit 1
 }
 

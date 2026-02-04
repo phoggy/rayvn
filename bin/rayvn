@@ -92,6 +92,7 @@ parseArgs() {
             --assert) flags+=(['assert']=1) ;;
             --local) flags+=(['local']=1) ;;
             --nix) flags+=(['nix']=1) ;;
+            --all) flags+=(['all']=1) ;;
             --debug) debugOptions=('showOnExit') ;;
             --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
             --debug-out) debugOptions=('tty' "${ tty; }") ;;
@@ -366,10 +367,16 @@ _printLibrary() {
 
 runTests() {
     if (( flags['help'] )); then
-        echo "rayvn test [PROJECT] [TEST-NAME] [--nix]"
+        echo "rayvn test [PROJECT] [TEST-NAME] [--nix] [--all]"
     elif (( flags['nix'] )); then
         # Re-exec within nix develop environment
         exec nix develop "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
+    elif (( flags['all'] )); then
+        # Run tests locally first, then under nix (if not already in nix)
+        rayvn test "${projects[@]}" "${args[@]}" || return 1
+        if [[ -z ${IN_NIX_SHELL} ]]; then
+            rayvn test --nix "${projects[@]}" "${args[@]}" || return 1
+        fi
     else
         require 'rayvn/spinner' 'rayvn/prompt'
         echo
@@ -595,7 +602,7 @@ runTest() {
 executeTestFile() {
     local testFile="${1}"
     shift
-    executeWithCleanVars "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
+    executeWithCleanVars nonInteractive=1 "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
     testResult=$?
 }
 

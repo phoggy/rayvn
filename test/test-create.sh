@@ -24,8 +24,9 @@ init() {
         shift
     done
 
-    # Create a unique work directory for this test run
+    # Create a clean work directory for this test run
     declare -grx workDir="${ tempDirPath; }/test-create"
+    rm -rf "${workDir}"
     mkdir -p "${workDir}"
 
 }

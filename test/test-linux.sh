@@ -5,6 +5,12 @@
 
 source rayvn.up 'rayvn/core'
 
+# Skip if already running inside a container
+if [[ -f /.dockerenv ]]; then
+    echo "Skipping: already running inside a container"
+    exit 0
+fi
+
 # Check if Docker is available
 if ! command -v docker &> /dev/null; then
     fail "Docker is required but not installed. See https://docs.docker.com/get-docker/"
