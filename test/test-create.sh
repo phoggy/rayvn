@@ -66,6 +66,7 @@ testNewProject() {
 
         # Verify bin script content
 
+        assertInFile "#!/usr/bin/env rayvn-bash" "${projectDir}/bin/${projectName}"
         assertInFile "source rayvn.up" "${projectDir}/bin/${projectName}"
         assertInFile "'testproj'" "${projectDir}/bin/${projectName}"
         assertInFile "myExampleLibraryFunction" "${projectDir}/bin/${projectName}"
@@ -122,8 +123,9 @@ testNewScript() {
         assertFileExists "${scriptFile}"
         [[ -x "${scriptFile}" ]] || fail "bin/myscript should be executable"
 
-        # Verify content has rayvn bootstrap and project name
+        # Verify content has rayvn-bash shebang, rayvn bootstrap, and project name
 
+        assertInFile "#!/usr/bin/env rayvn-bash" "${scriptFile}"
         assertInFile "source rayvn.up" "${scriptFile}"
         assertInFile "'testproj'" "${scriptFile}"
 
