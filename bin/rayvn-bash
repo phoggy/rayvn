@@ -1,0 +1,124 @@
+#!/bin/sh
+# rayvn-bash - Smart shebang that finds bash 5.3+ and execs the script with it
+#
+# Usage: #!/usr/bin/env rayvn-bash
+#
+# This script is written in POSIX sh for maximum compatibility.
+# It finds a suitable bash 5.3+ and execs the target script with it.
+# The found path is cached in ~/.cache/rayvn/bash-path for faster subsequent runs.
+
+# Minimum required version
+minMajor=5
+minMinor=3
+
+# Cache file location
+cacheDir="${HOME}/.cache/rayvn"
+cacheFile="${cacheDir}/bash-path"
+
+usage() {
+    echo "rayvn-bash: smart shebang for rayvn scripts" >&2
+    echo "Usage: #!/usr/bin/env rayvn-bash" >&2
+    echo "" >&2
+    echo "Requires bash ${minMajor}.${minMinor}+" >&2
+    exit 0
+}
+
+main() {
+    [ $# -eq 0 ] && usage
+
+    script="${1}"
+    shift
+
+    # Fast path: check bash in PATH first (common case)
+    bashInPath=$(command -v bash)
+    case "${bashInPath}" in
+        /nix/store/*) exec bash "${script}" "$@" ;;  # nix: trust it
+        *) checkBashVersion "${bashInPath}" && exec "${bashInPath}" "${script}" "$@" ;;
+    esac
+
+    # Find it
+    bashPath=$(findBash)
+    if [ -z "${bashPath}" ]; then
+        echo "\033[0;31m🔺 rayvn requires bash ${minMajor}.${minMinor}+, but none found\033[0m" >&2
+        echo "" >&2
+        echo "Install bash 5.3+ via:" >&2
+        echo "  macOS:  brew install bash" >&2
+        echo "  Ubuntu: apt install bash" >&2
+        echo "  Nix:    nix-env -iA nixpkgs.bash" >&2
+        exit 1
+    fi
+
+    exec "${bashPath}" "${script}" "$@"
+}
+
+# Check if a bash binary meets version requirements
+checkBashVersion() {
+    bashPath="${1}"
+    [ -x "${bashPath}" ] || return 1
+
+    # Get version info (e.g., "5.3.0(1)-release")
+    version=$("${bashPath}" -c 'echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"' 2>/dev/null) || return 1
+
+    major="${version%%.*}"
+    minor="${version#*.}"
+
+    # Check version: major > minMajor, or major == minMajor and minor >= minMinor
+    if [ "${major}" -gt "${minMajor}" ] 2>/dev/null; then
+        return 0
+    elif [ "${major}" -eq "${minMajor}" ] 2>/dev/null && [ "${minor}" -ge "${minMinor}" ] 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# Find a suitable bash
+findBash() {
+    # Check cache first - trust it if the file is still executable
+    if [ -f "${cacheFile}" ]; then
+        cached=$(cat "${cacheFile}")
+        if [ -x "${cached}" ]; then
+            echo "${cached}"
+            return 0
+        fi
+        # Cached bash no longer exists, remove cache
+        rm -f "${cacheFile}"
+    fi
+
+    # Check common locations (faster than searching PATH)
+    for candidate in \
+        /opt/homebrew/bin/bash \
+        /usr/local/bin/bash \
+        /run/current-system/sw/bin/bash \
+        /nix/var/nix/profiles/default/bin/bash \
+        /home/linuxbrew/.linuxbrew/bin/bash \
+        /usr/bin/bash \
+        /bin/bash
+    do
+        if checkBashVersion "${candidate}"; then
+            cacheBash "${candidate}"
+            echo "${candidate}"
+            return 0
+        fi
+    done
+
+    # Fall back to searching PATH
+    IFS=:
+    for dir in ${PATH}; do
+        candidate="${dir}/bash"
+        if checkBashVersion "${candidate}"; then
+            cacheBash "${candidate}"
+            echo "${candidate}"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# Cache the found bash path
+cacheBash() {
+    mkdir -p "${cacheDir}" 2>/dev/null
+    echo "${1}" > "${cacheFile}" 2>/dev/null
+}
+
+main "$@"
