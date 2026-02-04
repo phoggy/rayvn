@@ -3,7 +3,7 @@
 # Linux Compatibility Test
 # Runs full Docker-based test suite to verify Linux compatibility
 
-source rayvn.up
+source rayvn.up 'rayvn/core'
 
 # Check if Docker is available
 if ! command -v docker &> /dev/null; then
@@ -13,14 +13,10 @@ fi
 # Get the directory containing this script
 script_dir="${ dirname "${BASH_SOURCE[0]}"; }"
 
-# If running from Nix store, use the git working directory instead
+# If running from Nix store, use rayvnRootDir instead
 # (Docker can't mount /nix/store paths on macOS)
 if [[ "${script_dir}" == /nix/store/* ]]; then
-    # Must be run from the rayvn source directory
-    if [[ ! -f "rayvn.pkg" ]] || [[ ! -d "test/linux-compat" ]]; then
-        fail "When running via nix develop, run from the rayvn source directory"
-    fi
-    script_dir="./test"
+    script_dir="${rayvnRootDir}/test"
 fi
 
 linux_compat_dir="${script_dir}/linux-compat"

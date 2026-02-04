@@ -369,7 +369,7 @@ runTests() {
         echo "rayvn test [PROJECT] [TEST-NAME] [--nix]"
     elif (( flags['nix'] )); then
         # Re-exec within nix develop environment
-        exec nix develop --command rayvn test "${projects[@]}" "${args[@]}"
+        exec nix develop "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
     else
         require 'rayvn/spinner' 'rayvn/prompt'
         echo
