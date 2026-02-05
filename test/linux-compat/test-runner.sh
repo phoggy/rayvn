@@ -47,8 +47,8 @@ export PATH="${path_dirs}${PATH}"
 cd /tmp/rayvn
 
 # Set environment variables for non-interactive mode
-export nonInteractive=1
-export forceRayvn24BitColor=1
+export rayvnTest_NonInteractive=1
+export rayvnTest_Force24BitColor=1
 
 # Run rayvn test
 rayvn test "${projects[@]}"

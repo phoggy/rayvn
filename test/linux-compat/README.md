@@ -112,7 +112,7 @@ All projects are tested using the `rayvn test` command, which discovers and runs
 - **valt**: valt-specific tests (if available)
 - **wardn**: wardn-specific tests (if available)
 
-Projects are auto-detected via their executables in PATH. Tests run in non-interactive mode using the `nonInteractive` environment variable to disable spinner/terminal requirements.
+Projects are auto-detected via their executables in PATH. Tests run in non-interactive mode using the `rayvnTest_NonInteractive` environment variable to disable spinner/terminal requirements.
 
 ## How It Works
 
@@ -138,7 +138,7 @@ Projects are auto-detected via their executables in PATH. Tests run in non-inter
 4. **test-runner.sh** provides a simple wrapper:
    - Copies projects to /tmp for writable access
    - Sets up PATH with all project bin directories
-   - Sets `nonInteractive=1` to disable spinner/TTY requirements
+   - Sets `rayvnTest_NonInteractive=1` to disable spinner/TTY requirements
    - Runs `rayvn test` with specified projects
 
 ## Test Output
@@ -245,13 +245,13 @@ echo "test" | sed 's/[0-9]\+/NUM/'
 cp -r /workspace/rayvn /tmp/rayvn
 cd /tmp/rayvn
 export PATH="/tmp/rayvn/bin:$PATH"
-export nonInteractive=1
+export rayvnTest_NonInteractive=1
 rayvn test rayvn
 ```
 
 ## Non-Interactive Mode
 
-The test suite runs in non-interactive mode using the `nonInteractive` environment variable. When set, this:
+The test suite runs in non-interactive mode using the `rayvnTest_NonInteractive` environment variable. When set, this:
 
 - Disables the spinner animation (which requires a TTY)
 - Disables terminal control features (`stty` commands)
@@ -261,7 +261,7 @@ The test suite runs in non-interactive mode using the `nonInteractive` environme
 This is automatically set by both test-runner.sh and run-tests.sh, but you can also set it manually:
 
 ```bash
-export nonInteractive=1
+export rayvnTest_NonInteractive=1
 rayvn test rayvn
 ```
 
@@ -293,7 +293,7 @@ rayvn test rayvn
 - Check the specific error message
 - Verify the command syntax is portable
 - Test the failing command interactively: `make shell`
-- Check if you need to set `nonInteractive=1` for non-TTY environments
+- Check if you need to set `rayvnTest_NonInteractive=1` for non-TTY environments
 
 ### Container won't start
 ```bash
@@ -346,7 +346,7 @@ jobs:
 - Tests copy projects to `/tmp` for writable access during test execution
 - Tests run as a non-root user for security
 - The container is ephemeral - it's destroyed after each run
-- **nonInteractive mode** allows tests to run without TTY/spinner requirements
+- **rayvnTest_NonInteractive mode** allows tests to run without TTY/spinner requirements
 - All tests use the `rayvn test` command for consistent test discovery and execution
 
 ## Future Enhancements

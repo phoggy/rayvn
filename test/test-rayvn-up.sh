@@ -213,7 +213,7 @@ testSourceRayvnUp() {
 
     # Finally, we're ready to boot, so do it but suppress forced inclusion of 'rayvn/core'
 
-    declare -gx _doNotForceRayvnCore=1
+    declare -gx rayvnTest_DeferCore=1
     source rayvn.up &> /dev/null || _failed 'source rayvn.up failed'
 
     # Ensure that all of the rayvn.up temporary functions and vars no longer exist

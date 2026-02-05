@@ -369,7 +369,10 @@ runTests() {
     if (( flags['help'] )); then
         echo "rayvn test [PROJECT] [TEST-NAME] [--nix] [--all]"
     elif (( flags['nix'] )); then
-        # Re-exec within nix develop environment
+        # Stage modified tracked files so nix build includes them
+        git -C "${rayvnRootDir}" add -u
+        # Build first to catch build failures, then test within nix develop environment
+        nix build "${rayvnRootDir}" || fail "nix build failed"
         exec nix develop "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
     elif (( flags['all'] )); then
         # Run tests locally first, then under nix (if not already in nix)
@@ -572,7 +575,7 @@ runTest() {
 
                     # Don't add an empty line at exit
 
-                    declare -grx _noEchoOnExit=1
+                    declare -grx rayvnTest_NoEchoOnExit=1
 
                     # Finally, run the test without functions or rayvn vars in its env, and without sourcing
                     # any init files.
@@ -602,7 +605,7 @@ runTest() {
 executeTestFile() {
     local testFile="${1}"
     shift
-    executeWithCleanVars nonInteractive=1 "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
+    executeWithCleanVars rayvnTest_NonInteractive=1 "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
     testResult=$?
 }
 

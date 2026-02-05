@@ -99,7 +99,7 @@ testAssertValidOAuthServiceNullValue() {
         [tokenUrl]="https://oauth2.googleapis.com/token"
     )
     local caught=0
-    ( nonInteractive=1; _assertValidOAuthService nullService ) &> /dev/null || caught=1
+    ( rayvnTest_NonInteractive=1; _assertValidOAuthService nullService ) &> /dev/null 3>&1 || caught=1
     (( caught == 1 )) || fail "validation should fail when a key has value 'null'"
 }
 
@@ -199,6 +199,6 @@ testOAuthSuccessHtml() {
     [[ ${html} == *"</html>"* ]] || fail "HTML should contain closing html tag"
 }
 
-doNotSetFunctionsReadOnly=1
+rayvnTest_ModifiableFunctions=1
 source rayvn.up 'rayvn/test' 'rayvn/oauth'
 main "$@"

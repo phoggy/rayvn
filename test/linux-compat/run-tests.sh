@@ -89,8 +89,8 @@ run_rayvn_test() {
     cd "/tmp/rayvn"
 
     # Set environment variables for non-interactive mode
-    export nonInteractive=1              # Disables spinner/terminal requirements
-    export forceRayvn24BitColor=1        # Enables colors even without TTY
+    export rayvnTest_NonInteractive=1         # Disables spinner/terminal requirements
+    export rayvnTest_Force24BitColor=1        # Enables colors even without TTY
 
     # Run the test using rayvn as the test runner for all projects at once
     # Command syntax: rayvn test [project...]

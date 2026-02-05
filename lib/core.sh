@@ -663,7 +663,7 @@ _init_rayvn_core() {
 
     # Ensure we are being invoked from rayvn.up
 
-    if [[ ! -v rayvnPlatform ]]; then
+    if ! (( onMacOS || onLinux )); then
         echo -e "\033[0;31m🔺 Run 'source rayvn.up' to initialize rayvn\033[0m"; exit 1
     fi
 
@@ -687,9 +687,9 @@ _init_rayvn_core() {
     fi
 
     # We need to set ${terminal} so that it can be used as a redirect.
-    # Are stdout and stderr both terminals?
+    # Are stdout and stderr both terminals AND the NonInteractive flag is not set?
 
-    if [[ ! ${nonInteractive} && -t 1 && -t 2 ]]; then
+    if [[ -t 1 && -t 2 ]] && (( ! rayvnTest_NonInteractive )); then
 
         # Yes, so set terminal to the tty and remember that we are interactive
 
@@ -714,16 +714,16 @@ _init_rayvn_core() {
 
     else
 
-        # No. Ensure FD 3 exists and points to original stdout, then set terminal
+        # No. Set FD 3 to point to current stdout, then set terminal
         # to use it (via /dev/fd/3 so it works as a redirect path).
 
-        [[ -e /dev/fd/3 ]] || exec 3>&1
+        exec 3>&1
         declare -grx terminal="/dev/fd/3"
         declare -grxi isInteractive=0
 
         # Unless a special flag is set, turn off colors
 
-        if (( forceRayvn24BitColor )); then
+        if (( rayvnTest_Force24BitColor )); then
             declare -grxi terminalColorBits=24
         else
             declare -grxi terminalColorBits=0
@@ -776,7 +776,7 @@ _init_rayvn_core() {
         else
             _init_noColors
         fi
-    elif (( forceRayvn24BitColor )); then
+    elif (( rayvnTest_Force24BitColor )); then
         _init_colors
     else
         _init_noColors
@@ -793,7 +793,7 @@ _init_rayvn_core() {
 
     # Is this a mac?
 
-    if [[ ${osName,,} == "darwin" ]]; then
+    if (( onMacOS )); then
 
         # Yes, remember if brew is available
 
@@ -804,11 +804,11 @@ _init_rayvn_core() {
 
     # Force these readonly since we have to handle them specially in rayvn.up
 
-    (( _rayvnSetFunctionsReadOnly )) && declare -fr fail printStack
+    (( _rayvnReadOnlyFunctions )) && declare -fr fail printStack
 
     # Collect the names of all existing lowercase and underscore prefixed vars if we have not already done so.
     # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those
-    # run as if started from the command line. Manually add _rayvnCoreInitialized since it is not set yet.
+    # run as if started from the command line. Manually add _rayvnCoreInitialized since it is not yet set.
 
     local var unsetVars=('-u' '_rayvnCoreInitialized')
     IFS=$'\n'
@@ -1059,7 +1059,7 @@ _onRayvnExit() {
 
     # Add a line unless disabled
 
-    [[ -n ${noEchoOnExit} ]] && echo
+    (( rayvnTest_NoEchoOnExit )) || echo
 
     # Delete temp dir if we created it
 

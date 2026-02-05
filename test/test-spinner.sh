@@ -105,7 +105,7 @@ testInitSpinnerStarType() {
 
 testInitSpinnerInvalidType() {
     local caught=0
-    ( nonInteractive=1; _initSpinner "test" "bogus" ) &> /dev/null || caught=1
+    ( rayvnTest_NonInteractive=1; _initSpinner "test" "bogus" ) &> /dev/null 3>&1 || caught=1
     (( caught == 1 )) || fail "invalid frame type 'bogus' should have failed"
 }
 

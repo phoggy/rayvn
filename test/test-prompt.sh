@@ -2,7 +2,7 @@
 
 # Tests for prompt.sh public functions: request, secureRequest, confirm, choose
 #
-# Uses doNotSetFunctionsReadOnly=1 to override terminal functions with mocks,
+# Uses rayvnTest_ModifiableFunctions=1 to override terminal functions with mocks,
 # and process substitution to inject keystrokes via stdin.
 
 main() {
@@ -428,7 +428,7 @@ testNonVisibleItemCount() {
 
 # Boot
 
-[[ -t 1 && -t 2 ]] || declare -gx forceRayvn24BitColor=1
-doNotSetFunctionsReadOnly=1
+[[ -t 1 && -t 2 ]] || declare -gx rayvnTest_Force24BitColor=1
+rayvnTest_ModifiableFunctions=1
 source rayvn.up 'rayvn/prompt' 'rayvn/test'
 main "$@"

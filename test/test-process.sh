@@ -96,13 +96,13 @@ testProcessRequiresKill() {
 
 testMissingPidFails() {
     local caught=0
-    ( nonInteractive=1; waitForProcessExit "" 1000 ) &> /dev/null || caught=1
+    ( rayvnTest_NonInteractive=1; waitForProcessExit "" 1000 ) &> /dev/null 3>&1 || caught=1
     (( caught == 1 )) || fail "should fail when pid is empty"
 }
 
 testMissingTimeoutFails() {
     local caught=0
-    ( nonInteractive=1; waitForProcessExit 12345 "" ) &> /dev/null || caught=1
+    ( rayvnTest_NonInteractive=1; waitForProcessExit 12345 "" ) &> /dev/null 3>&1 || caught=1
     (( caught == 1 )) || fail "should fail when timeout is empty"
 }
 

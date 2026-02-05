@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2317,SC1090
+# shellcheck disable=SC2317,SC1090,SC2155
 
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
@@ -9,13 +9,11 @@
 if ! (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
     echo -e "\033[0;31m🔺 rayvn requires bash version 5.2+, found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}\033[0m"; exit 1
 else
-    declare -grx osName="${ uname; }"
-    declare -grx onMacOS=${ [[ ${osName} == "Darwin" ]] && echo 1 || echo 0; }
-    declare -grx onLinux=${ [[ ${osName} == "Linux" ]] && echo 1 || echo 0; }
+    declare -grx onMacOS=${ [[ ${OSTYPE} == darwin* ]] && echo 1 || echo 0; }
+    declare -grx onLinux=${ [[ ${OSTYPE} == linux* ]] && echo 1 || echo 0; }
     if ! (( onMacOS || onLinux )); then
-        echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${osName}\033[0m"; exit 1
+        echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${OSTYPE}\033[0m"; exit 1
     fi
-    declare -grx rayvnPlatform="${osName}"
 fi
 
 require() {
@@ -98,7 +96,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
             _rayvnFunctionSources["${functionName}"]="${qualifiedName}"
             if [[ ${functionName} == _init_* ]]; then
                 [[ ${functionName} == "${initFunction}" ]] && hasInitFunction=1
-            elif (( _rayvnSetFunctionsReadOnly )); then
+            elif (( _rayvnReadOnlyFunctions )); then
                 declare -fr "${functionName}"
             fi
         done
@@ -204,7 +202,7 @@ configure() {
     declare -ga _rayvnUpUnsetIds=()
     declare -g _required=()
     declare -g _loadLibraryDepth=0
-    declare -grx _rayvnSetFunctionsReadOnly=${ [[ -n ${doNotSetFunctionsReadOnly} ]] && echo 0 || echo 1; }
+    declare -grx _rayvnReadOnlyFunctions=${ [[ -n ${rayvnTest_ModifiableFunctions} ]] && echo 0 || echo 1; }
     declare -gx currentProjectName
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
     local projects=() split=() project key
@@ -232,14 +230,14 @@ configure() {
 
     # Unless requested, ensure that 'rayvn/core' is loaded first
 
-    [[ -v _doNotForceRayvnCore ]] || _required+=('rayvn/core')
+    (( rayvnTest_DeferCore )) || _required+=('rayvn/core')
 
     # Parse args
 
     while (( ${#} > 0 )); do
         case "${1}" in
             -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
-            *) [[ "${1}" != 'rayvn/core' || -v _doNotForceRayvnCore ]] && _required+=("${1}") ;;
+            *) { [[ "${1}" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("${1}") ;;
         esac
         shift
     done
@@ -254,7 +252,7 @@ configure() {
 
     # Set our persistent public/private functions readonly
 
-    (( _rayvnSetFunctionsReadOnly )) && declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
+    (( _rayvnReadOnlyFunctions )) && declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
 
     # Instead of enforcing library namespaces, we set all functions in each library as readonly to prevent
     # collisions. This is not truly scalable, but is reasonable for now given the very small expected user base.

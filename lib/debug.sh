@@ -174,7 +174,7 @@ _init_rayvn_debug() {
 
     # Make our public functions readonly since rayvn.up treats these as a special case.
 
-    if (( _rayvnSetFunctionsReadOnly )); then
+    if (( _rayvnReadOnlyFunctions )); then
         declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
                     debugFile debugJson debugStack debugTraceOn debugTraceOff debugEnvironment
     fi
