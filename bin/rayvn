@@ -368,11 +368,18 @@ _printLibrary() {
 runTests() {
     if (( flags['help'] )); then
         echo "rayvn test [PROJECT] [TEST-NAME] [--nix] [--all]"
-    elif (( flags['nix'] )); then
-        # Stage modified tracked files so nix build includes them
-        git -C "${rayvnRootDir}" add -u
-        # Build first to catch build failures, then test within nix develop environment
-        nix build "${rayvnRootDir}" || fail "nix build failed"
+        return 0
+    fi
+
+    # Ensure rayvn is first in the projects list
+
+    if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
+        projects=("rayvn" "${projects[@]}")
+    fi
+    if (( flags['nix'] )); then
+        # Stage and build each project that has a flake.nix
+        prepareNixForTests
+        # Run tests in rayvn's nix develop environment
         exec nix develop "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
     elif (( flags['all'] )); then
         # Run tests locally first, then under nix (if not already in nix)
@@ -393,12 +400,6 @@ runTests() {
         ensureDir "${testLogDir}" || fail
         rm "${testLogDir:?}"/* 2> /dev/null # remove any existing logs
         local failedTestsFile="${ tempDirPath failed-tests; }"
-
-        # Ensure rayvn is first in the projects list
-
-        if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
-            projects=("rayvn" "${projects[@]}")
-        fi
 
         # Create map for project messages
 
@@ -422,7 +423,6 @@ runTests() {
         local maxProjectNameLength="${ maxArrayElementLength projects; }"
         local maxTestNameLength="${ maxArrayElementLength testNames; }"
         local resultColumn=$(( maxProjectNameLength + 1 + maxTestNameLength + 6 ))
-        debugVars maxProjectNameLength maxTestNameLength resultColumn
 
         # Run tests for all specified projects
 
@@ -457,12 +457,40 @@ runTests() {
     fi
 }
 
+prepareNixForTests() {
+    # Stage and build each specified project that has a flake.nix
+    local project projectRoot
+    local maxProjectNameLength="${ maxArrayElementLength projects; }"
+    local resultColumn=$(( maxProjectNameLength + 1 + 9 ))
+
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        if [[ -f "${projectRoot}/flake.nix" ]]; then
+            local padLen=$(( resultColumn - ${#project} - 9 ))
+            local padding="${ padSpaces ${padLen}; }"
+            show bold "${project}" plain "${padding}" primary "running nix build"
+            git -C "${projectRoot}" add -u
+            nix build "${projectRoot}" || fail "nix build failed for ${project}"
+        fi
+    done
+}
+
 collectProjectTests() {
     local project="${1}"
     local projectRoot="${2}"
     local testDir="${projectRoot}/test"
     local testName
-    local hasMatchArg=${#args[@]}
+
+    # Separate include and exclude patterns (- prefix = exclude)
+    local includePatterns=() excludePatterns=()
+    local arg
+    for arg in "${args[@]}"; do
+        if [[ "${arg}" == -* ]]; then
+            excludePatterns+=("${arg#-}")
+        else
+            includePatterns+=("${arg}")
+        fi
+    done
 
     if [[ -d "${testDir}" ]]; then
         local file fileName testName
@@ -480,15 +508,27 @@ collectProjectTests() {
             testFiles+=("${file}")
             skipTestNames+=([${testName}]=0)
 
-            if (( hasMatchArg )); then
-                local matchArg skip=1
-                for matchArg in "${args[@]}"; do
-                    if [[ "${testName}" =~ ${matchArg} ]]; then
+            # Check if test should be skipped
+            local skip=0 pattern
+
+            # If include patterns exist, test must match at least one
+            if (( ${#includePatterns[@]} )); then
+                skip=1
+                for pattern in "${includePatterns[@]}"; do
+                    if [[ "${testName}" =~ ${pattern} ]]; then
                         skip=0; break
                     fi
                 done
-                (( skip )) && skipTestNames+=(["${testName}"]=1)
             fi
+
+            # Exclude patterns always exclude (takes precedence)
+            for pattern in "${excludePatterns[@]}"; do
+                if [[ "${testName}" =~ ${pattern} ]]; then
+                    skip=1; break
+                fi
+            done
+
+            (( skip )) && skipTestNames+=(["${testName}"]=1)
         done
     fi
 }
@@ -525,7 +565,7 @@ runProjectTests() {
 }
 
 noTests() {
-    local padLen=$(( resultColumn - ${#project} )) # only project name, no 'test' constant
+    local padLen=$(( resultColumn - ${#project} + 1 )) # only project name, no 'test' constant
     local padding="${ padSpaces ${padLen}; }"
     show bold "${project}" plain "${padding}" dim warning '◈' plain dim "no tests" # ◈ ➖ ﹣
 }
