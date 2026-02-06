@@ -210,10 +210,6 @@ _endSpin() {
     local message="${2}"
     _stopSpinner
 
-    # Restore cursor visibility
-
-    tput cnorm
-
     # Move cursor back to start of spinner, with column adjusted for space added to message
 
     cursorTo ${_spinnerRow} $(( _spinnerCol - 1 ))
@@ -228,6 +224,10 @@ _endSpin() {
     # If there's a message, print it.
 
     [[ -n "${message}" ]] && echo "${message}"
+
+    # Restore cursor visibility
+
+    tput cnorm
 }
 
 _spinServerMain() {
