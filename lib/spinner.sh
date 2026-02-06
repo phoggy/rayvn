@@ -63,10 +63,6 @@ stopSpinner() {
     _endSpin "${command}" "${message}"
 }
 
-failSpin() { # TODO remove all uses of this and just call fail
-    fail "${@}"
-}
-
 _initSpinner() {
     _spinnerMessage="${1:- }"
     local frameType="${2:-snake}"

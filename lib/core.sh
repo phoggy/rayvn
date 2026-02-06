@@ -227,12 +227,12 @@ assertValidFileName() {
 }
 
 assertNoErrorLog() {
-    local errorHandler="${1:-'fail'}"
-    local stripBracketLines="${2:-0}"
-    local errorLog="${ cat "${errorLogFile}"; }"
+    local stripBracketLines="${1:-false}"
+    local errorHandler="${2:-'fail'}"
     if [[ -e "${errorLogFile}" ]]; then
+        local errorLog="${ cat "${errorLogFile}"; }"
         debug "${errorLog}"
-        if (( stripBracketLines )); then
+        if [[ -n ${stripBracketLines} ]]; then
             ${errorHandler} "${ echo "${errorLog}" | grep -v '^\[.*\]$' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
         else
             ${errorHandler} "${errorLog}"
