@@ -576,7 +576,11 @@ fail() {
         local inRayvnFail=1
         _spinExit
     fi
-    stackTrace "${@}" > "${terminal}"
+    if (( isInteractive )); then
+        stackTrace "${@}" > "${terminal}"
+    else
+        stackTrace "${@}" >&2  # test mode, so use stderr to allow proper redirection
+    fi
     exit 1
 }
 
@@ -714,11 +718,9 @@ _init_rayvn_core() {
 
     else
 
-        # No. Set FD 3 to point to current stdout, then set terminal
-        # to use it (via /dev/fd/3 so it works as a redirect path).
+        # No. Discard terminal output in non-interactive mode.
 
-        exec 3>&1
-        declare -grx terminal="/dev/fd/3"
+        declare -grx terminal="/dev/null"
         declare -grxi isInteractive=0
 
         # Unless a special flag is set, turn off colors

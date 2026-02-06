@@ -379,13 +379,18 @@ runTests() {
     if (( flags['nix'] )); then
         # Stage and build each project that has a flake.nix
         prepareNixForTests
-        # Run tests in rayvn's nix develop environment
-        exec nix develop "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
+        # Run tests in rayvn's nix develop environment.
+        # Use env -u to unset exported rayvn vars to force fresh initialization inside nix
+        exec env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
+            nix develop "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
     elif (( flags['all'] )); then
         # Run tests locally first, then under nix (if not already in nix)
-        rayvn test "${projects[@]}" "${args[@]}" || return 1
+        # Use env -u to prevent exported rayvn vars from being inherited by test subprocesses
+        env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
+            rayvn test "${projects[@]}" "${args[@]}" || return 1
         if [[ -z ${IN_NIX_SHELL} ]]; then
-            rayvn test --nix "${projects[@]}" "${args[@]}" || return 1
+            env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
+                rayvn test --nix "${projects[@]}" "${args[@]}" || return 1
         fi
     else
         require 'rayvn/spinner' 'rayvn/prompt'

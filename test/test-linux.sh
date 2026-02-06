@@ -11,6 +11,12 @@ if [[ -f /.dockerenv ]]; then
     exit 0
 fi
 
+# Skip if running under nix (Docker can't mount nix store paths on macOS)
+if [[ -n ${IN_NIX_SHELL} ]]; then
+    echo "Skipping: Docker cannot mount nix store paths"
+    exit 0
+fi
+
 # Check if Docker is available
 if ! command -v docker &> /dev/null; then
     fail "Docker is required but not installed. See https://docs.docker.com/get-docker/"
@@ -18,12 +24,6 @@ fi
 
 # Get the directory containing this script
 script_dir="${ dirname "${BASH_SOURCE[0]}"; }"
-
-# If running from Nix store, use rayvnRootDir instead
-# (Docker can't mount /nix/store paths on macOS)
-if [[ "${script_dir}" == /nix/store/* ]]; then
-    script_dir="${rayvnRootDir}/test"
-fi
 
 linux_compat_dir="${script_dir}/linux-compat"
 
