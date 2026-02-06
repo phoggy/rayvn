@@ -71,7 +71,7 @@ makeTempPipe() {
 
 makeTempDir() {
     _ensureRayvnTempDir
-    local directory="${ mktemp "${_rayvnTempDir}/${1:-XXXXXX}"; }"  # random file name if not passed
+    local directory="${ mktemp -d "${_rayvnTempDir}/${1:-XXXXXX}"; }"  # random dir name if not passed
     echo "${directory}"
 }
 
