@@ -226,16 +226,72 @@ assertValidFileName() {
         fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
 }
 
-assertNoErrorLog() {
-    local stripBracketLines="${1:-false}"
-    local errorHandler="${2:-'fail'}"
-    if [[ -e "${errorLogFile}" ]]; then
-        local errorLog="${ cat "${errorLogFile}"; }"
-        debug "${errorLog}"
-        if [[ -n ${stripBracketLines} ]]; then
-            ${errorHandler} "${ echo "${errorLog}" | grep -v '^\[.*\]$' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
+# Run a command and fail if it fails (or produces stderr with --stderr).
+# Stdout passes through, so this works with command substitution.
+#
+# Usage:
+#   assertCommand [options] command [args...]
+#   result="${ assertCommand some-command; }"
+#
+# Options:
+#   --error "msg"     Custom error message (default: generic failure message)
+#   --quiet           Don't include stderr in failure message
+#   --stderr          Also fail if command produces stderr output
+#   --strip-brackets  Filter out lines matching [text] and trailing blank lines
+#
+# Examples:
+#   assertCommand git commit -m "message"
+#   session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
+#
+#   # For pipelines, use eval with a quoted string:
+#   assertCommand --stderr --error "Failed to encrypt" \
+#       eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
+
+assertCommand() {
+    local stripBrackets=0 quiet=0 noStderr=0 message=""
+
+    while [[ "${1}" == --* ]]; do
+        case "${1}" in
+            --strip-brackets) stripBrackets=1; shift ;;
+            --quiet) quiet=1; shift ;;
+            --stderr) noStderr=1; shift ;;
+            --error) message="${2}"; shift 2 ;;
+            *) break ;;
+        esac
+    done
+
+    local stderrFile="${ makeTempFile 'stderr-XXXXXX'; }"
+    "${@}" 2> "${stderrFile}"
+    local result=$?
+
+    local stderr=""
+    if [[ -s "${stderrFile}" ]]; then
+        stderr="${ cat "${stderrFile}"; }"
+        if (( stripBrackets )); then
+            # Remove bracket-only lines and trailing blank lines
+            stderr="${ echo "${stderr}" | grep -v '^\[.*\]$' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
+        fi
+    fi
+
+    # Fail if command failed, or if --stderr and stderr has content
+    local shouldFail=0
+    if (( result != 0 )); then
+        shouldFail=1
+    elif (( noStderr )) && [[ -n "${stderr}" ]]; then
+        shouldFail=1
+    fi
+
+    if (( shouldFail )); then
+        if [[ -n "${message}" ]]; then
+            if (( quiet )) || [[ -z "${stderr}" ]]; then
+                fail "${message}"
+            else
+                fail "${message}: ${stderr}"
+            fi
+        elif [[ -n "${stderr}" ]]; then
+            fail "${stderr}"
         else
-            ${errorHandler} "${errorLog}"
+            fail "command failed with exit code ${result}"
         fi
     fi
 }
@@ -789,10 +845,6 @@ _init_rayvn_core() {
     declare -grx _greenCheckMark="${ show success ${_checkMark}; }"
     declare -grx _redCrossMark="${ show error ${_crossMark}; }"
 
-    # Create an error log path
-
-    declare -gr errorLogFile="${ tempDirPath 'error.log'; }"
-
     # Is this a mac?
 
     if (( onMacOS )); then
@@ -810,9 +862,9 @@ _init_rayvn_core() {
 
     # Collect the names of all existing lowercase and underscore prefixed vars if we have not already done so.
     # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those
-    # run as if started from the command line. Manually add _rayvnCoreInitialized since it is not yet set.
+    # run as if started from the command line. Manually add vars that are created lazily after init.
 
-    local var unsetVars=('-u' '_rayvnCoreInitialized')
+    local var unsetVars=('-u' '_rayvnCoreInitialized' '-u' '_rayvnTempDir')
     IFS=$'\n'
     for var in ${ compgen -v | grep -E '^([a-z]|_[^_])'; }; do
         unsetVars+=("-u")
