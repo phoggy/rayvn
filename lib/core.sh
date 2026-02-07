@@ -224,6 +224,8 @@ assertValidFileName() {
     # Reject reserved characters (Windows-unsafe or problematic cross-platform)
     [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] &&
         fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
+
+    return 0
 }
 
 # Run a command and fail if it fails (or produces stderr with --stderr).
@@ -559,16 +561,6 @@ containsAnsi() {
     [[ "${1}" =~ $'\e[' ]]
 }
 
-maxArrayElementLength() {
-    local -n arrayRef="${1}"
-    local max=0 len element
-    for element in "${arrayRef[@]}"; do
-        len="${#element}"
-        (( len > max )) && max=${len}
-    done
-    echo -n "${max}"
-}
-
 repeat() {
     local str=${1}
     local count=${2}
@@ -584,7 +576,7 @@ indexOf() {
     local max="${#arrayRef[@]}"
     local i
     for (( i=0; i < max; i++ )); do
-        if [[ ${arrayRef[${i}]} == ${item} ]]; then
+        if [[ ${arrayRef[${i}]} == "${item}" ]]; then
             echo ${i}; return 0
         fi
     done
@@ -594,6 +586,16 @@ indexOf() {
 
 isMemberOf() {
     indexOf "${1}" "${2}" > /dev/null
+}
+
+maxArrayElementLength() {
+    local -n arrayRef="${1}"
+    local max=0 len element
+    for element in "${arrayRef[@]}"; do
+        len="${#element}"
+        (( len > max )) && max=${len}
+    done
+    echo -n "${max}"
 }
 
 padString() {
