@@ -11,6 +11,7 @@ usage() {
     echo "Commands"
     echo
     echo "    test              Run tests."
+    echo "    build             Run nix build."
     echo "    theme             Select theme."
     echo "    new TYPE NAME     Create a new project/script/library/test with the specified NAME."
     echo "    libraries         List libraries."
@@ -52,6 +53,7 @@ init() {
     while (( $# )) && [[ -z ${command} ]]; do
         case "${1}" in
             test) parseArgs true runTests "${@:2}" ;;
+            build) parseArgs true nixBuild "${@:2}" ;;
             theme) parseArgs false theme "${@:2}" ;;
             new | create) parseArgs false create "${@:2}" ;;
             projects) parseArgs true listProjects "${@:2}" ;;
@@ -84,7 +86,7 @@ SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-
 parseArgs() {
     local add="${1}"
     command="${2}"
-    shift; shift
+    shift 2
     while (( ${#} > 0 )); do
         case "${1}" in
             -h | --help) flags+=(['help']=1) ;;
@@ -150,23 +152,6 @@ addProject() {
 
 assertSingleProject() {
     (( ${#projects[@]} > 1 )) && fail "only one project name is supported"
-}
-
-ensureAtFront() {
-    local -n arrayRef="${1}"
-    local first="${2}"
-    local newArray=("${first}")
-    declare -i seen=0
-
-    for element in "${arrayRef[@]}"; do
-        if [[ "${element}" == "${first}" ]] && (( ! seen )); then
-            seen=1
-        else
-            newArray+=("${element}")
-        fi
-    done
-
-    arrayRef=("${newArray[@]}")
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
@@ -365,20 +350,29 @@ _printLibrary() {
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
+_ensureRayvnProject() {
+    debugVar projects
+    if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
+        projects=("rayvn" "${projects[@]}")
+    fi
+    debugVar projects
+
+}
 runTests() {
     if (( flags['help'] )); then
         echo "rayvn test [PROJECT] [TEST-NAME] [--nix] [--all]"
         return 0
     fi
 
-    # Ensure rayvn is first in the projects list
+    # Ensure rayvn is in the projects list
 
-    if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
-        projects=("rayvn" "${projects[@]}")
-    fi
+    _ensureRayvnProject
+
+    # Handle flag cases
+
     if (( flags['nix'] )); then
         # Stage and build each project that has a flake.nix
-        prepareNixForTests
+        nixBuild
         # Run tests in rayvn's nix develop environment.
         # Use env -u to unset exported rayvn vars to force fresh initialization inside nix
         exec env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
@@ -462,16 +456,21 @@ runTests() {
     fi
 }
 
-prepareNixForTests() {
+nixBuild() {
+    # Ensure that rayvn is in the projects list
+
+    _ensureRayvnProject
+
     # Stage and build each specified project that has a flake.nix
+
     local project projectRoot
-    local maxProjectNameLength="${ maxArrayElementLength projects; }"
-    local resultColumn=$(( maxProjectNameLength + 1 + 9 ))
+    local maxProjectNameLen="${ maxArrayElementLength projects; }"
+    local messageColumn=$(( maxProjectNameLen + 1 ))
 
     for project in "${projects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
         if [[ -f "${projectRoot}/flake.nix" ]]; then
-            local padLen=$(( resultColumn - ${#project} - 9 ))
+            local padLen=$(( messageColumn - ${#project}  ))
             local padding="${ padSpaces ${padLen}; }"
             show bold "${project}" plain "${padding}" primary "running nix build"
             git -C "${projectRoot}" add -u
