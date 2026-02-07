@@ -282,8 +282,6 @@ configure() {
 
     local rayvnUpTemporaryFunctions=(configure addRoot addProjectFromExecutable addProject)
     _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _required)
-    [[ -v _rayvnUpKeepUnsetIds ]] || _rayvnUpUnsetIds+=(_rayvnUpUnsetIds) # keep this only if test requests
-
 
     # Collect all of our temporary functions in a map so we can ignore them when core is loaded: we do not want them
     # to become owned or readonly. Remove all of them from the initial set of sources since they will be unset.

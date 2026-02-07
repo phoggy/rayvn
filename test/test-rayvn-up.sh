@@ -17,10 +17,6 @@ init() {
 
     assertEnvPreconditions
 
-    # Tell rayvn.up up not to unset _rayvnUpUnsetIds
-
-    _rayvnUpKeepUnsetIds=true
-
     # Keep a copy of PATH so we can restore it
 
     declare -gr origPath="${PATH}"
@@ -312,7 +308,7 @@ assertLibraryLoadError() {
         require "${project}/main"
     fi
 
-    # Require our 'collides; library and assert that it fails as expected
+    # Require our 'collides' library and assert that it fails as expected
 
     requireAndAssertFailureContains "${project}/${libraryName}" "${expectedError}"
 }
