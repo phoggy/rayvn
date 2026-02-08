@@ -54,7 +54,6 @@ main() {
     testShowEscapeCodesResets
     testShowEscapeCodesComplexPatterns
 
-    endTest
 }
 
 init() {
@@ -67,8 +66,6 @@ init() {
         esac
         shift
     done
-
-    beginTest
 }
 
 # ============================================================================
@@ -112,13 +109,13 @@ testAssertCommandWithEval() {
     local testFile="${ makeTempFile test-XXXXXX; }"
     assertCommand eval 'echo "hello" | cat > "'"${testFile}"'"'
     local content="${ cat "${testFile}"; }"
-    assertEqual "assertCommand with eval handles pipelines" "hello" "${content}"
+    assertEqual "hello" "${content}" "assertCommand with eval handles pipelines"
 }
 
 testAssertCommandCaptureStdout() {
     local result
     result="${ assertCommand echo "test output"; }"
-    assertEqual "assertCommand passes stdout through" "test output" "${result}"
+    assertEqual "test output" "${result}" "assertCommand passes stdout through"
 }
 
 # ============================================================================
@@ -126,35 +123,35 @@ testAssertCommandCaptureStdout() {
 # ============================================================================
 
 testTrim() {
-    assertEqual "trim removes leading/trailing spaces" "hello" "${ trim "  hello  "; }"
-    assertEqual "trim leaves clean string alone" "hello" "${ trim "hello"; }"
-    assertEqual "trim on only spaces returns empty" "" "${ trim "  "; }"
-    assertEqual "trim on empty returns empty" "" "${ trim ""; }"
-    assertEqual "trim removes tabs" "tab" "${ trim "	tab	"; }"
-    assertEqual "trim preserves internal spaces" "multi  word" "${ trim "  multi  word  "; }"
+    assertEqual "hello" "${ trim "  hello  "; }" "trim removes leading/trailing spaces"
+    assertEqual "hello" "${ trim "hello"; }" "trim leaves clean string alone"
+    assertEqual "" "${ trim "  "; }" "trim on only spaces returns empty"
+    assertEqual "" "${ trim ""; }" "trim on empty returns empty"
+    assertEqual "tab" "${ trim "	tab	"; }" "trim removes tabs"
+    assertEqual "multi  word" "${ trim "  multi  word  "; }" "trim preserves internal spaces"
 }
 
 testRepeat() {
-    assertEqual "repeat char 5 times" "xxxxx" "${ repeat "x" 5; }"
-    assertEqual "repeat string 3 times" "ababab" "${ repeat "ab" 3; }"
-    assertEqual "repeat 0 times returns empty" "" "${ repeat "x" 0; }"
-    assertEqual "repeat empty string returns empty" "" "${ repeat "" 5; }"
+    assertEqual "xxxxx" "${ repeat "x" 5; }" "repeat char 5 times"
+    assertEqual "ababab" "${ repeat "ab" 3; }" "repeat string 3 times"
+    assertEqual "" "${ repeat "x" 0; }" "repeat 0 times returns empty"
+    assertEqual "" "${ repeat "" 5; }" "repeat empty string returns empty"
 }
 
 testPadString() {
-    assertEqual "padString default pads after" "hi   " "${ padString "hi" 5; }"
-    assertEqual "padString after pads right" "hi   " "${ padString "hi" 5 after; }"
-    assertEqual "padString before pads left" "   hi" "${ padString "hi" 5 before; }"
-    assertEqual "padString center pads both" " hi  " "${ padString "hi" 5 center; }"
-    assertEqual "padString no-op when string longer" "hello" "${ padString "hello" 3; }"
+    assertEqual "hi   " "${ padString "hi" 5; }" "padString default pads after"
+    assertEqual "hi   " "${ padString "hi" 5 after; }" "padString after pads right"
+    assertEqual "   hi" "${ padString "hi" 5 before; }" "padString before pads left"
+    assertEqual " hi  " "${ padString "hi" 5 center; }" "padString center pads both"
+    assertEqual "hello" "${ padString "hello" 3; }" "padString no-op when string longer"
 }
 
 testStripAnsi() {
     local colored=$'\e[31mred\e[0m'
-    assertEqual "stripAnsi removes color codes" "red" "${ stripAnsi "${colored}"; }"
-    assertEqual "stripAnsi leaves plain text" "plain" "${ stripAnsi "plain"; }"
+    assertEqual "red" "${ stripAnsi "${colored}"; }" "stripAnsi removes color codes"
+    assertEqual "plain" "${ stripAnsi "plain"; }" "stripAnsi leaves plain text"
     local multi=$'\e[1;32mbold green\e[0m'
-    assertEqual "stripAnsi handles multi-code" "bold green" "${ stripAnsi "${multi}"; }"
+    assertEqual "bold green" "${ stripAnsi "${multi}"; }" "stripAnsi handles multi-code"
 }
 
 testContainsAnsi() {
@@ -168,15 +165,15 @@ testContainsAnsi() {
 # ============================================================================
 
 testDirName() {
-    assertEqual "dirName extracts directory" "/path/to" "${ dirName "/path/to/file"; }"
-    assertEqual "dirName handles trailing slash" "/path/to" "${ dirName "/path/to/dir/"; }"
-    assertEqual "dirName of bare filename is itself" "file" "${ dirName "file"; }"
+    assertEqual "/path/to" "${ dirName "/path/to/file"; }" "dirName extracts directory"
+    assertEqual "/path/to" "${ dirName "/path/to/dir/"; }" "dirName handles trailing slash"
+    assertEqual "file" "${ dirName "file"; }" "dirName of bare filename is itself"
 }
 
 testBaseName() {
-    assertEqual "baseName extracts filename" "file" "${ baseName "/path/to/file"; }"
-    assertEqual "baseName handles trailing slash" "dir" "${ baseName "/path/to/dir/"; }"
-    assertEqual "baseName of bare filename is itself" "file" "${ baseName "file"; }"
+    assertEqual "file" "${ baseName "/path/to/file"; }" "baseName extracts filename"
+    assertEqual "dir" "${ baseName "/path/to/dir/"; }" "baseName handles trailing slash"
+    assertEqual "file" "${ baseName "file"; }" "baseName of bare filename is itself"
 }
 
 # ============================================================================
@@ -185,9 +182,9 @@ testBaseName() {
 
 testIndexOf() {
     local arr=("apple" "banana" "cherry")
-    assertEqual "indexOf finds element at index 1" "1" "${ indexOf "banana" arr; }"
-    assertEqual "indexOf finds element at index 0" "0" "${ indexOf "apple" arr; }"
-    assertEqual "indexOf returns -1 for missing" "-1" "${ indexOf "missing" arr; }"
+    assertEqual "1" "${ indexOf "banana" arr; }" "indexOf finds element at index 1"
+    assertEqual "0" "${ indexOf "apple" arr; }" "indexOf finds element at index 0"
+    assertEqual "-1" "${ indexOf "missing" arr; }" "indexOf returns -1 for missing"
 }
 
 testIsMemberOf() {
@@ -198,9 +195,9 @@ testIsMemberOf() {
 
 testMaxArrayElementLength() {
     local arr=("a" "abc" "ab")
-    assertEqual "maxArrayElementLength finds longest" "3" "${ maxArrayElementLength arr; }"
+    assertEqual "3" "${ maxArrayElementLength arr; }" "maxArrayElementLength finds longest"
     local empty=()
-    assertEqual "maxArrayElementLength of empty is 0" "0" "${ maxArrayElementLength empty; }"
+    assertEqual "0" "${ maxArrayElementLength empty; }" "maxArrayElementLength of empty is 0"
 }
 
 # ============================================================================
@@ -218,10 +215,10 @@ testVarIsDefined() {
 testAppendVar() {
     local testVar="first"
     appendVar testVar "second"
-    assertEqual "appendVar adds with space separator" "first second" "${testVar}"
+    assertEqual "first second" "${testVar}" "appendVar adds with space separator"
     local emptyVar=""
     appendVar emptyVar "only"
-    assertEqual "appendVar on empty doesn't add leading space" "only" "${emptyVar}"
+    assertEqual "only" "${emptyVar}" "appendVar on empty doesn't add leading space"
 }
 
 # ============================================================================
@@ -229,19 +226,19 @@ testAppendVar() {
 # ============================================================================
 
 testNumericPlaces() {
-    assertEqual "numericPlaces for 0-9 is 1 digit" "1" "${ numericPlaces 9; }"
-    assertEqual "numericPlaces for 0-10 (adjusted to 9) is 1" "1" "${ numericPlaces 10; }"
-    assertEqual "numericPlaces for 0-11 (adjusted to 10) is 2" "2" "${ numericPlaces 11; }"
-    assertEqual "numericPlaces for 0-100 (adjusted to 99) is 2" "2" "${ numericPlaces 100; }"
-    assertEqual "numericPlaces 1-10 needs 2 digits" "2" "${ numericPlaces 10 1; }"
-    assertEqual "numericPlaces 1-9 needs 1 digit" "1" "${ numericPlaces 9 1; }"
+    assertEqual "1" "${ numericPlaces 9; }" "numericPlaces for 0-9 is 1 digit"
+    assertEqual "1" "${ numericPlaces 10; }" "numericPlaces for 0-10 (adjusted to 9) is 1"
+    assertEqual "2" "${ numericPlaces 11; }" "numericPlaces for 0-11 (adjusted to 10) is 2"
+    assertEqual "2" "${ numericPlaces 100; }" "numericPlaces for 0-100 (adjusted to 99) is 2"
+    assertEqual "2" "${ numericPlaces 10 1; }" "numericPlaces 1-10 needs 2 digits"
+    assertEqual "1" "${ numericPlaces 9 1; }" "numericPlaces 1-9 needs 1 digit"
 }
 
 testRandomInteger() {
     local val
     val=${ randomInteger 10; }
-    assertInRange "randomInteger in range 0-10" "${val}" 0 10
-    assertEqual "randomInteger with max 0 returns 0" "0" "${ randomInteger 0; }"
+    assertInRange "${val}" 0 10 "randomInteger in range 0-10"
+    assertEqual "0" "${ randomInteger 0; }" "randomInteger with max 0 returns 0"
 }
 
 # ============================================================================
@@ -253,20 +250,20 @@ testTempDirPath() {
     assertTrue "tempDirPath returns existing directory" test -d "${path}"
 
     local subpath="${ tempDirPath "subfile"; }"
-    assertEqual "tempDirPath with arg appends" "${path}/subfile" "${subpath}"
+    assertEqual "${path}/subfile" "${subpath}" "tempDirPath with arg appends"
 }
 
 testMakeTempFile() {
     local file="${ makeTempFile test-XXXXXX; }"
     assertTrue "makeTempFile creates file" test -f "${file}"
-    assertContains "makeTempFile uses template" "test-" "${file}"
+    assertContains "test-" "${file}" "makeTempFile uses template"
     rm -f "${file}"
 }
 
 testMakeTempDir() {
     local dir="${ makeTempDir testdir-XXXXXX; }"
     assertTrue "makeTempDir creates directory" test -d "${dir}"
-    assertContains "makeTempDir uses template" "testdir-" "${dir}"
+    assertContains "testdir-" "${dir}" "makeTempDir uses template"
     rmdir "${dir}"
 }
 
@@ -307,28 +304,28 @@ testShowBasicUsage() {
     local result
 
     result=${ show blue "text"; }
-    assertEqualStripped "Color only: blue" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Color only: blue"
 
     result=${ show bold "text"; }
-    assertEqualStripped "Style only: bold" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Style only: bold"
 
     result=${ show italic "text"; }
-    assertEqualStripped "Style only: italic" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Style only: italic"
 
     result=${ show dim "text"; }
-    assertEqualStripped "Style only: dim" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Style only: dim"
 
     result=${ show bold blue "text"; }
-    assertEqualStripped "Combined: bold blue" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Combined: bold blue"
 
     result=${ show italic green "text"; }
-    assertEqualStripped "Combined: italic green" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Combined: italic green"
 
     result=${ show "plain text"; }
-    assertEqualStripped "Plain text" "plain text" "${result}"
+    assertEqualStripped "plain text" "${result}" "Plain text"
 
     result=${ show "word1" "word2" "word3"; }
-    assertEqualStripped "Multiple plain arguments" "word1 word2 word3" "${result}"
+    assertEqualStripped "word1 word2 word3" "${result}" "Multiple plain arguments"
 }
 
 testShowFormatCombinations() {
@@ -339,16 +336,16 @@ testShowFormatCombinations() {
     local result
 
     result=${ show bold italic "text"; }
-    assertEqualStripped "Multiple styles: bold italic" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Multiple styles: bold italic"
 
     result=${ show bold italic underline "text"; }
-    assertEqualStripped "Triple style: bold italic underline" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Triple style: bold italic underline"
 
     result=${ show bold italic blue "text"; }
-    assertEqualStripped "Color + styles: bold italic blue" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Color + styles: bold italic blue"
 
     result=${ show dim underline red "text"; }
-    assertEqualStripped "Styles + color: dim underline red" "text" "${result}"
+    assertEqualStripped "text" "${result}" "Styles + color: dim underline red"
 }
 
 testShowStylePersistence() {
@@ -359,13 +356,13 @@ testShowStylePersistence() {
     local result
 
     result=${ show italic "starts italic" blue "still italic, now blue"; }
-    assertEqualStripped "Style persists: italic continues" "starts italic still italic, now blue" "${result}"
+    assertEqualStripped "starts italic still italic, now blue" "${result}" "Style persists: italic continues"
 
     result=${ show bold "bold start" "bold continues" "still bold"; }
-    assertEqualStripped "Style persists: bold continues" "bold start bold continues still bold" "${result}"
+    assertEqualStripped "bold start bold continues still bold" "${result}" "Style persists: bold continues"
 
     result=${ show italic "italic" bold "italic+bold" underline "italic+bold+underline"; }
-    assertEqualStripped "Styles accumulate" "italic+bold italic+bold+underline" "${result}"
+    assertEqualStripped "italic+bold italic+bold+underline" "${result}" "Styles accumulate"
 }
 
 testShowColorReplacement() {
@@ -376,13 +373,13 @@ testShowColorReplacement() {
     local result
 
     result=${ show blue "blue" red "red (replaces blue)"; }
-    assertEqualStripped "Color replacement: blue to red" "red (replaces blue)" "${result}"
+    assertEqualStripped "red (replaces blue)" "${result}" "Color replacement: blue to red"
 
     result=${ show green "green" yellow "yellow" magenta "magenta"; }
-    assertEqualStripped "Multiple color replacements" "" "${result}"
+    assertEqualStripped "" "${result}" "Multiple color replacements"
 
     result=${ show bold blue "bold blue" red "bold red (color replaced)"; }
-    assertEqualStripped "Color replacement preserves style" "bold blue bold red (color replaced)" "${result}"
+    assertEqualStripped "bold blue bold red (color replaced)" "${result}" "Color replacement preserves style"
 }
 
 testShowPlainResetPattern() {
@@ -393,19 +390,19 @@ testShowPlainResetPattern() {
     local result
 
     result=${ show bold green "styled" plain "back to normal"; }
-    assertEqualStripped "Reset after bold+color" "styled back to normal" "${result}"
+    assertEqualStripped "styled back to normal" "${result}" "Reset after bold+color"
 
     result=${ show cyan "colored" plain dim "dimmed, not colored"; }
-    assertEqualStripped "Color to style-only: cyan to dim" "colored dimmed, not colored" "${result}"
+    assertEqualStripped "colored dimmed, not colored" "${result}" "Color to style-only: cyan to dim"
 
     result=${ show blue "blue text" plain italic "italic only"; }
-    assertEqualStripped "Color to style-only: blue to italic" "blue text italic only" "${result}"
+    assertEqualStripped "blue text italic only" "${result}" "Color to style-only: blue to italic"
 
     result=${ show bold blue "heading" plain "text" italic "emphasis"; }
-    assertEqualStripped "Reset between combinations" "heading text emphasis" "${result}"
+    assertEqualStripped "heading text emphasis" "${result}" "Reset between combinations"
 
     result=${ show bold "bold" plain "normal" italic "italic" plain "normal again"; }
-    assertEqualStripped "Multiple resets" "normal normal again" "${result}"
+    assertEqualStripped "normal normal again" "${result}" "Multiple resets"
 }
 
 testShowCommandSubstitution() {
@@ -416,16 +413,16 @@ testShowCommandSubstitution() {
     local result message
 
     message="${ show bold "text" ;}"
-    assertEqualStripped "Command substitution: basic" "text" "${message}"
+    assertEqualStripped "text" "${message}" "Command substitution: basic"
 
     message="${ show bold green "styled text" ;}"
-    assertEqualStripped "Command substitution: styled" "styled text" "${message}"
+    assertEqualStripped "styled text" "${message}" "Command substitution: styled"
 
     message="${ show "Start" cyan "middle" plain "end" ;}"
-    assertEqualStripped "Command substitution: multiple formats" "Start middle end" "${message}"
+    assertEqualStripped "Start middle end" "${message}" "Command substitution: multiple formats"
 
     result="${ show green "success" ;}"
-    assertEqualStripped "Assignment from substitution" "" "${result}"
+    assertEqualStripped "" "${result}" "Assignment from substitution"
 }
 
 testShowThemeColors() {
@@ -438,14 +435,14 @@ testShowThemeColors() {
 
     for themeColor in "${_themeColors[@]}"; do
         result=${ show ${themeColor} "themed text"; }
-        assertEqualStripped "Theme color: ${themeColor}" "themed text" "${result}"
+        assertEqualStripped "themed text" "${result}" "Theme color: ${themeColor}"
     done
 
     result=${ show bold success "bold success"; }
-    assertEqualStripped "Theme + style: bold success" "bold success" "${result}"
+    assertEqualStripped "bold success" "${result}" "Theme + style: bold success"
 
     result=${ show italic error "italic error"; }
-    assertEqualStripped "Theme + style: italic error" "italic error" "${result}"
+    assertEqualStripped "italic error" "${result}" "Theme + style: italic error"
 }
 
 testShow256Colors() {
@@ -456,34 +453,34 @@ testShow256Colors() {
     local result
 
     result=${ show IDX 196 "red via 256"; }
-    assertEqualStripped "256 color: 196 (red)" "red via 256" "${result}"
+    assertEqualStripped "red via 256" "${result}" "256 color: 196 (red)"
 
     result=${ show IDX 46 "green via 256"; }
-    assertEqualStripped "256 color: 46 (green)" "green via 256" "${result}"
+    assertEqualStripped "green via 256" "${result}" "256 color: 46 (green)"
 
     result=${ show IDX 0 "color 0"; }
-    assertEqualStripped "256 color: 0" "color 0" "${result}"
+    assertEqualStripped "color 0" "${result}" "256 color: 0"
 
     result=${ show IDX 255 "color 255"; }
-    assertEqualStripped "256 color: 255" "color 255" "${result}"
+    assertEqualStripped "color 255" "${result}" "256 color: 255"
 
     result=${ show bold IDX 196 "bold red 256"; }
-    assertEqualStripped "256 color with style" "bold red 256" "${result}"
+    assertEqualStripped "bold red 256" "${result}" "256 color with style"
 
     result=${ show "Start" IDX 196 "'red'" IDX 46 "'green'" "end"; }
-    assertEqualStripped "256 colors interleaved" "Start 'red' 'green' end" "${result}"
+    assertEqualStripped "Start 'red' 'green' end" "${result}" "256 colors interleaved"
 
     result=${ show IDX 256 "text"; }
-    assertEqualStripped "Invalid 256 color (256)" "IDX 256 text" "${result}"
+    assertEqualStripped "IDX 256 text" "${result}" "Invalid 256 color (256)"
 
     result=${ show IDX 999 "text"; }
-    assertEqualStripped "Invalid 256 color (999)" "IDX 999 text" "${result}"
+    assertEqualStripped "IDX 999 text" "${result}" "Invalid 256 color (999)"
 
     result=${ show "The answer is" 42 "!"; }
-    assertEqualStripped "Numeric value as text" "The answer is 42 !" "${result}"
+    assertEqualStripped "The answer is 42 !" "${result}" "Numeric value as text"
 
     result=${ show bold 100 "not a color"; }
-    assertEqualStripped "Numeric with style as text" "100 not a color" "${result}"
+    assertEqualStripped "100 not a color" "${result}" "Numeric with style as text"
 }
 
 testShowRGBColors() {
@@ -494,13 +491,13 @@ testShowRGBColors() {
     local result
 
     result=${ show RGB 52:208:88 "rgb green"; }
-    assertEqualStripped "RGB color: green" "rgb green" "${result}"
+    assertEqualStripped "rgb green" "${result}" "RGB color: green"
 
     result=${ show RGB 215:58:73 "rgb red"; }
-    assertEqualStripped "RGB color: red" "rgb red" "${result}"
+    assertEqualStripped "rgb red" "${result}" "RGB color: red"
 
     result=${ show bold RGB 52:208:88 "bold rgb"; }
-    assertEqualStripped "RGB with style" "bold rgb" "${result}"
+    assertEqualStripped "bold rgb" "${result}" "RGB with style"
 }
 
 testShowOptions() {
@@ -511,16 +508,16 @@ testShowOptions() {
     local result
 
     result=${ show -n "no newline"; }
-    assertEqualStripped "Option -n" "no newline" "${result}"
+    assertEqualStripped "no newline" "${result}" "Option -n"
 
     result=${ show -n blue "colored no newline"; }
-    assertEqualStripped "Option -n with color" "colored no newline" "${result}"
+    assertEqualStripped "colored no newline" "${result}" "Option -n with color"
 
     result=${ show -n -e "options"; }
-    assertEqualStripped "Multiple options" "options" "${result}"
+    assertEqualStripped "options" "${result}" "Multiple options"
 
     result=${ show -n bold red "formatted no newline"; }
-    assertEqualStripped "Options with formats" "formatted no newline" "${result}"
+    assertEqualStripped "formatted no newline" "${result}" "Options with formats"
 }
 
 testShowEdgeCases() {
@@ -531,32 +528,32 @@ testShowEdgeCases() {
     local result
 
     result=${ show; }
-    assertEqualStripped "No arguments" "" "${result}"
+    assertEqualStripped "" "${result}" "No arguments"
 
     result=${ show ""; }
-    assertEqualStripped "Empty string" "" "${result}"
+    assertEqualStripped "" "${result}" "Empty string"
 
     result=${ show bold red; }
-    assertEqualStripped "Format only, no text" "" "${result}"
+    assertEqualStripped "" "${result}" "Format only, no text"
 
     local longText="This is a very long text string that contains many words and should be handled correctly"
     result=${ show green "${longText}"; }
-    assertEqualStripped "Very long text" "${longText}" "${result}"
+    assertEqualStripped "${longText}" "${result}" "Very long text"
 
     result=${ show red "text with \$special @chars!"; }
-    assertEqualStripped "Special characters" "text with \$special @chars!" "${result}"
+    assertEqualStripped "text with \$special @chars!" "${result}" "Special characters"
 
     result=${ show red "valid" notaformat "text"; }
-    assertEqualStripped "Invalid format as text" "valid notaformat text" "${result}"
+    assertEqualStripped "valid notaformat text" "${result}" "Invalid format as text"
 
     result=${ show bold italic underline dim reverse "all styles"; }
-    assertEqualStripped "Many consecutive formats" "all styles" "${result}"
+    assertEqualStripped "all styles" "${result}" "Many consecutive formats"
 
     result=${ show red "A" blue "B" green "C" yellow "D"; }
-    assertEqualStripped "Alternating formats/text" "A B C D" "${result}"
+    assertEqualStripped "A B C D" "${result}" "Alternating formats/text"
 
     result=${ show "The word red" red "is now red"; }
-    assertEqualStripped "Format name in text" "The word red is now red" "${result}"
+    assertEqualStripped "The word red is now red" "${result}" "Format name in text"
 }
 
 testShowDocumentedPatterns() {
@@ -567,28 +564,28 @@ testShowDocumentedPatterns() {
     local result
 
     result=${ show blue "This is blue text"; }
-    assertEqualStripped "Doc example: blue text" "This is blue text" "${result}"
+    assertEqualStripped "This is blue text" "${result}" "Doc example: blue text"
 
     result=${ show bold red "Bold red text"; }
-    assertEqualStripped "Doc example: bold red" "Bold red text" "${result}"
+    assertEqualStripped "Bold red text" "${result}" "Doc example: bold red"
 
     result=${ show success "Operation completed"; }
-    assertEqualStripped "Doc example: success" "Operation completed" "${result}"
+    assertEqualStripped "Operation completed" "${result}" "Doc example: success"
 
     result=${ show italic underline green "Italic underline green text"; }
-    assertEqualStripped "Doc example: multi-style green" "Italic underline green text" "${result}"
+    assertEqualStripped "Italic underline green text" "${result}" "Doc example: multi-style green"
 
     result=${ show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" plain blue "blue text"; }
-    assertEqualStripped "Doc example: style continuation" "Plain text italic bold blue text italic bold red blue text" "${result}"
+    assertEqualStripped "Plain text italic bold blue text italic bold red blue text" "${result}" "Doc example: style continuation"
 
     result=${ show cyan "colored text" plain dim "dim text (no color)"; }
-    assertEqualStripped "Doc pattern: cyan to dim" "colored text dim text (no color)" "${result}"
+    assertEqualStripped "colored text dim text (no color)" "${result}" "Doc pattern: cyan to dim"
 
     result=${ show bold green "Note" plain "Regular text continues here"; }
-    assertEqualStripped "Doc pattern: reset after combo" "Note Regular text continues here" "${result}"
+    assertEqualStripped "Note Regular text continues here" "${result}" "Doc pattern: reset after combo"
 
     result=${ show bold blue "heading" plain "text" italic "emphasis"; }
-    assertEqualStripped "Doc pattern: transitions" "heading text emphasis" "${result}"
+    assertEqualStripped "heading text emphasis" "${result}" "Doc pattern: transitions"
 }
 
 testShowEscapeCodesBasicStyles() {
@@ -600,27 +597,27 @@ testShowEscapeCodesBasicStyles() {
 
     result=${ show bold "text"; }
     expected=$'\e[1m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bold escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bold escape code"
 
     result=${ show dim "text"; }
     expected=$'\e[2m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Dim escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Dim escape code"
 
     result=${ show italic "text"; }
     expected=$'\e[3m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Italic escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Italic escape code"
 
     result=${ show underline "text"; }
     expected=$'\e[4m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Underline escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Underline escape code"
 
     result=${ show blink "text"; }
     expected=$'\e[5m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Blink escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Blink escape code"
 
     result=${ show reverse "text"; }
     expected=$'\e[7m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Reverse escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Reverse escape code"
 }
 
 testShowEscapeCodesBasicColors() {
@@ -632,35 +629,35 @@ testShowEscapeCodesBasicColors() {
 
     result=${ show black "text"; }
     expected=$'\e[30m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Black escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Black escape code"
 
     result=${ show red "text"; }
     expected=$'\e[31m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Red escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Red escape code"
 
     result=${ show green "text"; }
     expected=$'\e[32m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Green escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Green escape code"
 
     result=${ show yellow "text"; }
     expected=$'\e[33m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Yellow escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Yellow escape code"
 
     result=${ show blue "text"; }
     expected=$'\e[34m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Blue escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Blue escape code"
 
     result=${ show magenta "text"; }
     expected=$'\e[35m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Magenta escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Magenta escape code"
 
     result=${ show cyan "text"; }
     expected=$'\e[36m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Cyan escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Cyan escape code"
 
     result=${ show white "text"; }
     expected=$'\e[37m'"text"$'\e[0m'
-    assertEqualEscapeCodes "White escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "White escape code"
 }
 
 testShowEscapeCodesBrightColors() {
@@ -672,35 +669,35 @@ testShowEscapeCodesBrightColors() {
 
     result=${ show bright-black "text"; }
     expected=$'\e[90m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-black escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-black escape code"
 
     result=${ show bright-red "text"; }
     expected=$'\e[91m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-red escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-red escape code"
 
     result=${ show bright-green "text"; }
     expected=$'\e[92m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-green escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-green escape code"
 
     result=${ show bright-yellow "text"; }
     expected=$'\e[93m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-yellow escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-yellow escape code"
 
     result=${ show bright-blue "text"; }
     expected=$'\e[94m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-blue escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-blue escape code"
 
     result=${ show bright-magenta "text"; }
     expected=$'\e[95m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-magenta escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-magenta escape code"
 
     result=${ show bright-cyan "text"; }
     expected=$'\e[96m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-cyan escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-cyan escape code"
 
     result=${ show bright-white "text"; }
     expected=$'\e[97m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bright-white escape code" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bright-white escape code"
 }
 
 testShowEscapeCodes256Colors() {
@@ -712,31 +709,31 @@ testShowEscapeCodes256Colors() {
 
     result=${ show IDX 0 "text"; }
     expected=$'\033[38;5;0m'"text"$'\e[0m'
-    assertEqualEscapeCodes "256 color: 0" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "256 color: 0"
 
     result=${ show IDX 196 "text"; }
     expected=$'\033[38;5;196m'"text"$'\e[0m'
-    assertEqualEscapeCodes "256 color: 196" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "256 color: 196"
 
     result=${ show IDX 46 "text"; }
     expected=$'\033[38;5;46m'"text"$'\e[0m'
-    assertEqualEscapeCodes "256 color: 46" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "256 color: 46"
 
     result=${ show IDX 255 "text"; }
     expected=$'\033[38;5;255m'"text"$'\e[0m'
-    assertEqualEscapeCodes "256 color: 255" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "256 color: 255"
 
     result=${ show IDX 256 "text"; }
     expected="IDX 256 text"$'\e[0m'
-    assertEqualEscapeCodes "Invalid 256 color (256) treated as text" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Invalid 256 color (256) treated as text"
 
     result=${ show IDX 999 "text"; }
     expected="IDX 999 text"$'\e[0m'
-    assertEqualEscapeCodes "Invalid 256 color (999) treated as text" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Invalid 256 color (999) treated as text"
 
     result=${ show 42 "text"; }
     expected="42 text"$'\e[0m'
-    assertEqualEscapeCodes "Numeric value without IDX treated as text" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Numeric value without IDX treated as text"
 }
 
 testShowEscapeCodesRGBColors() {
@@ -748,19 +745,19 @@ testShowEscapeCodesRGBColors() {
 
     result=${ show RGB 52:208:88 "text"; }
     expected=$'\e[38;2;52;208;88m'"text"$'\e[0m'
-    assertEqualEscapeCodes "RGB color: green (52:208:88)" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "RGB color: green (52:208:88)"
 
     result=${ show RGB 215:58:73 "text"; }
     expected=$'\e[38;2;215;58;73m'"text"$'\e[0m'
-    assertEqualEscapeCodes "RGB color: red (215:58:73)" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "RGB color: red (215:58:73)"
 
     result=${ show RGB 0:0:0 "text"; }
     expected=$'\e[38;2;0;0;0m'"text"$'\e[0m'
-    assertEqualEscapeCodes "RGB color: black (0:0:0)" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "RGB color: black (0:0:0)"
 
     result=${ show RGB 255:255:255 "text"; }
     expected=$'\e[38;2;255;255;255m'"text"$'\e[0m'
-    assertEqualEscapeCodes "RGB color: white (255:255:255)" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "RGB color: white (255:255:255)"
 }
 
 testShowEscapeCodesStyleCombinations() {
@@ -772,31 +769,31 @@ testShowEscapeCodesStyleCombinations() {
 
     result=${ show bold italic "text"; }
     expected=$'\e[1m\e[3m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bold + Italic" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bold + Italic"
 
     result=${ show bold red "text"; }
     expected=$'\e[1m\e[31m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bold + Red" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bold + Red"
 
     result=${ show italic underline green "text"; }
     expected=$'\e[3m\e[4m\e[32m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Italic + Underline + Green" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Italic + Underline + Green"
 
     result=${ show bold italic underline "text"; }
     expected=$'\e[1m\e[3m\e[4m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bold + Italic + Underline" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bold + Italic + Underline"
 
     result=${ show bold IDX 196 "text"; }
     expected=$'\e[1m\033[38;5;196m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Bold + 256 color (196)" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Bold + 256 color (196)"
 
     result=${ show italic RGB 52:208:88 "text"; }
     expected=$'\e[3m\e[38;2;52;208;88m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Italic + RGB color" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Italic + RGB color"
 
     result=${ show bold italic underline dim reverse "text"; }
     expected=$'\e[1m\e[3m\e[4m\e[2m\e[7m'"text"$'\e[0m'
-    assertEqualEscapeCodes "All styles: bold+italic+underline+dim+reverse" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "All styles: bold+italic+underline+dim+reverse"
 }
 
 testShowEscapeCodesResets() {
@@ -808,27 +805,27 @@ testShowEscapeCodesResets() {
 
     result=${ show bold green "text1" plain "text2"; }
     expected=$'\e[1m\e[32m'"text1 "$'\e[0m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "Plain resets formatting" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Plain resets formatting"
 
     result=${ show blue "text1" plain italic "text2"; }
     expected=$'\e[34m'"text1 "$'\e[0m\e[3m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "Plain between color and style" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Plain between color and style"
 
     result=${ show bold "text1" plain "text2" plain "text3"; }
     expected=$'\e[1m'"text1 "$'\e[0m'"text2 "$'\e[0m'"text3"$'\e[0m'
-    assertEqualEscapeCodes "Multiple plain resets" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Multiple plain resets"
 
     result=${ show bold red "text"; }
     expected=$'\e[1m\e[31m'"text"$'\e[0m'
-    assertEqualEscapeCodes "Final reset code present" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Final reset code present"
 
     result=${ show; }
     expected=''
-    assertEqualEscapeCodes "No arguments produces empty output" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "No arguments produces empty output"
 
     result=${ show bold red; }
     expected=$'\e[0m'
-    assertEqualEscapeCodes "Format only produces only reset" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Format only produces only reset"
 }
 
 testShowEscapeCodesComplexPatterns() {
@@ -840,27 +837,27 @@ testShowEscapeCodesComplexPatterns() {
 
     result=${ show italic "text1" blue "text2"; }
     expected=$'\e[3m'"text1 "$'\e[34m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "Style persistence with color change" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Style persistence with color change"
 
     result=${ show bold blue "text1" red "text2"; }
     expected=$'\e[1m\e[34m'"text1 "$'\e[31m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "Color replacement with style persistence" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Color replacement with style persistence"
 
     result=${ show "text1" bold "text2" italic "text3"; }
     expected="text1 "$'\e[1m'"text2 "$'\e[3m'"text3"$'\e[0m'
-    assertEqualEscapeCodes "Accumulating styles across arguments" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Accumulating styles across arguments"
 
     result=${ show bold green "text1" plain dim "text2"; }
     expected=$'\e[1m\e[32m'"text1 "$'\e[0m\e[2m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "Reset then new style" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Reset then new style"
 
     result=${ show cyan "colored text" plain dim "dim text"; }
     expected=$'\e[36m'"colored text "$'\e[0m\e[2m'"dim text"$'\e[0m'
-    assertEqualEscapeCodes "Cyan to dim via plain" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Cyan to dim via plain"
 
     result=${ show red "A" blue "B" green "C"; }
     expected=$'\e[31m'"A "$'\e[34m'"B "$'\e[32m'"C"$'\e[0m'
-    assertEqualEscapeCodes "Multiple color changes" "${expected}" "${result}"
+    assertEqualEscapeCodes "${expected}" "${result}" "Multiple color changes"
 }
 
 # Force 24-bit color mode if not running in a terminal

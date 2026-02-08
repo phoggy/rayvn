@@ -110,8 +110,8 @@ testRequestBasicInput() {
         local result
         request "Name" result false < <(printf 'hello\n') > /dev/null
         local exitCode=$?
-        assertEqual "request basic input: exit code" "0" "${exitCode}"
-        assertEqual "request basic input: result" "hello" "${result}"
+        assertEqual "0" "${exitCode}" "request basic input: exit code"
+        assertEqual "hello" "${result}" "request basic input: result"
     ) || exit 1
 }
 
@@ -120,7 +120,7 @@ testRequestEmptyInputCancelOnEmpty() {
         local result
         request "Name" result true < <(printf '\n') > /dev/null
         local exitCode=$?
-        assertEqual "request empty input cancel on empty: exit code" "1" "${exitCode}"
+        assertEqual "1" "${exitCode}" "request empty input cancel on empty: exit code"
     ) || exit 1
 }
 
@@ -129,8 +129,8 @@ testRequestEmptyInputAllowed() {
         local result
         request "Name" result false < <(printf '\n') > /dev/null
         local exitCode=$?
-        assertEqual "request empty input allowed: exit code" "0" "${exitCode}"
-        assertEqual "request empty input allowed: result" "" "${result}"
+        assertEqual "0" "${exitCode}" "request empty input allowed: exit code"
+        assertEqual "" "${result}" "request empty input allowed: result"
     ) || exit 1
 }
 
@@ -139,7 +139,7 @@ testRequestEscapeCancel() {
         local result
         request "Name" result false < <(printf '\e') > /dev/null
         local exitCode=$?
-        assertEqual "request escape cancel: exit code" "130" "${exitCode}"
+        assertEqual "130" "${exitCode}" "request escape cancel: exit code"
     ) || exit 1
 }
 
@@ -148,8 +148,8 @@ testRequestHiddenInput() {
         local result
         request "Password" result false 30 true < <(printf 'secret\n') > /dev/null
         local exitCode=$?
-        assertEqual "request hidden input: exit code" "0" "${exitCode}"
-        assertEqual "request hidden input: result" "secret" "${result}"
+        assertEqual "0" "${exitCode}" "request hidden input: exit code"
+        assertEqual "secret" "${result}" "request hidden input: result"
     ) || exit 1
 }
 
@@ -158,7 +158,7 @@ testRequestTimeout() {
         local result
         request "Name" result false 1 < <(printf '') > /dev/null
         local exitCode=$?
-        assertEqual "request timeout: exit code" "124" "${exitCode}"
+        assertEqual "124" "${exitCode}" "request timeout: exit code"
     ) || exit 1
 }
 
@@ -169,8 +169,8 @@ testSecureRequestBasicInput() {
         local result
         secureRequest "Password" result < <(printf 'password\n') > /dev/null
         local exitCode=$?
-        assertEqual "secureRequest basic input: exit code" "0" "${exitCode}"
-        assertEqual "secureRequest basic input: result" "password" "${result}"
+        assertEqual "0" "${exitCode}" "secureRequest basic input: exit code"
+        assertEqual "password" "${result}" "secureRequest basic input: result"
     ) || exit 1
 }
 
@@ -179,7 +179,7 @@ testSecureRequestEscapeCancel() {
         local result
         secureRequest "Password" result < <(printf '\e') > /dev/null
         local exitCode=$?
-        assertEqual "secureRequest escape cancel: exit code" "130" "${exitCode}"
+        assertEqual "130" "${exitCode}" "secureRequest escape cancel: exit code"
     ) || exit 1
 }
 
@@ -190,8 +190,8 @@ testConfirmSelectFirstAnswer() {
         local result
         confirm "Continue?" "yes" "no" result < <(printf '\n') > /dev/null
         local exitCode=$?
-        assertEqual "confirm select first answer: exit code" "0" "${exitCode}"
-        assertEqual "confirm select first answer: result" "0" "${result}"
+        assertEqual "0" "${exitCode}" "confirm select first answer: exit code"
+        assertEqual "0" "${result}" "confirm select first answer: result"
     ) || exit 1
 }
 
@@ -200,8 +200,8 @@ testConfirmSelectSecondViaArrowRight() {
         local result
         confirm "Continue?" "yes" "no" result < <(printf '\e[C\n') > /dev/null
         local exitCode=$?
-        assertEqual "confirm select second via arrow right: exit code" "0" "${exitCode}"
-        assertEqual "confirm select second via arrow right: result" "1" "${result}"
+        assertEqual "0" "${exitCode}" "confirm select second via arrow right: exit code"
+        assertEqual "1" "${result}" "confirm select second via arrow right: result"
     ) || exit 1
 }
 
@@ -210,8 +210,8 @@ testConfirmSelectFirstViaArrowLeft() {
         local result
         confirm "Continue?" "yes" "no" result < <(printf '\e[C\e[D\n') > /dev/null
         local exitCode=$?
-        assertEqual "confirm select first via arrow left: exit code" "0" "${exitCode}"
-        assertEqual "confirm select first via arrow left: result" "0" "${result}"
+        assertEqual "0" "${exitCode}" "confirm select first via arrow left: exit code"
+        assertEqual "0" "${result}" "confirm select first via arrow left: result"
     ) || exit 1
 }
 
@@ -220,8 +220,8 @@ testConfirmDefaultAnswerTwo() {
         local result
         confirm "Continue?" "yes" "no" result true < <(printf '\n') > /dev/null
         local exitCode=$?
-        assertEqual "confirm default answer two: exit code" "0" "${exitCode}"
-        assertEqual "confirm default answer two: result" "1" "${result}"
+        assertEqual "0" "${exitCode}" "confirm default answer two: exit code"
+        assertEqual "1" "${result}" "confirm default answer two: result"
     ) || exit 1
 }
 
@@ -230,7 +230,7 @@ testConfirmEscapeCancel() {
         local result
         confirm "Continue?" "yes" "no" result < <(printf '\e') > /dev/null
         local exitCode=$?
-        assertEqual "confirm escape cancel: exit code" "130" "${exitCode}"
+        assertEqual "130" "${exitCode}" "confirm escape cancel: exit code"
     ) || exit 1
 }
 
@@ -239,7 +239,7 @@ testConfirmTimeout() {
         local result
         confirm "Continue?" "yes" "no" result false 1 < <(printf '') > /dev/null
         local exitCode=$?
-        assertEqual "confirm timeout: exit code" "124" "${exitCode}"
+        assertEqual "124" "${exitCode}" "confirm timeout: exit code"
     ) || exit 1
 }
 
@@ -251,8 +251,8 @@ testChooseSelectFirst() {
         local result
         choose "Pick" choices result false 0 0 3 < <(printf '\n') > /dev/null
         local exitCode=$?
-        assertEqual "choose select first: exit code" "0" "${exitCode}"
-        assertEqual "choose select first: result" "0" "${result}"
+        assertEqual "0" "${exitCode}" "choose select first: exit code"
+        assertEqual "0" "${result}" "choose select first: result"
     ) || exit 1
 }
 
@@ -262,8 +262,8 @@ testChooseNavigateDownAndSelect() {
         local result
         choose "Pick" choices result false 0 0 3 < <(printf '\e[B\e[B\n') > /dev/null
         local exitCode=$?
-        assertEqual "choose navigate down and select: exit code" "0" "${exitCode}"
-        assertEqual "choose navigate down and select: result" "2" "${result}"
+        assertEqual "0" "${exitCode}" "choose navigate down and select: exit code"
+        assertEqual "2" "${result}" "choose navigate down and select: result"
     ) || exit 1
 }
 
@@ -273,8 +273,8 @@ testChooseNavigateUpWrapsAround() {
         local result
         choose "Pick" choices result false 0 0 3 < <(printf '\e[A\n') > /dev/null
         local exitCode=$?
-        assertEqual "choose navigate up wraps around: exit code" "0" "${exitCode}"
-        assertEqual "choose navigate up wraps around: result" "2" "${result}"
+        assertEqual "0" "${exitCode}" "choose navigate up wraps around: exit code"
+        assertEqual "2" "${result}" "choose navigate up wraps around: result"
     ) || exit 1
 }
 
@@ -284,8 +284,8 @@ testChooseStartIndex() {
         local result
         choose "Pick" choices result false 2 0 3 < <(printf '\n') > /dev/null
         local exitCode=$?
-        assertEqual "choose start index: exit code" "0" "${exitCode}"
-        assertEqual "choose start index: result" "2" "${result}"
+        assertEqual "0" "${exitCode}" "choose start index: exit code"
+        assertEqual "2" "${result}" "choose start index: result"
     ) || exit 1
 }
 
@@ -295,7 +295,7 @@ testChooseEscapeCancel() {
         local result
         choose "Pick" choices result false 0 0 3 < <(printf '\e') > /dev/null
         local exitCode=$?
-        assertEqual "choose escape cancel: exit code" "130" "${exitCode}"
+        assertEqual "130" "${exitCode}" "choose escape cancel: exit code"
     ) || exit 1
 }
 
@@ -305,7 +305,7 @@ testChooseTimeout() {
         local result
         choose "Pick" choices result false 0 0 3 1 < <(printf '') > /dev/null
         local exitCode=$?
-        assertEqual "choose timeout: exit code" "124" "${exitCode}"
+        assertEqual "124" "${exitCode}" "choose timeout: exit code"
     ) || exit 1
 }
 
@@ -344,86 +344,86 @@ _calculateLayout() {
 
 testRowsPerItem() {
     _calculateLayout 10 false 0 50
-    assertEqual "rowsPerItem should be 1 without separator" 1 "${_rowsPerItem}"
+    assertEqual 1 "${_rowsPerItem}" "rowsPerItem should be 1 without separator"
 
     _calculateLayout 10 true 0 50
-    assertEqual "rowsPerItem should be 2 with separator" 2 "${_rowsPerItem}"
+    assertEqual 2 "${_rowsPerItem}" "rowsPerItem should be 2 with separator"
 }
 
 testExtraLines() {
     _calculateLayout 10 false 0 50
-    assertEqual "extraLines should be 2 without separator" 2 "${_extraLines}"
+    assertEqual 2 "${_extraLines}" "extraLines should be 2 without separator"
 
     _calculateLayout 10 true 0 50
-    assertEqual "extraLines should be 1 with separator" 1 "${_extraLines}"
+    assertEqual 1 "${_extraLines}" "extraLines should be 1 with separator"
 }
 
 testTotalVisibleItemsWithExplicitMax() {
     # maxVisibleItems=5, itemCount=10: should show 5
     _calculateLayout 10 false 5 50
-    assertEqual "should respect maxVisibleItems" 5 "${_totalVisibleItems}"
+    assertEqual 5 "${_totalVisibleItems}" "should respect maxVisibleItems"
 
     # maxVisibleItems=5, itemCount=3: should clamp to 3
     _calculateLayout 3 false 5 50
-    assertEqual "should clamp to itemCount when fewer items than max" 3 "${_totalVisibleItems}"
+    assertEqual 3 "${_totalVisibleItems}" "should clamp to itemCount when fewer items than max"
 }
 
 testTotalVisibleItemsClampsToItemCount() {
     # Large terminal, few items: should clamp to itemCount
     _calculateLayout 3 false 0 100
-    assertEqual "should clamp to itemCount with large terminal" 3 "${_totalVisibleItems}"
+    assertEqual 3 "${_totalVisibleItems}" "should clamp to itemCount with large terminal"
 
     # With separator
     _calculateLayout 4 true 0 100
-    assertEqual "should clamp to itemCount with separator and large terminal" 4 "${_totalVisibleItems}"
+    assertEqual 4 "${_totalVisibleItems}" "should clamp to itemCount with separator and large terminal"
 }
 
 testTotalVisibleItemsFromTerminalHeight() {
     # availableRows=30, -6 = 24 visible rows, rowsPerItem=1: 24 items fit
     _calculateLayout 50 false 0 30
-    assertEqual "should calculate from terminal height without separator" 24 "${_totalVisibleItems}"
+    assertEqual 24 "${_totalVisibleItems}" "should calculate from terminal height without separator"
 
     # availableRows=30, -6 = 24 visible rows, rowsPerItem=2: 12 items fit
     _calculateLayout 50 true 0 30
-    assertEqual "should calculate from terminal height with separator" 12 "${_totalVisibleItems}"
+    assertEqual 12 "${_totalVisibleItems}" "should calculate from terminal height with separator"
 
     # Small terminal: availableRows=10, -6 = 4 visible rows, rowsPerItem=1: 4 items
     _calculateLayout 50 false 0 10
-    assertEqual "should handle small terminal" 4 "${_totalVisibleItems}"
+    assertEqual 4 "${_totalVisibleItems}" "should handle small terminal"
 }
 
 testReserveRowsNoSeparator() {
     # 5 items visible, rowsPerItem=1, extraLines=2: (5*1)+2 = 7
     _calculateLayout 5 false 0 50
-    assertEqual "reserveRows for 5 items, no separator" 7 "${_reserveRows}"
+    assertEqual 7 "${_reserveRows}" "reserveRows for 5 items, no separator"
 
     # 10 items visible (explicit max), rowsPerItem=1, extraLines=2: (10*1)+2 = 12
     _calculateLayout 20 false 10 50
-    assertEqual "reserveRows for 10 visible items, no separator" 12 "${_reserveRows}"
+    assertEqual 12 "${_reserveRows}" "reserveRows for 10 visible items, no separator"
 }
 
 testReserveRowsWithSeparator() {
     # 5 items visible, rowsPerItem=2, extraLines=1: (5*2)+1 = 11
     _calculateLayout 5 true 0 50
-    assertEqual "reserveRows for 5 items, with separator" 11 "${_reserveRows}"
+    assertEqual 11 "${_reserveRows}" "reserveRows for 5 items, with separator"
 
     # 10 items visible (explicit max), rowsPerItem=2, extraLines=1: (10*2)+1 = 21
     _calculateLayout 20 true 10 50
-    assertEqual "reserveRows for 10 visible items, with separator" 21 "${_reserveRows}"
+    assertEqual 21 "${_reserveRows}" "reserveRows for 10 visible items, with separator"
 }
 
 testNonVisibleItemCount() {
     # All items visible
     _calculateLayout 5 false 0 50
-    assertEqual "no non-visible items when all fit" 0 "${_nonVisibleItems}"
+    assertEqual 0 "${_nonVisibleItems}" "no non-visible items when all fit"
 
     # 50 items, 24 visible rows: 50-24 = 26 non-visible
     _calculateLayout 50 false 0 30
-    assertEqual "should report correct non-visible count" 26 "${_nonVisibleItems}"
+    assertEqual 26 "${_nonVisibleItems}" "should report correct non-visible count"
 
     # Explicit max: 20 items, show 5: 15 non-visible
     _calculateLayout 20 false 5 50
-    assertEqual "should report non-visible with explicit max" 15 "${_nonVisibleItems}"
+    assertEqual 15 "${_nonVisibleItems}" "should report non-visible with explicit max"
 }
 
 # Boot

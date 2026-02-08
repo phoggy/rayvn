@@ -4,34 +4,6 @@
 # Test case support library.
 # Intended for use via: require 'rayvn/test'
 
-### Test lifecycle -----------------------------------------------------------------------------------------
-
-# Initialize test counters. Call at start of test file.
-beginTest() {
-    declare -gi _testCount=0
-    declare -gi _passCount=0
-    declare -gi _failCount=0
-}
-
-# Print summary and fail if any tests failed. Call at end of test file.
-endTest() {
-    echo ""
-    echo "========================================"
-    echo "Test Summary"
-    echo "========================================"
-    echo "Total tests:  ${_testCount}"
-    echo "Passed:       ${_passCount}"
-    echo "Failed:       ${_failCount}"
-    echo ""
-
-    if (( _failCount == 0 )); then
-        echo "✓ All tests passed!"
-        return 0
-    else
-        fail "${_failCount} tests failed"
-    fi
-}
-
 ### assert functions ----------------------------------------------------------------------------------------
 
 assertNotInFile() {
@@ -46,143 +18,61 @@ assertInFile() {
     grep -e "${match}" "${file}" > /dev/null 2>&1  || fail "'${match}' not found in file ${file}."
 }
 
-# Assert expected equals actual, with test counting and output.
-# Usage: assertEqual "test name" "expected" "actual"
 assertEqual() {
-    local testName="${1}"
-    local expected="${2}"
-    local actual="${3}"
-
-    (( _testCount++ ))
-
-    if [[ ${actual} == "${expected}" ]]; then
-        (( _passCount++ ))
-        echo "  ✓ ${testName}"
-        return 0
-    else
-        (( _failCount++ ))
-        echo "  ✗ ${testName}"
-        echo "    Expected: '${expected}'"
-        echo "    Actual:   '${actual}'"
-        return 1
-    fi
+    local msg="${3:-"assert ${1} == ${2} failed"}"
+    [[ ${1} == "${2}" ]] || fail "${msg}"
 }
 
 # Assert expected equals actual after stripping ANSI codes.
-# Usage: assertEqualStripped "test name" "expected" "actual"
 assertEqualStripped() {
-    local testName="${1}"
-    local expected="${2}"
-    local actual="${3}"
-
-    assertEqual "${testName}" "${expected}" "${ stripAnsi "${actual}"; }"
+    local expected="${1}"
+    local actual="${2}"
+    local msg="${3:-"assertEqualStripped failed"}"
+    assertEqual "${expected}" "${ stripAnsi "${actual}"; }" "${msg}"
 }
 
 # Assert expected equals actual, showing cat -v output on failure.
-# Usage: assertEqualEscapeCodes "test name" "expected" "actual"
 assertEqualEscapeCodes() {
-    local testName="${1}"
-    local expected="${2}"
-    local actual="${3}"
-
-    (( _testCount++ ))
-
-    if [[ ${actual} == "${expected}" ]]; then
-        (( _passCount++ ))
-        echo "  ✓ ${testName}"
-        return 0
-    else
-        (( _failCount++ ))
-        echo "  ✗ ${testName}"
-        echo "    Expected: '${expected}'"
-        echo "    Actual:   '${actual}'"
+    local expected="${1}"
+    local actual="${2}"
+    local msg="${3:-"assertEqualEscapeCodes failed"}"
+    if [[ ${actual} != "${expected}" ]]; then
         echo "    Expected (visible): ${ echo -n "${expected}" | cat -v; }"
         echo "    Actual (visible):   ${ echo -n "${actual}" | cat -v; }"
-        return 1
+        fail "${msg}"
     fi
 }
 
 # Assert that a command succeeds (exits 0).
-# Usage: assertTrue "test name" command [args...]
 assertTrue() {
-    local testName="${1}"
+    local msg="${1}"
     shift
-
-    (( _testCount++ ))
-
-    if "${@}"; then
-        (( _passCount++ ))
-        echo "  ✓ ${testName}"
-        return 0
-    else
-        (( _failCount++ ))
-        echo "  ✗ ${testName}"
-        return 1
-    fi
+    "${@}" || fail "${msg}"
 }
 
 # Assert that a command fails (exits non-0).
-# Usage: assertFalse "test name" command [args...]
 assertFalse() {
-    local testName="${1}"
+    local msg="${1}"
     shift
-
-    (( _testCount++ ))
-
-    if "${@}"; then
-        (( _failCount++ ))
-        echo "  ✗ ${testName}"
-        return 1
-    else
-        (( _passCount++ ))
-        echo "  ✓ ${testName}"
-        return 0
-    fi
+    "${@}" && fail "${msg}"
+    return 0
 }
 
 # Assert that actual contains expected substring.
-# Usage: assertContains "test name" "expected substring" "actual"
 assertContains() {
-    local testName="${1}"
-    local expected="${2}"
-    local actual="${3}"
-
-    (( _testCount++ ))
-
-    if [[ ${actual} == *"${expected}"* ]]; then
-        (( _passCount++ ))
-        echo "  ✓ ${testName}"
-        return 0
-    else
-        (( _failCount++ ))
-        echo "  ✗ ${testName}"
-        echo "    Expected to contain: '${expected}'"
-        echo "    Actual: '${actual}'"
-        return 1
-    fi
+    local expected="${1}"
+    local actual="${2}"
+    local msg="${3:-"assertContains: '${expected}' not in '${actual}'"}"
+    [[ ${actual} == *"${expected}"* ]] || fail "${msg}"
 }
 
 # Assert value is within range (inclusive).
-# Usage: assertInRange "test name" value min max
 assertInRange() {
-    local testName="${1}"
-    local value="${2}"
-    local min="${3}"
-    local max="${4}"
-
-    (( _testCount++ ))
-
-    if (( value >= min && value <= max )); then
-        (( _passCount++ ))
-        echo "  ✓ ${testName}"
-        return 0
-    else
-        (( _failCount++ ))
-        echo "  ✗ ${testName}"
-        echo "    Expected: ${min} <= value <= ${max}"
-        echo "    Actual: ${value}"
-        return 1
-    fi
+    local value="${1}"
+    local min="${2}"
+    local max="${3}"
+    local msg="${4:-"assertInRange: ${value} not in ${min}..${max}"}"
+    (( value >= min && value <= max )) || fail "${msg}"
 }
 
 assertEqualIgnoreCase() {
