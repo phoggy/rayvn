@@ -560,7 +560,7 @@ runProjectTests() {
             elif (( inContainer )) && [[ ${testFile} == *linux-*.sh ]]; then
                 skipTest "skipped: linux test in linux container"
             else
-                runTest "${testName}" "${testFile}" "${failedTestsFile}"
+                runOneTest "${testName}" "${testFile}" "${failedTestsFile}"
             fi
         done
     else
@@ -586,7 +586,7 @@ padSpaces() {
     (( count > 0 )) && printf '%*s' "${count}" ''
 }
 
-runTest() {
+runOneTest() {
     local testName="${1}"
     local testFile="${2}"
     local failedTestsFile="${3}"
