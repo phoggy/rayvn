@@ -166,15 +166,10 @@ _executeTests() {
     # Collect failed test names from per-test result files
 
     local failedTestLogNames=()
-    local resultFile
+    local result
     for (( i=0; i < maxIndex; i++ )); do
-        resultFile="${_testResultDir}/result-${i}.txt"
-        if [[ -f "${resultFile}" ]]; then
-            local result
-            read -r result < "${resultFile}"
-            if [[ ${result} != "0" ]]; then
-                failedTestLogNames+=("${testLogFileNames[${i}]}")
-            fi
+        if _readTestResult "${i}" result && [[ ${result} != "0" ]]; then
+            failedTestLogNames+=("${testLogFileNames[${i}]}")
         fi
     done
     local failedTestCount=${#failedTestLogNames[@]}
@@ -259,11 +254,87 @@ _collectProjectTests() {
     fi
 }
 
+_readTestResult() {
+    local idx="${1}"
+    local -n _resultRef="${2}"
+    local resultFile="${_testResultDir}/result-${idx}.txt"
+    if [[ -f "${resultFile}" ]]; then
+        read -r _resultRef < "${resultFile}"
+        return 0
+    fi
+    return 1
+}
+
+_displayAllTests() {
+    local runnableCallback="${1}"
+    local i
+    for (( i=0; i < maxIndex; i++ )); do
+        if [[ -z ${testFiles[${i}]} ]]; then
+            _displayNoTests "${i}"
+        elif [[ -v skippedTests[${i}] ]]; then
+            _displaySkippedTest "${i}" "${skippedTests[${i}]}"
+        else
+            "${runnableCallback}" "${i}"
+        fi
+        (( lineNumber += 1 )) 2> /dev/null || true
+    done
+}
+
+_updateTestLine() {
+    local lineOffset="${1}"
+    local content="${2}"
+    local linesUp=$(( totalLines - lineOffset ))
+    printf '\e[%dA\e[%dG' "${linesUp}" "$(( _testResultColumn + 3 ))"
+    printf ' %s' "${content}"
+    printf '\e[%dB\r' "${linesUp}"
+}
+
+_waitForAllTests() {
+    local pendingCount=${#pendingTests[@]}
+    local spinnerFrame=0
+    local -a spinnerChars=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
+    local spinnerColor="${_textFormats[secondary]}"
+    local resetColor=$'\e[0m'
+
+    tput civis  # hide cursor
+
+    while (( pendingCount > 0 )); do
+        # Check each pending test for completion
+        local i
+        for i in "${!pendingTests[@]}"; do
+            local lineOffset="${testLineOffsets[${i}]}"
+            local result
+
+            if _readTestResult "${i}" result; then
+                # Test completed - update its row with result
+                if (( result == 0 )); then
+                    _updateTestLine "${lineOffset}" "${_greenCheckMark}"
+                else
+                    _updateTestLine "${lineOffset}" "${_redCrossMark}"
+                fi
+                unset "pendingTests[${i}]"
+                (( pendingCount-- ))
+            else
+                # Still pending - update spinner on its row
+                _updateTestLine "${lineOffset}" "${spinnerColor}${spinnerChars[${spinnerFrame}]}${resetColor}"
+            fi
+        done
+
+        # Advance spinner frame
+        (( spinnerFrame = (spinnerFrame + 1) % ${#spinnerChars[@]} ))
+
+        # Small delay before next check
+        sleep 0.25
+    done
+
+    tput cnorm  # show cursor
+    echo  # Final newline
+}
+
 _runAllTestsParallel() {
     local i testName testFile project skip
     local pids=()
-    local skippedIndices=()
-    local skippedReasons=()
+    local -A skippedTests=()
     local runIndices=()
 
     # Categorize tests: skipped vs runnable (all runnable tests run in parallel)
@@ -278,11 +349,9 @@ _runAllTestsParallel() {
         skip="${skipTestNames["${testName}"]}"
 
         if (( skip )); then
-            skippedIndices+=("${i}")
-            skippedReasons+=("skipped: does not match ${noMatchMsg}")
+            skippedTests[${i}]="skipped: does not match ${noMatchMsg}"
         elif (( inContainer )) && [[ ${testFile} == *linux-*.sh ]]; then
-            skippedIndices+=("${i}")
-            skippedReasons+=("skipped: linux test in linux container")
+            skippedTests[${i}]="skipped: linux test in linux container"
         else
             runIndices+=("${i}")
         fi
@@ -297,71 +366,27 @@ _runAllTestsParallel() {
         done
         wait "${pids[@]}"
 
-        # Display all results in order
-        for (( i=0; i < maxIndex; i++ )); do
-            # Handle "no tests" placeholder entries
-            if [[ -z ${testFiles[${i}]} ]]; then
-                _displayNoTests "${i}"
-                continue
-            fi
-
-            local isSkipped=0 skipReason=""
-            for (( j=0; j < ${#skippedIndices[@]}; j++ )); do
-                if (( skippedIndices[j] == i )); then
-                    isSkipped=1
-                    skipReason="${skippedReasons[${j}]}"
-                    break
-                fi
-            done
-            if (( isSkipped )); then
-                _displaySkippedTest "${i}" "${skipReason}"
-            else
-                _displayTestResult "${i}"
-            fi
-        done
+        _displayAllTests _displayTestResult
         return
     fi
 
-    # Print all test lines and track line numbers (0-indexed from first test)
+    # Interactive: print all test lines and track line numbers (0-indexed from first test)
     local -A testLineOffsets=()
     local -A pendingTests=()
     local lineNumber=0
 
-    for (( i=0; i < maxIndex; i++ )); do
-        testName="${testNames[${i}]}"
-        project="${testProjects[${i}]}"
-
-        # Handle "no tests" placeholder entries
-        if [[ -z ${testFiles[${i}]} ]]; then
-            _displayNoTests "${i}"
-            (( lineNumber++ ))
-            continue
-        fi
-
-        # Set padding
+    _displayPendingTest() {
+        local i="${1}"
+        local testName="${testNames[${i}]}"
+        local project="${testProjects[${i}]}"
         _setPadding _testResultColumn $(( - ${#testName} - 6 ))
+        local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
+        testLineOffsets[${i}]=${lineNumber}
+        pendingTests[${i}]=1
+        show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "   log at ${testLogFile}"
+    }
 
-        # Check if skipped
-        local isSkipped=0 skipReason=""
-        for (( j=0; j < ${#skippedIndices[@]}; j++ )); do
-            if (( skippedIndices[j] == i )); then
-                isSkipped=1
-                skipReason="${skippedReasons[${j}]}"
-                break
-            fi
-        done
-
-        if (( isSkipped )); then
-            _displaySkippedTest ${i}"" "${skipReason}"
-        else
-            # Print test name with log path, record line offset for later updates
-            local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
-            testLineOffsets[${i}]=${lineNumber}
-            pendingTests[${i}]=1
-            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "   log at ${testLogFile}"
-        fi
-        (( lineNumber++ ))
-    done
+    _displayAllTests _displayPendingTest
 
     local totalLines=${lineNumber}
 
@@ -371,57 +396,7 @@ _runAllTestsParallel() {
         pids+=($!)
     done
 
-    # Main process: animate spinners and update completed tests
-    local pendingCount=${#runIndices[@]}
-    local spinnerFrame=0
-    local -a spinnerChars=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
-    local spinnerColor="${_textFormats[secondary]}"
-    local resetColor=$'\e[0m'
-
-    tput civis  # hide cursor
-
-    while (( pendingCount > 0 )); do
-        # Check each pending test for completion
-        for i in "${!pendingTests[@]}"; do
-            local resultFile="${_testResultDir}/result-${i}.txt"
-            local lineOffset="${testLineOffsets[${i}]}"
-            # Calculate how many lines to go UP from bottom
-            local linesUp=$(( totalLines - lineOffset ))
-
-            if [[ -f "${resultFile}" ]]; then
-                # Test completed - update its row with result
-                local result
-                read -r result < "${resultFile}"
-
-                # Move cursor: up N lines, to result column (after padding ends)
-                printf '\e[%dA\e[%dG' "${linesUp}" "$(( _testResultColumn + 3 ))"
-                if (( result == 0 )); then
-                    printf ' %s' "${_greenCheckMark}"
-                else
-                    printf ' %s' "${_redCrossMark}"
-                fi
-                # Move back down
-                printf '\e[%dB\r' "${linesUp}"
-
-                unset "pendingTests[${i}]"
-                (( pendingCount-- ))
-            else
-                # Still pending - update spinner on its row
-                printf '\e[%dA\e[%dG' "${linesUp}" "$(( _testResultColumn + 3 ))"
-                printf ' %s' "${spinnerColor}${spinnerChars[${spinnerFrame}]}${resetColor}"
-                printf '\e[%dB\r' "${linesUp}"
-            fi
-        done
-
-        # Advance spinner frame
-        (( spinnerFrame = (spinnerFrame + 1) % ${#spinnerChars[@]} ))
-
-        # Small delay before next check
-        sleep 0.25
-    done
-
-    tput cnorm  # show cursor
-    echo  # Final newline
+    _waitForAllTests
 }
 
 # Run a test silently (no spinner), just capture result
@@ -451,7 +426,6 @@ _runOneTestSilent() {
     fi
 }
 
-# Display skipped test (for non-interactive mode)
 _displaySkippedTest() {
     local i="${1}"
     local message="${2}"
@@ -461,7 +435,6 @@ _displaySkippedTest() {
     show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
 }
 
-# Display "no tests" for project (for non-interactive mode)
 _displayNoTests() {
     local i="${1}"
     local project="${testProjects[${i}]}"
@@ -469,19 +442,15 @@ _displayNoTests() {
     show bold "${project}" plain "${_testPadding}" secondary '⨯' plain dim "no tests"
 }
 
-# Display test result (for non-interactive mode)
 _displayTestResult() {
     local i="${1}"
     local testName="${testNames[${i}]}"
     local project="${testProjects[${i}]}"
-    local testLogFileName="${testLogFileNames[${i}]}"
-    local testLogFile="${_testLogDir}/${testLogFileName}"
-    local resultFile="${_testResultDir}/result-${i}.txt"
+    local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
+    local result
     _setPadding _testResultColumn $(( -${#testName} -6 ))
 
-    if [[ -f "${resultFile}" ]]; then
-        local result
-        read -r result < "${resultFile}"
+    if _readTestResult "${i}" result; then
         if (( result == 0 )); then
             show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_greenCheckMark}" plain dim "log at ${testLogFile}"
         else
@@ -506,4 +475,3 @@ _executeTestFile() {
     testResult=$?
     return ${testResult}
 }
-
