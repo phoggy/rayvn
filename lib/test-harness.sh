@@ -21,6 +21,10 @@ _init_rayvn_test-harness() {
     declare -g _testResultColumn
     declare -g _testLogDir
     declare -g _testResultDir
+    _testLogDir="${ configDirPath tests; }" || fail
+    _testResultDir="${ tempDirPath test-results; }"
+    ensureDir "${_testLogDir}" || fail
+    ensureDir "${_testResultDir}" || fail
 }
 
 _assertPrerequisites() {
@@ -108,15 +112,10 @@ _executeTests() {
     # Make sure we can ctrl-c out
     unset rayvnNoExitOnCtrlC
 
-    # Setup logging and result directories
+    # Clear logging and result directories
 
-    _testLogDir="${ configDirPath tests; }" || fail
-    ensureDir "${_testLogDir}" || fail
-    rm "${_testLogDir:?}"/* 2> /dev/null # remove any existing logs
-
-    _testResultDir="${ tempDirPath test-results; }"
-    ensureDir "${_testResultDir}" || fail
-    rm "${_testResultDir:?}"/* 2> /dev/null # remove any existing results
+    rm "${_testLogDir:?}"/* 2> /dev/null
+    rm "${_testResultDir:?}"/* 2> /dev/null
 
     # Create map for project messages
 
@@ -353,10 +352,10 @@ _runAllTestsParallel() {
         done
 
         if (( isSkipped )); then
-            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" dim warning '⨯' plain dim "${skipReason}"
+            _displaySkippedTest ${i}"" "${skipReason}"
         else
             # Print test name with log path, record line offset for later updates
-            local testLogFile="${testLogDir}/${testLogFileNames[${i}]}"
+            local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
             testLineOffsets[${i}]=${lineNumber}
             pendingTests[${i}]=1
             show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "   log at ${testLogFile}"
