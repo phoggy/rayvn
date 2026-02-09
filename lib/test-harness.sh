@@ -21,6 +21,7 @@ _init_rayvn_test-harness() {
     declare -g _testResultColumn
     declare -g _testLogDir
     declare -g _testResultDir
+    declare -ga _testPids=()
     _testLogDir="${ configDirPath tests; }" || fail
     _testResultDir="${ tempDirPath test-results; }"
     ensureDir "${_testLogDir}" || fail
@@ -289,6 +290,15 @@ _updateTestLine() {
     printf '\e[%dB\r' "${linesUp}"
 }
 
+_cancelAllTests() {
+    local pid
+    for pid in "${_testPids[@]}"; do
+        kill "${pid}" 2> /dev/null
+    done
+    wait "${_testPids[@]}" 2> /dev/null
+    _testPids=()
+}
+
 _waitForAllTests() {
     local pendingCount=${#pendingTests[@]}
     local spinnerFrame=0
@@ -333,9 +343,11 @@ _waitForAllTests() {
 
 _runAllTestsParallel() {
     local i testName testFile project skip
-    local pids=()
+    _testPids=()
     local -A skippedTests=()
     local runIndices=()
+
+    addExitHandler _cancelAllTests
 
     # Categorize tests: skipped vs runnable (all runnable tests run in parallel)
     for (( i=0; i < maxIndex; i++ )); do
@@ -362,9 +374,10 @@ _runAllTestsParallel() {
         # Non-interactive: run tests silently, then display results
         for i in "${runIndices[@]}"; do
             _runOneTestSilent "${i}" &
-            pids+=($!)
+            _testPids+=($!)
         done
-        wait "${pids[@]}"
+        wait "${_testPids[@]}"
+        _testPids=()
 
         _displayAllTests _displayTestResult
         return
@@ -393,10 +406,11 @@ _runAllTestsParallel() {
     # Start all tests in parallel (they run silently and write results to files)
     for i in "${runIndices[@]}"; do
         _runOneTestSilent "${i}" &
-        pids+=($!)
+        _testPids+=($!)
     done
 
     _waitForAllTests
+    _testPids=()
 }
 
 # Run a test silently (no spinner), just capture result
