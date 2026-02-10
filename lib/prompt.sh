@@ -263,7 +263,7 @@ choose() {
                 local i=$(( (windowStart + previousCursorRow) % (_promptMaxChoicesIndex + 1) ))
                 cursorTo ${row} 0
                 eraseToEndOfLine
-                echo -n "    ${_promptDisplayChoices[${promptIndex}]}"
+                echo -n "    ${_promptDisplayChoices[${i}]}"
             fi
 
             # Calculate new row position
@@ -274,7 +274,7 @@ choose() {
             local i=$(( (windowStart + cursorRow) % (_promptMaxChoicesIndex + 1) ))
             cursorTo ${row} 0
             eraseToEndOfLine
-            echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${promptIndex}]}"
+            echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${i}]}"
         fi
 
         # Update previous positions
