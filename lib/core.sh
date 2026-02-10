@@ -634,11 +634,11 @@ padString() {
 }
 
 warn() {
-    show warning "⚠️ ${1}" "${@:2}" > ${terminal}
+    show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
 }
 
 error() {
-    show error "🔺 ${1}" "${@:2}" > ${terminal}
+    show error "🔺 ${1}" "${@:2}" > ${terminalErr}
 }
 
 fail() {
@@ -646,11 +646,7 @@ fail() {
         local inRayvnFail=1
         _spinExit
     fi
-    if (( isInteractive )); then
-        stackTrace "${@}" > "${terminal}"
-    else
-        stackTrace "${@}" >&2  # test mode, so use stderr to allow proper redirection
-    fi
+    stackTrace "${@}" > "${terminalErr}"
     exit 1
 }
 
@@ -660,7 +656,7 @@ redStream() {
         while read error; do
             show red "${error}"
         done
-    } > "${terminal}"
+    } > "${terminalErr}"
 }
 
 bye() {
@@ -767,6 +763,7 @@ _init_rayvn_core() {
         # Yes, so set terminal to the tty and remember that we are interactive
 
         declare -grx terminal="/dev/tty"
+        declare -grx terminalErr="/dev/tty"
         declare -grxi isInteractive=1
 
         # Determine the # of bits of color supported
@@ -790,6 +787,7 @@ _init_rayvn_core() {
         # No. Discard terminal output in non-interactive mode.
 
         declare -grx terminal="/dev/null"
+        declare -grx terminalErr="/dev/stderr"
         declare -grxi isInteractive=0
 
         # Unless a special flag is set, turn off colors
