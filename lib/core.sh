@@ -540,9 +540,21 @@ header() {
     echo
 }
 
+# Returns a random integer via nameref
+# Args: resultVar [maxValue]
+#
+# Scalar var names, array index and associative arrays can be passed, e.g. myRandom, 'myArray[$i]', 'myMap[foo]'
+# If no maxValue, returns full 32-bit range: 0 to 4294967295
+
 randomInteger() {
-    local maxValue="${1:-100}"
-    echo $(( SRANDOM % (maxValue + 1) ))
+    local -n result="${1}"
+    local maxValue="${2:-}"
+
+    if (( maxValue )); then
+        result=$((SRANDOM % (maxValue + 1)))
+    else
+        result="${SRANDOM}"
+    fi
 }
 
 copyMap() {
@@ -664,7 +676,6 @@ stackTrace() {
     declare -i depth=${#FUNCNAME[@]}
 
     (( ${#message[@]} )) && error "${@}"
-
     if ((depth > 2)); then
         [[ ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
