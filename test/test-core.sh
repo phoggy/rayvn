@@ -236,9 +236,10 @@ testNumericPlaces() {
 
 testRandomInteger() {
     local val
-    val=${ randomInteger 10; }
+    randomInteger val 10
     assertInRange "${val}" 0 10 "randomInteger in range 0-10"
-    assertEqual "0" "${ randomInteger 0; }" "randomInteger with max 0 returns 0"
+    randomInteger val
+    assertInRange "${val}" 0 4294967295 "randomInteger in range 0-4294967295"
 }
 
 # ============================================================================
