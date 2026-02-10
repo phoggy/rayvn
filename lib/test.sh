@@ -19,7 +19,7 @@ assertInFile() {
 }
 
 assertEqual() {
-    local msg="${3:-"assert ${1} == ${2} failed"}"
+    local msg="${3:-"assert '${1}' == '${2}' failed"}"
     [[ ${1} == "${2}" ]] || fail "${msg}"
 }
 
