@@ -4,6 +4,7 @@
 # Intended for use via: require 'rayvn/theme'
 
 showCurrentTheme() {
+    [[ -n ${1} ]] && echo -n "${1}"
     _displayTheme "${_currentThemeIndex}"
 }
 
