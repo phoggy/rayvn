@@ -119,7 +119,7 @@ EOF
           ];
           shellHook = ''
             export PATH="${self}/bin:$PATH"
-            echo "rayvn dev shell ready"
+            [[ $- == *i* ]] && echo "rayvn dev shell ready"
           '';
         };
       }
