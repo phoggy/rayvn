@@ -6,11 +6,11 @@
 # Intended for use via: require 'rayvn/terminal'
 
 cursorHide() {
-    echo -n "${_cursorHide}"
+    echo -n $'\e[?25l' > /dev/tty
 }
 
 cursorShow() {
-    echo -n "${_cursorShow}"
+    echo -n $'\e[?25h' > /dev/tty
 }
 
 cursorPosition() {
@@ -20,7 +20,7 @@ cursorPosition() {
     local c
 
     stty -icanon -echo min 1 time 0
-    echo -n ${_cursorPosition} > /dev/tty
+    echo -n $'\e[6n' > /dev/tty
 
     # Read the response character by character until we get 'R'
 
@@ -43,15 +43,35 @@ cursorPosition() {
 
 # Save/restore will not work correctly if scrolling occurs, use reserveRows() to prevent.
 cursorSave() {
-    echo -n "${_cursorSave}" > /dev/tty
+    echo -n $'\e[s' > /dev/tty
 }
 
 cursorRestore() {
-    echo -n "${_cursorRestore}" > /dev/tty
+    echo -n $'\e[u' > /dev/tty
 }
 
 cursorUp() {
-    echo -n "${_cursorUp}" > /dev/tty
+    printf '\e[%dA' "${1:-1}" > /dev/tty
+}
+
+cursorUpToLineStart() {
+    printf '\e[%dA\r' "${1:-1}" > /dev/tty
+}
+
+cursorUpToColumn() {
+    printf '\e[%dA\e[%dG' "${1}" "${2}" > /dev/tty
+}
+
+cursorDown() {
+    printf '\e[%dB' "${1:-1}" > /dev/tty
+}
+
+cursorDownToLineStart() {
+    printf '\e[%dB\r' "${1:-1}" > /dev/tty
+}
+
+cursorDownToColumn() {
+    printf '\e[%dB\e[%dG' "${1}" "${2}" > /dev/tty
 }
 
 cursorTo() {
@@ -62,28 +82,32 @@ cursorToColumn() {
     printf '\e[%dG' "${1}" > /dev/tty
 }
 
+cursorToLineStart() {
+    printf '\r' > /dev/tty
+}
+
 cursorToColumnAndEraseToEndOfLine() {
     printf '\e[%dG\e[K' "${1}" > /dev/tty
 }
 
 cursorUpOneAndEraseLine() {
-    echo -n "${_cursorUpOneAndEraseLine}" > /dev/tty
+    echo -n $'\e[A\e[2K\r' > /dev/tty
 }
 
 cursorDownOneAndEraseLine() {
-    echo -n "${_cursorDownOneAndEraseLine}" > /dev/tty
+    echo -n $'\e[B\e[2K\r' > /dev/tty
 }
 
 eraseToEndOfLine() {
-    echo -n "${_eraseToEndOfLine}" > /dev/tty
+    echo -n $'\e[0K' > /dev/tty
 }
 
 eraseCurrentLine() {
-    echo -n "${_eraseCurrentLine}" > /dev/tty
+    echo -n $'\e[2K\r' > /dev/tty
 }
 
 clearTerminal() {
-    echo -n "${_clearTerminal}" > /dev/tty
+    echo -n $'\e[2J\e[H' > /dev/tty
 }
 
 reserveRows() {
@@ -117,27 +141,14 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRI
 
 _init_rayvn_terminal() {
     require 'rayvn/core'
-    ((isInteractive)) || return 0  # Silently succeed when not interactive
+    (( isInteractive )) || return 0  # Silently succeed when not interactive
 
     # Save original terminal settings (only when interactive)
     [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g; }"
 
-    declare -grx _eraseToEndOfLine=$'\e[0K'
-    declare -grx _eraseCurrentLine=$'\e[2K\r' # \r leaves cursor ar line start
-    declare -grx _cursorUpOneAndEraseLine=$'\e[A\e[2K\r'
-    declare -grx _cursorDownOneAndEraseLine=$'\e[B\e[2K\r'
-    declare -grx _clearTerminal=$'\e[2J\e[H'
-
-    declare -gr _cursorHide=$'\e[?25l'
-    declare -gr _cursorShow=$'\e[?25h'
-    declare -gr _cursorUp=$'\e[A'
-    declare -gr _cursorDown=$'\e[B'
-    declare -gr _cursorPosition=$'\e[6n'
-    declare -gr _cursorSave=$'\e[s'
-    declare -gr _cursorRestore=$'\e[u'
+    declare -g _cursorRow=
+    declare -g _cursorCol=
     declare -gr _cursorParsePattern=$'\e\\[([0-9]+);([0-9]+)R'
-    declare -gi _cursorRow=
-    declare -gi _cursorCol=
 }
 
 
