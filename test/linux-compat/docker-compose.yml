@@ -12,6 +12,8 @@ services:
       - ../../../wardn:/workspace/wardn:ro
       # Mount test runner script as read-only
       - ./run-tests.sh:/workspace/run-tests.sh:ro
+      # Mount host log directory for test results (writable for testuser)
+      - /Users/batsatt/.config/rayvn/linux-tests:/home/testuser/.config/rayvn/tests:rw
     working_dir: /workspace
     command: bash run-tests.sh
     environment:

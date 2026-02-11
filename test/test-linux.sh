@@ -42,4 +42,20 @@ if ! docker image inspect linux-compat-test:latest &> /dev/null; then
 fi
 
 # Run the tests
-exec docker compose up --build --abort-on-container-exit
+linuxLogDir="${HOME}/.config/rayvn/linux-tests"
+docker compose up --build --abort-on-container-exit --exit-code-from linux-test
+result=$?
+
+# On failure, show any test logs collected from the container
+if (( result != 0 )) && [[ -d "${linuxLogDir}" ]]; then
+    echo
+    echo "=== Failed linux test logs ==="
+    for logFile in "${linuxLogDir}"/*.log; do
+        [[ -f "${logFile}" ]] || continue
+        echo
+        echo "--- ${ basename "${logFile}"; } ---"
+        cat "${logFile}"
+    done
+fi
+
+exit ${result}

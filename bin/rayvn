@@ -145,6 +145,7 @@ addIfRayvnExecutable() {
 addProject() {
     local projectName="${1%%=*}"
     local project="${1}"
+    [[ " ${projects[*]} " =~ " ${projectName} " ]] && return 0
     projects+=("${projectName}")
     [[ ${projectName} == rayvn ]] && return 0
     upOptions+=("--add" "${project}")

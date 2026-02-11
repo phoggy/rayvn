@@ -5,6 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies and required packages
 RUN apt-get update && apt-get install -y \
+    bc \
     build-essential \
     wget \
     coreutils \
@@ -84,6 +85,9 @@ USER testuser
 # Configure git for testuser (required by test-create)
 RUN git config --global user.name "Test User" && \
     git config --global user.email "testuser@example.com"
+
+# Pre-create log directory so Docker volume mount inherits correct ownership
+RUN mkdir -p /home/testuser/.config/rayvn/tests
 
 # Install Nix in single-user mode (as testuser)
 RUN curl -L https://nixos.org/nix/install | bash -s -- --no-daemon && \

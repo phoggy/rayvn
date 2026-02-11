@@ -65,9 +65,11 @@ _assertVarIsDefined() {
 }
 
 _ensureRayvnProject() {
-    if [[ ! " ${projects[*]} " =~ " rayvn " ]]; then
-        projects=("rayvn" "${projects[@]}")
-    fi
+    local project
+    for project in "${projects[@]}"; do
+        [[ ${project} == 'rayvn' ]] && return 0
+    done
+    projects=("rayvn" "${projects[@]}")
 }
 
 _executeNixBuild() {
@@ -98,6 +100,7 @@ _executeTests() {
 
     if (( flags['nix'] )); then
         # Stage and build each project that has a flake.nix
+        echo
         _executeNixBuild
         # Run tests in rayvn's nix develop environment.
         # Use env -u to unset exported rayvn vars to force fresh initialization inside nix
@@ -292,7 +295,7 @@ _updateTestLine() {
     local lineOffset="${1}"
     local content="${2}"
     local linesUp=$(( totalLines - lineOffset ))
-    cursorUpToColumn "${linesUp}" "$(( _testResultColumn + 3 ))"
+    cursorUpToColumn "${linesUp}" "$(( _testResultColumn + 2 ))"
     echo -n " ${content} "
     cursorDownToLineStart "${linesUp}"
 }
@@ -368,9 +371,9 @@ _runAllTestsParallel() {
         skip="${skipTestNames["${testName}"]}"
 
         if (( skip )); then
-            skippedTests[${i}]="skipped: does not match ${noMatchMsg}"
-        elif (( inContainer )) && [[ ${testFile} == *linux-*.sh ]]; then
-            skippedTests[${i}]="skipped: linux test in linux container"
+            skippedTests[${i}]="skipped, does not match ${noMatchMsg}"
+        elif (( inContainer )) && [[ ${testFile} == *linux*.sh ]]; then
+            skippedTests[${i}]="skipped, linux test in linux container"
         else
             runIndices+=("${i}")
         fi
@@ -413,11 +416,12 @@ _displayPendingTest() {
     local i="${1}"
     local testName="${testNames[${i}]}"
     local project="${testProjects[${i}]}"
-    _setPadding _testResultColumn $(( - ${#testName} - 5 ))
+    _setPadding _testResultColumn $(( - ${#testName} - 3 ))
     local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
+    local displayLogFile="${testLogFile/#${HOME}/\~}"
     testLineOffsets[${i}]=${lineNumber}
     pendingTests[${i}]=1
-    show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "    log at ${testLogFile}"
+    show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
 }
 
 # Run a test silently (no spinner), just capture result
@@ -468,14 +472,15 @@ _displayTestResult() {
     local testName="${testNames[${i}]}"
     local project="${testProjects[${i}]}"
     local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
+    local displayLogFile="${testLogFile/#${HOME}/\~}"
     local result
-    _setPadding _testResultColumn $(( -${#testName} -6 ))
+    _setPadding _testResultColumn $(( -${#testName} - 4 ))
 
     if _readTestResult "${i}" result; then
         if (( result == 0 )); then
-            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_greenCheckMark}" plain dim "log at ${testLogFile}"
+            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_greenCheckMark}" plain dim "log at ${displayLogFile}"
         else
-            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_redCrossMark}" "log at ${testLogFile}"
+            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_redCrossMark}" "log at ${displayLogFile}"
         fi
     else
         show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_redCrossMark}" "no result file"
