@@ -16,6 +16,8 @@ executeNixBuild() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test-harness' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_test-harness() {
+    require 'rayvn/terminal'
+
     declare -g _testPadding
     declare -g _maxProjectNameLength
     declare -g _testResultColumn
@@ -73,14 +75,19 @@ _executeNixBuild() {
     # Stage and build each specified project that has a flake.nix
 
     local messageColumn=$(( _maxProjectNameLength + 1 ))
+    local row col
 
     for project in "${projects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
         if [[ -f "${projectRoot}/flake.nix" ]]; then
             _setPadding messageColumn
-            show bold "${project}" plain "${_testPadding}" primary "running nix build"
+            show -n bold "${project}${_testPadding}" primary "building flake "
+            cursorPosition row col
+            echo
             git -C "${projectRoot}" add -u # stage
             nix build --no-warn-dirty "${projectRoot}" || fail "nix build failed for ${project}"
+            cursorUpToColumn 1 ${col}
+            echo "${_greenCheckMark}"
         fi
     done
 }
@@ -285,9 +292,9 @@ _updateTestLine() {
     local lineOffset="${1}"
     local content="${2}"
     local linesUp=$(( totalLines - lineOffset ))
-    printf '\e[%dA\e[%dG' "${linesUp}" "$(( _testResultColumn + 3 ))"
-    printf ' %s' "${content}"
-    printf '\e[%dB\r' "${linesUp}"
+    cursorUpToColumn "${linesUp}" "$(( _testResultColumn + 3 ))"
+    echo -n " ${content} "
+    cursorDownToLineStart "${linesUp}"
 }
 
 _cancelAllTests() {
@@ -388,17 +395,6 @@ _runAllTestsParallel() {
     local -A pendingTests=()
     local lineNumber=0
 
-    _displayPendingTest() {
-        local i="${1}"
-        local testName="${testNames[${i}]}"
-        local project="${testProjects[${i}]}"
-        _setPadding _testResultColumn $(( - ${#testName} - 6 ))
-        local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
-        testLineOffsets[${i}]=${lineNumber}
-        pendingTests[${i}]=1
-        show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "   log at ${testLogFile}"
-    }
-
     _displayAllTests _displayPendingTest
 
     local totalLines=${lineNumber}
@@ -411,6 +407,17 @@ _runAllTestsParallel() {
 
     _waitForAllTests
     _testPids=()
+}
+
+_displayPendingTest() {
+    local i="${1}"
+    local testName="${testNames[${i}]}"
+    local project="${testProjects[${i}]}"
+    _setPadding _testResultColumn $(( - ${#testName} - 5 ))
+    local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
+    testLineOffsets[${i}]=${lineNumber}
+    pendingTests[${i}]=1
+    show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "    log at ${testLogFile}"
 }
 
 # Run a test silently (no spinner), just capture result
@@ -478,8 +485,8 @@ _displayTestResult() {
 _setPadding() {
     local -n column="${1}"
     local adjust="${2:-0}"
-    local count=$(( ${column} - ${#project} + ${adjust} ))
-    (( count > 0 )) && printf -v _testPadding '%*s' "${count}" ''
+    local count=$(( ${column} - ${#project} + ${adjust} - 1 ))
+    (( count >= 0 )) && printf -v _testPadding '\e[0m%*s' "${count}" '' || _testPadding=$'\e[0m'
 }
 
 _executeTestFile() {
