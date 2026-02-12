@@ -162,9 +162,9 @@ _captureOAuthCode() {
     local port="${1}"
     local -n authCodeRef="${2}"
 
-    # Create a named pipe for communication
-    local pipePath
-    pipePath=${ makeTempFifo "oauth_pipe_XXXXXX"; }
+    # Create a fifo for communication
+    local fifoPath
+    fifoPath="${ makeTempFifo; }"
 
     # Start a simple HTTP server using netcat or bash
     (
@@ -181,7 +181,7 @@ _captureOAuthCode() {
                 # Extract code from request
                 if [[ "${request}" =~ code=([^&[:space:]]+) ]]; then
                     local authCode="${BASH_REMATCH[1]}"
-                    echo "${authCode}" > "${pipePath}"
+                    echo "${authCode}" > "${fifoPath}"
                     break
                 fi
             done
@@ -194,10 +194,10 @@ _captureOAuthCode() {
     local serverPid=$!
 
     # Read the auth code from the pipe (blocks until server writes it)
-    authCodeRef=${ cat "${pipePath}"; }
+    authCodeRef=${ cat "${fifoPath}"; }
 
     # Clean up
-    rm -f "${pipePath}"
+    rm -f "${fifoPath}"
     kill "${serverPid}" 2> /dev/null || true
 }
 
