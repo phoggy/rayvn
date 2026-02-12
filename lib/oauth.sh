@@ -164,7 +164,7 @@ _captureOAuthCode() {
 
     # Create a named pipe for communication
     local pipePath
-    pipePath=${ makeTempPipe "oauth_pipe_XXXXXX"; }
+    pipePath=${ makeTempFifo "oauth_pipe_XXXXXX"; }
 
     # Start a simple HTTP server using netcat or bash
     (

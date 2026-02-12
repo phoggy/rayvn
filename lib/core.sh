@@ -62,7 +62,7 @@ makeTempFile() {
     echo "${file}"
 }
 
-makeTempPipe() {
+makeTempFifo() {
     _ensureRayvnTempDir
     local pipePath="${_rayvnTempDir}/${1:-XXXXXX}" # random file name if not passed
     mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
