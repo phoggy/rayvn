@@ -95,6 +95,7 @@ _executeNixBuild() {
 }
 
 _executeTests() {
+    rayvnTest_TraceFail=1
 
     # Handle --nix and --all cases
 

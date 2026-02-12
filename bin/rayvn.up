@@ -202,7 +202,7 @@ configure() {
     declare -ga _rayvnUpUnsetIds=()
     declare -g _required=()
     declare -g _loadLibraryDepth=0
-    declare -grx _rayvnReadOnlyFunctions=${ [[ -n ${rayvnTest_ModifiableFunctions} ]] && echo 0 || echo 1; }
+    declare -grx _rayvnReadOnlyFunctions=${ (( rayvnTest_ModifiableFunctions )) && echo 0 || echo 1; }
     declare -gx currentProjectName
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
     local projects=() split=() project key

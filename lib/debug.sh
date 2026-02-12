@@ -17,7 +17,7 @@ debug() {
 }
 
 debugEnabled() {
-    (( _debug )) && return 0 || return 1
+    return ${_debug}
 }
 
 debugDir() {
@@ -193,7 +193,7 @@ _debugEchoNoNewline() {
 }
 
 _setDebug() {
-    (( _debug)) && {
+    (( _debug )) && {
         debug '_setDebug(), but called previously.'
         stackTrace
         return 0

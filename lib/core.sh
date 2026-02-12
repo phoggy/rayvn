@@ -646,7 +646,9 @@ fail() {
         local inRayvnFail=1
         _spinExit
     fi
-    stackTrace "${@}" > "${terminalErr}"
+    if debugEnabled || (( rayvnTest_TraceFail )); then
+        stackTrace "${@}" > "${terminalErr}"
+    fi
     exit 1
 }
 
@@ -687,11 +689,7 @@ stackTrace() {
     done
 }
 
-# Debug control functions
-
-isDebug() {
-    ((_debug))
-}
+# Turn on debug mode
 
 setDebug() {
     require 'rayvn/debug'
@@ -701,7 +699,7 @@ setDebug() {
 # Placeholder debug functions, replaced in setDebug()
 
 debug() { :; }
-debugEnabled() { return 1; }
+debugEnabled() { return 0; }
 debugDir() { :; }
 debugStatus() { echo 'debug disabled'; }
 debugBinary() { :; }
@@ -1095,7 +1093,7 @@ _init_noColors() {
 
 _restoreTerminal() {
     if (( isInteractive )); then
-        stty sane
+        stty sane 2> /dev/null
         printf '\e[0K\e[?25h' > ${terminal} # Clear to end of line and show cursor in case sane does not
     fi
 }
