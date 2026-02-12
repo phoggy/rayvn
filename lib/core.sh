@@ -64,9 +64,15 @@ makeTempFile() {
 
 makeTempFifo() {
     _ensureRayvnTempDir
-    local pipePath="${_rayvnTempDir}/${1:-XXXXXX}" # random file name if not passed
-    mkfifo "${pipePath}" || fail "could not create named pipe ${pipePath}"
-    echo "${pipePath}"
+    local name="${1:-XXXXXX}" hex
+    replaceRandomHex X name
+    while [[ -e ${_rayvnTempDir}/${name} ]]; do
+        randomHexChar hex
+        name+=${hex}
+    done
+    local fifoPath="${_rayvnTempDir}/${name}"
+    mkfifo "${fifoPath}" || fail "could not create fifo ${fifoPath}"
+    echo "${fifoPath}"
 }
 
 makeTempDir() {
@@ -547,14 +553,31 @@ header() {
 # If no maxValue, returns full 32-bit range: 0 to 4294967295
 
 randomInteger() {
-    local -n result="${1}"
+    local -n _intResult="${1}"
     local maxValue="${2:-}"
 
     if (( maxValue )); then
-        result=$((SRANDOM % (maxValue + 1)))
+        _intResult=$(( SRANDOM % (maxValue + 1) ))
     else
-        result="${SRANDOM}"
+        _intResult="${SRANDOM}"
     fi
+}
+
+randomHexChar() {
+    local -n _hexResult="${1}"
+    local _hexIndex
+    randomInteger _hexIndex 15
+    _hexResult=${_hexChars[_hexIndex]}
+}
+
+replaceRandomHex() {
+    local replaceChar="${1}"
+    local -n replaceRef="${2}"
+    local hex
+    while [[ ${replaceRef} == *${replaceChar}* ]]; do
+        randomHexChar hex
+        replaceRef="${replaceRef/${replaceChar}/${hex}}"
+    done
 }
 
 copyMap() {
@@ -803,6 +826,8 @@ _init_rayvn_core() {
     declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
     declare -grx _checkMark='✔' # U+2714 Check mark
     declare -grx _crossMark='✘' # U+2718 Heavy ballot X
+    declare -grx _hexChars=( '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'a' 'b' 'c' 'd' 'e' 'f' )
+
     declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
     declare -grx inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -grx inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
