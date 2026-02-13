@@ -5,25 +5,26 @@
 
 spinnerTypes() {
     local -n resultArray="${1}"
-    resultArray=(${!_spinners[@]})
+    resultArray=("${!_spinnerNames[@]}")
 }
 
 addSpinner() {
-    local row=$1 col=$2 type=$3 index
+    local type=$1 row=$2 col=$3 color=${4:-'secondary'}
+    [[ -n ${type} ]] || invalidArgs "type required"
+    [[ -n ${row} ]] || invalidArgs "row required"
+    [[ -n ${col} ]] || invalidArgs "col required"
+    [[ -v _spinnerNames[${type}] ]] || invalidArgs "unknown type: ${type}"
+
     _ensureSpinnerServer
-    echo "add ${row} ${col} ${type}" > "${_spinnerRequestFifo}"
-    read -r index < "${_spinnerResponseFifo}"
-    echo "${index}"
+    _spinnerCommand add "${type}" "${color}" "${row}" "${col}"
 }
 
 removeSpinner() {
-    local index=$1
-    local response
+    local id=$1 replacement=${2:-' '}
+    [[ -n ${id} ]] || invalidArgs "id required"
+    [[ -n ${_spinnerServerPid} ]] || invalidArgs "spinners are not yet running"
 
-    _ensureSpinnerServer
-    echo "remove ${index}" > "${_spinnerRequestFifo}"
-    read -r response < "${_spinnerResponseFifo}"
-    echo "${response}"
+    _spinnerCommand remove "${id}" "${replacement}" > /dev/null
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinners' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -33,44 +34,21 @@ _init_rayvn_spinners() {
 
     # Request and response fifos
 
-    declare -g _spinnerRequestFifo
-    declare -g _spinnerResponseFifo
+    local fifo
+    fifo="${ makeTempFifo; }"
+    declare -gr _spinnerRequestFifo="${fifo}"
+    fifo="${ makeTempFifo; }"
+    declare -gr _spinnerResponseFifo="${fifo}"
 
-    # Server state arrays
+    # Client state
 
-    declare -a _spinnerRows=()
-    declare -a _spinnerCols=()
-    declare -a _spinnerTypes=()
-    declare -a _spinnerFreeList=()
-
-    # Spinners
-
-    declare -gra _starSpinner=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
-    declare -gra _dotsSpinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇ ⠏')
-    declare -gra _lineSpinner=('-' '\\' '|' '/')
-    declare -gra _circleSpinner=('◐' '◓' '◑' '◒')
-    declare -gra _arrowSpinner=('←' '↖' '↑' '↗' '→' '↘' '↓' '↙')
-    declare -gra _boxSpinner=('◰' '◳' '◲' '◱')
-    declare -gra _bounceSpinner=('⠁' '⠂' '⠄' '⠂')
-    declare -gra _pulseSpinner=('∙' '●' '◉' '●' '∙')
-    declare -gra _growSpinner=('▁' '▃' '▅' '▇' '█' '▇' '▅' '▃')
-
-    # Map type to spinner array
-
-    declare -grA _spinners=(['star']=_starSpinner ['dots']=_dotsSpinner ['line']=_lineSpinner ['circle']=_circleSpinner \
-                             ['arrow']=_arrowSpinner ['box']=_boxSpinner ['bounce']=_bounceSpinner ['pulse']=_pulseSpinner \
-                             ['grow']=_growSpinner )
-
-    # Misc state
-
+    declare -grA _spinnerNames=(['star']=1 ['dots']=1 ['line']=1 ['circle']=1 ['arrow']=1 ['box']=1 ['bounce']=1 ['pulse']=1 ['grow']=1)
     declare -g _spinnerServerPid=0
-    declare -g _spinnerTick=0
 
     # Add shutdown handler
 
     _spinnerShutdown() {
-        _stopSpinnerServer
-        cursorShow
+        _shutdownSpinnerServer
     }
 
     addExitHandler _spinnerShutdown
@@ -80,105 +58,137 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ SERVER ⚠️ )+---)++++--
 
 # Server main loop
 _spinnerServerMain() {
- debug "in server main"
-    # Hide cursor
-    cursorHide
+    local command
+    _initSpinnerState
 
-    # Create fifos
-
-    local fifo
-    fifo="${ makeTempFifo; }"
-    declare -gr _spinnerRequestFifo="${fifo}"
-    fifo="${ makeTempFifo; }"
-    declare -gr _spinnerResponseFifo="${fifo}"
-  debugVar _spinnerRequestFifo _spinnerResponseFifo
-
-    # Main loop
     while true; do
-        if read -t 0.25 -r line < "${_spinnerRequestFifo}"; then
-            if [[ ${line} =~ ^add[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+(.+)$ ]]; then
-                _handleAdd "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
-
-            elif [[ ${line} =~ ^remove[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)$ ]]; then
-                _handleRemove "${BASH_REMATCH[1]}"
-
-            elif [[ ${line} == stop ]]; then
-                _handleStop
-            fi
+        if IFS=$'\x1f' read -t 0.1 -ra command <&4; then
+            case "${command[0]}" in
+                add) _addSpinner "${command[1]}" "${command[2]}" "${command[3]}" "${command[4]}" ;;
+                remove) _removeSpinner "${command[1]}" "${command[2]}" ;;
+                stop) _stopSpinnerServer ;;
+            esac
         fi
-
         _renderSpinners
     done
 }
 
-_handleAdd() {
-    local row=$1 col=$2 type=$3
-    local index
-    debug "_handleAdd($1 $2 $3)"
+_initSpinnerState() {
+    cursorHide
 
-    index=${ _getNextIndex; }
-    _spinnerRows[index]="${row}"
-    _spinnerCols[index]="${col}"
-    _spinnerTypes[index]="${type}"
+    # Open fifos
 
-    echo "${index}" > "${_spinnerResponseFifo}"
+    exec 4< "${_spinnerRequestFifo}"
+    exec 5> "${_spinnerResponseFifo}"
+
+    # Spinner state
+
+    declare -g _spinnerTick=0
+    declare -g _activeSpinnerCount=0
+    declare -ga _spinnerIsActive=()
+    declare -ga _spinnerFreeList=()
+
+    # Spinner registry
+
+    declare -ga _spinnerTypes=()
+    declare -ga _spinnerColors=()
+    declare -ga _spinnerRows=()
+    declare -ga _spinnerCols=()
+
+    # Spinners
+
+    declare -gra _starSpinner=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
+    declare -gra _dotsSpinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    declare -gra _lineSpinner=('-' '\' '|' '/')
+    declare -gra _circleSpinner=('◐' '◓' '◑' '◒')
+    declare -gra _arrowSpinner=('←' '↖' '↑' '↗' '→' '↘' '↓' '↙')
+    declare -gra _boxSpinner=('◰' '◳' '◲' '◱')
+    declare -gra _bounceSpinner=('⠁' '⠂' '⠄' '⠂')
+    declare -gra _pulseSpinner=('∙' '●' '◉' '●' '∙')
+    declare -gra _growSpinner=('▁' '▃' '▅' '▇' '█' '▇' '▅' '▃')
 }
 
-_handleRemove() {
-    local index=$1
+_addSpinner() {
+    local type=$1 color=$2 row=$3 col=$4
+    local id
 
-    if [[ -n ${_spinnerRows[index]} ]]; then
-        tput cup "${_spinnerRows[index]}" "${_spinnerCols[index]}"
-        echo -n " "
+    id=${ _getNextId; }
 
-        unset '_spinnerRows[index]'
-        unset '_spinnerCols[index]'
-        unset '_spinnerTypes[index]'
-        freeList+=("${index}")
+    _spinnerActive[id]=1
+    _spinnerTypes[id]="${type}"
+    _spinnerColors[id]="${color}"
+    _spinnerRows[id]="${row}"
+    _spinnerCols[id]="${col}"
+    (( _activeSpinnerCount++ ))
 
-        echo "ok" > "${_spinnerResponseFifo}"
+    echo "${id}" >&5
+}
+
+_removeSpinner() {
+    local id=$1
+    local replacement="$2"
+
+    if [[ -n ${_spinnerActive[id]} ]]; then
+        cursorTo "${_spinnerRows[id]}" "${_spinnerCols[id]}"
+        echo -n "${replacement}" > /dev/tty
+        freeList+=("${id}")
+        _spinnerActive[id]=0
+        (( _activeSpinnerCount-- ))
+
+        echo "ok" >&5
     else
-        echo "error: invalid index" > "${_spinnerResponseFifo}"
+        echo "error: invalid id" >&5
     fi
 }
 
-_handleStop() {
-    echo "stopping" > "${_spinnerResponseFifo}"
+_stopSpinnerServer() {
+    for (( i=0; i < ${#_spinnerTypes}; i++ )); do
+        if [[ -n ${_spinnerRows[i]} ]]; then
+            cursorTo "${_spinnerRows[i]}" "${_spinnerCols[i]}"
+            echo -n ' ' > /dev/tty
+        fi
+    done
     tput cnorm
+    echo "stopped" >&5
     exit 0
 }
 
-
-# Get next available index
-_getNextIndex() {
-    local index
-    if [[ ${#freeList[@]} -gt 0 ]]; then
-        index="${freeList[-1]}"
-        unset 'freeList[-1]'
-    else
-        index=${#_spinnerRows[@]}
-    fi
-    echo "${index}"
-}
-
 _renderSpinners() {
-    local i spinnerIndex
-    local -n spinner
+    local i spinnerIndex spinnerName spinnerArrayName
 
-    for i in "${!_spinnerRows[@]}"; do
-        spinner="${_spinnerTypes[i]}"
-
-        if [[ -n ${spinner} ]]; then
+    for (( i=0; i < ${#_spinnerActive[@]}; i++ )); do
+        if (( ${_spinnerActive[i]} )); then
             cursorTo "${_spinnerRows[i]}" "${_spinnerCols[i]}"
+            spinnerName="${_spinnerTypes[i]}"
+            local -n spinner="_${spinnerName}Spinner"
             spinnerIndex=$(( _spinnerTick % ${#spinner[@]} ))
-            echo -n "${spinner[spinnerIndex]}" > /dev/tty
+            show -n "${_spinnerColors[i]}" "${spinner[spinnerIndex]}" > /dev/tty
         fi
     done
 
     (( _spinnerTick++ ))
 }
 
+_getNextId() {
+    local id
+    if (( ${#freeList[@]} )); then
+        id="${freeList[-1]}"
+        unset 'freeList[-1]'
+    else
+        id=${#_spinnerRows[@]}
+    fi
+    echo "${id}"
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ CLIENT ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_spinnerCommand() {
+    local response
+    local IFS=$'\x1f'
+    printf "%s\n" "$*" > "${_spinnerRequestFifo}"
+    read -r response < "${_spinnerResponseFifo}"
+    echo "${response}"
+}
 
 _ensureSpinnerServer() {
     if (( ! _spinnerServerPid )); then
@@ -191,6 +201,7 @@ _startSpinnerServer() {
     (( _spinnerServerPid )) && return 0
 
     # Start server in background
+
     _spinnerServerMain &
     _spinnerServerPid=$!
 
@@ -204,14 +215,13 @@ _startSpinnerServer() {
     if [[ ! -p ${_spinnerResponseFifo} ]]; then
         fail "Spinner server failed to start"
     fi
-debug "spin server ready"
 }
 
 # Stop server
-_stopSpinnerServer() {
+_shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
         {
-            echo "stop" > "${_spinnerRequestFifo}"
+            echo 'stop' > "${_spinnerRequestFifo}"
             read -r response < "${_spinnerResponseFifo}"
         } &> /dev/null
 
@@ -220,7 +230,7 @@ _stopSpinnerServer() {
             [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
         fi
     fi
-    unset _spinnerServerPid
+    _spinnerServerPid=0
 }
 
 
