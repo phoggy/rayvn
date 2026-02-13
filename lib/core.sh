@@ -664,14 +664,34 @@ error() {
     show error "🔺 ${1}" "${@:2}" > ${terminalErr}
 }
 
+invalidArgs() {
+    fail --trace "${@}"
+}
+
 fail() {
+
+    # Determine if we should generate a stack trace
+
+    local trace=0
+    if [[ $1 == '--trace' ]]; then
+        trace=1; shift
+    elif (( _debug || rayvnTest_TraceFail )); then
+        trace=1
+    fi
+
+    # If spinner is running, stop it
+
     if varIsDefined _spinnerPid; then
         local inRayvnFail=1
         _spinExit
     fi
-    if debugEnabled || (( rayvnTest_TraceFail )); then
-        stackTrace "${@}" > "${terminalErr}"
-    fi
+
+    # Write trace and/or error
+
+    (( trace )) && stackTrace "${@}" > "${terminalErr}" || error "${@}"
+
+    # See ya
+
     exit 1
 }
 
