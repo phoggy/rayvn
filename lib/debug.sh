@@ -13,7 +13,7 @@
 #    3. add it to _rayvnFunctionSources in rayvn.up
 
 debug() {
-    (( _debug )) && _debugEcho "${@}" >&4; return 0
+    (( _debug )) && _debugEcho "${@}" >&3; return 0
 }
 
 debugEnabled() {
@@ -49,9 +49,9 @@ debugBinary() {
         local binary="${2}"
         _debugEchoNoNewline "${prompt}"
         for (( i=0; i < ${#binary}; i++ )); do
-            printf '%02X ' "'${binary:i:1}" >&4
+            printf '%02X ' "'${binary:i:1}" >&3
         done
-        echo >&4
+        echo >&3
     fi
 }
 
@@ -85,7 +85,7 @@ debugVarIsSet() {
                 stackTrace
                 echo
             fi
-        ) >&4
+        ) >&3
     fi
 }
 
@@ -104,7 +104,7 @@ debugVarIsNotSet() {
             else
                 echo "not set"
             fi
-        ) >&4
+        ) >&3
     fi
 }
 
@@ -131,7 +131,7 @@ debugJson() {
 debugStack() {
     if (( _debug )); then
         _debugEcho
-        stackTrace "${@}" >&4
+        stackTrace "${@}" >&3
     fi
 }
 
@@ -139,7 +139,7 @@ debugTraceOn() {
     (( $# )) && debug "${@}"
     debug "${ show bold "BEGIN CODE TRACE ----------------------------------"; }"
     export BASH_XTRACEFD=4
-    set -x 2>&4
+    set -x 2>&3
 }
 
 debugTraceOff() {
@@ -183,14 +183,14 @@ _init_rayvn_debug() {
 
 _debugEcho() {
     if (( _debugRemote )); then
-        printf '%s\r\n' "${_debugPrefix}${*}" >&4
+        printf '%s\r\n' "${_debugPrefix}${*}" >&3
     else
-        echo "${_debugPrefix}${*}" >&4
+        echo "${_debugPrefix}${*}" >&3
     fi
 }
 
 _debugEchoNoNewline() {
-    echo -n "${_debugPrefix}${*}" >&4
+    echo -n "${_debugPrefix}${*}" >&3
 }
 
 _setDebug() {
@@ -224,7 +224,7 @@ _setDebug() {
     fi
 
     if [[ -n ${_debugOut} ]]; then
-        exec 4>> "${_debugOut}"
+        exec 3>> "${_debugOut}"
         if ((isInteractive)); then
             _debugPrefix="${ show accent 'debug: ';}"
         else
@@ -233,7 +233,7 @@ _setDebug() {
 
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
-            echo -n $'\e[2J\e[H' >&4 # clear remote terminal
+            echo -n $'\e[2J\e[H' >&3 # clear remote terminal
             show -e bold green "BEGIN" primary "debug output from pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
         fi
     else
@@ -273,7 +273,7 @@ _prepareLogFile() {
 
     exec 4>> "${_debugLogFile}"
 
-    printf "___ rayvn log ${ date; } _________________________________\n\n" >&4
+    printf "___ rayvn log ${ date; } _________________________________\n\n" >&3
 }
 
 _debugExit() {
