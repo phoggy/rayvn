@@ -165,11 +165,6 @@ debugEnvironment() {
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/debug' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-declare -gx _debugOut=
-declare -gx _debugPrefix=
-declare -gx _debugShowLogOnExit=0
-declare -gx _debugRemote=0
-
 _init_rayvn_debug() {
 
     # Make our public functions readonly since rayvn.up treats these as a special case.
@@ -178,6 +173,12 @@ _init_rayvn_debug() {
         declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
                     debugFile debugJson debugStack debugTraceOn debugTraceOff debugEnvironment
     fi
+
+    declare -gx _debug=0
+    declare -gx _debugOut=
+    declare -gx _debugPrefix=
+    declare -gx _debugShowLogOnExit=0
+    declare -gx _debugRemote=0
 }
 
 _debugEcho() {
