@@ -163,6 +163,31 @@ debugEnvironment() {
     fi
 }
 
+debugFileDescriptor() {
+    local fdVarName="$1"
+    local -n fd="${fdVarName}"
+
+    if [[ ! ${fd} =~ ^[0-9]+$ ]]; then
+        debug "${fdVarName} contains invalid fd: ${fd}"
+        return 1
+    fi
+
+    if [[ ! -e /dev/fd/${fd} ]]; then
+        debug "${fdVarName} (${fd}) is not open"
+        return 1
+    fi
+
+    if [[ -r /dev/fd/${fd} && -w /dev/fd/${fd} ]]; then
+        debug "${fdVarName} (${fd}) is open read-write"
+    elif [[ -r /dev/fd/${fd} ]]; then
+        debug "${fdVarName} (${fd}) is open read-only"
+    elif [[ -w /dev/fd/${fd} ]]; then
+        debug "${fdVarName} (${fd}) is open write-only"
+    else
+        debug "${fdVarName} (${fd}) is open but not readable or writable"
+    fi
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/debug' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_debug() {
@@ -171,7 +196,7 @@ _init_rayvn_debug() {
 
     if (( _rayvnReadOnlyFunctions )); then
         declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
-                    debugFile debugJson debugStack debugTraceOn debugTraceOff debugEnvironment
+                    debugFile debugJson debugStack debugTraceOn debugTraceOff debugEnvironment debugFileDescriptor
     fi
 
     declare -gx _debug=0
@@ -233,7 +258,7 @@ _setDebug() {
 
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
-            echo -n $'\e[2J\e[H' >&3 # clear remote terminal
+            clear >&3 # clear remote terminal
             show -e bold green "BEGIN" primary "debug output from pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
         fi
     else
