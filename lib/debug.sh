@@ -174,7 +174,7 @@ debugFileDescriptor() {
 
     if [[ ! -e /dev/fd/${fd} ]]; then
         debug "${fdVarName} (${fd}) is not open"
-        return 1
+        return 0
     fi
 
     if [[ -r /dev/fd/${fd} && -w /dev/fd/${fd} ]]; then
