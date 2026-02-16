@@ -755,6 +755,7 @@ debugJson() { :; }
 debugStack() { :; }
 debugTraceOn() { :; }
 debugTraceOff() { :; }
+debugEscapes() { :; }
 debugEnvironment() { :; }
 debugFileDescriptor() { :; }
 

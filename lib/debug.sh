@@ -137,7 +137,7 @@ debugStack() {
 
 debugTraceOn() {
     (( $# )) && debug "${@}"
-    debug "${ show bold "BEGIN CODE TRACE ----------------------------------"; }"
+    debug "${ show secondary "BEGIN CODE TRACE ----------------------------------"; }"
     export BASH_XTRACEFD=4
     set -x 2>&3
 }
@@ -145,8 +145,12 @@ debugTraceOn() {
 debugTraceOff() {
     unset BASH_XTRACEFD=
     set +x
-    debug "${ show bold "END CODE TRACE ------------------------------------"; }"
+    debug "${ show secondary "END CODE TRACE ------------------------------------"; }"
     (( $# )) && debug "${@}"
+}
+
+debugEscapes() {
+    (( _debug )) && printf '%q ' "${@}"
 }
 
 debugEnvironment() {
@@ -296,13 +300,13 @@ _prepareLogFile() {
 
     _debugStartLine=${ wc -l < "${_debugLogFile}"; }
 
-    exec 4>> "${_debugLogFile}"
+    exec 3>> "${_debugLogFile}"
 
     printf "___ rayvn log ${ date; } _________________________________\n\n" >&3
 }
 
 _debugExit() {
-    exec 4>&- # close it
+    exec 3>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
         show -e bold green "\r\nEND" primary "debug output from pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
