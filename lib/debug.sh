@@ -167,29 +167,36 @@ debugEnvironment() {
     fi
 }
 
-debugFileDescriptor() {
-    local fdVarName="$1"
-    local -n fd="${fdVarName}"
+debugFileDescriptors() {
+    (( _debug )) || return 0
+    while (( $# )); do
+        local fd description status mode
+        if [[ $1 =~ ^[0-9]+$ ]]; then
+            fd=$1
+            description="fd ${fd} (pid ${BASHPID})"
+        else
+            local -n fileDescriptor="$1"
+            fd=${fileDescriptor}
+            description="fd ${fd} in $1 (pid ${BASHPID})"
+        fi
 
-    if [[ ! ${fd} =~ ^[0-9]+$ ]]; then
-        debug "${fdVarName} contains invalid fd: ${fd}"
-        return 1
-    fi
+        mode=${ lsof -a -p ${BASHPID} -d ${fd} -F a 2>/dev/null; }
+        mode=${ echo ${mode} | cut -d' ' -f3; }
 
-    if [[ ! -e /dev/fd/${fd} ]]; then
-        debug "${fdVarName} (${fd}) is not open"
-        return 0
-    fi
-
-    if [[ -r /dev/fd/${fd} && -w /dev/fd/${fd} ]]; then
-        debug "${fdVarName} (${fd}) is open read-write"
-    elif [[ -r /dev/fd/${fd} ]]; then
-        debug "${fdVarName} (${fd}) is open read-only"
-    elif [[ -w /dev/fd/${fd} ]]; then
-        debug "${fdVarName} (${fd}) is open write-only"
-    else
-        debug "${fdVarName} (${fd}) is open but not readable or writable"
-    fi
+        if [[ -z "${mode}" ]]; then
+            status="not open"
+        elif [[ "${mode}" =~ u ]]; then
+            status="open read-write"
+        elif [[ "${mode}" =~ r ]]; then
+            status="open read-only"
+        elif [[ "${mode}" =~ w ]]; then
+            status="open write-only"
+        else
+            status="open but not readable or writable"
+        fi
+        debug "${description} is ${status}"
+        shift
+    done
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/debug' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -200,7 +207,8 @@ _init_rayvn_debug() {
 
     if (( _rayvnReadOnlyFunctions )); then
         declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
-                    debugFile debugJson debugStack debugTraceOn debugTraceOff debugEnvironment debugFileDescriptor
+                    debugFile debugJson debugStack debugTraceOn debugTraceOff debugEscapes debugEnvironment \
+                    debugFileDescriptors
     fi
 
     declare -gx _debug=0

@@ -277,7 +277,7 @@ configure() {
         ['debugBinary']='rayvn/debug' ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug'
         ['debugVarIsNotSet']='rayvn/debug' ['debugFile']='rayvn/debug' ['debugJson']='rayvn/debug' ['debugStack']='rayvn/debug'
         ['debugTraceOn']='rayvn/debug' ['debugTraceOff']='rayvn/debug' ['debugEscapes']='rayvn/debug'
-        ['debugEnvironment']='rayvn/debug' ['debugFileDescriptor']='rayvn/debug')
+        ['debugEnvironment']='rayvn/debug' ['debugFileDescriptors']='rayvn/debug')
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 

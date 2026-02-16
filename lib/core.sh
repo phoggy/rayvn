@@ -757,7 +757,7 @@ debugTraceOn() { :; }
 debugTraceOff() { :; }
 debugEscapes() { :; }
 debugEnvironment() { :; }
-debugFileDescriptor() { :; }
+debugFileDescriptors() { :; }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
