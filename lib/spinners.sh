@@ -14,7 +14,7 @@ addSpinner() {
     [[ -n ${row} ]] || invalidArgs "row required"
     [[ -n ${col} ]] || invalidArgs "col required"
     [[ -v _spinnerNames[${type}] ]] || invalidArgs "unknown type: ${type}"
-
+debug "addSpinner ${type} ${color} ${row} ${col}"
     if _spinnerRequest add "${type}" "${color}" "${row}" "${col}"; then
         echo ${response[1]}
     fi
@@ -41,16 +41,14 @@ _init_rayvn_spinners() {
     fifo="${ makeTempFifo; }"
     declare -gr _spinnerResponseFifo="${fifo}"
 
-    # Response error message prefix
 
-    declare -gr _spinnerErrorPrefix="!!"
+    # Enable client/server init on first request
 
-    # Client state
+    declare -g _spinnerFirstRequest=1
 
-    declare -gr _spinnerMaxResponseWait=.25
+    # Spinner type names
+
     declare -grA _spinnerNames=(['star']=1 ['dots']=1 ['line']=1 ['circle']=1 ['arrow']=1 ['box']=1 ['bounce']=1 ['pulse']=1 ['grow']=1)
-    declare -g _spinnerServerPid=0
-    declare -g _firstSpinnerRequest=1
 
     # Add shutdown handler
 
@@ -62,11 +60,11 @@ _init_rayvn_spinners() {
 }
 
 _initSpinnerClient() {
-    _firstSpinnerRequest=0
 
-    # Start the server
+    # Start the server in the background
 
-    _startSpinnerServer
+    _spinnerServerMain &
+    declare -gr _spinnerServerPid=$!
 
     # Open our file descriptors
 
@@ -75,6 +73,14 @@ _initSpinnerClient() {
 
     exec {_spinnerClientRequestFd}>${_spinnerRequestFifo}
     exec {_spinnerClientResponseFd}<${_spinnerResponseFifo}
+
+    # Normal response wait seconds
+
+    declare -gr _spinnerMaxResponseWait=.25
+
+    # Don't come back here again
+
+    _spinnerFirstRequest=0
 }
 
 _initSpinnerServer() {
@@ -124,21 +130,20 @@ _initSpinnerServer() {
     trap "_stopSpinnerServer" TERM INT HUP
 }
 
-
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ CLIENT ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _assertSpinnerServer() {
-    (( _spinnerServerPid )) || invalidArgs "no spinners have been added"
+    [[ -n  ${_spinnerServerPid}  ]] || invalidArgs "no spinners have been added"
 }
 
 _spinnerRequest() {
     local -n responseArrayRef=$1
-    local readExit count
     local delay=${_spinnerMaxResponseWait}
+    local count
 
     # Initialize if first request
 
-    if (( _firstSpinnerRequest )); then
+    if (( _spinnerFirstRequest )); then
         _initSpinnerClient
         delay=1 # wait a little longer on first request
     fi
@@ -166,15 +171,6 @@ _spinnerRequest() {
     else
         fail "spinner request failed with exit $?"
     fi
-}
-
-_startSpinnerServer() {
-    (( _spinnerServerPid )) && fail "server already started!"
-
-    # Start server in background
-
-    _spinnerServerMain &
-    _spinnerServerPid=$!
 }
 
 _shutdownSpinnerServer() {
