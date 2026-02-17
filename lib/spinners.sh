@@ -16,7 +16,6 @@ addSpinner() {
     [[ -v _spinnerNames[${type}] ]] || invalidArgs "unknown type: ${type}"
 
     if _spinnerRequest add "${type}" "${color}" "${row}" "${col}"; then
-#debug "addSpinner returning ${response[1]}"
         echo ${response[1]}
     fi
 }
@@ -41,9 +40,6 @@ _init_rayvn_spinners() {
     declare -gr _spinnerRequestFifo="${fifo}"
     fifo="${ makeTempFifo; }"
     declare -gr _spinnerResponseFifo="${fifo}"
-#debug "[common $BASHPID] created fifos"
-    #debugVar _spinnerRequestFifo
-    #debugVar _spinnerResponseFifo
 
     # Response error message prefix
 
@@ -65,18 +61,11 @@ _init_rayvn_spinners() {
     addExitHandler _spinnerShutdown
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ CLIENT ⚠️ )+---)++++---)++-)++-+------+-+--"
-
-_assertSpinnerServer() {
-    (( _spinnerServerPid )) || invalidArgs "no spinners have been added"
-}
-
 _initSpinnerClient() {
     _firstSpinnerRequest=0
 
     # Start the server
 
-#debug "[client $BASHPID] starting server"
     _startSpinnerServer
 
     # Open our file descriptors
@@ -84,118 +73,8 @@ _initSpinnerClient() {
     declare -g _spinnerClientRequestFd=
     declare -g _spinnerClientResponseFd=
 
-#debug "[client $BASHPID] opening client fds"
     exec {_spinnerClientRequestFd}>${_spinnerRequestFifo}
     exec {_spinnerClientResponseFd}<${_spinnerResponseFifo}
-#debug "[client $BASHPID] client fds open"
-#debugFileDescriptors _spinnerClientRequestFd _spinnerClientResponseFd
-    #debug "[client $BASHPID] init complete"
-}
-
-_spinnerRequest() {
-    local -n responseArrayRef=$1
-    local readExit count
-    local delay=${_spinnerMaxResponseWait}
-
-    # Initialize if first request
-
-    if (( _firstSpinnerRequest )); then
-        _initSpinnerClient
-        delay=1 # wait a little longer on first request
-    fi
-
-    # Send the request
-
-    #debug "[client $BASHPID] sending request using fd ${_spinnerClientRequestFd}"
-    printf "%d\n%s\n" $# "$*" >&${_spinnerClientRequestFd}
-
-    # Read the response
-    #debug "[client $BASHPID] reading response with delay ${delay} and using fd ${_spinnerClientResponseFd}"
-    if read -t ${delay} count <&${_spinnerClientResponseFd}; then
-        #debug "[client $BASHPID] reading ${count} array elements"
-        mapfile -t -n "${count}" response <&${_spinnerClientResponseFd}
-        readExit=$?
-        #debug "[client $BASHPID] first response exit: $?, response: ${response[*]}"
-    else
-        readExit=$?
-        #debug "[client $BASHPID] read ${count} failed with ${readExit}"
-    fi
-
-    # Process the response
-
-    if (( readExit == 0 )); then
-        if [[ ${response[0]} == "ok" ]]; then
-            return 0
-        else
-            fail "${responseArrayRef[1]}"
-        fi
-    elif (( readExit > 128 )); then
-        fail "spinner request failed: response timeout"
-    else
-        fail "spinner request failed with exit ${readExit}"
-    fi
-}
-
-_startSpinnerServer() {
-    (( _spinnerServerPid )) && fail "server already started!"
-
-    # Start server in background
-
-    _spinnerServerMain &
-    _spinnerServerPid=$!
-}
-
-_shutdownSpinnerServer() {
-    if (( _spinnerServerPid )); then
-        {
-            echo 1 'stop' >&_spinnerClientRequestFd
-        } &> /dev/null
-
-        if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
-            local errMsg="spinner process ${_spinnerServerPid} didn't exit"
-            [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
-        fi
-    fi
-    _spinnerServerPid=0
-}
-
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ SERVER ⚠️ )+---)++++---)++-)++-+------+-+--"
-
-_spinnerServerMain() {
-    local request
-    _initSpinnerServer
-#debug "[server $BASHPID] server is up"
-    while true; do
-        request=()
-        if _readSpinnerRequest; then
-#debug "[server $BASHPID] got '${request[0]}' request: ${request[1]} ${request[2]} ${request[3]} ${request[4]}"
-
-            case "${request[0]}" in
-                add) _addSpinner "${request[1]}" "${request[2]}" "${request[3]}" "${request[4]}" ;;
-                remove) _removeSpinner "${request[1]}" "${request[2]}" ;;
-            esac
-        fi
-        _renderSpinners
-    done
-}
-
-_readSpinnerRequest() {
-    local count delay
-
-    # Wait only for our spinner update delay if active, block on read if not active
-    (( _activeSpinnerCount )) && delay="${_spinnerDelaySeconds}" || delay=100
-
-#    debug "[server $BASHPID] reading count, delay: ${delay}"
-    if read -t "${delay}" count <&${_spinnerServerRequestFd}; then
-        #debug "[server $BASHPID] reading ${count} elements"
-        mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}
-        #debug "[server $BASHPID] exit: $?, request:" ${request[*]}
-#    elif (( $? > 128 )); then
-#        debug "[server $BASHPID] read timeout"
-    else
-        return 1
-        #        debug "[server $BASHPID] read count failed $?"
-    fi
 }
 
 _initSpinnerServer() {
@@ -210,12 +89,8 @@ _initSpinnerServer() {
     declare -g _spinnerServerRequestFd
     declare -g _spinnerServerResponseFd
 
-    #debug "[server $BASHPID] opening server request fd"
     exec {_spinnerServerRequestFd}<${_spinnerRequestFifo}
-    #debug "[server $BASHPID] opening server response fd"
     exec {_spinnerServerResponseFd}>${_spinnerResponseFifo}
-    #debug "[server $BASHPID] server fds open"
-    #debugFileDescriptors _spinnerServerRequestFd _spinnerServerResponseFd
 
     # Spinner state
 
@@ -249,11 +124,114 @@ _initSpinnerServer() {
     trap "_stopSpinnerServer" TERM INT HUP
 }
 
+
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ CLIENT ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_assertSpinnerServer() {
+    (( _spinnerServerPid )) || invalidArgs "no spinners have been added"
+}
+
+_spinnerRequest() {
+    local -n responseArrayRef=$1
+    local readExit count
+    local delay=${_spinnerMaxResponseWait}
+
+    # Initialize if first request
+
+    if (( _firstSpinnerRequest )); then
+        _initSpinnerClient
+        delay=1 # wait a little longer on first request
+    fi
+
+    # Send the request
+
+    printf "%d\n%s\n" $# "$*" >&${_spinnerClientRequestFd}
+
+    # Read the response
+
+    if read -t ${delay} count <&${_spinnerClientResponseFd}; then
+        mapfile -t -n "${count}" response <&${_spinnerClientResponseFd}
+    fi
+
+    # Process the response
+
+    if (( $? == 0 )); then
+        if [[ ${response[0]} == "ok" ]]; then
+            return 0
+        else
+            fail "${responseArrayRef[1]}"
+        fi
+    elif (( $? > 128 )); then
+        fail "spinner request failed: response timeout"
+    else
+        fail "spinner request failed with exit $?"
+    fi
+}
+
+_startSpinnerServer() {
+    (( _spinnerServerPid )) && fail "server already started!"
+
+    # Start server in background
+
+    _spinnerServerMain &
+    _spinnerServerPid=$!
+}
+
+_shutdownSpinnerServer() {
+    if (( _spinnerServerPid )); then
+        {
+            printf "%d\n%s\n" 1 'stop' >&${_spinnerClientRequestFd}
+        } &> /dev/null
+
+        if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
+            local errMsg="spinner process ${_spinnerServerPid} didn't exit"
+            [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
+        fi
+    fi
+    _spinnerServerPid=0
+}
+
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ SERVER ⚠️ )+---)++++---)++-)++-+------+-+--"
+
+_spinnerServerMain() {
+    local request
+    _initSpinnerServer
+    while true; do
+        request=()
+        if _readSpinnerRequest; then
+            case "${request[0]}" in
+                add) _addSpinner "${request[1]}" "${request[2]}" "${request[3]}" "${request[4]}" ;;
+                remove) _removeSpinner "${request[1]}" "${request[2]}" ;;
+            esac
+        fi
+        _renderSpinners
+    done
+}
+
+_readSpinnerRequest() {
+    local count delay
+
+    # Wait only for our spinner update delay if active, block on read if not active
+
+    (( _activeSpinnerCount )) && delay="${_spinnerDelaySeconds}" || delay=100
+
+    if read -t "${delay}" count <&${_spinnerServerRequestFd}; then
+        mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}
+        (( $? )) && fail "read request parameters failed with $?, count=${count}"
+        return 0
+    elif (( $? <= 128 )); then
+        fail "read request count failed with: $?"
+    elif (( $? > 128 )); then
+        #debug "read request timeout"
+        return $?
+    fi
+}
+
+
 _addSpinner() {
     local type=$1 color=$2 row=$3 col=$4
     local id
 
-#debug "[server] adding spinner ${type} w/color ${color} at ${row}:${col}"
     _newSpinnerId id
 
     _spinnerActive[id]=1
@@ -291,9 +269,7 @@ _removeSpinner() {
 }
 
 _spinnerResponse() {
-#debug "[server $BASHPID] sending response: $*"
-    printf "%d\n" $# >&${_spinnerServerResponseFd}
-    printf "%s\n" "$*" >&${_spinnerServerResponseFd}
+    printf "%d\n%s\n" $# "$*" >&${_spinnerServerResponseFd}
 }
 
 _stopSpinnerServer() {
