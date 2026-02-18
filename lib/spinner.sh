@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # My library.
-# Use via: require 'rayvn/spinners'
+# Use via: require 'rayvn/spinner'
 
 # IMPORTANT: While there are active spinners, the cursor is hidden globally. Before any
 # foreground terminal interaction (prompts, user input, or other tput commands), you MUST
@@ -18,7 +18,6 @@ spinnerTypes() {
 startSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive
 
-    (( $# )) || invalidArgs "id result varName required"
     local resultVarName=$1; shift
     if (( $# )); then
         echo -n "$1 " # Add space, will remove in stopSpinner
@@ -29,15 +28,6 @@ startSpinner() {
     addSpinner ${resultVarName} ${type} ${row} ${col} ${color}
 }
 
-# TODO wardn & play
-restartSpinner() {
-    (( isInteractive )) || return 0  # No-op when not interactive
- #TODO
-    local id=$1
-    stopSpinner "${1}"
-    startSpinner "${2}"
-}
-
 stopSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive
 
@@ -45,17 +35,19 @@ stopSpinner() {
     if [[ $1 == -n ]]; then
         newline=false; shift
     fi
-    (( $# )) || invalidArgs "spinner id required"
-    local id=$1; shift
+    (( $# )) || invalidArgs "id varName required"
+    local idVarName=$1; shift
     local replacement=' '
     (( $# )) && replacement="$*"
-    removeSpinner ${id} "${replacement}" ${newline} 1 # backup one char for space added in start
+    removeSpinner ${idVarName} "${replacement}" ${newline} 1 # backup one char for space added in start
 }
 
 # Low level API
 
 addSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive
+
+    (( $# )) || invalidArgs "result id varName required"
 
     local -n idRef=$1
     local type=$2 row=$3 col=$4 color=${5:-'secondary'} response=()
@@ -72,17 +64,19 @@ addSpinner() {
 removeSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive
 
-    local id=$1 replacement=${2:-' '} newline=${3:-true} backup=${4:-0} response=()
-    [[ -n ${id} ]] || invalidArgs "id required"
-    [[ ! "${id}" =~ ^[0-9]+$ ]] && invalidArgs "invalid id: must be a positive integer"
+    local idVarName=$1 replacement=${2:-' '} newline=${3:-true} backup=${4:-0} response=()
+
+    [[ -n ${idVarName} ]] || invalidArgs "id varName required"
+    local -n idRef=${idVarName}
+    [[ ! "${idRef}" =~ ^[0-9]+$ ]] && invalidArgs "invalid id: must be a positive integer"
 
     _assertSpinnerServer # In case no other request has occurred
-    _spinnerRequest remove "${id}" "${replacement}" ${newline} ${backup} > /dev/null
+    _spinnerRequest remove "${idRef}" "${replacement}" ${newline} ${backup} > /dev/null
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinners' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_rayvn_spinners() {
+_init_rayvn_spinner() {
     require 'rayvn/core' 'rayvn/process' 'rayvn/terminal'
 
     # Request and response fifos
@@ -279,7 +273,6 @@ _readSpinnerRequest() {
         _spinnerResponse "read request count failed with: $?"
         return 1
     elif (( $? > 128 )); then
-        debug "read request timeout"
         return $?
     fi
     return 0

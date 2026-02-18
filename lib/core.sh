@@ -454,7 +454,7 @@ executeWithCleanVars() {
 #
 #   In command substitution:
 #     message="${ show bold "text" ;}"
-#     stopSpinner ": ${ show green "success" ;}"
+#     stopSpinner spinnerId ": ${ show green "success" ;}"
 #
 # AVAILABLE FORMATS:
 #
