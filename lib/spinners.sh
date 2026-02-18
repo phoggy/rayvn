@@ -3,35 +3,87 @@
 # My library.
 # Use via: require 'rayvn/spinners'
 
+# IMPORTANT: While there are active spinners, the cursor is hidden globally. Before any
+# foreground terminal interaction (prompts, user input, or other tput commands), you MUST
+# stop all spinners. Otherwise, the user will be typing with an invisible cursor or
+# terminal state may become inconsistent.
+
 spinnerTypes() {
+    (( isInteractive )) || return 0  # No-op when not interactive
+
     local -n resultArray=$1
     resultArray=("${!_spinnerNames[@]}")
 }
 
+startSpinner() {
+    (( isInteractive )) || return 0  # No-op when not interactive
+
+    (( $# )) || invalidArgs "id result varName required"
+    local resultVarName=$1; shift
+    if (( $# )); then
+        echo -n "$1 " # Add space, will remove in stopSpinner
+        shift
+    fi
+    local type=${1:-'star'} color=${2:-'secondary'} row col
+    cursorPosition row col
+    addSpinner ${resultVarName} ${type} ${row} ${col} ${color}
+}
+
+# TODO wardn & play
+restartSpinner() {
+    (( isInteractive )) || return 0  # No-op when not interactive
+ #TODO
+    local id=$1
+    stopSpinner "${1}"
+    startSpinner "${2}"
+}
+
+stopSpinner() {
+    (( isInteractive )) || return 0  # No-op when not interactive
+
+    local newline=true
+    if [[ $1 == -n ]]; then
+        newline=false; shift
+    fi
+    (( $# )) || invalidArgs "spinner id required"
+    local id=$1; shift
+    local replacement=' '
+    (( $# )) && replacement="$*"
+    removeSpinner ${id} "${replacement}" ${newline} 1 # backup one char for space added in start
+}
+
+# Low level API
+
 addSpinner() {
-    local type=$1 row=$2 col=$3 color=${4:-'secondary'} response=()
+    (( isInteractive )) || return 0  # No-op when not interactive
+
+    local -n idRef=$1
+    local type=$2 row=$3 col=$4 color=${5:-'secondary'} response=()
     [[ -n ${type} ]] || invalidArgs "type required"
     [[ -n ${row} ]] || invalidArgs "row required"
     [[ -n ${col} ]] || invalidArgs "col required"
     [[ -v _spinnerNames[${type}] ]] || invalidArgs "unknown type: ${type}"
-debug "addSpinner ${type} ${color} ${row} ${col}"
+
     if _spinnerRequest add "${type}" "${color}" "${row}" "${col}"; then
-        echo ${response[1]}
+        idRef=${response[1]}
     fi
 }
 
 removeSpinner() {
-    local id=$1 replacement=${2:-' '} response=()
+    (( isInteractive )) || return 0  # No-op when not interactive
+
+    local id=$1 replacement=${2:-' '} newline=${3:-true} backup=${4:-0} response=()
     [[ -n ${id} ]] || invalidArgs "id required"
+    [[ ! "${id}" =~ ^[0-9]+$ ]] && invalidArgs "invalid id: must be a positive integer"
 
     _assertSpinnerServer # In case no other request has occurred
-    _spinnerRequest remove "${id}" "${replacement}" > /dev/null
+    _spinnerRequest remove "${id}" "${replacement}" ${newline} ${backup} > /dev/null
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinners' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_spinners() {
-    require 'rayvn/core' 'rayvn/process'
+    require 'rayvn/core' 'rayvn/process' 'rayvn/terminal'
 
     # Request and response fifos
 
@@ -64,7 +116,7 @@ _initSpinnerClient() {
     # Start the server in the background
 
     _spinnerServerMain &
-    declare -gr _spinnerServerPid=$!
+    declare -g _spinnerServerPid=$!
 
     # Open our file descriptors
 
@@ -87,8 +139,6 @@ _initSpinnerServer() {
 
     # NOTE: This initialization is isolated so that all state is local to the server.
     #       Name collisions are not an issue, but the convention is followed for consistency.
-
-    require 'rayvn/terminal'
 
     # Open fifos with fds assigned to fd vars.
 
@@ -162,14 +212,23 @@ _spinnerRequest() {
 
     if (( $? == 0 )); then
         if [[ ${response[0]} == "ok" ]]; then
+            resopnseArrayRef=${response[1]}
             return 0
         else
-            fail "${responseArrayRef[1]}"
+            fail "${response[0]}"
         fi
     elif (( $? > 128 )); then
         fail "spinner request failed: response timeout"
     else
         fail "spinner request failed with exit $?"
+    fi
+}
+
+_spinnerExit() {
+    if (( _spinnerServerPid )); then
+        # Abnormal exit, clean up
+        _shutdownSpinnerServer
+        echo > /dev/tty # Ensure not buffered in stdout
     fi
 }
 
@@ -197,7 +256,7 @@ _spinnerServerMain() {
         if _readSpinnerRequest; then
             case "${request[0]}" in
                 add) _addSpinner "${request[1]}" "${request[2]}" "${request[3]}" "${request[4]}" ;;
-                remove) _removeSpinner "${request[1]}" "${request[2]}" ;;
+                remove) _removeSpinner "${request[1]}" "${request[2]}" "${request[3]}" "${request[4]}";;
             esac
         fi
         _renderSpinners
@@ -212,17 +271,19 @@ _readSpinnerRequest() {
     (( _activeSpinnerCount )) && delay="${_spinnerDelaySeconds}" || delay=100
 
     if read -t "${delay}" count <&${_spinnerServerRequestFd}; then
-        mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}
-        (( $? )) && fail "read request parameters failed with $?, count=${count}"
-        return 0
+        if ! mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}; then
+            _spinnerResponse "read request parameters failed with $?, count=${count}"
+            return 1
+        fi
     elif (( $? <= 128 )); then
-        fail "read request count failed with: $?"
+        _spinnerResponse "read request count failed with: $?"
+        return 1
     elif (( $? > 128 )); then
-        #debug "read request timeout"
+        debug "read request timeout"
         return $?
     fi
+    return 0
 }
-
 
 _addSpinner() {
     local type=$1 color=$2 row=$3 col=$4
@@ -244,12 +305,18 @@ _addSpinner() {
 }
 
 _removeSpinner() {
-    local id=$1
-    local replacement="$2"
+    local id=$1 replacement="$2" newline=$3 backupCount=$4 echoArg='' padding
 
     if (( _spinnerActive[id] )); then
-        cursorTo "${_spinnerRows[id]}" "${_spinnerCols[id]}"
-        echo -n "${replacement}" > /dev/tty
+
+        [[ ${newline} == false ]] && echoArg='-n'
+        if (( backupCount )); then
+            printf -v padding '%*s' "${backupCount}" ''
+            replacement+="${padding}"
+        fi
+
+        cursorTo ${_spinnerRows[id]} $(( ${_spinnerCols[id]} - backupCount ))
+        echo ${echoArg} "${replacement}" > /dev/tty
         freeList+=("${id}")
         _spinnerActive[id]=0
         _spinnerResponse 'ok'
@@ -260,7 +327,7 @@ _removeSpinner() {
         (( _activeSpinnerCount )) || cursorShow
 
     else
-        _spinnerResponse fail "inactive id: ${id}"
+        _spinnerResponse "inactive id: ${id}"
     fi
 }
 
@@ -276,7 +343,6 @@ _stopSpinnerServer() {
             echo -n ' ' > /dev/tty
         fi
     done
-    cursorShow
     exit 0
 }
 

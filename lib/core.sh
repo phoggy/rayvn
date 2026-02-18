@@ -681,9 +681,9 @@ fail() {
 
     # If spinner is running, stop it
 
-    if varIsDefined _spinnerPid; then
+    if varIsDefined _spinnerServerPid; then
         local inRayvnFail=1
-        _spinExit
+        _spinnerExit
     fi
 
     # Write trace and/or error
