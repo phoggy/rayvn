@@ -312,43 +312,33 @@ _cancelAllTests() {
 
 _waitForAllTests() {
     local pendingCount=${#pendingTests[@]}
-    local spinnerFrame=0
-    local -a spinnerChars=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
-    local spinnerColor="${_textFormats[secondary]}"
-    local resetColor=$'\e[0m'
+    local i spinnerId
+    local -A testSpinnerIds=()
 
-    tput civis  # hide cursor
+    # Add a spinner for each pending test at its display row
+    for i in "${!pendingTests[@]}"; do
+        addSpinner spinnerId star "${testSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))"
+        testSpinnerIds[${i}]=${spinnerId}
+    done
 
     while (( pendingCount > 0 )); do
-        # Check each pending test for completion
-        local i
         for i in "${!pendingTests[@]}"; do
-            local lineOffset="${testLineOffsets[${i}]}"
             local result
-
             if _readTestResult "${i}" result; then
-                # Test completed - update its row with result
+                spinnerId="${testSpinnerIds[${i}]}"
                 if (( result == 0 )); then
-                    _updateTestLine "${lineOffset}" "${_greenCheckMark}"
+                    removeSpinner spinnerId "${_greenCheckMark}" false 0
                 else
-                    _updateTestLine "${lineOffset}" "${_redCrossMark}"
+                    removeSpinner spinnerId "${_redCrossMark}" false 0
                 fi
                 unset "pendingTests[${i}]"
                 (( pendingCount-- ))
-            else
-                # Still pending - update spinner on its row
-                _updateTestLine "${lineOffset}" "${spinnerColor}${spinnerChars[${spinnerFrame}]}${resetColor}"
             fi
         done
-
-        # Advance spinner frame
-        (( spinnerFrame = (spinnerFrame + 1) % ${#spinnerChars[@]} ))
-
-        # Small delay before next check
-        sleep 0.25
+        (( pendingCount > 0 )) && sleep 0.25
     done
 
-    tput cnorm  # show cursor
+    cursorTo "${displayEndRow}" 1  # Position cursor after all test lines
     echo  # Final newline
 }
 
@@ -397,11 +387,20 @@ _runAllTestsParallel() {
     # Interactive: print all test lines and track line numbers (0-indexed from first test)
     local -A testLineOffsets=()
     local -A pendingTests=()
+    local -A testSpinnerRows=()
     local lineNumber=0
 
     _displayAllTests _displayPendingTest
 
     local totalLines=${lineNumber}
+
+    # Compute absolute row positions now that all display is done, resilient to any scrolling
+    # that occurred during display. displayEndRow is the row after the last test line.
+    local displayEndRow displayEndCol
+    cursorPosition displayEndRow displayEndCol
+    for i in "${!testLineOffsets[@]}"; do
+        testSpinnerRows[${i}]=$(( displayEndRow - totalLines + testLineOffsets[${i}] ))
+    done
 
     # Start all tests in parallel (they run silently and write results to files)
     for i in "${runIndices[@]}"; do
