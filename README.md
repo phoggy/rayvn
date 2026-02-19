@@ -1,9 +1,9 @@
-![My Logo](etc/rayvn.png)
 
-# rayvn
-/ˈreɪ.vən/
 
-A bash shared library manager and a set of shared libraries.
+![rayvn](etc/rayvn6.png)
+## rayvn /ˈreɪ.vən/
+
+A bash shared library manager and shared library collection.
 
 ### Prerequisites
 
