@@ -175,6 +175,20 @@ projectVersion() {
     )
 }
 
+parseOptionalArg() {
+    local _argMatch=$1
+    local _argValue=$2
+    local -n _argResultRef=$3
+    local _argResultValue="${4:-${_argMatch}}"
+    if [[ ${_argValue} == "${_argMatch}" ]]; then
+        _argResultRef=${_argResultValue}
+        return 0
+    else
+        _argResultRef=''
+        return 1
+    fi
+}
+
 varIsDefined() {
     declare -p "${1}" &> /dev/null
 }

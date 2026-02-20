@@ -14,6 +14,7 @@
 # Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 request() {
+    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
     local prompt="${1}"
     local resultVarName="${2}"
     local cancelOnEmpty="${3:-true}"
@@ -67,6 +68,7 @@ secureRequest() {
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 confirm() {
+    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
     local prompt="${1}"
     local promptChoices=("${2}" "${3}")
     local resultVarName="${4}"
@@ -119,6 +121,7 @@ confirm() {
 # Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 choose() {
+    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
     local prompt="${1}"
     local choicesVarName="${2}"
     local resultVarName="${3}"
@@ -354,6 +357,7 @@ _init_rayvn_prompt() {
     declare -ga _promptChoices
     declare -g _promptNumberChoices
     declare -g _promptChoiceIndex
+    declare -g _promptFinalizeArg
 
     # Callback functions
 
@@ -724,7 +728,11 @@ _finalizePrompt() {
     # Restore cursor and show result message if not hidden
 
     cursorRestore
-    (( ! isSecure )) && show "${formats[@]}" "${resultMessageRef}" || echo
+    if (( ! isSecure )); then
+        show ${_promptFinalizeArg} "${formats[@]}" "${resultMessageRef}"
+    elif [[ ! -n ${_promptFinalizeArg} ]]; then
+        echo ${_promptFinalizeArg}
+    fi
 
     # Restore terminal settings
 
