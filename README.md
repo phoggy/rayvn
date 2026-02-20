@@ -1,9 +1,9 @@
 
 
 ![rayvn](etc/rayvn6.png)
-## rayvn /ˈreɪ.vən/
+# rayvn
 
-A bash shared library manager and shared library collection.
+A shared library system for bash.
 
 ### Prerequisites
 
