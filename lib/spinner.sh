@@ -21,7 +21,7 @@ spinnerTypes() {
     (( isInteractive )) || return 0  # No-op when not interactive
 
     local -n resultArray=$1
-    resultArray=("${!_spinnerNames[@]}")
+    resultArray=("${_spinnerNameList[@]}")
 }
 
 # startSpinner idVar [label] [type] [color]
@@ -97,7 +97,7 @@ addSpinner() {
     [[ -n ${type} ]] || invalidArgs "type required"
     [[ -n ${row} ]] || invalidArgs "row required"
     [[ -n ${col} ]] || invalidArgs "col required"
-    [[ -v _spinnerNames[${type}] ]] || invalidArgs "unknown type: ${type}"
+    [[ -v _spinnerNameMap[${type}] ]] || invalidArgs "unknown type: ${type}"
 
     if _spinnerRequest add "${type}" "${color}" "${row}" "${col}"; then
         idRef=${response[1]}
@@ -129,23 +129,27 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIV
 
 _init_rayvn_spinner() {
     require 'rayvn/core' 'rayvn/process' 'rayvn/terminal'
+    local fifo type
 
     # Request and response fifos
 
-    local fifo
     fifo="${ makeTempFifo; }"
     declare -gr _spinnerRequestFifo="${fifo}"
     fifo="${ makeTempFifo; }"
     declare -gr _spinnerResponseFifo="${fifo}"
 
-
     # Enable client/server init on first request
 
     declare -g _spinnerFirstRequest=1
 
-    # Spinner type names
+    # Spinner type name list and map
 
-    declare -grA _spinnerNames=(['star']=1 ['dots']=1 ['line']=1 ['circle']=1 ['arrow']=1 ['box']=1 ['bounce']=1 ['pulse']=1 ['grow']=1)
+    declare -gra _spinnerNameList=('star' 'dots' 'line' 'circle' 'arrow' 'box' 'bounce' 'pulse' 'grow')
+    declare -gA _spinnerNameMap=()
+    for type in "${_spinnerNameList[@]}"; do
+        _spinnerNameMap+=([${type}]=1)
+    done
+    declare -grA _spinnerNameMap
 
     # Add shutdown handler
 
