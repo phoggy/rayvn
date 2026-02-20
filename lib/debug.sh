@@ -138,13 +138,15 @@ debugStack() {
 debugTraceOn() {
     (( $# )) && debug "${@}"
     debug "${ show secondary "BEGIN CODE TRACE ----------------------------------"; }"
+    exec 4>> "${_debugOut}"
     export BASH_XTRACEFD=4
-    set -x 2>&3
+    set -x 2>&4
 }
 
 debugTraceOff() {
-    unset BASH_XTRACEFD=
     set +x
+    unset BASH_XTRACEFD
+    exec 4>&-
     debug "${ show secondary "END CODE TRACE ------------------------------------"; }"
     (( $# )) && debug "${@}"
 }
