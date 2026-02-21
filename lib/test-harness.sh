@@ -20,6 +20,7 @@ _init_rayvn_test-harness() {
 
     declare -g _testPadding
     declare -g _maxProjectNameLength
+    declare -g _testDisplayEndRow
     declare -g _testResultColumn
     declare -g _testLogDir
     declare -g _testResultDir
@@ -308,6 +309,10 @@ _cancelAllTests() {
     done
     wait "${_testPids[@]}" 2> /dev/null
     _testPids=()
+    if [[ -n ${_testDisplayEndRow} ]]; then
+        cursorTo _testDisplayEndRow 1
+        echo
+    fi
 }
 
 _waitForAllTests() {
@@ -338,7 +343,8 @@ _waitForAllTests() {
         (( pendingCount > 0 )) && sleep 0.25
     done
 
-    cursorTo "${displayEndRow}" 1  # Position cursor after all test lines
+    cursorTo "${_testDisplayEndRow}" 1  # Position cursor after all test lines
+    _testDisplayEndRow= # ensure cancel does not do this again
     echo  # Final newline
 }
 
@@ -395,11 +401,11 @@ _runAllTestsParallel() {
     local totalLines=${lineNumber}
 
     # Compute absolute row positions now that all display is done, resilient to any scrolling
-    # that occurred during display. displayEndRow is the row after the last test line.
-    local displayEndRow displayEndCol
-    cursorPosition displayEndRow displayEndCol
+    # that occurred during display. _testDisplayEndRow is the row after the last test line.
+    local displayEndCol
+    cursorPosition _testDisplayEndRow displayEndCol
     for i in "${!testLineOffsets[@]}"; do
-        testSpinnerRows[${i}]=$(( displayEndRow - totalLines + testLineOffsets[${i}] ))
+        testSpinnerRows[${i}]=$(( _testDisplayEndRow - totalLines + testLineOffsets[${i}] ))
     done
 
     # Start all tests in parallel (they run silently and write results to files)
@@ -416,7 +422,7 @@ _displayPendingTest() {
     local i="${1}"
     local testName="${testNames[${i}]}"
     local project="${testProjects[${i}]}"
-    _setPadding _testResultColumn $(( - ${#testName} - 3 ))
+    _setPadding _testResultColumn $(( - ${#testName} - 4 ))
     local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
     local displayLogFile="${testLogFile/#${HOME}/\~}"
     testLineOffsets[${i}]=${lineNumber}
@@ -456,14 +462,14 @@ _displaySkippedTest() {
     local message="${2}"
     local testName="${testNames[${i}]}"
     local project="${testProjects[${i}]}"
-    _setPadding _testResultColumn $(( - ${#testName} - 5 ))
+    _setPadding _testResultColumn $(( - ${#testName} - 6 ))
     show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
 }
 
 _displayNoTests() {
     local i="${1}"
     local project="${testProjects[${i}]}"
-    _setPadding _testResultColumn $(( 1 ))
+    _setPadding _testResultColumn 0
     show bold "${project}" plain "${_testPadding}" secondary '⨯' plain dim "no tests"
 }
 
