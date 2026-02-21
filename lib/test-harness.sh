@@ -3,11 +3,18 @@
 # My library.
 # Intended for use via: require 'rayvn/test-harness'
 
+# Execute tests for one or more rayvn projects, running test files in parallel.
+# Reads project list, filter args, and option flags from the caller's environment
+# (the 'projects', 'args', and 'flags' variables set by the rayvn command).
+# Supports --nix (run inside nix develop) and --all (run locally then in nix).
 executeTests() {
     _assertPrerequisites "rayvn test [PROJECT] [PROJECT...] [TEST-NAME] [TEST-NAME...] [--nix] [--all]" || return 0
     _executeTests
 }
 
+# Build the Nix flake for one or more rayvn projects.
+# Reads the project list from the caller's 'projects' environment variable
+# (set by the rayvn command). Skips projects without a flake.nix.
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
     _executeNixBuild

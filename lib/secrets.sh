@@ -3,8 +3,12 @@
 # Secure credential storage library using system keychains.
 # Intended for use via: require 'rayvn/secrets'
 
-# Store a secret in the system keychain
-# Usage: secretStore <service> <account> <secret>
+# Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
+# Args: service account secret
+#
+#   service - service name used to identify the credential group
+#   account - account name (key) within the service
+#   secret  - secret value to store
 secretStore() {
     local service="${1}"
     local account="${2}"
@@ -19,9 +23,11 @@ secretStore() {
     fi
 }
 
-# Retrieve a secret from the system keychain
-# Usage: secretRetrieve <service> <account>
-# Returns: The secret value, or empty string if not found
+# Retrieve a secret from the system keychain. Prints the value, or empty string if not found.
+# Args: service account
+#
+#   service - service name used to identify the credential group
+#   account - account name (key) within the service
 secretRetrieve() {
     local service="${1}"
     local account="${2}"
@@ -35,8 +41,11 @@ secretRetrieve() {
     fi
 }
 
-# Delete a secret from the system keychain
-# Usage: secretDelete <service> <account>
+# Delete a secret from the system keychain.
+# Args: service account
+#
+#   service - service name used to identify the credential group
+#   account - account name (key) within the service
 secretDelete() {
     local service="${1}"
     local account="${2}"
@@ -50,9 +59,11 @@ secretDelete() {
     fi
 }
 
-# Check if a secret exists in the system keychain
-# Usage: secretExists <service> <account>
-# Returns: 0 if exists, 1 if not
+# Return 0 if a secret exists in the system keychain, 1 if not.
+# Args: service account
+#
+#   service - service name used to identify the credential group
+#   account - account name (key) within the service
 secretExists() {
     local service="${1}"
     local account="${2}"

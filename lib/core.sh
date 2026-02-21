@@ -4,15 +4,23 @@
 # Core library.
 # Intended for use via: require 'rayvn/core'
 
+# Set umask to 0077 so that all new files and directories are accessible only by the current user.
 allNewFilesUserOnly() {
     # Ensure that all new files are accessible by the current user only
     umask 0077
 }
 
+# Execute a command with umask 0022 (files readable by all, writable only by owner).
+# Args: command [args...]
 withDefaultUmask() {
     withUmask 0022 "${@}"
 }
 
+# Execute a command with a temporary umask, then restore the original umask.
+# Args: newUmask command [args...]
+#
+#   newUmask - the umask to set (e.g. 0077, 0022)
+#   command  - command and arguments to execute under the new umask
 withUmask() {
     local newUmask="${1}"
     local oldUmask status
@@ -33,29 +41,49 @@ withUmask() {
     return "${status}"
 }
 
+# Return the path to a binary, failing with an error if not found.
+# Args: name [errMsg]
+#
+#   name   - name of the binary to locate in PATH
+#   errMsg - optional custom error message (default: "'name' not found")
 binaryPath() {
     local name="${1}"
     local errMsg="${2:-"'${name}' not found"}"
     type -p "${name}" || fail "${errMsg}"
 }
 
+# Return a path rooted at the rayvn project root directory.
+# Args: relativePath
+#
+#   relativePath - path relative to the rayvn root
 rootDirPath() {
     echo "${rayvnRootDir}/${1}"
 }
 
+# Return the path to the session temp directory, optionally joined with a file name.
+# Args: [fileName]
+#
+#   fileName - optional file name to append to the temp directory path
 tempDirPath() {
     _ensureRayvnTempDir
     local fileName="${1:-}"
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
-
+# Create a temp file in the session temp directory and return its path.
+# Args: [nameTemplate]
+#
+#   nameTemplate - optional mktemp name template with X placeholders (default: XXXXXX)
 makeTempFile() {
     _ensureRayvnTempDir
     local file="${ mktemp "${_rayvnTempDir}/${1:-XXXXXX}"; }" # random file name if not passed
     echo "${file}"
 }
 
+# Create a named pipe (FIFO) in the session temp directory and return its path.
+# Args: [nameTemplate]
+#
+#   nameTemplate - optional name template with X placeholders (default: XXXXXX)
 makeTempFifo() {
     _ensureRayvnTempDir
     local name="${1:-XXXXXX}" hex
@@ -69,12 +97,21 @@ makeTempFifo() {
     echo "${fifoPath}"
 }
 
+# Create a temp directory in the session temp directory and return its path.
+# Args: [nameTemplate]
+#
+#   nameTemplate - optional mktemp name template with X placeholders (default: XXXXXX)
 makeTempDir() {
     _ensureRayvnTempDir
     local directory="${ mktemp -d "${_rayvnTempDir}/${1:-XXXXXX}"; }"  # random dir name if not passed
     echo "${directory}"
 }
 
+# Return the path to the current project's config directory, optionally joined with a file name.
+# Creates the config directory if it does not exist.
+# Args: [fileName]
+#
+#   fileName - optional file name to append to the config directory path
 configDirPath() {
     local fileName="${1:-}"
     local configDir="${_systemConfigDir}/${currentProjectName}"
@@ -93,6 +130,10 @@ configDirPath() {
     [[ -n ${fileName} ]] && echo "${configDir}/${fileName}" || echo "${configDir}"
 }
 
+# Create the directory if it does not already exist. Silently succeeds if already present.
+# Args: dir
+#
+#   dir - path of the directory to create
 ensureDir() {
     local dir="${1}"
     if [[ ! -d ${dir} ]]; then
@@ -100,6 +141,11 @@ ensureDir() {
     fi
 }
 
+# Create a directory (and any missing parents) and return its path. Fails if creation fails.
+# Args: dir [subDir]
+#
+#   dir    - base directory path
+#   subDir - optional subdirectory name to append before creating
 makeDir() {
     local dir="${1}"
     local subDir="${2:-}"
@@ -108,24 +154,41 @@ makeDir() {
     echo "${dir}"
 }
 
+# Fail with an error if not running interactively.
 assertIsInteractive() {
     (( isInteractive )) || fail "must be run interactively"
 }
 
+# Register a command to be executed at exit. Commands run in registration order.
+# Args: command
+#
+#   command - shell command string to execute on exit
 addExitHandler() {
     _rayvnExitTasks+=("${1}")
 }
 
+# Return the directory component of a path (equivalent to dirname).
+# Args: path
+#
+#   path - file or directory path
 dirName() {
     local path=${1%/}
     echo "${path%/*}"
 }
 
+# Return the final component of a path (equivalent to basename).
+# Args: path
+#
+#   path - file or directory path
 baseName() {
     local path=${1%/}
     echo "${path##*/}"
 }
 
+# Remove leading and trailing whitespace from a string.
+# Args: value
+#
+#   value - the string to trim
 trim() {
     local value="${1}"
     value="${value#"${value%%[![:space:]]*}"}" # remove leading whitespace
@@ -133,6 +196,12 @@ trim() {
     echo "${value}"
 }
 
+# Return the number of decimal digits needed to represent values up to maxValue.
+# Useful for formatting aligned numeric output.
+# Args: maxValue [startValue]
+#
+#   maxValue   - the largest value to be displayed (must be a positive integer)
+#   startValue - 0 (zero-indexed, default) or 1 (one-indexed)
 numericPlaces() {
     local maxValue="${1}"
     local startValue="${2:-0}"
@@ -145,12 +214,22 @@ numericPlaces() {
     echo "${#maxValue}" # return count of digits
 }
 
+# Print a number right-aligned within a fixed-width field.
+# Args: number places
+#
+#   number - the number to print
+#   places - minimum field width (right-aligned with spaces)
 printNumber() {
     local number="${1}"
     local places=${2-:1}
     printf '%*s' "${places}" "${number}"
 }
 
+# Return the version string for a rayvn project (reads its rayvn.pkg file).
+# Args: projectName [verbose]
+#
+#   projectName - name of the project (e.g. 'rayvn', 'valt')
+#   verbose     - if non-empty, include release date or "(development)" in the output
 projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
@@ -169,6 +248,14 @@ projectVersion() {
     )
 }
 
+# Check if an argument matches an expected value and set a result variable via nameref.
+# Returns 0 if matched, 1 if not. Used for parsing optional flag-style arguments.
+# Args: argMatch argValue resultVar [resultValue]
+#
+#   argMatch    - the expected argument value to match against (e.g. '-n')
+#   argValue    - the actual argument value to test
+#   resultVar   - nameref variable to set to resultValue if matched, or '' if not
+#   resultValue - value to assign on match (default: argMatch)
 parseOptionalArg() {
     local _argMatch=$1
     local _argValue=$2
@@ -183,18 +270,35 @@ parseOptionalArg() {
     fi
 }
 
+# Return 0 if a variable with the given name is defined (including empty or null-value vars).
+# Args: varName
+#
+#   varName - name of the variable to check
 varIsDefined() {
     declare -p "${1}" &> /dev/null
 }
 
+# Fail if a variable with the given name is not defined.
+# Args: varName
+#
+#   varName - name of the variable that must be defined
 assertVarDefined() {
     varIsDefined "${1}" || fail "var ${1} not defined"
 }
 
+# Fail if the given path does not exist (as any filesystem entry type).
+# Args: path
+#
+#   path - path to check for existence
 assertFileExists() {
     [[ -e ${1} ]] || fail "${1} not found"
 }
 
+# Fail if the given path does not exist or is not a regular file.
+# Args: file [description]
+#
+#   file        - path that must exist and be a regular file
+#   description - optional label for the error message (default: 'file')
 assertFile() {
     local file="${1}"
     local description="${2:-file}"
@@ -202,15 +306,28 @@ assertFile() {
     [[ -f ${1} ]] || fail "${1} is not an ${description}"
 }
 
+# Fail if the given path does not exist or is not a directory.
+# Args: dir
+#
+#   dir - path that must exist and be a directory
 assertDirectory() {
     assertFileExists "${1}"
     [[ -d ${1} ]] || fail "${1} is not a directory"
 }
 
+# Fail if the given path already exists.
+# Args: path
+#
+#   path - path that must not exist
 assertFileDoesNotExist() {
     [[ -e "${1}" ]] && fail "${1} already exists"
 }
 
+# Fail if filePath is not located within dirPath (resolves symlinks before checking).
+# Args: filePath dirPath
+#
+#   filePath - the path to verify
+#   dirPath  - the directory that must contain filePath
 assertPathWithinDirectory() {
     local filePath=${1}
     local dirPath=${2}
@@ -220,6 +337,11 @@ assertPathWithinDirectory() {
     [[ "${absoluteFile}" == ${absoluteDir}/* ]] || fail "${filePath} is not within ${dirPath}"
 }
 
+# Fail if the given name is not a valid cross-platform filename component.
+# Rejects empty strings, ".", "..", paths with slashes, control characters, and reserved characters.
+# Args: name
+#
+#   name - the filename component to validate (not a full path)
 assertValidFileName() {
     local name="${1}"
 
@@ -312,32 +434,59 @@ assertCommand() {
     fi
 }
 
+# Append a value to an exported variable, space-separated.
+# Args: varName value
+#
+#   varName - name of the variable to append to
+#   value   - value to append (prepended with a space if variable is non-empty)
 appendVar() {
     export ${1}="${!1:+${!1} }${2}"
 }
 
+# Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
+# Args: resultVar filePath description
+#
+#   resultVar   - nameref variable to receive the resolved file path
+#   filePath    - path to the file (must exist and be a regular file)
+#   description - label used in error messages
 setFileVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" false
 }
 
+# Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
+# Args: resultVar dirPath description
+#
+#   resultVar   - nameref variable to receive the resolved directory path
+#   dirPath     - path to the directory (must exist and be a directory)
+#   description - label used in error messages
 setDirVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" true
 }
 
+# Return the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
 timeStamp() {
     date "+%Y-%m-%d_%H.%M.%S_%Z"
 }
 
+# Return the current epoch time with microsecond precision (from EPOCHREALTIME).
 epochSeconds() {
     echo "${EPOCHREALTIME}"
 }
 
-# pass start time captured from ${EPOCHREALTIME}
+# Return the elapsed seconds since a previously captured epoch time (6 decimal places).
+# Args: startTime
+#
+#   startTime - start time value captured from ${EPOCHREALTIME}
 elapsedEpochSeconds() {
     local startTime="${1}"
     echo "${ awk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
+# Overwrite and unset one or more variables containing sensitive data.
+# Each variable's contents are overwritten with spaces before being unset.
+# Args: varName [varName...]
+#
+#   varName - name of a variable to securely erase; silently ignored if not defined
 secureEraseVars() {
     local varName value length
     while ((${#} > 0)); do
@@ -352,6 +501,10 @@ secureEraseVars() {
     done
 }
 
+# Open a URL in the default browser (macOS: open; Linux: xdg-open).
+# Args: url
+#
+#   url - the URL to open
 openUrl() {
     local url="${1}"
 
@@ -372,6 +525,10 @@ openUrl() {
     esac
 }
 
+# Execute a command with all rayvn-internal variables unset, simulating a clean environment.
+# Args: command [args...]
+#
+#   command - command and arguments to execute in the clean environment
 executeWithCleanVars() {
     env "${_unsetChildVars[@]}" "${@}"
 }
@@ -516,6 +673,12 @@ show() {
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
+# Print a styled section header with optional sub-text. An optional numeric index selects the color.
+# Args: [index] title [subtitle...]
+#
+#   index    - optional 1-based color index from the header color list (default: 1)
+#   title    - header text (printed in uppercase bold)
+#   subtitle - optional additional lines printed below the header
 header() {
     local index=0
     local maxIndex=${#_headerColors[@]}
@@ -537,12 +700,11 @@ header() {
     echo
 }
 
-# Returns a random integer via nameref
+# Set a variable to a random non-negative integer via nameref.
 # Args: resultVar [maxValue]
 #
-# Scalar var names, array index and associative arrays can be passed, e.g. myRandom, 'myArray[$i]', 'myMap[foo]'
-# If no maxValue, returns full 32-bit range: 0 to 4294967295
-
+#   resultVar - nameref variable to receive the result; accepts scalars, 'array[i]', or 'map[key]'
+#   maxValue  - optional upper bound (inclusive); if omitted, returns full 32-bit range 0..4294967295
 randomInteger() {
     local -n _intResult="${1}"
     local maxValue="${2:-}"
@@ -554,6 +716,10 @@ randomInteger() {
     fi
 }
 
+# Set a variable to a random hex character (0-9, a-f) via nameref.
+# Args: resultVar
+#
+#   resultVar - nameref variable to receive a single hex character
 randomHexChar() {
     local -n _hexResult="${1}"
     local _hexIndex
@@ -561,6 +727,11 @@ randomHexChar() {
     _hexResult=${_hexChars[_hexIndex]}
 }
 
+# Replace every occurrence of a placeholder character in a string with random hex characters.
+# Args: replaceChar stringVar
+#
+#   replaceChar - the character to replace (e.g. 'X')
+#   stringVar   - nameref variable containing the string to modify in-place
 replaceRandomHex() {
     local replaceChar="${1}"
     local -n replaceRef="${2}"
@@ -571,6 +742,11 @@ replaceRandomHex() {
     done
 }
 
+# Copy all key-value pairs from one associative array to another.
+# Args: srcVar destVar
+#
+#   srcVar  - name of the source associative array
+#   destVar - name of the destination associative array (must already be declared as -A)
 copyMap() {
     local -n src="${1}"
     local -n dest="${2}"
@@ -579,14 +755,27 @@ copyMap() {
     done
 }
 
+# Remove all ANSI escape sequences from a string and print the result.
+# Args: string
+#
+#   string - the string to strip
 stripAnsi() {
     echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
 }
 
+# Return 0 if a string contains ANSI escape sequences, 1 otherwise.
+# Args: string
+#
+#   string - the string to test
 containsAnsi() {
     [[ "${1}" =~ $'\e[' ]]
 }
 
+# Repeat a string a given number of times and print the result (no trailing newline).
+# Args: str count
+#
+#   str   - string to repeat
+#   count - number of times to repeat the string
 repeat() {
     local str=${1}
     local count=${2}
@@ -596,6 +785,12 @@ repeat() {
     echo -n "${result}"
 }
 
+# Return the 0-based index of an item in an array, or -1 if not found.
+# Exits 0 if found, 1 if not found.
+# Args: item arrayVar
+#
+#   item     - the value to search for
+#   arrayVar - name of the indexed array to search
 indexOf() {
     local item="${1}"
     local -n arrayRef="${2}"
@@ -610,10 +805,19 @@ indexOf() {
     return 1
 }
 
+# Return 0 if an item is a member of an array, 1 otherwise.
+# Args: item arrayVar
+#
+#   item     - the value to search for
+#   arrayVar - name of the indexed array to search
 isMemberOf() {
     indexOf "${1}" "${2}" > /dev/null
 }
 
+# Return the length of the longest string in an array (ANSI escape codes not stripped).
+# Args: arrayVar
+#
+#   arrayVar - name of the indexed array to measure
 maxArrayElementLength() {
     local -n arrayRef="${1}"
     local max=0 len element
@@ -624,6 +828,12 @@ maxArrayElementLength() {
     echo -n "${max}"
 }
 
+# Pad a string to a minimum width, stripping ANSI codes when measuring the visible length.
+# Args: string width [position]
+#
+#   string   - the string to pad
+#   width    - minimum total visible character width
+#   position - where to add padding: 'after'/'left' (default), 'before'/'right', or 'center'
 padString() {
     local string="${1}"
     local width="${2}"
@@ -647,18 +857,35 @@ padString() {
     esac
 }
 
+# Print a warning message to the terminal error stream with a warning prefix.
+# Args: message [args...]
+#
+#   message - warning text; additional args are passed as extra show() arguments
 warn() {
     show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
 }
 
+# Print an error message to the terminal error stream with an error prefix.
+# Args: message [args...]
+#
+#   message - error text; additional args are passed as extra show() arguments
 error() {
     show error "🔺 ${1}" "${@:2}" > ${terminalErr}
 }
 
+# Fail with a stack trace. Shorthand for fail --trace when invalid arguments are passed.
+# Args: message [args...]
+#
+#   message - error message describing the invalid arguments
 invalidArgs() {
     fail --trace "${@}"
 }
 
+# Print an error message (or stack trace in debug mode) and exit with status 1.
+# Args: [--trace] message [args...]
+#
+#   --trace - force a stack trace even outside debug mode
+#   message - error message to display
 fail() {
 
     # Determine if we should generate a stack trace
@@ -686,6 +913,8 @@ fail() {
     exit 1
 }
 
+# Read lines from stdin and print each one in red to the terminal error stream.
+# Intended for use as a pipe consumer, e.g.: someCmd 2>&1 | redStream
 redStream() {
     local error
     {
@@ -695,12 +924,20 @@ redStream() {
     } > "${terminalErr}"
 }
 
+# Print an optional red message and exit with status 0. Used for clean but early exits.
+# Args: [message [args...]]
+#
+#   message - optional message to display in red before exiting
 bye() {
     (( $# )) && show red "${1}" "${@:2}"
     debugStack
     exit 0
 }
 
+# Print a formatted call stack, optionally preceded by an error message.
+# Args: [message [args...]]
+#
+#   message - optional error message to display before the stack trace
 stackTrace() {
     local message=("${@}")
     local caller=${FUNCNAME[1]}
@@ -723,8 +960,14 @@ stackTrace() {
     done
 }
 
-# Turn on debug mode
-
+# Enable debug mode, loading the rayvn/debug library and configuring debug output.
+# See rayvn/debug for full usage documentation.
+# Args: [tty path] [showOnExit] [clearLog] [noStatus]
+#
+#   tty path   - 'tty <path>' sends debug output to a terminal device; '.' reads ~/.debug.tty
+#   showOnExit - 'showOnExit' dumps the debug log to the terminal on exit
+#   clearLog   - 'clearLog' clears the log file before writing
+#   noStatus   - 'noStatus' suppresses the initial debug status message
 setDebug() {
     require 'rayvn/debug'
     _setDebug "${@}"

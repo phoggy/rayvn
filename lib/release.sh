@@ -3,6 +3,13 @@
 # Library for creating GitHub releases.
 # Intended for use via: require 'rayvn/release'
 
+# Perform a complete release of a rayvn project to GitHub via the Nix flake release workflow.
+# Runs tests in Nix, updates flake.nix and flake.lock, creates the GitHub release, verifies
+# the Nix build, and marks the post-release version.
+# Args: ghRepo version
+#
+#   ghRepo  - GitHub repository in 'account/repo' format (e.g. 'phoggy/rayvn')
+#   version - version string to release (e.g. '1.2.3')
 release () {
     local ghRepo="${1}"
     local version="${2}"

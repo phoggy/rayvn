@@ -3,16 +3,25 @@
 # Theme functions.
 # Intended for use via: require 'rayvn/theme'
 
+# Display the currently active theme with its color swatches.
+# Args: [prefix]
+#
+#   prefix - optional text to print before the theme display
 showCurrentTheme() {
     [[ -n ${1} ]] && echo -n "${1}"
     _displayTheme "${_currentThemeIndex}"
 }
 
+# Display all available themes with their color swatches.
+# Args: [position]
+#
+#   position - padding position for theme names: 'after'/'left' (default), 'before'/'right', or 'center'
 showThemes() {
     local position="${1:-after}"
     _displayThemes ${_themeDefaultIndent} ${position}
 }
 
+# Interactively prompt the user to select and apply a new theme.
 setTheme() {
     require 'rayvn/prompt'
     local theme
