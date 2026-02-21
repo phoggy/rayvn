@@ -44,6 +44,8 @@ require() {
             # Load the library (we can recurse here).
 
             _loadRayvnLibrary
+        else
+            traceUp "skipping '${qualifiedName}', already loaded"
         fi
         shift
     done
@@ -58,7 +60,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
     local functionName hasInitFunction=0 sourceOut
     local -A newFunctions
 
-    (( _loadLibraryDepth++ ))  # ;trace "loading '${qualifiedName}' [depth ${_loadLibraryDepth}]"
+    (( _loadLibraryDepth++ )); traceUp "loading '${qualifiedName}' [depth ${_loadLibraryDepth}]"
 
     # Load the library, capturing any output. Many of the errors that can occur here will NOT return an
     # error code, as they are considered definition-time errors rather than command execution failures, so
@@ -90,6 +92,14 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         _collectUnknownFunctionNames newFunctions
 
+        # Build top-level function set from a single scan of the file
+        local -A topLevelFunctions=()
+        if (( _rayvnReadOnlyFunctions )); then
+            while IFS= read -r line; do
+                [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*) ]] && topLevelFunctions["${BASH_REMATCH[1]}"]=1
+            done < <(grep -E "^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\)" "${libraryFile}")
+        fi
+
         # Process them and set all non _init_* functions readonly
 
         for functionName in "${!newFunctions[@]}"; do
@@ -97,7 +107,22 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
             if [[ ${functionName} == _init_* ]]; then
                 [[ ${functionName} == "${initFunction}" ]] && hasInitFunction=1
             elif (( _rayvnReadOnlyFunctions )); then
-                declare -fr "${functionName}"
+                if [[ -v _ignoreRayvnUpFunctions["${functionName}"] ]]; then
+                    : # transient rayvn.up function, not owned by any library
+                elif [[ -v topLevelFunctions["${functionName}"] ]]; then
+                    declare -fr "${functionName}"
+                else
+                    # Find where the nested function is actually defined
+                    local nestedSource="${qualifiedName}" srcLib srcProject srcLibrary srcFile srcKey
+                    for srcLib in "${_rayvnSources[@]}"; do
+                        srcProject="${srcLib%/*}"; srcLibrary="${srcLib#*/}"
+                        srcKey="${srcProject}${_libraryRootSuffix}"
+                        [[ -v _rayvnProjects[${srcKey}] ]] || continue
+                        srcFile="${_rayvnProjects[${srcKey}]}/${srcLibrary}.sh"
+                        grep -qE "${functionName}[[:space:]]*\(\)" "${srcFile}" && { nestedSource="${srcLib}"; break; }
+                    done
+                    fail "${functionName} is a nested function in '${nestedSource}' and will cause errors if not fixed."
+                fi
             fi
         done
 
@@ -156,11 +181,11 @@ printStack() {
 
 # --- These will be kept IFF the traceOut var is set, e.g. to another terminal or a file ----------
 
-trace() {
+traceUp() {
     (( _tracing )) && echo -e "[trace] ${*}" > "${traceOut}"
 }
 
-traceVar() {
+traceUpVar() {
     if (( _tracing )) ; then
         echo > "${traceOut}"
         echo -n "[trace] " > "${traceOut}"
@@ -169,17 +194,17 @@ traceVar() {
     fi
 }
 
-traceStack() {
+traceUpStack() {
     (( _tracing )) && printStack "[trace] ${*}" > "${traceOut}"
 }
 
-traceInit() {
+traceUpInit() {
     if [[ ! -v _tracing ]]; then
         if [[ -v traceOut ]]; then
             echo -e "\n\n[trace] BOOT rayvn.up --------- ${ date; } ----------------\n" > "${traceOut}"
             declare -g _tracing=1
             _rayvnFunctionSources+=(['trace']='rayvn.up' ['traceVar']='rayvn.up' ['traceStack']='rayvn.up' ['traceInit']='rayvn.up')
-            trace "${1}"
+            traceUp "${1}"
         else
             declare -g _tracing=0
             _rayvnUpUnsetIds+=(trace traceVar traceStack traceInit) # remove these later
@@ -209,7 +234,7 @@ configure() {
 
     # Init tracing if traceOut is set
 
-    traceInit "Configuring rayvn.up for project '${currentProjectName}', args: ${*}"
+    traceUpInit "Configuring rayvn.up for project '${currentProjectName}', args: ${*}"
 
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 
