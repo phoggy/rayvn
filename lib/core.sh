@@ -49,12 +49,6 @@ tempDirPath() {
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
-_ensureRayvnTempDir() {
-    if [[ ! -n ${_rayvnTempDir} ]]; then
-        declare -grx _rayvnTempDir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
-        chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
-    fi
-}
 
 makeTempFile() {
     _ensureRayvnTempDir
@@ -328,23 +322,6 @@ setFileVar() {
 
 setDirVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" true
-}
-
-_setFileSystemVar() {
-    local -n resultVar="${1}"
-    local file="${2}"
-    local description="${3}"
-    local isDir="${4}"
-
-    [[ ${file} ]] || fail "${description} path is required"
-    [[ -e ${file} ]] || fail "${file} not found"
-    if [[ ${isDir} == true ]]; then
-        [[ -d ${file} ]] || fail "${file} is not a directory"
-    else
-        [[ -f ${file} ]] || fail "${file} is not a file"
-    fi
-    local realFile="${ realpath "${file}" 2>/dev/null; }"
-    resultVar="${realFile}"
 }
 
 timeStamp() {
@@ -856,7 +833,7 @@ _init_rayvn_core() {
         fi
     fi
 
-    # Set some global vars and constants
+    # Misc global vars and constants
 
     declare -gxi _debug=0
     declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
@@ -1150,6 +1127,30 @@ _init_noColors() {
 
         ['nl']=$'\n'
     )
+}
+
+_setFileSystemVar() {
+    local -n resultVar="${1}"
+    local file="${2}"
+    local description="${3}"
+    local isDir="${4}"
+
+    [[ ${file} ]] || fail "${description} path is required"
+    [[ -e ${file} ]] || fail "${file} not found"
+    if [[ ${isDir} == true ]]; then
+        [[ -d ${file} ]] || fail "${file} is not a directory"
+    else
+        [[ -f ${file} ]] || fail "${file} is not a file"
+    fi
+    local realFile="${ realpath "${file}" 2>/dev/null; }"
+    resultVar="${realFile}"
+}
+
+_ensureRayvnTempDir() {
+    if [[ ! -n ${_rayvnTempDir} ]]; then
+        declare -grx _rayvnTempDir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
+        chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
+    fi
 }
 
 _restoreTerminal() {

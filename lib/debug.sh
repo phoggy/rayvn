@@ -78,7 +78,7 @@ debugVarIsSet() {
         [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is set ->" ;} "
-            if variableIsDefined ${var}; then
+            if varIsDefined ${var}; then
                 declare -p ${var}
             else
                 show red "NOT SET!"
@@ -97,7 +97,7 @@ debugVarIsNotSet() {
         (
             local var="${1}"
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is not set ->" ;} "
-            if variableIsDefined ${var}; then
+            if varIsDefined ${var}; then
                 show red "=${!var}"
                 stackTrace
                 echo
@@ -284,10 +284,6 @@ _setDebug() {
     addExitHandler _debugExit
 
     (( status )) && debugStatus
-}
-
-variableIsDefined() {
-    declare -p "${1}" &> /dev/null
 }
 
 _prepareLogFile() {
