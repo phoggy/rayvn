@@ -153,11 +153,11 @@ _init_rayvn_spinner() {
 
     # Add shutdown handler
 
-    _spinnerShutdown() {
-        _shutdownSpinnerServer
-    }
-
     addExitHandler _spinnerShutdown
+}
+
+_spinnerShutdown() {
+    _shutdownSpinnerServer
 }
 
 _initSpinnerClient() {

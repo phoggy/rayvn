@@ -82,27 +82,6 @@ confirm() {
     local display=()
     [[ ${defaultAnswerTwo} == true ]] && startIndex=1
 
-    _confirmInit() {
-        display[0]="${ show -n success "${_promptDisplayChoices[0]}"; } ${_promptDisplayChoices[1]}${_promptHint}"
-        display[1]="${_promptDisplayChoices[0]} ${ show -n success "${_promptDisplayChoices[1]}"; }${_promptHint}"
-        _promptClearHint=0
-    }
-
-    _confirmPaint() {
-        cursorTo "${_promptRow}" "${_promptCol}"
-        echo -n "${display[${_promptChoiceIndex}]} "
-    }
-
-    _confirmLeft() {
-        (( _promptChoiceIndex == 1 )) && _promptChoiceIndex=0
-        _confirmPaint
-    }
-
-    _confirmRight() {
-        (( _promptChoiceIndex == 0 )) && _promptChoiceIndex=1
-        _confirmPaint
-    }
-
     _prompt --prompt "${prompt}" --hint 'left/right arrows to switch, ESC to cancel'  --result "${resultVarName}" \
             --choices promptChoices --startIndex "${startIndex}" --doNotColorChoices --clearHint \
             --reserveRows 4 --timeout "${timeout}"  \
@@ -193,134 +172,6 @@ choose() {
     # Update hint if there are non-visible items
 
     (( nonVisibleItems )) && hint+=", ${nonVisibleItems} items not visible"
-
-    _chooseInit() {
-        # Don't show more items than exist (prevents duplicates)
-        local totalItems=$(( _promptMaxChoicesIndex + 1 ))
-        if (( totalVisibleItems > totalItems )); then
-            totalVisibleItems=${totalItems}
-        fi
-
-        # Clamp _promptChoiceIndex to valid range
-        if (( _promptChoiceIndex < 0 )); then
-            _promptChoiceIndex=0
-        elif (( _promptChoiceIndex > _promptMaxChoicesIndex )); then
-            _promptChoiceIndex=${_promptMaxChoicesIndex}
-        fi
-
-        # Initialize cursor and window position based on startIndex
-        if (( _promptChoiceIndex < totalVisibleItems )); then
-            # Item fits in first window - no scrolling needed
-            cursorRow=${_promptChoiceIndex}
-            windowStart=0
-        else
-            # Need to scroll - position item at top of window
-            # But clamp windowStart so we don't scroll past the list end
-            local maxWindowStart=$(( _promptMaxChoicesIndex - totalVisibleItems + 1 ))
-            if (( maxWindowStart < 0 )); then maxWindowStart=0; fi
-
-            if (( _promptChoiceIndex <= maxWindowStart )); then
-                # Can show item at top without scrolling past end
-                windowStart=${_promptChoiceIndex}
-                cursorRow=0
-            else
-                # Would scroll past end - position window at end, adjust cursor
-                windowStart=${maxWindowStart}
-                cursorRow=$(( _promptChoiceIndex - windowStart ))
-            fi
-        fi
-        previousCursorRow=-1
-        previousWindowStart=-1
-    }
-
-    _choosePaint() {
-        # Check if we need full repaint (window scrolled) or just cursor move
-        if (( windowStart != previousWindowStart )); then
-            # Window scrolled - redraw all items without clearing all to reduce flicker
-            local row=${_promptChoicesStartRow}
-
-            for (( offset=0; offset < totalVisibleItems; offset++ )); do
-                local promptIndex=$(( (windowStart + offset) % (_promptMaxChoicesIndex + 1) ))
-
-                cursorTo ${row} 0
-                eraseToEndOfLine
-                if (( offset == cursorRow )); then
-                    echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${promptIndex}]}"
-                else
-                    echo -n "    ${_promptDisplayChoices[${promptIndex}]}"
-                fi
-
-                (( row++ ))
-
-                # Add separator line if needed
-                if [[ ${addSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]]; then
-                    cursorTo ${row} 0
-                    eraseToEndOfLine
-                    echo -n ""
-                    (( row++ ))
-                fi
-            done
-        else
-            # Partial update - only cursor moved within window
-            if (( previousCursorRow >= 0 )); then
-                # Calculate row position accounting for separators
-                local rowOffset=$(( previousCursorRow * rowsPerItem ))
-                local row=$(( _promptChoicesStartRow + rowOffset ))
-
-                # Redraw old cursor line (remove cursor)
-                local i=$(( (windowStart + previousCursorRow) % (_promptMaxChoicesIndex + 1) ))
-                cursorTo ${row} 0
-                eraseToEndOfLine
-                echo -n "    ${_promptDisplayChoices[${i}]}"
-            fi
-
-            # Calculate new row position
-            local rowOffset=$(( cursorRow * rowsPerItem ))
-            local row=$(( _promptChoicesStartRow + rowOffset ))
-
-            # Redraw new cursor line (add cursor)
-            local i=$(( (windowStart + cursorRow) % (_promptMaxChoicesIndex + 1) ))
-            cursorTo ${row} 0
-            eraseToEndOfLine
-            echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${i}]}"
-        fi
-
-        # Update previous positions
-        previousCursorRow=${cursorRow}
-        previousWindowStart=${windowStart}
-    }
-
-    _chooseUp() {
-        if (( cursorRow > 0 )); then
-            # Move cursor up within window
-            (( cursorRow-- ))
-            (( _promptChoiceIndex-- ))
-        else
-            # Cursor at top, scroll window up
-            (( _promptChoiceIndex-- ))
-            if (( _promptChoiceIndex < 0 )); then
-                _promptChoiceIndex=${_promptMaxChoicesIndex}
-            fi
-            windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
-        fi
-        _choosePaint
-    }
-
-    _chooseDown() {
-        if (( cursorRow < totalVisibleItems - 1 && _promptChoiceIndex < _promptMaxChoicesIndex )); then
-            # Move cursor down within window
-            (( cursorRow++ ))
-            (( _promptChoiceIndex++ ))
-        else
-            # Cursor at bottom, scroll window down
-            (( _promptChoiceIndex++ ))
-            if (( _promptChoiceIndex > _promptMaxChoicesIndex)); then
-                _promptChoiceIndex=0
-            fi
-            windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
-        fi
-        _choosePaint
-    }
 
     # Configure and run
 
@@ -757,3 +608,158 @@ _arrowPromptSuccess() {
     _promptInput="${_promptChoices[${_promptChoiceIndex}]}"
     _promptSuccess "${_promptChoiceIndex}"
 }
+
+SECTION="--+-+-----+-++(-++(---++++(---+( confirm() support )+---)++++---)++-)++-+------+-+--"
+
+_confirmInit() {
+    display[0]="${ show -n success "${_promptDisplayChoices[0]}"; } ${_promptDisplayChoices[1]}${_promptHint}"
+    display[1]="${_promptDisplayChoices[0]} ${ show -n success "${_promptDisplayChoices[1]}"; }${_promptHint}"
+    _promptClearHint=0
+}
+
+_confirmPaint() {
+    cursorTo "${_promptRow}" "${_promptCol}"
+    echo -n "${display[${_promptChoiceIndex}]} "
+}
+
+_confirmLeft() {
+    (( _promptChoiceIndex == 1 )) && _promptChoiceIndex=0
+    _confirmPaint
+}
+
+_confirmRight() {
+    (( _promptChoiceIndex == 0 )) && _promptChoiceIndex=1
+    _confirmPaint
+}
+
+SECTION="--+-+-----+-++(-++(---++++(---+( choose() support )+---)++++---)++-)++-+------+-+--"
+
+_chooseInit() {
+    # Don't show more items than exist (prevents duplicates)
+    local totalItems=$(( _promptMaxChoicesIndex + 1 ))
+    if (( totalVisibleItems > totalItems )); then
+        totalVisibleItems=${totalItems}
+    fi
+
+    # Clamp _promptChoiceIndex to valid range
+    if (( _promptChoiceIndex < 0 )); then
+        _promptChoiceIndex=0
+    elif (( _promptChoiceIndex > _promptMaxChoicesIndex )); then
+        _promptChoiceIndex=${_promptMaxChoicesIndex}
+    fi
+
+    # Initialize cursor and window position based on startIndex
+    if (( _promptChoiceIndex < totalVisibleItems )); then
+        # Item fits in first window - no scrolling needed
+        cursorRow=${_promptChoiceIndex}
+        windowStart=0
+    else
+        # Need to scroll - position item at top of window
+        # But clamp windowStart so we don't scroll past the list end
+        local maxWindowStart=$(( _promptMaxChoicesIndex - totalVisibleItems + 1 ))
+        if (( maxWindowStart < 0 )); then maxWindowStart=0; fi
+
+        if (( _promptChoiceIndex <= maxWindowStart )); then
+            # Can show item at top without scrolling past end
+            windowStart=${_promptChoiceIndex}
+            cursorRow=0
+        else
+            # Would scroll past end - position window at end, adjust cursor
+            windowStart=${maxWindowStart}
+            cursorRow=$(( _promptChoiceIndex - windowStart ))
+        fi
+    fi
+    previousCursorRow=-1
+    previousWindowStart=-1
+}
+
+_choosePaint() {
+    # Check if we need full repaint (window scrolled) or just cursor move
+    if (( windowStart != previousWindowStart )); then
+        # Window scrolled - redraw all items without clearing all to reduce flicker
+        local row=${_promptChoicesStartRow}
+
+        for (( offset=0; offset < totalVisibleItems; offset++ )); do
+            local promptIndex=$(( (windowStart + offset) % (_promptMaxChoicesIndex + 1) ))
+
+            cursorTo ${row} 0
+            eraseToEndOfLine
+            if (( offset == cursorRow )); then
+                echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${promptIndex}]}"
+            else
+                echo -n "    ${_promptDisplayChoices[${promptIndex}]}"
+            fi
+
+            (( row++ ))
+
+            # Add separator line if needed
+            if [[ ${addSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]]; then
+                cursorTo ${row} 0
+                eraseToEndOfLine
+                echo -n ""
+                (( row++ ))
+            fi
+        done
+    else
+        # Partial update - only cursor moved within window
+        if (( previousCursorRow >= 0 )); then
+            # Calculate row position accounting for separators
+            local rowOffset=$(( previousCursorRow * rowsPerItem ))
+            local row=$(( _promptChoicesStartRow + rowOffset ))
+
+            # Redraw old cursor line (remove cursor)
+            local i=$(( (windowStart + previousCursorRow) % (_promptMaxChoicesIndex + 1) ))
+            cursorTo ${row} 0
+            eraseToEndOfLine
+            echo -n "    ${_promptDisplayChoices[${i}]}"
+        fi
+
+        # Calculate new row position
+        local rowOffset=$(( cursorRow * rowsPerItem ))
+        local row=$(( _promptChoicesStartRow + rowOffset ))
+
+        # Redraw new cursor line (add cursor)
+        local i=$(( (windowStart + cursorRow) % (_promptMaxChoicesIndex + 1) ))
+        cursorTo ${row} 0
+        eraseToEndOfLine
+        echo -n "  ${_promptChoicesCursor} ${_promptDisplayChoices[${i}]}"
+    fi
+
+    # Update previous positions
+    previousCursorRow=${cursorRow}
+    previousWindowStart=${windowStart}
+}
+
+_chooseUp() {
+    if (( cursorRow > 0 )); then
+        # Move cursor up within window
+        (( cursorRow-- ))
+        (( _promptChoiceIndex-- ))
+    else
+        # Cursor at top, scroll window up
+        (( _promptChoiceIndex-- ))
+        if (( _promptChoiceIndex < 0 )); then
+            _promptChoiceIndex=${_promptMaxChoicesIndex}
+        fi
+        windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
+    fi
+    _choosePaint
+}
+
+_chooseDown() {
+    if (( cursorRow < totalVisibleItems - 1 && _promptChoiceIndex < _promptMaxChoicesIndex )); then
+        # Move cursor down within window
+        (( cursorRow++ ))
+        (( _promptChoiceIndex++ ))
+    else
+        # Cursor at bottom, scroll window down
+        (( _promptChoiceIndex++ ))
+        if (( _promptChoiceIndex > _promptMaxChoicesIndex)); then
+            _promptChoiceIndex=0
+        fi
+        windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
+    fi
+    _choosePaint
+}
+
+
