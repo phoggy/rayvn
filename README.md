@@ -3,7 +3,7 @@
 ![rayvn](etc/rayvn6.png)
 # rayvn
 
-A shared library system for bash. Simple themed TUI support. 
+A shared library system for bash.
                        
 ```bash
 # Boot rayvn & require two shared libraries ('rayvn/core' is automatic)
@@ -17,10 +17,14 @@ local types selectedIndex spinnerId
 spinnerTypes types
 choose -n 'What type of spinner would you like to see?' types selectedIndex || bye
 
-# Run the chosen spinner
+# Start the chosen spinner, pretend to do some work and stop spinner
 startSpinner spinnerId '' ${types[selectedIndex]}
 sleep 2
 stopSpinner spinnerId
+
+# View themes and optionally change current (takes effect on restart)
+require 'rayvn/theme'
+setTheme
 ```
 
 ### Prerequisites
