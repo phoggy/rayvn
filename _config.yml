@@ -1,0 +1,16 @@
+title: rayvn
+description: A bash shared library framework
+theme: just-the-docs
+url: https://rayvn.ink
+baseurl: /rayvn
+
+nav_external_links:
+  - title: GitHub
+    url: https://github.com/phoggy/rayvn
+  - title: valt docs
+    url: /valt
+  - title: wardn docs
+    url: /wardn
+
+aux_links:
+  "rayvn.ink": "/"
