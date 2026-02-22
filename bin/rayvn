@@ -18,6 +18,7 @@ usage() {
     echo "    functions         List public functions."
     echo "    register          Register a project."
     echo "    release           Create a new release."
+    echo "    index             Generate function indexes and Jekyll docs."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified."
     echo
@@ -61,6 +62,7 @@ init() {
             functions) parseArgs true listFunctions "${@:2}" ;;
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
+            index) parseArgs true indexDocs "${@:2}" ;;
             --debug) debugCommand=('--debug') ;debugOptions=('showOnExit') ;;
             --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showOnExit') ;;
             --debug-out) debugCommand=('--debug-out') ;debugOptions=('tty' "${ tty; }") ;;
@@ -359,6 +361,15 @@ runTests() {
 nixBuild() {
     require 'rayvn/test-harness'
     executeNixBuild
+}
+
+indexDocs() {
+    if (( flags['help'] )); then
+        echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE] [--docs DIR] [--publish]"
+    else
+        require 'rayvn/index'
+        runIndex "${args[@]}"
+    fi
 }
 
 createProject() {

@@ -3,3 +3,4 @@
 projectName='rayvn'
 projectVersion='0.2.4+'
 projectReleaseDate=''
+docsWorktree='../rayvn-pages'
