@@ -22,6 +22,7 @@ Commands
     functions         List public functions.
     register          Register a project.
     release           Create a new release.
+    index             Generate function indexes and Jekyll docs.
 
 Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified.
 
@@ -71,6 +72,8 @@ project 'rayvn'
     config -> /Users/batsatt/dev/rayvn/lib/config.sh
     core -> /Users/batsatt/dev/rayvn/lib/core.sh
     debug -> /Users/batsatt/dev/rayvn/lib/debug.sh
+    deps -> /Users/batsatt/dev/rayvn/lib/deps.sh
+    index -> /Users/batsatt/dev/rayvn/lib/index.sh
     oauth -> /Users/batsatt/dev/rayvn/lib/oauth.sh
     process -> /Users/batsatt/dev/rayvn/lib/process.sh
     prompt -> /Users/batsatt/dev/rayvn/lib/prompt.sh
@@ -111,6 +114,7 @@ rayvn functions
     forEachProject 
     getFunctions 
     getProjectRoot 
+    indexDocs 
     init 
     listFunctions 
     listLibraries 
@@ -216,5 +220,11 @@ rayvn register PROJECT [--remove]
 
 ```
 rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION 
+```
+
+### index
+
+```
+rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE] [--docs DIR] [--publish]
 ```
 

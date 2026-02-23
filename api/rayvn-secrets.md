@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/secrets"
 parent: API Reference
-nav_order: 9
+nav_order: 11
 ---
 
 # rayvn/secrets
@@ -22,7 +22,7 @@ Args: service account secret
   secret  - secret value to store
 
 ```bash
-secretStore() {
+secretStore()
 ```
 
 ### secretRetrieve
@@ -35,7 +35,7 @@ Args: service account
   account - account name (key) within the service
 
 ```bash
-secretRetrieve() {
+secretRetrieve()
 ```
 
 ### secretDelete
@@ -48,7 +48,7 @@ Args: service account
   account - account name (key) within the service
 
 ```bash
-secretDelete() {
+secretDelete()
 ```
 
 ### secretExists
@@ -61,6 +61,6 @@ Args: service account
   account - account name (key) within the service
 
 ```bash
-secretExists() {
+secretExists()
 ```
 

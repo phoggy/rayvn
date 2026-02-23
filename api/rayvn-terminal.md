@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/terminal"
 parent: API Reference
-nav_order: 11
+nav_order: 13
 ---
 
 # rayvn/terminal
@@ -19,7 +19,7 @@ Intended for use via: require 'rayvn/terminal'
 Hide the terminal cursor.
 
 ```bash
-cursorHide() {
+cursorHide()
 ```
 
 ### cursorShow
@@ -29,7 +29,7 @@ cursorHide() {
 Show the terminal cursor.
 
 ```bash
-cursorShow() {
+cursorShow()
 ```
 
 ### cursorPosition
@@ -42,7 +42,7 @@ Args: rowVar colVar
   colVar - nameref variable to receive the 1-based column number
 
 ```bash
-cursorPosition() {
+cursorPosition()
 ```
 
 ### cursorSave
@@ -53,7 +53,7 @@ Save the current cursor position. Note: save/restore does not work correctly if 
 occurs between the save and restore; use `reserveRows()` first to prevent scrolling.
 
 ```bash
-cursorSave() {
+cursorSave()
 ```
 
 ### cursorRestore
@@ -63,7 +63,7 @@ cursorSave() {
 Restore the cursor to the position saved by `cursorSave()`.
 
 ```bash
-cursorRestore() {
+cursorRestore()
 ```
 
 ### cursorUp
@@ -75,7 +75,7 @@ Args: [rows]
   rows - number of rows to move up (default: 1)
 
 ```bash
-cursorUp() {
+cursorUp()
 ```
 
 ### cursorUpToLineStart
@@ -87,7 +87,7 @@ Args: [rows]
   rows - number of rows to move up (default: 1)
 
 ```bash
-cursorUpToLineStart() {
+cursorUpToLineStart()
 ```
 
 ### cursorUpToColumn
@@ -100,7 +100,7 @@ Args: rows col
   col  - 1-based column to move to
 
 ```bash
-cursorUpToColumn() {
+cursorUpToColumn()
 ```
 
 ### cursorDown
@@ -112,7 +112,7 @@ Args: [rows]
   rows - number of rows to move down (default: 1)
 
 ```bash
-cursorDown() {
+cursorDown()
 ```
 
 ### cursorDownToLineStart
@@ -124,7 +124,7 @@ Args: [rows]
   rows - number of rows to move down (default: 1)
 
 ```bash
-cursorDownToLineStart() {
+cursorDownToLineStart()
 ```
 
 ### cursorDownToColumn
@@ -137,7 +137,7 @@ Args: rows col
   col  - 1-based column to move to
 
 ```bash
-cursorDownToColumn() {
+cursorDownToColumn()
 ```
 
 ### cursorTo
@@ -150,7 +150,7 @@ Args: row [col]
   col - 1-based column to move to (default: 0)
 
 ```bash
-cursorTo() {
+cursorTo()
 ```
 
 ### cursorToColumn
@@ -162,7 +162,7 @@ Args: col
   col - 1-based column to move to
 
 ```bash
-cursorToColumn() {
+cursorToColumn()
 ```
 
 ### cursorToLineStart
@@ -172,7 +172,7 @@ cursorToColumn() {
 Move the cursor to column 1 (start) of the current row.
 
 ```bash
-cursorToLineStart() {
+cursorToLineStart()
 ```
 
 ### cursorToColumnAndEraseToEndOfLine
@@ -184,7 +184,7 @@ Args: col
   col - 1-based column to move to before erasing
 
 ```bash
-cursorToColumnAndEraseToEndOfLine() {
+cursorToColumnAndEraseToEndOfLine()
 ```
 
 ### cursorUpOneAndEraseLine
@@ -194,7 +194,7 @@ cursorToColumnAndEraseToEndOfLine() {
 Move the cursor up one row and erase the entire line.
 
 ```bash
-cursorUpOneAndEraseLine() {
+cursorUpOneAndEraseLine()
 ```
 
 ### cursorDownOneAndEraseLine
@@ -204,7 +204,7 @@ cursorUpOneAndEraseLine() {
 Move the cursor down one row and erase the entire line.
 
 ```bash
-cursorDownOneAndEraseLine() {
+cursorDownOneAndEraseLine()
 ```
 
 ### eraseToEndOfLine
@@ -214,7 +214,7 @@ cursorDownOneAndEraseLine() {
 Erase from the cursor position to the end of the current line.
 
 ```bash
-eraseToEndOfLine() {
+eraseToEndOfLine()
 ```
 
 ### eraseCurrentLine
@@ -224,7 +224,7 @@ eraseToEndOfLine() {
 Erase the entire current line and move the cursor to column 1.
 
 ```bash
-eraseCurrentLine() {
+eraseCurrentLine()
 ```
 
 ### clearTerminal
@@ -234,7 +234,7 @@ eraseCurrentLine() {
 Clear the entire terminal and move the cursor to the top-left.
 
 ```bash
-clearTerminal() {
+clearTerminal()
 ```
 
 ### reserveRows
@@ -247,6 +247,6 @@ Args: [requiredRows]
   requiredRows - number of rows needed below the current cursor position (default: 2)
 
 ```bash
-reserveRows() {
+reserveRows()
 ```
 

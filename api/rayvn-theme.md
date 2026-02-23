@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/theme"
 parent: API Reference
-nav_order: 14
+nav_order: 16
 ---
 
 # rayvn/theme
@@ -20,7 +20,7 @@ Args: [prefix]
   prefix - optional text to print before the theme display
 
 ```bash
-showCurrentTheme() {
+showCurrentTheme()
 ```
 
 ### showThemes
@@ -32,7 +32,7 @@ Args: [position]
   position - padding position for theme names: 'after'/'left' (default), 'before'/'right', or 'center'
 
 ```bash
-showThemes() {
+showThemes()
 ```
 
 ### setTheme
@@ -42,6 +42,6 @@ showThemes() {
 Interactively prompt the user to select and apply a new theme.
 
 ```bash
-setTheme() {
+setTheme()
 ```
 

@@ -21,7 +21,7 @@ Usage: sourceConfigFile <file_or_string> [prefix_filter]
 Output: variables are defined in current env
 
 ```bash
-sourceConfigFile() {
+sourceConfigFile()
 ```
 
 ### extractSafeStaticVars
@@ -40,6 +40,6 @@ Usage: extractSafeStaticVars <file_or_string> [prefix_filter]
 Output: Safe variable declarations that can be sourced
 
 ```bash
-extractSafeStaticVars() {
+extractSafeStaticVars()
 ```
 

@@ -26,7 +26,7 @@ Args: message [args...]
   message - text to write; additional args are appended space-separated
 
 ```bash
-debug() {
+debug()
 ```
 
 ### debugEnabled
@@ -36,7 +36,7 @@ debug() {
 Return 0 if debug mode is currently enabled, 1 otherwise.
 
 ```bash
-debugEnabled() {
+debugEnabled()
 ```
 
 ### debugDir
@@ -46,7 +46,7 @@ debugEnabled() {
 Write the path to the debug output directory to debug output if debug mode is enabled.
 
 ```bash
-debugDir() {
+debugDir()
 ```
 
 ### debugStatus
@@ -56,7 +56,7 @@ debugDir() {
 Print the current debug configuration (log file path or output target) if debug is enabled.
 
 ```bash
-debugStatus() {
+debugStatus()
 ```
 
 ### debugBinary
@@ -69,7 +69,7 @@ Args: prompt binary
   binary - the binary string to display as hex
 
 ```bash
-debugBinary() {
+debugBinary()
 ```
 
 ### debugVar
@@ -81,7 +81,7 @@ Args: varName
   varName - name of the variable to inspect
 
 ```bash
-debugVar() {
+debugVar()
 ```
 
 ### debugVars
@@ -93,7 +93,7 @@ Args: varName [varName...]
   varName - name of a variable to inspect; reports "not defined" if undefined
 
 ```bash
-debugVars() {
+debugVars()
 ```
 
 ### debugVarIsSet
@@ -106,7 +106,7 @@ Args: varName [prefix]
   prefix  - optional label to prepend to the assertion message
 
 ```bash
-debugVarIsSet() {
+debugVarIsSet()
 ```
 
 ### debugVarIsNotSet
@@ -119,7 +119,7 @@ Args: varName [prefix]
   prefix  - optional label to prepend to the assertion message
 
 ```bash
-debugVarIsNotSet() {
+debugVarIsNotSet()
 ```
 
 ### debugFile
@@ -132,7 +132,7 @@ Args: sourceFile [fileName]
   fileName   - optional name for the copy in the debug directory (default: basename of sourceFile)
 
 ```bash
-debugFile() {
+debugFile()
 ```
 
 ### debugJson
@@ -145,7 +145,7 @@ Args: jsonVar fileName
   fileName - base name for the output file (written as fileName.json in the debug directory)
 
 ```bash
-debugJson() {
+debugJson()
 ```
 
 ### debugStack
@@ -157,7 +157,7 @@ Args: [message [args...]]
   message - optional message to include before the stack trace
 
 ```bash
-debugStack() {
+debugStack()
 ```
 
 ### debugTraceOn
@@ -169,7 +169,7 @@ Args: [message [args...]]
   message - optional message to log before enabling the trace
 
 ```bash
-debugTraceOn() {
+debugTraceOn()
 ```
 
 ### debugTraceOff
@@ -181,7 +181,7 @@ Args: [message [args...]]
   message - optional message to log after disabling the trace
 
 ```bash
-debugTraceOff() {
+debugTraceOff()
 ```
 
 ### debugEscapes
@@ -193,7 +193,7 @@ Args: value [value...]
   value - one or more values to print in quoted form
 
 ```bash
-debugEscapes() {
+debugEscapes()
 ```
 
 ### debugEnvironment
@@ -205,7 +205,7 @@ Args: fileName
   fileName - base name for the output file (written as fileName.env in the debug directory)
 
 ```bash
-debugEnvironment() {
+debugEnvironment()
 ```
 
 ### debugFileDescriptors
@@ -217,6 +217,6 @@ Args: fdVar [fdVar...]
   fdVar - either a numeric fd number, or the name of a variable that holds an fd number
 
 ```bash
-debugFileDescriptors() {
+debugFileDescriptors()
 ```
 

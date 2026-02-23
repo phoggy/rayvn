@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/process"
 parent: API Reference
-nav_order: 6
+nav_order: 8
 ---
 
 # rayvn/process
@@ -24,6 +24,6 @@ sent if timeout has not expired. After termWaitMs, a KILL signal is sent if time
 not expired. Waiting will then continue until timeout expires.
 
 ```bash
-waitForProcessExit() {
+waitForProcessExit()
 ```
 

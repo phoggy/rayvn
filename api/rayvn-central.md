@@ -21,7 +21,7 @@ Args: projectName
   projectName - the name to register (must not already be taken in the registry)
 
 ```bash
-registerProjectOnRayvnCentral() {
+registerProjectOnRayvnCentral()
 ```
 
 ### getProjectRegistryPath
@@ -34,6 +34,6 @@ Args: projectName
   projectName - name of the project to look up
 
 ```bash
-getProjectRegistryPath() {
+getProjectRegistryPath()
 ```
 

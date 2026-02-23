@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/spinner"
 parent: API Reference
-nav_order: 10
+nav_order: 12
 ---
 
 # rayvn/spinner
@@ -28,7 +28,7 @@ Example:
   echo "Available: `${types[*]}`"
 
 ```bash
-spinnerTypes() {
+spinnerTypes()
 ```
 
 ### startSpinner
@@ -49,7 +49,7 @@ Example:
   stopSpinner spinnerId "Done"
 
 ```bash
-startSpinner() {
+startSpinner()
 ```
 
 ### stopSpinner
@@ -66,7 +66,7 @@ Example:
   stopSpinner -n spinnerId   # stop without newline
 
 ```bash
-stopSpinner() {
+stopSpinner()
 ```
 
 ### addSpinner
@@ -83,7 +83,7 @@ Prefer startSpinner for typical use; use this when you need explicit positioning
   color  - color name for the spinner (default: 'secondary')
 
 ```bash
-addSpinner() {
+addSpinner()
 ```
 
 ### removeSpinner
@@ -98,6 +98,6 @@ Removes the spinner identified by idVar. Prefer stopSpinner for typical use.
   backup      - number of characters to back up before writing replacement (default: 0)
 
 ```bash
-removeSpinner() {
+removeSpinner()
 ```
 

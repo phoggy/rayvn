@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/prompt"
 parent: API Reference
-nav_order: 7
+nav_order: 9
 ---
 
 # rayvn/prompt
@@ -24,7 +24,7 @@ Output: resultVar set to input.
 Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 ```bash
-request() {
+request()
 ```
 
 ### secureRequest
@@ -39,7 +39,7 @@ Output: resultVar set to input.
 Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
 ```bash
-secureRequest() {
+secureRequest()
 ```
 
 ### confirm
@@ -59,7 +59,7 @@ Output: choiceIndexVar set to 0 for answer 1 or 1 for answer 2
 Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 ```bash
-confirm() {
+confirm()
 ```
 
 ### choose
@@ -78,6 +78,6 @@ Output: choiceIndexVar set to index of selected choice.
 Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
 ```bash
-choose() {
+choose()
 ```
 

@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/oauth"
 parent: API Reference
-nav_order: 5
+nav_order: 7
 ---
 
 # rayvn/oauth
@@ -25,7 +25,7 @@ Args: providerName resultMapVar serviceScope [clientId] [clientSecret]
   clientSecret  - optional OAuth client secret; if omitted, resolved from env/keychain/prompt
 
 ```bash
-getOAuthService() {
+getOAuthService()
 ```
 
 ### setupOAuthService
@@ -38,7 +38,7 @@ Args: serviceVar
   serviceVar - name of an OAuth service map populated by `getOAuthService()`
 
 ```bash
-setupOAuthService() {
+setupOAuthService()
 ```
 
 ### getOAuthAccessToken
@@ -50,6 +50,6 @@ Args: serviceVar
   serviceVar - name of an OAuth service map populated by `getOAuthService()`
 
 ```bash
-getOAuthAccessToken() {
+getOAuthAccessToken()
 ```
 

@@ -19,7 +19,7 @@ Intended for use via: require 'rayvn/core'
 Set umask to 0077 so that all new files and directories are accessible only by the current user.
 
 ```bash
-allNewFilesUserOnly() {
+allNewFilesUserOnly()
 ```
 
 ### withDefaultUmask
@@ -30,7 +30,7 @@ Execute a command with umask 0022 (files readable by all, writable only by owner
 Args: command [args...]
 
 ```bash
-withDefaultUmask() {
+withDefaultUmask()
 ```
 
 ### withUmask
@@ -43,7 +43,7 @@ Args: newUmask command [args...]
   command  - command and arguments to execute under the new umask
 
 ```bash
-withUmask() {
+withUmask()
 ```
 
 ### binaryPath
@@ -56,7 +56,7 @@ Args: name [errMsg]
   errMsg - optional custom error message (default: "'name' not found")
 
 ```bash
-binaryPath() {
+binaryPath()
 ```
 
 ### rootDirPath
@@ -68,7 +68,7 @@ Args: relativePath
   relativePath - path relative to the rayvn root
 
 ```bash
-rootDirPath() {
+rootDirPath()
 ```
 
 ### tempDirPath
@@ -80,7 +80,7 @@ Args: [fileName]
   fileName - optional file name to append to the temp directory path
 
 ```bash
-tempDirPath() {
+tempDirPath()
 ```
 
 ### makeTempFile
@@ -92,7 +92,7 @@ Args: [nameTemplate]
   nameTemplate - optional mktemp name template with X placeholders (default: XXXXXX)
 
 ```bash
-makeTempFile() {
+makeTempFile()
 ```
 
 ### makeTempFifo
@@ -104,7 +104,7 @@ Args: [nameTemplate]
   nameTemplate - optional name template with X placeholders (default: XXXXXX)
 
 ```bash
-makeTempFifo() {
+makeTempFifo()
 ```
 
 ### makeTempDir
@@ -116,7 +116,7 @@ Args: [nameTemplate]
   nameTemplate - optional mktemp name template with X placeholders (default: XXXXXX)
 
 ```bash
-makeTempDir() {
+makeTempDir()
 ```
 
 ### configDirPath
@@ -129,7 +129,7 @@ Args: [fileName]
   fileName - optional file name to append to the config directory path
 
 ```bash
-configDirPath() {
+configDirPath()
 ```
 
 ### ensureDir
@@ -141,7 +141,7 @@ Args: dir
   dir - path of the directory to create
 
 ```bash
-ensureDir() {
+ensureDir()
 ```
 
 ### makeDir
@@ -154,7 +154,7 @@ Args: dir [subDir]
   subDir - optional subdirectory name to append before creating
 
 ```bash
-makeDir() {
+makeDir()
 ```
 
 ### assertIsInteractive
@@ -164,7 +164,7 @@ makeDir() {
 Fail with an error if not running interactively.
 
 ```bash
-assertIsInteractive() {
+assertIsInteractive()
 ```
 
 ### addExitHandler
@@ -176,7 +176,7 @@ Args: command
   command - shell command string to execute on exit
 
 ```bash
-addExitHandler() {
+addExitHandler()
 ```
 
 ### dirName
@@ -188,7 +188,7 @@ Args: path
   path - file or directory path
 
 ```bash
-dirName() {
+dirName()
 ```
 
 ### baseName
@@ -200,7 +200,7 @@ Args: path
   path - file or directory path
 
 ```bash
-baseName() {
+baseName()
 ```
 
 ### trim
@@ -212,7 +212,7 @@ Args: value
   value - the string to trim
 
 ```bash
-trim() {
+trim()
 ```
 
 ### numericPlaces
@@ -226,7 +226,7 @@ Args: maxValue [startValue]
   startValue - 0 (zero-indexed, default) or 1 (one-indexed)
 
 ```bash
-numericPlaces() {
+numericPlaces()
 ```
 
 ### printNumber
@@ -239,7 +239,7 @@ Args: number places
   places - minimum field width (right-aligned with spaces)
 
 ```bash
-printNumber() {
+printNumber()
 ```
 
 ### projectVersion
@@ -252,7 +252,7 @@ Args: projectName [verbose]
   verbose     - if non-empty, include release date or "(development)" in the output
 
 ```bash
-projectVersion() {
+projectVersion()
 ```
 
 ### parseOptionalArg
@@ -268,7 +268,7 @@ Args: argMatch argValue resultVar [resultValue]
   resultValue - value to assign on match (default: argMatch)
 
 ```bash
-parseOptionalArg() {
+parseOptionalArg()
 ```
 
 ### varIsDefined
@@ -280,7 +280,7 @@ Args: varName
   varName - name of the variable to check
 
 ```bash
-varIsDefined() {
+varIsDefined()
 ```
 
 ### assertVarDefined
@@ -292,7 +292,7 @@ Args: varName
   varName - name of the variable that must be defined
 
 ```bash
-assertVarDefined() {
+assertVarDefined()
 ```
 
 ### assertFileExists
@@ -304,7 +304,7 @@ Args: path
   path - path to check for existence
 
 ```bash
-assertFileExists() {
+assertFileExists()
 ```
 
 ### assertFile
@@ -317,7 +317,7 @@ Args: file [description]
   description - optional label for the error message (default: 'file')
 
 ```bash
-assertFile() {
+assertFile()
 ```
 
 ### assertDirectory
@@ -329,7 +329,7 @@ Args: dir
   dir - path that must exist and be a directory
 
 ```bash
-assertDirectory() {
+assertDirectory()
 ```
 
 ### assertFileDoesNotExist
@@ -341,7 +341,7 @@ Args: path
   path - path that must not exist
 
 ```bash
-assertFileDoesNotExist() {
+assertFileDoesNotExist()
 ```
 
 ### assertPathWithinDirectory
@@ -354,7 +354,7 @@ Args: filePath dirPath
   dirPath  - the directory that must contain filePath
 
 ```bash
-assertPathWithinDirectory() {
+assertPathWithinDirectory()
 ```
 
 ### assertValidFileName
@@ -367,7 +367,7 @@ Args: name
   name - the filename component to validate (not a full path)
 
 ```bash
-assertValidFileName() {
+assertValidFileName()
 ```
 
 ### assertCommand
@@ -392,7 +392,7 @@ Examples:
       eval 'tar cz "`${dir}`" | rage "`${recipients[@]}`" > "`${file}`"'
 
 ```bash
-assertCommand() {
+assertCommand()
 ```
 
 ### appendVar
@@ -405,7 +405,7 @@ Args: varName value
   value   - value to append (prepended with a space if variable is non-empty)
 
 ```bash
-appendVar() {
+appendVar()
 ```
 
 ### setFileVar
@@ -419,7 +419,7 @@ Args: resultVar filePath description
   description - label used in error messages
 
 ```bash
-setFileVar() {
+setFileVar()
 ```
 
 ### setDirVar
@@ -433,7 +433,7 @@ Args: resultVar dirPath description
   description - label used in error messages
 
 ```bash
-setDirVar() {
+setDirVar()
 ```
 
 ### timeStamp
@@ -443,7 +443,7 @@ setDirVar() {
 Return the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
 
 ```bash
-timeStamp() {
+timeStamp()
 ```
 
 ### epochSeconds
@@ -453,7 +453,7 @@ timeStamp() {
 Return the current epoch time with microsecond precision (from EPOCHREALTIME).
 
 ```bash
-epochSeconds() {
+epochSeconds()
 ```
 
 ### elapsedEpochSeconds
@@ -465,7 +465,7 @@ Args: startTime
   startTime - start time value captured from `${EPOCHREALTIME}`
 
 ```bash
-elapsedEpochSeconds() {
+elapsedEpochSeconds()
 ```
 
 ### secureEraseVars
@@ -478,7 +478,7 @@ Args: varName [varName...]
   varName - name of a variable to securely erase; silently ignored if not defined
 
 ```bash
-secureEraseVars() {
+secureEraseVars()
 ```
 
 ### openUrl
@@ -490,7 +490,7 @@ Args: url
   url - the URL to open
 
 ```bash
-openUrl() {
+openUrl()
 ```
 
 ### executeWithCleanVars
@@ -502,7 +502,7 @@ Args: command [args...]
   command - command and arguments to execute in the clean environment
 
 ```bash
-executeWithCleanVars() {
+executeWithCleanVars()
 ```
 
 ### show
@@ -580,7 +580,7 @@ AVAILABLE FORMATS:
     plain
 
 ```bash
-show() {
+show()
 ```
 
 ### header
@@ -594,7 +594,7 @@ Args: [index] title [subtitle...]
   subtitle - optional additional lines printed below the header
 
 ```bash
-header() {
+header()
 ```
 
 ### randomInteger
@@ -607,7 +607,7 @@ Args: resultVar [maxValue]
   maxValue  - optional upper bound (inclusive); if omitted, returns full 32-bit range 0..4294967295
 
 ```bash
-randomInteger() {
+randomInteger()
 ```
 
 ### randomHexChar
@@ -619,7 +619,7 @@ Args: resultVar
   resultVar - nameref variable to receive a single hex character
 
 ```bash
-randomHexChar() {
+randomHexChar()
 ```
 
 ### replaceRandomHex
@@ -632,7 +632,7 @@ Args: replaceChar stringVar
   stringVar   - nameref variable containing the string to modify in-place
 
 ```bash
-replaceRandomHex() {
+replaceRandomHex()
 ```
 
 ### copyMap
@@ -645,7 +645,7 @@ Args: srcVar destVar
   destVar - name of the destination associative array (must already be declared as -A)
 
 ```bash
-copyMap() {
+copyMap()
 ```
 
 ### stripAnsi
@@ -657,7 +657,7 @@ Args: string
   string - the string to strip
 
 ```bash
-stripAnsi() {
+stripAnsi()
 ```
 
 ### containsAnsi
@@ -669,7 +669,7 @@ Args: string
   string - the string to test
 
 ```bash
-containsAnsi() {
+containsAnsi()
 ```
 
 ### repeat
@@ -682,7 +682,7 @@ Args: str count
   count - number of times to repeat the string
 
 ```bash
-repeat() {
+repeat()
 ```
 
 ### indexOf
@@ -696,7 +696,7 @@ Args: item arrayVar
   arrayVar - name of the indexed array to search
 
 ```bash
-indexOf() {
+indexOf()
 ```
 
 ### isMemberOf
@@ -709,7 +709,7 @@ Args: item arrayVar
   arrayVar - name of the indexed array to search
 
 ```bash
-isMemberOf() {
+isMemberOf()
 ```
 
 ### maxArrayElementLength
@@ -721,7 +721,7 @@ Args: arrayVar
   arrayVar - name of the indexed array to measure
 
 ```bash
-maxArrayElementLength() {
+maxArrayElementLength()
 ```
 
 ### padString
@@ -735,7 +735,7 @@ Args: string width [position]
   position - where to add padding: 'after'/'left' (default), 'before'/'right', or 'center'
 
 ```bash
-padString() {
+padString()
 ```
 
 ### warn
@@ -747,7 +747,7 @@ Args: message [args...]
   message - warning text; additional args are passed as extra `show()` arguments
 
 ```bash
-warn() {
+warn()
 ```
 
 ### error
@@ -759,7 +759,7 @@ Args: message [args...]
   message - error text; additional args are passed as extra `show()` arguments
 
 ```bash
-error() {
+error()
 ```
 
 ### invalidArgs
@@ -771,7 +771,7 @@ Args: message [args...]
   message - error message describing the invalid arguments
 
 ```bash
-invalidArgs() {
+invalidArgs()
 ```
 
 ### fail
@@ -784,7 +784,7 @@ Args: [--trace] message [args...]
   message - error message to display
 
 ```bash
-fail() {
+fail()
 ```
 
 ### redStream
@@ -795,7 +795,7 @@ Read lines from stdin and print each one in red to the terminal error stream.
 Intended for use as a pipe consumer, e.g.: someCmd 2>&1 | redStream
 
 ```bash
-redStream() {
+redStream()
 ```
 
 ### bye
@@ -807,7 +807,7 @@ Args: [message [args...]]
   message - optional message to display in red before exiting
 
 ```bash
-bye() {
+bye()
 ```
 
 ### stackTrace
@@ -819,7 +819,7 @@ Args: [message [args...]]
   message - optional error message to display before the stack trace
 
 ```bash
-stackTrace() {
+stackTrace()
 ```
 
 ### setDebug
@@ -835,7 +835,7 @@ Args: [tty path] [showOnExit] [clearLog] [noStatus]
   noStatus   - 'noStatus' suppresses the initial debug status message
 
 ```bash
-setDebug() {
+setDebug()
 ```
 
 ### debug
@@ -845,7 +845,7 @@ setDebug() {
 Placeholder debug functions, replaced in `setDebug()`
 
 ```bash
-debug() { :; }
+debug()
 ```
 
 ### debugEnabled
@@ -853,7 +853,7 @@ debug() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugEnabled() { return 0; }
+debugEnabled()
 ```
 
 ### debugDir
@@ -861,7 +861,7 @@ debugEnabled() { return 0; }
 **Library:** `rayvn/core`
 
 ```bash
-debugDir() { :; }
+debugDir()
 ```
 
 ### debugStatus
@@ -869,7 +869,7 @@ debugDir() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugStatus() { echo 'debug disabled'; }
+debugStatus()
 ```
 
 ### debugBinary
@@ -877,7 +877,7 @@ debugStatus() { echo 'debug disabled'; }
 **Library:** `rayvn/core`
 
 ```bash
-debugBinary() { :; }
+debugBinary()
 ```
 
 ### debugVar
@@ -885,7 +885,7 @@ debugBinary() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugVar() { :; }
+debugVar()
 ```
 
 ### debugVars
@@ -893,7 +893,7 @@ debugVar() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugVars() { :; }
+debugVars()
 ```
 
 ### debugVarIsSet
@@ -901,7 +901,7 @@ debugVars() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugVarIsSet() { :; }
+debugVarIsSet()
 ```
 
 ### debugVarIsNotSet
@@ -909,7 +909,7 @@ debugVarIsSet() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugVarIsNotSet() { :; }
+debugVarIsNotSet()
 ```
 
 ### debugFile
@@ -917,7 +917,7 @@ debugVarIsNotSet() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugFile() { :; }
+debugFile()
 ```
 
 ### debugJson
@@ -925,7 +925,7 @@ debugFile() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugJson() { :; }
+debugJson()
 ```
 
 ### debugStack
@@ -933,7 +933,7 @@ debugJson() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugStack() { :; }
+debugStack()
 ```
 
 ### debugTraceOn
@@ -941,7 +941,7 @@ debugStack() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugTraceOn() { :; }
+debugTraceOn()
 ```
 
 ### debugTraceOff
@@ -949,7 +949,7 @@ debugTraceOn() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugTraceOff() { :; }
+debugTraceOff()
 ```
 
 ### debugEscapes
@@ -957,7 +957,7 @@ debugTraceOff() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugEscapes() { :; }
+debugEscapes()
 ```
 
 ### debugEnvironment
@@ -965,7 +965,7 @@ debugEscapes() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugEnvironment() { :; }
+debugEnvironment()
 ```
 
 ### debugFileDescriptors
@@ -973,6 +973,6 @@ debugEnvironment() { :; }
 **Library:** `rayvn/core`
 
 ```bash
-debugFileDescriptors() { :; }
+debugFileDescriptors()
 ```
 

@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/test"
 parent: API Reference
-nav_order: 12
+nav_order: 15
 ---
 
 # rayvn/test
@@ -22,7 +22,7 @@ Args: match file
   file  - path to the file to search
 
 ```bash
-assertNotInFile() {
+assertNotInFile()
 ```
 
 ### assertInFile
@@ -35,7 +35,7 @@ Args: match file
   file  - path to the file to search
 
 ```bash
-assertInFile() {
+assertInFile()
 ```
 
 ### assertEqual
@@ -49,7 +49,7 @@ Args: expected actual [message]
   message  - optional custom failure message
 
 ```bash
-assertEqual() {
+assertEqual()
 ```
 
 ### assertEqualStripped
@@ -63,7 +63,7 @@ Args: expected actual [message]
   message  - optional custom failure message
 
 ```bash
-assertEqualStripped() {
+assertEqualStripped()
 ```
 
 ### assertEqualEscapeCodes
@@ -77,7 +77,7 @@ Args: expected actual [message]
   message  - optional custom failure message
 
 ```bash
-assertEqualEscapeCodes() {
+assertEqualEscapeCodes()
 ```
 
 ### assertTrue
@@ -90,7 +90,7 @@ Args: message command [args...]
   command - command and arguments to execute
 
 ```bash
-assertTrue() {
+assertTrue()
 ```
 
 ### assertFalse
@@ -103,7 +103,7 @@ Args: message command [args...]
   command - command and arguments to execute
 
 ```bash
-assertFalse() {
+assertFalse()
 ```
 
 ### assertContains
@@ -117,7 +117,7 @@ Args: expected actual [message]
   message  - optional custom failure message
 
 ```bash
-assertContains() {
+assertContains()
 ```
 
 ### assertInRange
@@ -132,7 +132,7 @@ Args: value min max [message]
   message - optional custom failure message
 
 ```bash
-assertInRange() {
+assertInRange()
 ```
 
 ### assertEqualIgnoreCase
@@ -146,7 +146,7 @@ Args: expected actual [message]
   message  - optional custom failure message
 
 ```bash
-assertEqualIgnoreCase() {
+assertEqualIgnoreCase()
 ```
 
 ### assertNotInPath
@@ -158,7 +158,7 @@ Args: executable
   executable - name of the command that must NOT be in PATH
 
 ```bash
-assertNotInPath() {
+assertNotInPath()
 ```
 
 ### assertInPath
@@ -171,7 +171,7 @@ Args: executable [expectedPath]
   expectedPath - optional expected resolved path (symlinks followed)
 
 ```bash
-assertInPath() {
+assertInPath()
 ```
 
 ### assertFunctionIsNotDefined
@@ -183,7 +183,7 @@ Args: name
   name - function name that must NOT be defined
 
 ```bash
-assertFunctionIsNotDefined() {
+assertFunctionIsNotDefined()
 ```
 
 ### assertVarIsNotDefined
@@ -195,7 +195,7 @@ Args: name
   name - variable name that must NOT be defined
 
 ```bash
-assertVarIsNotDefined() {
+assertVarIsNotDefined()
 ```
 
 ### assertFunctionIsDefined
@@ -207,7 +207,7 @@ Args: name
   name - function name that must be defined
 
 ```bash
-assertFunctionIsDefined() {
+assertFunctionIsDefined()
 ```
 
 ### assertVarIsDefined
@@ -219,7 +219,7 @@ Args: name
   name - variable name that must be defined
 
 ```bash
-assertVarIsDefined() {
+assertVarIsDefined()
 ```
 
 ### assertVarType
@@ -232,7 +232,7 @@ Args: varName expectedFlags
   expectedFlags - expected declare flags as a string (e.g. "ir", "r", "arx", "A")
 
 ```bash
-assertVarType() {
+assertVarType()
 ```
 
 ### assertVarEquals
@@ -245,7 +245,7 @@ Args: varName expected
   expected - expected string value
 
 ```bash
-assertVarEquals() {
+assertVarEquals()
 ```
 
 ### assertVarContains
@@ -258,7 +258,7 @@ Args: varName expected
   expected - substring that must be present in the variable's value
 
 ```bash
-assertVarContains() {
+assertVarContains()
 ```
 
 ### assertArrayEquals
@@ -271,7 +271,7 @@ Args: varName [element...]
   element  - zero or more expected element values in order
 
 ```bash
-assertArrayEquals() {
+assertArrayEquals()
 ```
 
 ### assertHashTableIsDefined
@@ -283,7 +283,7 @@ Args: varName
   varName - name of the variable that must be a defined associative array
 
 ```bash
-assertHashTableIsDefined() {
+assertHashTableIsDefined()
 ```
 
 ### assertHashTableIsNotDefined
@@ -295,7 +295,7 @@ Args: varName
   varName - name of the variable that must NOT be defined
 
 ```bash
-assertHashTableIsNotDefined() {
+assertHashTableIsNotDefined()
 ```
 
 ### assertHashKeyIsDefined
@@ -308,7 +308,7 @@ Args: varName keyName
   keyName - key that must be defined in the array
 
 ```bash
-assertHashKeyIsDefined() {
+assertHashKeyIsDefined()
 ```
 
 ### assertHashKeyIsNotDefined
@@ -321,7 +321,7 @@ Args: varName keyName
   keyName - key that must NOT be defined in the array
 
 ```bash
-assertHashKeyIsNotDefined() {
+assertHashKeyIsNotDefined()
 ```
 
 ### assertHashValue
@@ -335,7 +335,7 @@ Args: varName keyName expectedValue
   expectedValue - expected value for that key
 
 ```bash
-assertHashValue() {
+assertHashValue()
 ```
 
 ### printPath
@@ -359,7 +359,7 @@ Args: [pathVariable]
   pathVariable - name of the colon-separated path variable to display (default: PATH)
 
 ```bash
-printPath() {
+printPath()
 ```
 
 ### addRayvnProject
@@ -373,7 +373,7 @@ Args: projectName projectRoot
   projectRoot - absolute or relative path to the project's root directory
 
 ```bash
-addRayvnProject() {
+addRayvnProject()
 ```
 
 ### removeRayvnProject
@@ -385,7 +385,7 @@ Args: projectName
   projectName - short name of the project to remove (e.g. 'valt')
 
 ```bash
-removeRayvnProject() {
+removeRayvnProject()
 ```
 
 ### requireAndAssertFailureContains
@@ -399,7 +399,7 @@ Args: library expected
   expected - substring that must appear in the captured failure message
 
 ```bash
-requireAndAssertFailureContains() {
+requireAndAssertFailureContains()
 ```
 
 ### benchmark
@@ -414,6 +414,6 @@ Args: functionName iterations testCase [args...]
   args         - optional arguments passed to the function on each invocation
 
 ```bash
-benchmark() {
+benchmark()
 ```
 

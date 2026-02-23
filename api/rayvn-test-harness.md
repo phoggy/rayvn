@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/test-harness"
 parent: API Reference
-nav_order: 13
+nav_order: 14
 ---
 
 # rayvn/test-harness
@@ -21,7 +21,7 @@ Reads project list, filter args, and option flags from the caller's environment
 Supports --nix (run inside nix develop) and --all (run locally then in nix).
 
 ```bash
-executeTests() {
+executeTests()
 ```
 
 ### executeNixBuild
@@ -33,6 +33,6 @@ Reads the project list from the caller's 'projects' environment variable
 (set by the rayvn command). Skips projects without a flake.nix.
 
 ```bash
-executeNixBuild() {
+executeNixBuild()
 ```
 
