@@ -196,7 +196,7 @@ _extractFunctions() {
             fi
             prevFunctionName="${newFunctionName}"
             prevFunctionDoc="${functionDoc}"
-            prevFunctionLine="${line}"
+            prevFunctionLine="${newFunctionName}()"
             functionDoc=''
         elif [[ "${line}" =~ ^#[[:space:]](.*)$ ]]; then
             local comment="${BASH_REMATCH[1]}"
