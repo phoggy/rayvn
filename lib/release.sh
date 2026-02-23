@@ -27,6 +27,7 @@ release () {
     _updateFlakeLock || fail
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
+    _updateBrewFormula "${ghRepo}" "${version}" || fail
     _markPostRelease "${version}" || fail
 
     echo
@@ -41,6 +42,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIV
 
 _init_rayvn_release() {
     require 'rayvn/prompt'
+    require 'rayvn/deps'
 }
 
 _checkExistingRelease() {
@@ -283,5 +285,72 @@ _ensureRepoIsUpToDate() {
 _printHeader() {
     echo
     show bold "${*}"
+}
+
+# Update the Homebrew formula in the tap repo for the given project release.
+# Reads formula template from formula/${project}.rb, substitutes markers, and pushes to tap.
+# Args: ghRepo version
+_updateBrewFormula() {
+    local ghRepo="${1}"
+    local version="${2}"
+    local project="${ghRepo#*/}"
+    local pkgFile='rayvn.pkg'
+
+    _printHeader "Updating Homebrew formula for ${project} v${version}"
+
+    # Load brewTapRepo from pkgFile
+    local brewTapRepo=''
+    [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
+    if [[ -z ${brewTapRepo} ]]; then
+        echo "No brewTapRepo configured in ${pkgFile}, skipping formula update."
+        return 0
+    fi
+
+    # Verify formula template exists
+    local templateFile="formula/${project}.rb"
+    [[ -f "${templateFile}" ]] || fail "Formula template not found: ${templateFile}"
+
+    # Build tarball URL for the release tag
+    local url="https://github.com/${ghRepo}/archive/refs/tags/v${version}.tar.gz"
+
+    # Compute SHA256 of the release tarball
+    local sha256
+    sha256="${ curl -sL "${url}" | shasum -a 256 | awk '{print $1}'; }" || fail "Failed to compute SHA256 for ${url}"
+    echo "SHA256: ${sha256}"
+
+    # Build the depends_on block from flake.nix + rayvn.pkg overrides
+    local depsBlock=''
+    while IFS= read -r depLine; do
+        depsBlock+="${depLine}"$'\n'
+    done < <( getBrewDeps "${project}" "${PWD}" )
+    depsBlock="${depsBlock%$'\n'}"  # strip trailing newline
+
+    # Read formula template and substitute markers
+    local formulaContent
+    formulaContent="${ cat "${templateFile}"; }" || fail "Failed to read template file ${templateFile}"
+    formulaContent="${formulaContent//\{URL\}/${url}}"
+    formulaContent="${formulaContent//\{SHA256\}/${sha256}}"
+    formulaContent="${formulaContent//\{DEPENDS_ON\}/${depsBlock}}"
+
+    # Push to tap via GitHub API
+    local tapApiPath="repos/${brewTapRepo}/contents/Formula/${project}.rb"
+
+    # Get current file SHA (needed for update; absent for initial creation)
+    local currentSha=''
+    currentSha="${ gh api "${tapApiPath}" --jq '.sha' 2>/dev/null || echo ''; }"
+
+    # Base64-encode the formula content (compatible with macOS and Linux)
+    local encoded
+    encoded="${ printf '%s' "${formulaContent}" | base64 | tr -d '\n'; }"
+
+    local putArgs=(
+        --method PUT
+        -f "message=Update ${project}.rb for v${version}"
+        -f "content=${encoded}"
+    )
+    [[ ${currentSha} ]] && putArgs+=(-f "sha=${currentSha}")
+
+    gh api "${tapApiPath}" "${putArgs[@]}" > /dev/null || fail "Failed to update formula in tap ${brewTapRepo}"
+    echo "Formula ${project}.rb updated in ${brewTapRepo}"
 }
 
