@@ -1,6 +1,7 @@
 title: rayvn
 description: A bash shared library framework
 remote_theme: just-the-docs/just-the-docs
+color_scheme: dark
 url: https://rayvn.ink
 baseurl: /rayvn
 

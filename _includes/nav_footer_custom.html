@@ -1,0 +1,15 @@
+<button id="theme-toggle" class="btn js-toggle-dark-mode"></button>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const btn = document.getElementById('theme-toggle');
+    function updateLabel() {
+      btn.textContent = jtd.getTheme() === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
+    }
+    updateLabel();
+    btn.addEventListener('click', function () {
+      jtd.setTheme(jtd.getTheme() === 'dark' ? 'light' : 'dark');
+      updateLabel();
+    });
+  });
+</script>
