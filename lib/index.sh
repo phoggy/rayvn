@@ -515,8 +515,14 @@ _generateCliPage() {
         local cmd cmdHelp
         for cmd in test build theme 'new' libraries functions register release index; do
             printf '### %s\n\n' "${cmd}"
+            if [[ "${cmd}" == 'theme' ]]; then
+                printf 'Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.\n\n'
+                printf '![Theme selector]({{ site.baseurl }}/assets/images/theme-selector.png)\n\n'
+                continue
+            fi
             cmdHelp=${ rayvn ${cmd} --help 2>&1; }
             cmdHelp=${ stripAnsi "${cmdHelp}"; }
+            cmdHelp="${cmdHelp//${HOME}//Users/phoggy}"
             printf '```\n%s\n```\n\n' "${cmdHelp}"
         done
     } > "${outFile}"
