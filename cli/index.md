@@ -49,14 +49,9 @@ rayvn build [PROJECT] [PROJECT...]
 
 ### theme
 
-```
-? Select theme [↑↓ arrows to move, ESC to cancel] stty: stdin isn't a terminal
-/Users/batsatt/dev/rayvn/lib/terminal.sh: line 30: /dev/tty: Device not configured
-/Users/batsatt/dev/rayvn/lib/terminal.sh: line 34: /dev/tty: Device not configured
-stty: stdin isn't a terminal
-/Users/batsatt/dev/rayvn/lib/terminal.sh: line 43: [[: invalid regular expression `': empty (sub)expression
-🔺 could not read cursor position
-```
+Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.
+
+![Theme selector]({{ site.baseurl }}/assets/images/theme-selector.png)
 
 ### new
 
@@ -68,22 +63,22 @@ rayvn new project|script|library|test NAME [--local]
 
 ```
 project 'rayvn'
-    central -> /Users/batsatt/dev/rayvn/lib/central.sh
-    config -> /Users/batsatt/dev/rayvn/lib/config.sh
-    core -> /Users/batsatt/dev/rayvn/lib/core.sh
-    debug -> /Users/batsatt/dev/rayvn/lib/debug.sh
-    deps -> /Users/batsatt/dev/rayvn/lib/deps.sh
-    index -> /Users/batsatt/dev/rayvn/lib/index.sh
-    oauth -> /Users/batsatt/dev/rayvn/lib/oauth.sh
-    process -> /Users/batsatt/dev/rayvn/lib/process.sh
-    prompt -> /Users/batsatt/dev/rayvn/lib/prompt.sh
-    release -> /Users/batsatt/dev/rayvn/lib/release.sh
-    secrets -> /Users/batsatt/dev/rayvn/lib/secrets.sh
-    spinner -> /Users/batsatt/dev/rayvn/lib/spinner.sh
-    terminal -> /Users/batsatt/dev/rayvn/lib/terminal.sh
-    test-harness -> /Users/batsatt/dev/rayvn/lib/test-harness.sh
-    test -> /Users/batsatt/dev/rayvn/lib/test.sh
-    theme -> /Users/batsatt/dev/rayvn/lib/theme.sh
+    central -> /Users/phoggy/dev/rayvn/lib/central.sh
+    config -> /Users/phoggy/dev/rayvn/lib/config.sh
+    core -> /Users/phoggy/dev/rayvn/lib/core.sh
+    debug -> /Users/phoggy/dev/rayvn/lib/debug.sh
+    deps -> /Users/phoggy/dev/rayvn/lib/deps.sh
+    index -> /Users/phoggy/dev/rayvn/lib/index.sh
+    oauth -> /Users/phoggy/dev/rayvn/lib/oauth.sh
+    process -> /Users/phoggy/dev/rayvn/lib/process.sh
+    prompt -> /Users/phoggy/dev/rayvn/lib/prompt.sh
+    release -> /Users/phoggy/dev/rayvn/lib/release.sh
+    secrets -> /Users/phoggy/dev/rayvn/lib/secrets.sh
+    spinner -> /Users/phoggy/dev/rayvn/lib/spinner.sh
+    terminal -> /Users/phoggy/dev/rayvn/lib/terminal.sh
+    test-harness -> /Users/phoggy/dev/rayvn/lib/test-harness.sh
+    test -> /Users/phoggy/dev/rayvn/lib/test.sh
+    theme -> /Users/phoggy/dev/rayvn/lib/theme.sh
 ```
 
 ### functions
