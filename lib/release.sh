@@ -18,6 +18,8 @@ release () {
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
 
+    header 1 "Releasing ${project} v${version}" plain primary "${ghRepo}"
+
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
@@ -49,7 +51,7 @@ _checkExistingRelease() {
     local ghRepo="${1}"
     local version="${2}"
     local versionTag="v${version}"
-    _printHeader "Checking if release ${versionTag} already exists"
+    header 2 "Checking if release ${versionTag} already exists"
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
@@ -78,7 +80,7 @@ _checkExistingRelease() {
 _runNixTests() {
     local project="${1}"
 
-    _printHeader "Running tests in Nix environment"
+    header 2 "Running tests in Nix environment"
 
     nix develop --command rayvn test "${project}" || fail "Tests failed in Nix environment"
     echo "All tests passed in Nix environment."
@@ -88,7 +90,7 @@ _updateFlakeVersion() {
     local version="${1}"
     local flakeFile='flake.nix'
 
-    _printHeader "Updating flake.nix version to ${version}"
+    header 2 "Updating flake.nix version to ${version}"
 
     # Update version in flake.nix
     sed -i.bak "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
@@ -104,7 +106,7 @@ _doRelease() {
     local version="${2}"
     local versionTag="v${version}"
 
-    _printHeader "Creating release ${versionTag}"
+    header 2 "Creating release ${versionTag}"
 
     gh --repo ${ghRepo} release create "${versionTag}" --title "Release ${versionTag}" \
         --notes "Improvements and bug fixes for ${versionTag}" || fail "release ${versionTag} failed!"
@@ -115,7 +117,7 @@ _markPostRelease() {
     local version="${1}"
     local pkgFile='rayvn.pkg'
 
-    _printHeader "Marking post-release version ${version}+"
+    header 2 "Marking post-release version ${version}+"
 
     # Update rayvn.pkg with post-release version (append +) and clear date
     sed -i.bak -e "s/^projectVersion='[^']*'/projectVersion='${version}+'/" \
@@ -129,7 +131,7 @@ _markPostRelease() {
 }
 
 _updateFlakeLock() {
-    _printHeader "Updating flake.lock"
+    header 2 "Updating flake.lock"
 
     # Run nix build to ensure flake.lock is current
     nix build --no-link || fail "nix build failed"
@@ -149,14 +151,14 @@ _updateFlakeLock() {
 _verifyNixBuild() {
     local ghRepo="${1}"
     local versionTag="v${2}"
-    _printHeader "Verifying Nix build for ${versionTag}"
+    header 2 "Verifying Nix build for ${versionTag}"
     nix build "github:${ghRepo}/${versionTag}" --no-link || fail "Nix build failed for ${versionTag}"
     echo "Nix build succeeded."
 }
 
 _deleteRelease() {
     local versionTag="v${1}"
-    _printHeader "Deleting release ${versionTag}"
+    header 2 "Deleting release ${versionTag}"
 
     gh release delete ${versionTag} --cleanup-tag || fail "failed to delete release ${versionTag}"
 }
@@ -164,7 +166,7 @@ _deleteRelease() {
 _updateExistingTagIfRequired() {
     local ghRepo="${1}"
     local versionTag="v${2}"
-    _printHeader "Updating version tag ${versionTag} if required"
+    header 2 "Updating version tag ${versionTag} if required"
 
     # Ensure the tag exists before trying to move it
 
@@ -182,7 +184,7 @@ _ensureInExpectedRepo() {
     local ghRepo="${1}"
     local account="${ghRepo%%/*}"
     local repo="${ghRepo#*/}"
-    _printHeader "Ensuring current directory matches ${ghRepo}"
+    header 2 "Ensuring current directory matches ${ghRepo}"
 
     # Ensure we're in a Git repository
 
@@ -214,7 +216,7 @@ _ensureInExpectedRepo() {
 
 _ensureRepoIsReadyForRelease() {
     local versionTag="v${1}"
-    _printHeader "Ensuring local repo is ready for release ${versionTag}"
+    header 2 "Ensuring local repo is ready for release ${versionTag}"
 
     # Check for uncommitted changes
 
@@ -260,7 +262,7 @@ _ensureRepoIsReadyForRelease() {
 }
 
 _ensureRepoIsUpToDate() {
-    _printHeader "Ensuring repo is up to date"
+    header 2 "Ensuring repo is up to date"
 
     branch=${ git rev-parse --abbrev-ref HEAD; }
     localCommit=${ git rev-parse HEAD; }
@@ -284,11 +286,6 @@ _ensureRepoIsUpToDate() {
     fi
 }
 
-_printHeader() {
-    echo
-    show bold "${*}"
-}
-
 # Update the Homebrew formula in the tap repo for the given project release.
 # Reads formula template from formula/${project}.rb, substitutes markers, and pushes to tap.
 # Args: ghRepo version
@@ -298,7 +295,7 @@ _updateBrewFormula() {
     local project="${ghRepo#*/}"
     local pkgFile='rayvn.pkg'
 
-    _printHeader "Updating Homebrew formula for ${project} v${version}"
+    header 2 "Updating Homebrew formula for ${project} v${version}"
 
     # Load brewTapRepo from pkgFile
     local brewTapRepo=''
