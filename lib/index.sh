@@ -17,7 +17,7 @@
 runIndex() {
     _initIndex "${@}"
 
-    header 1 "Generating rayvn function index"
+    header "Generating rayvn function index"
 
     local libFiles=()
     _collectLibFiles libFiles

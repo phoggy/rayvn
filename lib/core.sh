@@ -673,24 +673,27 @@ show() {
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
-# Print a styled section header with optional sub-text. An optional numeric index selects the color.
-# Args: [index] title [subtitle...]
+# Print a styled section header with optional sub-text. An optional numeric index selects the color
+# and converts the title to uppercase if 1.
+# Args: [-u] [index] title [subtitle...]
 #
-#   index    - optional 1-based color index from the header color list (default: 1)
-#   title    - header text (printed in uppercase bold)
+#   -u       - convert title to uppercase
+#   index    - optional color index from the header color list (default: 0).
 #   subtitle - optional additional lines printed below the header
 header() {
-    local index=0
-    local maxIndex=${#_headerColors[@]}
+    local toUpper=0 colorIndex=0
+    local maxIndex=$(( ${#_headerColors[@]} - 1))
+    parseOptionalArg '-u' "$1" toUpper 1 && shift
+
     if [[ -z "${1//[0-9]/}" ]]; then
-        index="${1}"
-        (( index > maxIndex )) && index=${maxIndex}
-        (( index-=1 ))
+        colorIndex="$1"
+        (( colorIndex > maxIndex )) && colorIndex=${maxIndex}
         shift
     fi
 
-    local header="${1^^}"
-    local color="${_headerColors[${index}]}"
+    local header="${1}"
+    (( toUpper )) && header="${header^^}"
+    local color="${_headerColors[${colorIndex}]}"
     echo
     show bold primary "┃┃" plain "${color}" "${header[@]}"
     if (( $# > 1 )); then
