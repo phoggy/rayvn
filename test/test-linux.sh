@@ -17,9 +17,13 @@ if [[ -n ${IN_NIX_SHELL} ]]; then
     exit 0
 fi
 
-# Check if Docker is available
+# Check if Docker is available and the daemon is running
 if ! command -v docker &> /dev/null; then
     fail "Docker is required but not installed. See https://docs.docker.com/get-docker/"
+fi
+if ! docker info &> /dev/null; then
+    echo "Skipping: Docker daemon is not running"
+    exit 0
 fi
 
 # Get the directory containing this script

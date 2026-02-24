@@ -18,7 +18,7 @@ release () {
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
 
-    header "Releasing ${project} v${version}" plain primary "${ghRepo}"
+    header -u "Releasing ${project} v${version}" plain primary "${ghRepo}"
 
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
@@ -81,7 +81,7 @@ _checkExistingRelease() {
 _runTests() {
     local -a projects=("${1}")
     local -a args=()
-    local -A flags=()
+    local -A flags=([all]=1)
 
     header 2 "Running tests"
 
