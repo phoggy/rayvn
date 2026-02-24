@@ -49,7 +49,6 @@ _checkExistingRelease() {
     local ghRepo="${1}"
     local version="${2}"
     local versionTag="v${version}"
-    local choiceIndex
     _printHeader "Checking if release ${versionTag} already exists"
 
     # Check if the release exists
@@ -66,6 +65,7 @@ _checkExistingRelease() {
 #        main() /Users/batsatt/dev/rayvn/bin/rayvn:40 -> releaseProject()
 #        main() /Users/batsatt/dev/rayvn/bin/rayvn:801 -> main()
 
+#        local choiceIndex
 #        confirm "Release ${versionTag} already exists. Delete it? " y n choiceIndex || bye
 #        if (( choiceIndex == 0 )); then
 #            _deleteRelease ${version} || fail
@@ -229,12 +229,14 @@ _ensureRepoIsReadyForRelease() {
 
     if [[ "${localCommit}" != "${remoteCommit}" ]]; then
         echo "Your local branch is behind the remote. A push is required."
-        read -p "Do you want to push the changes now? (y/n) " response
-        if [[ "${response}" != "y" ]]; then
+        local choice
+        confirm "Do you want to push the changes now?" yes no choice || bye
+        if (( choice == 0 )); then
+            git push origin "${ git rev-parse --abbrev-ref HEAD; }" &> /dev/null
+            echo "Changes pushed to remote."
+        else
             fail "Exiting without pushing changes."
         fi
-        git push origin "${ git rev-parse --abbrev-ref HEAD; }" &> /dev/null
-        echo "Changes pushed to remote."
     fi
 
     # Check if the version tag exists in the remote but not locally
