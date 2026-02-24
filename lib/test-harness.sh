@@ -197,7 +197,7 @@ _executeTests() {
     # Any error logs?
 
     if (( failedTestCount )); then
-        if (( ! inContainer )); then
+        if (( isInteractive && ! inContainer )); then
             local choiceIndex i logFile
             echo
             for (( i=0; i < failedTestCount; i++ )); do
@@ -212,6 +212,7 @@ _executeTests() {
         fi
         return 1
     fi
+    return 0
 }
 
 _collectProjectTests() {
