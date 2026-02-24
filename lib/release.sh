@@ -4,7 +4,7 @@
 # Intended for use via: require 'rayvn/release'
 
 # Perform a complete release of a rayvn project to GitHub via the Nix flake release workflow.
-# Runs tests in Nix, updates flake.nix and flake.lock, creates the GitHub release, verifies
+# Runs tests, updates flake.nix and flake.lock, creates the GitHub release, verifies
 # the Nix build, and marks the post-release version.
 # Args: ghRepo version
 #
@@ -18,12 +18,12 @@ release () {
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
 
-    header 1 "Releasing ${project} v${version}" plain primary "${ghRepo}"
+    header "Releasing ${project} v${version}" plain primary "${ghRepo}"
 
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
-    _runNixTests "${project}" || fail
+    _runTests "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _updateFlakeVersion "${version}" || fail
     _updateFlakeLock || fail
@@ -45,6 +45,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIV
 _init_rayvn_release() {
     require 'rayvn/prompt'
     require 'rayvn/deps'
+    require 'rayvn/test-harness'
 }
 
 _checkExistingRelease() {
@@ -77,13 +78,14 @@ _checkExistingRelease() {
     fi
 }
 
-_runNixTests() {
-    local project="${1}"
+_runTests() {
+    local -a projects=("${1}")
+    local -a args=()
+    local -A flags=()
 
-    header 2 "Running tests in Nix environment"
+    header 2 "Running tests"
 
-    nix develop --command rayvn test "${project}" || fail "Tests failed in Nix environment"
-    echo "All tests passed in Nix environment."
+    executeTests || fail "Tests failed"
 }
 
 _updateFlakeVersion() {
