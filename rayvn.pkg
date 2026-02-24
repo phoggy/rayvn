@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 projectName='rayvn'
-projectVersion='0.2.4+'
+projectVersion='0.2.5+'
 projectReleaseDate=''
 docsWorktree='../rayvn-pages'
 
