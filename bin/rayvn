@@ -355,7 +355,6 @@ _printLibrary() {
 
 runTests() {
     require 'rayvn/test-harness'
-    echo
     executeTests
 }
 

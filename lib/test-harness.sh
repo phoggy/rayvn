@@ -91,6 +91,7 @@ _executeNixBuild() {
         projectRoot="${_rayvnProjects[${project}::project]}"
         if [[ -f "${projectRoot}/flake.nix" ]]; then
             _setPadding messageColumn
+            echo
             show -n bold "${project}${_testPadding}" primary "building flake "
             cursorPosition row col
             echo
@@ -125,6 +126,7 @@ _executeTests() {
         fi
         return 0
     fi
+    echo
     require 'rayvn/spinner' 'rayvn/prompt'
 
     # Make sure we can ctrl-c out
