@@ -295,9 +295,8 @@ configure() {
 
     # Init tracing if traceOut is set
 
-    set -x
     traceUpInit "Configuring rayvn.up for project '${currentProjectName}', args: ${*}"
-    set +x
+
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 
     if [[ -o errexit || -o pipefail || -o nounset ]]; then
