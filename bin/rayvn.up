@@ -267,7 +267,10 @@ traceUpInit() {
             traceUp "${1}"
         else
             _tracing=0
-            _rayvnUpUnsetIds+=(traceUp traceUpVar traceUpStack traceUpInit) # remove these later
+            traceUp() { :; }
+            traceUpVar() { :; }
+            traceUpStack() { :; }
+            _rayvnUpUnsetIds+=(traceUpInit)
             _ignoreRayvnUpFunctions+=(['traceUp']=1 ['traceUpVar']=1 ['traceUpStack']=1 ['traceUpInit']=1)
         fi
     fi
