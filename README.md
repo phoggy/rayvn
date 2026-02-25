@@ -3,28 +3,42 @@
 ![rayvn](etc/rayvn6.png)
 # rayvn
 
-A shared library system for bash.
-                       
+A shared library ecosystem for bash 5.3+.
+
+#### Example 1: First Look                       
 ```bash
+#!/usr/bin/env rayvn-bash    # ensures bash 5.3+
+
 # Boot rayvn & require two shared libraries ('rayvn/core' is automatic)
+
 source rayvn.up 'rayvn/prompt' 'rayvn/spinner'
 
 # Display a header and subhead
-header 1 "Example 1" plain primary "using libraries 'rayvn/core' 'rayvn/prompt' 'rayvn/spinner'"
+
+header "Example 1" plain primary "using libraries 'rayvn/core' 'rayvn/prompt' 'rayvn/spinner'"
 
 # Ask user to choose spinner type
+
 local types selectedIndex spinnerId
 spinnerTypes types
 choose -n 'What type of spinner would you like to see?' types selectedIndex || bye
 
 # Start the chosen spinner, pretend to do some work and stop spinner
+
 startSpinner spinnerId '' ${types[selectedIndex]}
 sleep 2
 stopSpinner spinnerId
 
 # View themes and optionally change current (takes effect on restart)
-require 'rayvn/theme'
+
+require 'rayvn/theme'   
 setTheme
+
+# Generate a random 6 word passphrase using a library from the valt project (must be in PATH)
+
+require 'valt/password'
+header 2 "Generating a new passphrase"
+generatePassphrase 6
 ```
 
 ### Prerequisites
