@@ -17,6 +17,7 @@ executeTests() {
 # (set by the rayvn command). Skips projects without a flake.nix.
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
+    _computeTestResultColumn
     _executeNixBuild
 }
 
@@ -80,12 +81,41 @@ _ensureRayvnProject() {
     projects=("rayvn" "${projects[@]}")
 }
 
+_computeTestResultColumn() {
+    local testNames=() testFiles=() testFileNames=() testLogFileNames=()
+    local testProjects=()
+    local -A noTestProjects=() skipTestNames=()
+    _discoverTests
+}
+
+_discoverTests() {
+    local project projectRoot maxTestNameLength
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        if [[ -z ${projectRoot} ]]; then
+            show warning "unknown project:" bold "${project}"
+        elif [[ ! -d "${projectRoot}/test" ]]; then
+            # Add placeholder entry to preserve display order
+            testNames+=("")
+            testFiles+=("")
+            testFileNames+=("")
+            testLogFileNames+=("")
+            testProjects+=("${project}")
+            noTestProjects["${project}"]=1
+        else
+            _collectProjectTests "${project}" "${projectRoot}"
+        fi
+    done
+    maxTestNameLength="${ maxArrayElementLength testNames; }"
+    (( maxTestNameLength < 1 )) && maxTestNameLength=1
+    _testResultColumn=$(( _maxProjectNameLength + 1 + maxTestNameLength + 6 ))
+}
+
 _executeNixBuild() {
 
     # Stage and build each specified project that has a flake.nix
 
     local messageColumn=$(( _maxProjectNameLength + 1 ))
-    local row col
 
     for project in "${projects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
@@ -93,11 +123,10 @@ _executeNixBuild() {
             _setPadding messageColumn
             echo
             show -n bold "${project}${_testPadding}" primary "building flake "
-            cursorPosition row col
             echo
             git -C "${projectRoot}" add -u # stage
             nix build --no-warn-dirty "${projectRoot}" || fail "nix build failed for ${project}"
-            cursorUpToColumn 1 ${col}
+            cursorUpToColumn 1 $(( _testResultColumn + 2 ))
             echo "${_greenCheckMark}"
         fi
     done
@@ -105,6 +134,12 @@ _executeNixBuild() {
 
 _executeTests() {
     rayvnTest_TraceFail=1
+
+    local testNames=() testFiles=() testFileNames=() testLogFileNames=()
+    local testProjects=()
+    local -A noTestProjects=() skipTestNames=()
+    _discoverTests
+    local maxIndex=${#testNames[@]}
 
     # Handle --nix and --all cases
 
@@ -139,45 +174,11 @@ _executeTests() {
 
     # Create map for project messages
 
-    local -A skipTestNames=()
     local matchArg noMatchMsg=''
     for matchArg in "${args[@]}"; do
         (( ${#noMatchMsg} > 0)) && noMatchMsg+=' or '
         noMatchMsg+="'${matchArg}'"
     done
-
-    # Find all test files from specified projects
-
-    local testNames=()
-    local testFiles=()
-    local testFileNames=()
-    local testLogFileNames=()
-    local testProjects=()
-    local -A noTestProjects=()
-    local project projectRoot maxTestNameLength
-    for project in "${projects[@]}"; do
-        projectRoot="${_rayvnProjects[${project}::project]}"
-        if [[ -z ${projectRoot} ]]; then
-            show warning "unknown project:" bold "${project}"
-        elif [[ ! -d "${projectRoot}/test" ]]; then
-            # Add placeholder entry to preserve display order
-            testNames+=("")
-            testFiles+=("")
-            testFileNames+=("")
-            testLogFileNames+=("")
-            testProjects+=("${project}")
-            noTestProjects["${project}"]=1
-        else
-            _collectProjectTests "${project}" "${projectRoot}"
-        fi
-    done
-    local maxIndex=${#testNames[@]}
-
-    # Find maximum project and test name lengths to find result column
-
-    maxTestNameLength="${ maxArrayElementLength testNames; }"
-    (( maxTestNameLength < 1 )) && maxTestNameLength=1  # minimum for alignment
-    _testResultColumn=$(( _maxProjectNameLength + 1 + maxTestNameLength + 6 ))
 
     # Run tests in parallel
 
