@@ -36,9 +36,7 @@ setTheme() {
     done
 
     choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" 1 || return 1
-    if (( selectedIndex == _currentThemeIndex )); then
-        show "No change, theme is still" bold "${_themeNames[${selectedIndex}]}"
-    else
+    if (( selectedIndex != _currentThemeIndex )); then
         _setTheme "${selectedIndex}"
         show "Theme changed to" bold "${_themeNames[${selectedIndex}]}"
     fi
