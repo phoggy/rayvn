@@ -162,10 +162,10 @@ _addRayvnProject() {
     # Add project root
 
     if [[ -d ${projectRoot} ]]; then
-        trace "adding project ${projectName} at ${projectRoot}"
+        traceUp "adding project ${projectName} at ${projectRoot}"
         _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
     else
-        trace "adding project ${projectName} from executable"
+        traceUp "adding project ${projectName} from executable"
         _addRayvnProjectFromExecutable "${projectName}" "${projectRoot}"
     fi
 
@@ -258,16 +258,17 @@ traceUpStack() {
 }
 
 traceUpInit() {
-    if [[ ! -v _tracing ]]; then
-        if [[ -v traceOut ]]; then
+    if (( _tracing < 0 )); then
+        if [[ -n "${traceOut}" ]]; then
             echo -e "\n\n[trace] BOOT rayvn.up --------- ${ date; } ----------------\n" > "${traceOut}"
-            declare -g _tracing=1
-            _rayvnFunctionSources+=(['trace']='rayvn.up' ['traceVar']='rayvn.up' ['traceStack']='rayvn.up' ['traceInit']='rayvn.up')
+            _tracing=1
+            _rayvnFunctionSources+=(['traceUp']='rayvn.up' ['traceUpVar']='rayvn.up' ['traceUpStack']='rayvn.up'
+                                    ['traceUpInit']='rayvn.up')
             traceUp "${1}"
         else
-            declare -g _tracing=0
-            _rayvnUpUnsetIds+=(trace traceVar traceStack traceInit) # remove these later
-            _ignoreRayvnUpFunctions+=(['trace']=1 ['traceVar']=1 ['traceStack']=1 ['traceInit']=1)
+            _tracing=0
+            _rayvnUpUnsetIds+=(traceUp traceUpVar traceUpStack traceUpInit) # remove these later
+            _ignoreRayvnUpFunctions+=(['traceUp']=1 ['traceUpVar']=1 ['traceUpStack']=1 ['traceUpInit']=1)
         fi
     fi
 }
@@ -288,13 +289,15 @@ configure() {
     declare -g _loadLibraryDepth=0
     declare -grx _rayvnReadOnlyFunctions=${ (( rayvnTest_ModifiableFunctions )) && echo 0 || echo 1; }
     declare -gx currentProjectName
+    declare -g _tracing=-1
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
     local projects=() split=() project key
 
     # Init tracing if traceOut is set
 
+    set -x
     traceUpInit "Configuring rayvn.up for project '${currentProjectName}', args: ${*}"
-
+    set +x
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 
     if [[ -o errexit || -o pipefail || -o nounset ]]; then
