@@ -36,7 +36,7 @@ require() {
 
             local failed=${_rayvnRequireFailHandler:-fail}
             local libraryRootKey="${projectName}${_libraryRootSuffix}"
-            [[ -v _rayvnProjects[${libraryRootKey}] ]] || _addProject ${projectName} # Add if possible
+            [[ -v _rayvnProjects[${libraryRootKey}] ]] || _addRayvnProject ${projectName} # Add if possible
             local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
             local libraryFile="${libraryRoot}/${libraryName}.sh"
             [[ -f ${libraryFile} ]] || ${failed} "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
@@ -155,15 +155,17 @@ _collectUnknownRayvnFunctions() {
     done
 }
 
-_addProject() {
+_addRayvnProject() {
     local projectName="${1}"
     local projectRoot="${2:-${projectName}}"
 
     # Add project root
 
     if [[ -d ${projectRoot} ]]; then
+        trace "adding project ${projectName} at ${projectRoot}"
         _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
     else
+        trace "adding project ${projectName} from executable"
         _addRayvnProjectFromExecutable "${projectName}" "${projectRoot}"
     fi
 
@@ -205,7 +207,7 @@ _addRayvnProjectFromExecutable() {
         path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
         projectRoot="${ dirname "${path}"; }/.."
         _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
-    elif [[ ${executable} == ${projectName} ]]; then
+    elif [[ ${executable} == "${projectName}" ]]; then
         fail "project '${executable}' executable not found in PATH"
     else
         fail "'${executable}' not found in PATH for project '${projectName}'"
@@ -334,7 +336,8 @@ configure() {
 
     # Set our persistent public/private functions readonly
 
-    (( _rayvnReadOnlyFunctions )) && declare -fr require _loadRayvnLibrary _collectUnknownRayvnFunctions
+    (( _rayvnReadOnlyFunctions )) && declare -fr require _loadRayvnLibrary _collectUnknownRayvnFunctions _addRayvnProject \
+                                                 _addRayvnProjectFromExecutable _addRayvnProjectRoot
 
     # Instead of enforcing library namespaces, we set all functions in each library as readonly to prevent
     # collisions. This is not truly scalable, but is reasonable for now given the very small expected user base.
@@ -354,6 +357,7 @@ configure() {
     # Now replace with known sources: our persistent and replaced functions plus the debug API
 
     _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownRayvnFunctions']='rayvn.up'
+        ['_addRayvnProject']='rayvn.up' ['_addRayvnProjectFromExecutable']='rayvn.up' ['_addRayvnProjectRoot']='rayvn.up'
         ['fail']='rayvn/core' ['printStack']='rayvn/core'
         ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugStatus']='rayvn/debug'
         ['debugBinary']='rayvn/debug' ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug'
