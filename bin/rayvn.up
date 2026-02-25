@@ -36,7 +36,7 @@ require() {
 
             local failed=${_rayvnRequireFailHandler:-fail}
             local libraryRootKey="${projectName}${_libraryRootSuffix}"
-            [[ -v _rayvnProjects[${libraryRootKey}] ]] || ${failed} "require '${qualifiedName}': no library root configured for rayvn project '${projectName}'"
+            [[ -v _rayvnProjects[${libraryRootKey}] ]] || _addProject ${projectName} # Add if possible
             local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
             local libraryFile="${libraryRoot}/${libraryName}.sh"
             [[ -f ${libraryFile} ]] || ${failed} "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
@@ -90,7 +90,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         # Collect new functions
 
-        _collectUnknownFunctionNames newFunctions
+        _collectUnknownRayvnFunctions newFunctions
 
         # Build top-level function set from a single scan of the file
         local -A topLevelFunctions=()
@@ -138,7 +138,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
     fi
 }
 
-_collectUnknownFunctionNames() {
+_collectUnknownRayvnFunctions() {
     local -n mapRef="${1}"
     local value="${2:-1}"
 
@@ -153,6 +153,63 @@ _collectUnknownFunctionNames() {
         fi
         mapRef["${functionName}"]="${value}"
     done
+}
+
+_addProject() {
+    local projectName="${1}"
+    local projectRoot="${2:-${projectName}}"
+
+    # Add project root
+
+    if [[ -d ${projectRoot} ]]; then
+        _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+    else
+        _addRayvnProjectFromExecutable "${projectName}" "${projectRoot}"
+    fi
+
+    # Resolve resource root: where lib/, etc/, rayvn.pkg live.
+    # Normal git clone: same as project root.
+    # Nix profile layout: share/<project>/ under project root.
+
+    local resolvedRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}"
+    local resourceRoot="${resolvedRoot}"
+    [[ -d "${resolvedRoot}/share/${projectName}" ]] && resourceRoot="${resolvedRoot}/share/${projectName}"
+    declare -grx "${projectName//-/_}Home"="${resourceRoot}"
+
+    # Add library root if it exists (under resource root)
+
+    local libraryRoot="${resourceRoot}/lib"
+    if [[ -d "${libraryRoot}" ]]; then
+        _addRayvnProjectRoot "${projectName}" "${_libraryRootSuffix}" "${libraryRoot}"
+    fi
+}
+
+_addRayvnProjectRoot() {
+    local projectName="${1}"
+    local keySuffix="${2}"
+    local projectRoot="${3}"
+    local key="${projectName}${keySuffix}"
+
+    if  [[ ! -v _rayvnProjects[${key}] ]]; then
+        projectRoot="${ realpath "${projectRoot}"; }" || fail "Could not resolve real path of: ${projectRoot}"
+        _rayvnProjects[${key}]="${projectRoot}"
+    fi
+    return 0
+}
+
+_addRayvnProjectFromExecutable() {
+    local projectName="${1}"
+    local executable="${2}"
+    local path projectRoot
+    if path="${ type -p "${executable}"; }"; then
+        path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
+        projectRoot="${ dirname "${path}"; }/.."
+        _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+    elif [[ ${executable} == ${projectName} ]]; then
+        fail "project '${executable}' executable not found in PATH"
+    else
+        fail "'${executable}' not found in PATH for project '${projectName}'"
+    fi
 }
 
 TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTIONS ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -251,7 +308,7 @@ configure() {
     local rayvnUpBinary="${BASH_SOURCE[0]}"
     rayvnUpBinary="${ dirname "${rayvnUpBinary}"; }"  # do this in 2 steps for linux
     rayvnUpBinary="${ realpath "${rayvnUpBinary}"; }"
-    addProject rayvn "${ dirname "${rayvnUpBinary}"; }"
+    _addRayvnProject rayvn "${ dirname "${rayvnUpBinary}"; }"
 
     # Unless requested, ensure that 'rayvn/core' is loaded first
 
@@ -272,12 +329,12 @@ configure() {
     for project in "${projects[@]}"; do
         project="${project#"${project%%[![:space:]]*}"}"    # remove leading whitespace
         project="${project%"${project##*[![:space:]]}"}"    # remove trailing whitespace
-        addProject "${project%%=*}" "${project#*=}"
+        _addRayvnProject "${project%%=*}" "${project#*=}"
     done
 
     # Set our persistent public/private functions readonly
 
-    (( _rayvnReadOnlyFunctions )) && declare -fr require _loadRayvnLibrary _collectUnknownFunctionNames
+    (( _rayvnReadOnlyFunctions )) && declare -fr require _loadRayvnLibrary _collectUnknownRayvnFunctions
 
     # Instead of enforcing library namespaces, we set all functions in each library as readonly to prevent
     # collisions. This is not truly scalable, but is reasonable for now given the very small expected user base.
@@ -292,11 +349,11 @@ configure() {
     # Collect all existing functions and assign as the project source.
 
     _rayvnSources+=('rayvn.up' "${currentProjectName}")
-    _collectUnknownFunctionNames _rayvnFunctionSources "${currentProjectName}"
+    _collectUnknownRayvnFunctions _rayvnFunctionSources "${currentProjectName}"
 
     # Now replace with known sources: our persistent and replaced functions plus the debug API
 
-    _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownFunctionNames']='rayvn.up'
+    _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownRayvnFunctions']='rayvn.up'
         ['fail']='rayvn/core' ['printStack']='rayvn/core'
         ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugStatus']='rayvn/debug'
         ['debugBinary']='rayvn/debug' ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug'
@@ -306,7 +363,7 @@ configure() {
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 
-    local rayvnUpTemporaryFunctions=(configure addRoot addProjectFromExecutable addProject)
+    local rayvnUpTemporaryFunctions=(configure)
     _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _required)
 
     # Collect all of our temporary functions in a map so we can ignore them when core is loaded: we do not want them
@@ -320,58 +377,6 @@ configure() {
     # Finally, set flag to indicate we have completed
 
     declare -grx rayvnIsUp=1
-}
-
-addRoot() {
-    local projectName="${1}"
-    local keySuffix="${2}"
-    local projectRoot="${3}"
-    local key="${projectName}${keySuffix}"
-
-    if  [[ ! -v _rayvnProjects[${key}] ]]; then
-        projectRoot="${ realpath "${projectRoot}"; }" || fail "Could not resolve real path of: ${projectRoot}"
-        _rayvnProjects[${key}]="${projectRoot}"
-    fi
-    return 0
-}
-
-addProjectFromExecutable() {
-    local projectName="${1}"
-    local executable="${2}"
-    local path projectRoot
-    path="${ type -p "${executable}"; }" || fail "'${executable}' not found for project '${projectName}'"
-    path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
-    projectRoot="${ dirname "${path}"; }/.."
-    addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
-}
-
-addProject() {
-    local projectName="${1}"
-    local projectRoot="${2}"
-
-    # Add project root
-
-    if [[ -d ${projectRoot} ]]; then
-        addRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
-    else
-        addProjectFromExecutable "${projectName}" "${projectRoot}"
-    fi
-
-    # Resolve resource root: where lib/, etc/, rayvn.pkg live.
-    # Normal git clone: same as project root.
-    # Nix profile layout: share/<project>/ under project root.
-
-    local resolvedRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}"
-    local resourceRoot="${resolvedRoot}"
-    [[ -d "${resolvedRoot}/share/${projectName}" ]] && resourceRoot="${resolvedRoot}/share/${projectName}"
-    declare -grx "${projectName//-/_}Home"="${resourceRoot}"
-
-    # Add library root if it exists (under resource root)
-
-    local libraryRoot="${resourceRoot}/lib"
-    if [[ -d "${libraryRoot}" ]]; then
-        addRoot "${projectName}" "${_libraryRootSuffix}" "${libraryRoot}"
-    fi
 }
 
 # Configure, require specified libraries, then remove all temp functions and vars.
