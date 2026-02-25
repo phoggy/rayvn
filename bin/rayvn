@@ -355,11 +355,13 @@ _printLibrary() {
 
 runTests() {
     require 'rayvn/test-harness'
+    echo
     executeTests
 }
 
 nixBuild() {
     require 'rayvn/test-harness'
+    echo
     executeNixBuild
 }
 

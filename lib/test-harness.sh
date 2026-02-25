@@ -109,7 +109,6 @@ _executeTests() {
 
     if (( flags['nix'] )); then
         # Stage and build each project that has a flake.nix
-        echo
         _executeNixBuild
         # Run tests in rayvn's nix develop environment.
         # Use env -u to unset exported rayvn vars to force fresh initialization inside nix
@@ -118,16 +117,15 @@ _executeTests() {
     elif (( flags['all'] )); then
         # Run tests locally first, then under nix (if not already in nix)
         # Use env -u to prevent exported rayvn vars from being inherited by test subprocesses
-        env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
-          rayvn test "${projects[@]}" "${args[@]}" || return 1
+        env -u _rayvnCoreInitialized -u _rayvnCoreMapExports rayvnTest_NoEchoOnExit=1 rayvn test "${projects[@]}" \
+            "${args[@]}" || return 1
         if [[ -z ${IN_NIX_SHELL} ]]; then
-            env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
-              rayvn test --nix "${projects[@]}" "${args[@]}" || return 1
+            env -u _rayvnCoreInitialized -u _rayvnCoreMapExports rayvnTest_NoEchoOnExit=1 rayvn test --nix "${projects[@]}" \
+              "${args[@]}" || return 1
         fi
         return 0
     fi
     require 'rayvn/spinner' 'rayvn/prompt'
-    echo
 
     # Make sure we can ctrl-c out
     unset rayvnNoExitOnCtrlC
@@ -353,7 +351,6 @@ _waitForAllTests() {
 
     cursorTo "${_testDisplayEndRow}" 1  # Position cursor after all test lines
     _testDisplayEndRow= # ensure cancel does not do this again
-    echo  # Final newline
 }
 
 _runAllTestsParallel() {
