@@ -100,6 +100,20 @@ testNewProject() {
         assertInFile "projectBuildRev=" "${projectDir}/flake.nix"
         assertInFile "projectNixpkgsRev=" "${projectDir}/flake.nix"
 
+        # Verify formula directory and file exist
+
+        assertDirectory "${projectDir}/formula"
+        assertFileExists "${projectDir}/formula/${projectName}.rb"
+
+        # Verify formula content
+
+        assertInFile "class Testproj < Formula" "${projectDir}/formula/${projectName}.rb"
+        assertInFile 'homepage "https://github.com/phoggy/testproj"' "${projectDir}/formula/${projectName}.rb"
+        assertInFile '{URL}' "${projectDir}/formula/${projectName}.rb"
+        assertInFile '{SHA256}' "${projectDir}/formula/${projectName}.rb"
+        assertInFile '{DEPENDS_ON}' "${projectDir}/formula/${projectName}.rb"
+        assertInFile 'bin.install "bin/testproj"' "${projectDir}/formula/${projectName}.rb"
+
         # Verify git repo has at least one commit
 
         local commitCount

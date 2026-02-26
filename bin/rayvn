@@ -402,6 +402,7 @@ createProject() {
     local libraryTemplate="${templateDir}/library-template.sh"
     local readmeTemplate="${templateDir}/readme-template.md"
     local flakeTemplate="${templateDir}/flake-template.nix"
+    local formulaTemplate="${templateDir}/formula-template.rb"
 
     echo
     show bold "Creating project '${projectName}' in" blue "'${PWD}'"
@@ -448,6 +449,7 @@ createProject() {
     local libraryCall='myExampleLibraryFunction'
     local libraryName="example"
     local libraryNameInitialCap="Example"
+    local projectNameClass="${projectName^}"
 
     copyFileAndSubstituteVars "${packageTemplate}" './rayvn.pkg' quotedName || fail
     copyFileAndSubstituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
@@ -455,6 +457,8 @@ createProject() {
     chmod +x "./bin/${projectName}" || fail
     copyFileAndSubstituteVars "${readmeTemplate}" './README.md' projectName || fail
     copyFileAndSubstituteVars "${flakeTemplate}" './flake.nix' projectName || fail
+    makeDir './formula' > /dev/null
+    copyFileAndSubstituteVars "${formulaTemplate}" "./formula/${projectName}.rb" projectName projectNameClass || fail
 
     # Add and commit
 
