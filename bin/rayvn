@@ -18,6 +18,7 @@ usage() {
     echo "    functions         List public functions."
     echo "    register          Register a project."
     echo "    release           Create a new release."
+    echo "    deps              Scan source files and auto-update flake.nix runtimeDeps."
     echo "    index             Generate function indexes and Jekyll docs."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified."
@@ -63,6 +64,7 @@ init() {
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
             index) parseArgs true indexDocs "${@:2}" ;;
+            deps) parseArgs true depsCommand "${@:2}" ;;
             --debug) debugCommand=('--debug') ;debugOptions=('showOnExit') ;;
             --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showOnExit') ;;
             --debug-out) debugCommand=('--debug-out') ;debugOptions=('tty' "${ tty; }") ;;
@@ -372,6 +374,21 @@ indexDocs() {
     fi
 }
 
+depsCommand() {
+    if (( flags['help'] )) || (( ${#projects[@]} == 0 )); then
+        echo "rayvn deps PROJECT [PROJECT...]"
+        echo
+        echo "Scan source files for external command dependencies and auto-add missing"
+        echo "entries to flake.nix runtimeDeps."
+    else
+        require 'rayvn/index'
+        local project
+        for project in "${projects[@]}"; do
+            findDependencies "${project}"
+        done
+    fi
+}
+
 createProject() {
     [[ "${name}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || fail "sorry, '${name}' is not a valid bash identifier"
     [[ -n ${gitRoot} ]] && fail "${PWD} is within an existing project/git repo"
@@ -567,7 +584,7 @@ copyFileAndSubstituteVars() {
         sedExprs+=("-e" "s/\${${varName}}/${value}/g")
     done
 
-    sed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
+    gsed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
 
 main "${@}"

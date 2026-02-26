@@ -54,6 +54,116 @@ runIndex() {
     fi
 }
 
+# Find all external command dependencies used in a project's source files.
+# Scans bin/ and lib/ for command calls, filters bash builtins, system tools,
+# and rayvn/project-defined functions, confirms external binaries via command -v,
+# and auto-adds any missing entries to flake.nix runtimeDeps.
+# Args: projectName
+#
+#   projectName - the rayvn project name (e.g. 'valt', 'wardn', 'rayvn')
+findDependencies() {
+    local projectName="${1}"
+    [[ ${projectName} ]] || fail "projectName required"
+    require 'rayvn/deps'
+
+    local projectRoot="${_rayvnProjects[${projectName}::project]}"
+    [[ ${projectRoot} ]] || fail "unknown project: ${projectName}"
+
+    header "Finding dependencies for ${projectName}"
+
+    # Collect all source files from bin/ and lib/
+    local -a sourceFiles=()
+    local f
+    for f in "${projectRoot}/bin"/* "${projectRoot}/lib"/*.sh; do
+        [[ -f "${f}" ]] && sourceFiles+=("${f}")
+    done
+    (( ${#sourceFiles[@]} )) || fail "no source files found in ${projectRoot}"
+    show "Scanning ${#sourceFiles[@]} source files"
+
+    # Extract deduplicated candidate command words from source files
+    local -a candidates=()
+    local word
+    while IFS= read -r word; do
+        [[ ${word} ]] && candidates+=("${word}")
+    done < <( _findDepsExtractCommands "${sourceFiles[@]}" | sort -u )
+    show "Found ${#candidates[@]} candidate tokens"
+
+    # Load known rayvn and project-defined function names
+    local -A knownFunctions=()
+    _findDepsLoadFunctions "${projectRoot}" knownFunctions
+
+    # Filter to likely-external commands
+    local -a externalCmds=()
+    for word in "${candidates[@]}"; do
+        _findDepsIsExternal "${word}" knownFunctions "${projectName}" && externalCmds+=("${word}")
+    done
+
+    # Confirm each is an actual external binary (not a shell function or alias)
+    local -a confirmedBins=()
+    local cmdPath
+    for word in "${externalCmds[@]}"; do
+        cmdPath=${ command -v "${word}" 2>/dev/null; }
+        # Only accept absolute paths — shell functions/aliases don't return a path
+        [[ "${cmdPath}" == /* ]] && confirmedBins+=("${word}")
+    done
+    show success "Confirmed ${#confirmedBins[@]} external binaries: ${confirmedBins[*]:-none}"
+
+    local flakeFile="${projectRoot}/flake.nix"
+    if [[ ! -f "${flakeFile}" ]]; then
+        show warning "No flake.nix found; skipping auto-update"
+        return 0
+    fi
+
+    # Load nixBinaryMap from rayvn.pkg (maps nixPkgName → binary name).
+    # sourceConfigFile uses declare -g, so unset the local first to avoid shadowing.
+    local pkgFile="${projectRoot}/rayvn.pkg"
+    unset nixBinaryMap
+    [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
+
+    # Build reverse map: binary name → nix package name (default: same name)
+    local -A binToNixPkg=()
+    local binN nixKey nixN
+    for binN in "${confirmedBins[@]}"; do
+        nixN=''
+        for nixKey in "${!nixBinaryMap[@]}"; do
+            if [[ "${nixBinaryMap[${nixKey}]}" == "${binN}" ]]; then
+                nixN="${nixKey}"
+                break
+            fi
+        done
+        binToNixPkg["${binN}"]="${nixN:-${binN}}"
+    done
+
+    # Collect existing nix package names from flake.nix
+    local -A existingPkgs=()
+    local type name
+    while IFS=: read -r type name; do
+        case "${type}" in
+            pkg)   existingPkgs["${name}"]=1 ;;
+            local) existingPkgs["${name%Pkg}"]=1 ;;
+        esac
+    done < <( _extractFlakeDeps "${projectRoot}" )
+
+    # Add any missing deps to flake.nix
+    local -a added=()
+    for binN in "${confirmedBins[@]}"; do
+        nixN="${binToNixPkg[${binN}]}"
+        [[ ${existingPkgs[${nixN}]+defined} ]] && continue
+        _findDepsAddToFlake "${flakeFile}" "${nixN}" || fail "failed to add pkgs.${nixN} to flake.nix"
+        existingPkgs["${nixN}"]=1
+        added+=("${nixN}")
+        show success "Added pkgs.${nixN} to flake.nix"
+    done
+
+    if (( ${#added[@]} == 0 )); then
+        show success "All dependencies already present in flake.nix"
+    else
+        echo
+        show bold "Added ${#added[@]} dep(s) to flake.nix: ${added[*]}"
+        show "Run 'nix build' to verify, then commit the changes"
+    fi
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/index' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_index() {
@@ -299,7 +409,7 @@ _extractMeaningfulDescription() {
             [[ "${line}" =~ ^${functionName} ]] && continue
             briefDesc="${line}"
             break
-        done <<< "${ echo "${doc}" | sed 's/^[[:space:]]*//'; }"
+        done <<< "${ echo "${doc}" | gsed 's/^[[:space:]]*//'; }"
     fi
 
     if [[ -z "${briefDesc}" ]]; then
@@ -338,9 +448,9 @@ _generateDescriptionFromName() {
 _wrapCodeInBackticks() {
     local text="${1}"
     if [[ "${text}" =~ \$\{|\$\(|[a-zA-Z_][a-zA-Z0-9_]*\(\)|[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
-        text=${ echo "${text}" | sed -E 's/(\$\{[^}]+\})/`\1`/g'; }
-        text=${ echo "${text}" | sed -E 's/(\$\([^)]+\))/`\1`/g'; }
-        text=${ echo "${text}" | sed -E 's/([a-zA-Z_][a-zA-Z0-9_]*\(\))/`\1`/g'; }
+        text=${ echo "${text}" | gsed -E 's/(\$\{[^}]+\})/`\1`/g'; }
+        text=${ echo "${text}" | gsed -E 's/(\$\([^)]+\))/`\1`/g'; }
+        text=${ echo "${text}" | gsed -E 's/([a-zA-Z_][a-zA-Z0-9_]*\(\))/`\1`/g'; }
     fi
     echo "${text}"
 }
@@ -626,4 +736,163 @@ _checkAndUpdateHashes() {
     elif [[ "${isFirstRun}" == false ]]; then
         show success "No function changes detected"
     fi
+}
+
+# Extract candidate command words from bash source files.
+# Splits lines on command boundaries (|, ||, &&, ;), strips variable assignments,
+# and prints the first word of each segment (skipping bash keywords/builtins).
+# Output may contain duplicates; pipe through sort -u.
+# Args: sourceFiles...
+_findDepsExtractCommands() {
+    gawk '
+        BEGIN {
+            n = split("if then else elif fi for while until do done case esac in select function return exit break continue declare local typeset readonly export unset eval exec source read readarray mapfile test bg fg jobs wait trap kill disown cd pwd pushd popd alias unalias type command which builtin true false shift set shopt time coproc getopts hash umask ulimit enable help history printf echo", arr, " ")
+            for (i=1; i<=n; i++) skip[arr[i]] = 1
+        }
+        /^[[:space:]]*#/ { next }
+        /^[[:space:]]*$/ { next }
+        {
+            line = $0
+            gsub(/^[[:space:]]+/, "", line)
+            if (line ~ /^#!/) next
+            gsub(/\|\|?|&&|;/, "\n", line)
+            n = split(line, segs, "\n")
+            for (i=1; i<=n; i++) {
+                seg = segs[i]
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", seg)
+                if (seg == "") continue
+                if (seg ~ /^#/) continue
+                if (seg ~ /^[0-9]*[<>]/) continue
+                # Skip case statement pattern labels: word) or word|word)
+                if (seg ~ /^[A-Za-z][A-Za-z0-9_.-]*\)/) continue
+                while (seg ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=[^ \t]*/) {
+                    sub(/^[A-Za-z_][A-Za-z0-9_]*[+]?=[^ \t]*[ \t]*/, "", seg)
+                }
+                if (match(seg, /^([A-Za-z][A-Za-z0-9_.-]*)/, m)) {
+                    word = m[1]
+                    if (!(word in skip)) print word
+                }
+            }
+        }
+    ' "$@"
+}
+
+# Load known function names from the rayvn compact index and project source files
+# into a nameref associative array.
+# Args: projectRoot knownFunctionsRef
+_findDepsLoadFunctions() {
+    local projectRoot="${1}"
+    local -n _fdFnRef="${2}"
+
+    # From rayvn compact function index
+    local compactFile="${HOME}/.config/rayvn/rayvn-functions-compact.txt"
+    if [[ -f "${compactFile}" ]]; then
+        local line fnName
+        while IFS= read -r line; do
+            [[ "${line}" =~ ^# ]] && continue
+            fnName="${line%% *}"
+            [[ ${fnName} ]] && _fdFnRef["${fnName}"]=1
+        done < "${compactFile}"
+    fi
+
+    # From rayvn.up (defines bootstrap functions like require, fail, configure)
+    local rayvnUp; rayvnUp=${ command -v rayvn.up 2>/dev/null; }
+    if [[ -n "${rayvnUp}" && -f "${rayvnUp}" ]]; then
+        local line
+        while IFS= read -r line; do
+            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
+                _fdFnRef["${BASH_REMATCH[1]}"]=1
+            fi
+        done < "${rayvnUp}"
+    fi
+
+    # From project source files
+    local f line
+    for f in "${projectRoot}/bin"/* "${projectRoot}/lib"/*.sh; do
+        [[ -f "${f}" ]] || continue
+        while IFS= read -r line; do
+            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
+                _fdFnRef["${BASH_REMATCH[1]}"]=1
+            fi
+        done < "${f}"
+    done
+}
+
+# Return 0 if a word is a likely external command (not a builtin, system tool, or known function).
+# Args: word knownFunctionsRef projectName
+_findDepsIsExternal() {
+    local word="${1}"
+    local -n _fdFnsRef="${2}"
+    local projectName="${3}"
+
+    # Skip non-command patterns (paths, flags, numbers, brackets)
+    [[ "${word}" =~ [/] ]] && return 1
+    [[ "${word}" =~ ^[-0-9\[\{\(] ]] && return 1
+
+    # Skip known rayvn/project functions
+    [[ ${_fdFnsRef["${word}"]+defined} ]] && return 1
+
+    # Skip the project binary itself (self-reference)
+    [[ "${word}" == "${projectName}" ]] && return 1
+
+    # Skip standard POSIX/system tools universally available on macOS and Linux
+    case "${word}" in
+        awk) warn "'awk' found in ${projectName} source — use 'gawk' for portability (macOS ships BSD awk)"; return 1 ;;
+        sed) warn "'sed' found in ${projectName} source — use 'gsed' for portability (macOS ships BSD sed, which lacks \\x escapes and requires -i.bak)"; return 1 ;;
+        nix|git|grep|egrep|fgrep|find|xargs)                  return 1 ;;
+        cat|head|tail|sort|uniq|wc|tr|cut|paste|tee)         return 1 ;;
+        date|mkdir|rmdir|rm|mv|cp|ln|chmod|chown|touch)      return 1 ;;
+        diff|patch|stat|file|ls|df|du|ps|lsof|install)        return 1 ;;
+        openssl|base64|shasum|md5sum|sha256sum|sha512sum)     return 1 ;;
+        env|uname|hostname|id|whoami|su|sudo)                 return 1 ;;
+        tar|gzip|gunzip|bzip2|xz|zip|unzip)                  return 1 ;;
+        pgrep|pkill|ssh|scp|sftp|rsync|make|cmake)           return 1 ;;
+        python|python3|ruby|perl|java|ldd|strace)            return 1 ;;
+        # Bundled tools (provided by their parent package, not standalone Nix deps)
+        npm|npx|pip|pip3|gem|cargo|mvn|gradle)              return 1 ;;
+        # coreutils/terminal utilities always available
+        basename|dirname|realpath|readlink|mktemp|mkfifo)    return 1 ;;
+        sleep|usleep|true|false|yes|echo|printf|nl|split)    return 1 ;;
+        tty|stty|clear|reset|tput|script|cols|rows)          return 1 ;;
+        bc|expr|seq|od|xxd|strings|nm|strip)                 return 1 ;;
+        # macOS-specific system tools
+        open|security|osascript|launchctl|defaults|plutil)   return 1 ;;
+        sw_vers|system_profiler|diskutil|hdiutil|ditto)      return 1 ;;
+        # Network utilities treated as system tools
+        nc|netcat|ncat|curl_cmd)                             return 1 ;;
+    esac
+
+    return 0
+}
+
+# Add a new pkgs.NAME entry to the runtimeDeps block in a flake.nix file.
+# Inserts before the first closing ] of the runtimeDeps array.
+# Args: flakeFile pkgName
+_findDepsAddToFlake() {
+    local flakeFile="${1}"
+    local pkgName="${2}"
+    local tmpFile="${flakeFile}.fdtmp"
+
+    gawk -v pkg="${pkgName}" '
+        BEGIN { inDeps=0; depth=0; inserted=0 }
+        {
+            if (!inserted && /runtimeDeps[[:space:]]*=/) inDeps=1
+            if (inDeps && !inserted) {
+                n = split($0, chars, "")
+                for (i=1; i<=n; i++) {
+                    if (chars[i] == "[") depth++
+                    else if (chars[i] == "]") {
+                        depth--
+                        if (depth == 0) {
+                            print "          pkgs." pkg
+                            inserted=1
+                            inDeps=0
+                            break
+                        }
+                    }
+                }
+            }
+            print
+        }
+    ' "${flakeFile}" > "${tmpFile}" && mv "${tmpFile}" "${flakeFile}"
 }

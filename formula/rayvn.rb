@@ -1,5 +1,5 @@
 class Rayvn < Formula
-  desc "Shared bash library system for managing executables and libraries"
+  desc "A shared library ecosystem for bash 5.3+."
   homepage "https://github.com/phoggy/rayvn"
   url "{URL}"
   sha256 "{SHA256}"

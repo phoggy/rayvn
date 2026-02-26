@@ -407,7 +407,7 @@ assertCommand() {
         stderr="${ cat "${stderrFile}"; }"
         if (( stripBrackets )); then
             # Remove bracket-only lines and trailing blank lines
-            stderr="${ echo "${stderr}" | grep -v '^\[.*\]$' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
+            stderr="${ echo "${stderr}" | grep -v '^\[.*\]$' | gsed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
         fi
     fi
 
@@ -479,7 +479,7 @@ epochSeconds() {
 #   startTime - start time value captured from ${EPOCHREALTIME}
 elapsedEpochSeconds() {
     local startTime="${1}"
-    echo "${ awk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
+    echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
 # Overwrite and unset one or more variables containing sensitive data.
@@ -763,7 +763,7 @@ copyMap() {
 #
 #   string - the string to strip
 stripAnsi() {
-    echo -n "${1}" | sed 's/\x1b\[[0-9;]*m//g'
+    echo -n "${1}" | gsed 's/\x1b\[[0-9;]*m//g'
 }
 
 # Return 0 if a string contains ANSI escape sequences, 1 otherwise.

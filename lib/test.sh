@@ -483,8 +483,8 @@ benchmark() {
     done
 
     local endTime=${EPOCHREALTIME}
-    local duration=${ awk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}"; }
-    local opsPerSec=${ awk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}"; }
+    local duration=${ gawk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}"; }
+    local opsPerSec=${ gawk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}"; }
 
     printf "%-30s %-15s %10d iterations in %8.4f sec (%10s ops/sec)\n" \
       "${testCase}" "${functionName}" "${iterations}" "${duration}" "${opsPerSec}"

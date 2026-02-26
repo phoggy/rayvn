@@ -228,7 +228,7 @@ _extractSafeStaticVarsOnly() {
 
 # Written by ChatGPT 4o
 _globalizeDeclarations() {
-    sed -E '
+    gsed -E '
         /^(declare[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*)-g([a-zA-Z]*[[:space:]]+)?/b end
         s/^(declare[[:space:]]+-)([a-zA-Z]+)([[:space:]]+)/\1g\2\3/
         t end
@@ -249,7 +249,7 @@ _filterStaticVarsByPrefix() {
 
     [[ -f "${input}" ]] && input="${ <"${input}"; }"
 
-    awk -v prefix="${prefix}" '
+    gawk -v prefix="${prefix}" '
     BEGIN {
         collecting = 0
         buffer = ""

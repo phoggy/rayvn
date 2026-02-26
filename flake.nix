@@ -15,7 +15,10 @@
         runtimeDeps = [
           pkgs.bash
           pkgs.gawk
+          pkgs.gnused
           pkgs.gh
+          pkgs.curl
+          pkgs.jq
         ];
 
         rayvn = pkgs.stdenv.mkDerivation {

@@ -445,7 +445,7 @@ _runOneTestSilent() {
         if [[ ${testName} == "rayvn-up" ]]; then
             # rayvn-up needs special env setup for testing installation
             local testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
-              awk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
+              gawk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
             exports+=(rayvnInstallHome="${rayvnHome}")
             exports+=(rayvnInstallBinary="${rayvnHome}/bin/rayvn")
             exports+=(testFunctionNames="${testFunctionNames%" "}")

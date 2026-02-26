@@ -24,6 +24,7 @@ release () {
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _runTests "${project}" || fail
+    _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _updateFlakeVersion "${version}" || fail
     _updateFlakeLock || fail
@@ -45,6 +46,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIV
 _init_rayvn_release() {
     require 'rayvn/prompt'
     require 'rayvn/deps'
+    require 'rayvn/index'
     require 'rayvn/test-harness'
 }
 
@@ -88,6 +90,12 @@ _runTests() {
     executeTests || fail "Tests failed"
 }
 
+_updateFlakeDeps() {
+    local project="${1}"
+    header 2 "Checking flake.nix dependencies for ${project}"
+    findDependencies "${project}"
+}
+
 _updateFlakeVersion() {
     local version="${1}"
     local flakeFile='flake.nix'
@@ -95,8 +103,7 @@ _updateFlakeVersion() {
     header 2 "Updating flake.nix version to ${version}"
 
     # Update version in flake.nix
-    sed -i.bak "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
-    rm "${flakeFile}.bak" || fail
+    gsed -i "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
 
     git commit -m "Release v${version} flake.nix update" "${flakeFile}" || fail
     git push || fail
@@ -122,11 +129,9 @@ _markPostRelease() {
     header 2 "Marking post-release version ${version}+"
 
     # Update rayvn.pkg with post-release version (append +) and clear date
-    sed -i.bak -e "s/^projectVersion='[^']*'/projectVersion='${version}+'/" \
-               -e "s/^projectReleaseDate='[^']*'/projectReleaseDate=''/" \
-               "${pkgFile}" || fail
-
-    rm "${pkgFile}.bak" || fail
+    gsed -i -e "s/^projectVersion='[^']*'/projectVersion='${version}+'/" \
+            -e "s/^projectReleaseDate='[^']*'/projectReleaseDate=''/" \
+            "${pkgFile}" || fail
     git commit -m "Post-release v${version}+ rayvn.pkg update" "${pkgFile}" || fail
     git push || fail
     echo "rayvn.pkg updated to ${version}+"
@@ -308,7 +313,7 @@ _updateBrewFormula() {
 
     # Compute SHA256 of the release tarball
     local sha256
-    sha256="${ curl -sL "${url}" | shasum -a 256 | awk '{print $1}'; }" || fail "Failed to compute SHA256 for ${url}"
+    sha256="${ curl -sL "${url}" | shasum -a 256 | gawk '{print $1}'; }" || fail "Failed to compute SHA256 for ${url}"
     echo "SHA256: ${sha256}"
 
     # Build the depends_on block from flake.nix + rayvn.pkg overrides
