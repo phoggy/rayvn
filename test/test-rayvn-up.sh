@@ -38,7 +38,7 @@ assertEnvPreconditions() {
 
     # Ensure we contain only our own functions
 
-    local allFunctions="${ declare -F | awk '{print $NF}'; }"
+    local allFunctions="${ declare -F | gawk '{print $NF}'; }"
     declare -A expectedFunctions=
     local name
 
