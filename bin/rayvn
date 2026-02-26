@@ -360,7 +360,6 @@ runTests() {
 
 nixBuild() {
     require 'rayvn/test-harness'
-    echo
     executeNixBuild
 }
 

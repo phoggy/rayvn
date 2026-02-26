@@ -17,7 +17,7 @@ executeTests() {
 # (set by the rayvn command). Skips projects without a flake.nix.
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
-    _computeTestResultColumn
+    _testResultColumn=$(( _maxProjectNameLength + ${#_testBuildFlakeMsg} + 1))
     _executeNixBuild
 }
 
@@ -33,6 +33,7 @@ _init_rayvn_test-harness() {
     declare -g _testLogDir
     declare -g _testResultDir
     declare -ga _testPids=()
+    declare -gr _testBuildFlakeMsg='building flake'
     _testLogDir="${ configDirPath tests; }" || fail
     _testResultDir="${ tempDirPath test-results; }"
     ensureDir "${_testLogDir}" || fail
@@ -81,13 +82,6 @@ _ensureRayvnProject() {
     projects=("rayvn" "${projects[@]}")
 }
 
-_computeTestResultColumn() {
-    local testNames=() testFiles=() testFileNames=() testLogFileNames=()
-    local testProjects=()
-    local -A noTestProjects=() skipTestNames=()
-    _discoverTests
-}
-
 _discoverTests() {
     local project projectRoot maxTestNameLength
     for project in "${projects[@]}"; do
@@ -117,13 +111,12 @@ _executeNixBuild() {
 
     local messageColumn=$(( _maxProjectNameLength + 1 ))
 
+    echo
     for project in "${projects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
         if [[ -f "${projectRoot}/flake.nix" ]]; then
             _setPadding messageColumn
-            echo
-            show -n bold "${project}${_testPadding}" primary "building flake "
-            echo
+            show bold "${project}${_testPadding}" primary "${_testBuildFlakeMsg}"
             git -C "${projectRoot}" add -u # stage
             nix build --no-warn-dirty "${projectRoot}" || fail "nix build failed for ${project}"
             cursorUpToColumn 1 $(( _testResultColumn + 2 ))
