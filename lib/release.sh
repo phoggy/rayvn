@@ -295,17 +295,9 @@ _updateBrewFormula() {
     local ghRepo="${1}"
     local version="${2}"
     local project="${ghRepo#*/}"
-    local pkgFile='rayvn.pkg'
+    local brewTapRepo='rayvn-central/homebrew-brew'
 
     header 2 "Updating Homebrew formula for ${project} v${version}"
-
-    # Load brewTapRepo from pkgFile
-    local brewTapRepo=''
-    [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
-    if [[ -z ${brewTapRepo} ]]; then
-        echo "No brewTapRepo configured in ${pkgFile}, skipping formula update."
-        return 0
-    fi
 
     # Verify formula template exists
     local templateFile="formula/${project}.rb"

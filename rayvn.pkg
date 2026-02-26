@@ -7,4 +7,3 @@ docsWorktree='../rayvn-pages'
 
 # Brew formula metadata (used by rayvn/deps for formula generation and runtime dep checks)
 declare -a nixBrewExclude=()  # nothing to exclude; gawk→gawk and gh→gh are 1:1
-brewTapRepo='phoggy/homebrew-rayvn'

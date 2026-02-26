@@ -72,6 +72,15 @@ echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
 
 ### Installation
 
+**With Homebrew:**
+
+```bash
+brew tap rayvn-central/brew
+brew install rayvn
+```
+
+**With Nix:**
+
 ```bash
 nix profile add github:phoggy/rayvn
 ```
