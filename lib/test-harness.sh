@@ -406,6 +406,13 @@ _runAllTasksParallel() {
         taskSpinnerIds[${i}]="${spinnerId}"
     done
 
+    for (( i=0; i < taskCount; i++ )); do
+        (( _taskSkip[i] )) && continue
+        (( _taskBlocker[i] == -1 )) && continue
+        cursorTo "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))"
+        printf '\e[2m○\e[0m' > /dev/tty
+    done
+
     while (( pendingCount > 0 )); do
         for i in "${!startedTasks[@]}"; do
             [[ -v completedTasks[${i}] ]] && continue
