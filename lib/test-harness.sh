@@ -319,11 +319,11 @@ _computeResultColumn() {
     done
 
     # Minimum column width needed so each type fits with at least 1 space of padding:
-    # build: "project build" → needs maxProjectNameLen + 6 min
+    # build: "project nix build" → needs maxProjectNameLen + 10 min
     # local: "project test testName" → needs maxProjectNameLen + testNameLen + 6 min
     # nix:   "project test testName nix" → needs maxProjectNameLen + testNameLen + 10 min
 
-    local colNeed=7
+    local colNeed=10
     (( hasLocalTest && (maxTestNameLen + 7) > colNeed )) && colNeed=$(( maxTestNameLen + 7 ))
     (( hasNixTest && (maxTestNameLen + 11) > colNeed )) && colNeed=$(( maxTestNameLen + 11 ))
     _testResultColumn=$(( _maxProjectNameLength + colNeed ))
@@ -541,8 +541,14 @@ _readTaskResult() {
 }
 
 _displayAllTasks() {
-    local callback="${1}" i
+    local callback="${1}" i prevType=''
     for (( i=0; i < ${#_taskTypes[@]}; i++ )); do
+        local currentType="${_taskTypes[${i}]}"
+        if [[ -n ${prevType} && ${currentType} != "${prevType}" ]]; then
+            echo
+            (( lineNumber += 1 )) 2> /dev/null || true
+        fi
+        prevType="${currentType}"
         if (( _taskSkip[i] == 2 )); then
             _displayNoTestsTask ${i}
         elif (( _taskSkip[i] )); then
@@ -574,8 +580,8 @@ _displayPendingTask() {
             show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
             ;;
         build)
-            _setPadding _testResultColumn -4
-            show bold "${project}" plain "build" plain "${_testPadding}"
+            _setPadding _testResultColumn -8
+            show bold "${project}" plain "nix" plain "build" plain "${_testPadding}"
             ;;
     esac
 }
@@ -610,8 +616,8 @@ _displayTaskResult() {
             fi
             ;;
         build)
-            _setPadding _testResultColumn -4
-            show bold "${project}" plain "build" plain "${_testPadding}" " ${mark}"
+            _setPadding _testResultColumn -8
+            show bold "${project}" plain "nix" plain "build" plain "${_testPadding}" " ${mark}"
             ;;
     esac
 }
