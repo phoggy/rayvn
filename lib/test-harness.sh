@@ -497,16 +497,41 @@ _startBuildTask() {
 _startNixTask() {
     local i="${1}"
     local testFile="${_taskFiles[${i}]}"
+    local testName="${_taskNames[${i}]}"
     local project="${_taskProjects[${i}]}"
     local projectRoot="${_rayvnProjects[${project}::project]}"
     local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
     local resultFile="${_testResultDir}/result-${i}.txt"
 
     if [[ -x "${testFile}" ]]; then
+        local nixTestFile="${testFile}"
+        if [[ ${testName} == "rayvn-up" ]]; then
+
+            # The rayvn-up test requires rayvnInstallHome, rayvnInstallBinary, and
+            # testFunctionNames to be set. In a nix shell, rayvn is installed in the
+            # nix store, so rayvnInstallHome must be determined at runtime inside the shell.
+            # Create a wrapper script that does this, then exec the actual test file.
+
+            local testFunctionNames
+            testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+              gawk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
+            testFunctionNames="${testFunctionNames%" "}"
+            nixTestFile=${ makeTempFile; }
+            {
+                printf '#!/usr/bin/env bash\n'
+                printf 'rayvnInstallHome="$(dirname "$(dirname "$(command -v rayvn.up)")")"\n'
+                printf 'export rayvnInstallHome\n'
+                printf 'export rayvnInstallBinary="${rayvnInstallHome}/bin/rayvn"\n'
+                printf "export testFunctionNames='%s'\n" "${testFunctionNames}"
+                printf 'export rayvnTest_NoEchoOnExit=1\n'
+                printf 'exec "%s" --noprofile --norc "%s"\n' "${BASH}" "${testFile}"
+            } > "${nixTestFile}"
+            chmod +x "${nixTestFile}"
+        fi
         (
             executeWithCleanVars rayvnTest_NonInteractive=1 \
                 nix develop --no-warn-dirty "${projectRoot}" \
-                --command "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}" \
+                --command "${BASH}" --noprofile --norc "${nixTestFile}" "${debugCommand[@]}" \
                 &> "${logFile}"
             echo $? > "${resultFile}"
         ) &
