@@ -319,11 +319,11 @@ _computeResultColumn() {
     done
 
     # Minimum column width needed so each type fits with at least 1 space of padding:
-    # build: "project nix build" → needs maxProjectNameLen + 10 min
+    # build: "maxLen nix build" → project padded to maxLen, needs maxProjectNameLen + 11 min
     # local: "project test testName" → needs maxProjectNameLen + testNameLen + 6 min
     # nix:   "project test testName nix" → needs maxProjectNameLen + testNameLen + 10 min
 
-    local colNeed=10
+    local colNeed=11
     (( hasLocalTest && (maxTestNameLen + 7) > colNeed )) && colNeed=$(( maxTestNameLen + 7 ))
     (( hasNixTest && (maxTestNameLen + 11) > colNeed )) && colNeed=$(( maxTestNameLen + 11 ))
     _testResultColumn=$(( _maxProjectNameLength + colNeed ))
@@ -580,8 +580,11 @@ _displayPendingTask() {
             show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
             ;;
         build)
-            _setPadding _testResultColumn -8
-            show bold "${project}" plain "nix" plain "build" plain "${_testPadding}"
+            local projectPad rightPad
+            (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
+            local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
+            (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
+            show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}"
             ;;
     esac
 }
@@ -616,8 +619,11 @@ _displayTaskResult() {
             fi
             ;;
         build)
-            _setPadding _testResultColumn -8
-            show bold "${project}" plain "nix" plain "build" plain "${_testPadding}" " ${mark}"
+            local projectPad rightPad
+            (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
+            local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
+            (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
+            show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" " ${mark}"
             ;;
     esac
 }
