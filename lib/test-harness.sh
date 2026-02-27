@@ -410,7 +410,7 @@ _runAllTasksParallel() {
     for (( i=0; i < taskCount; i++ )); do
         (( _taskSkip[i] )) && continue
         (( _taskBlocker[i] == -1 )) && continue
-        addSpinner spinnerId hollow "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))" muted
+        addSpinner spinnerId circle "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))" muted
         taskBlockedSpinnerIds[${i}]="${spinnerId}"
     done
 
