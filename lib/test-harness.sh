@@ -549,7 +549,7 @@ _cancelAllTasks() {
     wait "${_taskPids[@]}" 2> /dev/null
     _taskPids=()
     if [[ -n ${_testDisplayEndRow} ]]; then
-        cursorTo _testDisplayEndRow 1
+        cursorTo "${_testDisplayEndRow}" 1
         echo
     fi
 }

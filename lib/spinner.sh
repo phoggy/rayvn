@@ -249,7 +249,7 @@ _spinnerRequest() {
 
     # Send the request
 
-    printf "%d\n%s\n" $# "$*" >&${_spinnerClientRequestFd}
+    { printf '%d\n' $#; printf '%s\n' "$@"; } >&${_spinnerClientRequestFd}
 
     # Read the response
 
@@ -284,7 +284,7 @@ _spinnerExit() {
 _shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
         {
-            printf "%d\n%s\n" 1 'stop' >&${_spinnerClientRequestFd}
+            { printf '%d\n' 1; printf '%s\n' 'stop'; } >&${_spinnerClientRequestFd}
         } &> /dev/null
 
         if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
@@ -380,7 +380,7 @@ _removeSpinner() {
 }
 
 _spinnerResponse() {
-    printf "%d\n%s\n" $# "$*" >&${_spinnerServerResponseFd}
+    { printf '%d\n' $#; printf '%s\n' "$@"; } >&${_spinnerServerResponseFd}
 }
 
 _stopSpinnerServer() {
