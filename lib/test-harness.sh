@@ -17,8 +17,17 @@ executeTests() {
 # (set by the rayvn command). Skips projects without a flake.nix.
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
-    _testResultColumn=$(( _maxProjectNameLength + ${#_testBuildFlakeMsg} + 1))
-    _executeNixBuild
+    echo
+    require 'rayvn/spinner'
+    _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
+    _taskLogFileNames=() _taskProjects=() _taskBlocker=()
+    _taskSkip=() _taskSkipMsgs=() _taskPids=()
+    local -A buildTaskIdx=()
+    _collectBuildTasks buildTaskIdx
+    _computeResultColumn
+    local taskCount=${#_taskTypes[@]}
+    (( taskCount == 0 )) && return 0
+    _runAllTasksParallel
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test-harness' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -32,8 +41,17 @@ _init_rayvn_test-harness() {
     declare -g _testResultColumn
     declare -g _testLogDir
     declare -g _testResultDir
-    declare -ga _testPids=()
-    declare -gr _testBuildFlakeMsg='building flake'
+    declare -g _testNoMatchMsg=''
+    declare -ga _taskTypes=()
+    declare -ga _taskNames=()
+    declare -ga _taskFiles=()
+    declare -ga _taskFileNames=()
+    declare -ga _taskLogFileNames=()
+    declare -ga _taskProjects=()
+    declare -ga _taskBlocker=()
+    declare -ga _taskSkip=()
+    declare -ga _taskSkipMsgs=()
+    declare -ga _taskPids=()
     _testLogDir="${ configDirPath tests; }" || fail
     _testResultDir="${ tempDirPath test-results; }"
     ensureDir "${_testLogDir}" || fail
@@ -82,122 +100,74 @@ _ensureRayvnProject() {
     projects=("rayvn" "${projects[@]}")
 }
 
-_discoverTests() {
-    local project projectRoot maxTestNameLength
-    for project in "${projects[@]}"; do
-        projectRoot="${_rayvnProjects[${project}::project]}"
-        if [[ -z ${projectRoot} ]]; then
-            show warning "unknown project:" bold "${project}"
-        elif [[ ! -d "${projectRoot}/test" ]]; then
-            # Add placeholder entry to preserve display order
-            testNames+=("")
-            testFiles+=("")
-            testFileNames+=("")
-            testLogFileNames+=("")
-            testProjects+=("${project}")
-            noTestProjects["${project}"]=1
-        else
-            _collectProjectTests "${project}" "${projectRoot}"
-        fi
-    done
-    maxTestNameLength="${ maxArrayElementLength testNames; }"
-    (( maxTestNameLength < 1 )) && maxTestNameLength=1
-    _testResultColumn=$(( _maxProjectNameLength + 1 + maxTestNameLength + 6 ))
-}
-
-_executeNixBuild() {
-
-    # Stage and build each specified project that has a flake.nix
-
-    local messageColumn=$(( _maxProjectNameLength + 1 ))
-
-    echo
-    for project in "${projects[@]}"; do
-        projectRoot="${_rayvnProjects[${project}::project]}"
-        if [[ -f "${projectRoot}/flake.nix" ]]; then
-            _setPadding messageColumn
-            show bold "${project}${_testPadding}" primary "${_testBuildFlakeMsg}"
-            git -C "${projectRoot}" add -u # stage
-            nix build --no-warn-dirty "${projectRoot}" || fail "nix build failed for ${project}"
-            cursorUpToColumn 1 $(( _testResultColumn + 2 ))
-            echo "${_greenCheckMark}"
-        fi
-    done
-}
-
 _executeTests() {
     rayvnTest_TraceFail=1
-
-    local testNames=() testFiles=() testFileNames=() testLogFileNames=()
-    local testProjects=()
-    local -A noTestProjects=() skipTestNames=()
-    _discoverTests
-    local maxIndex=${#testNames[@]}
-
-    # Handle --nix and --all cases
-
-    if (( flags['nix'] )); then
-        # Stage and build each project that has a flake.nix
-        _executeNixBuild
-        # Run tests in rayvn's nix develop environment.
-        # Use env -u to unset exported rayvn vars to force fresh initialization inside nix
-        exec env -u _rayvnCoreInitialized -u _rayvnCoreMapExports \
-          nix develop --no-warn-dirty "${rayvnRootDir}" --command rayvn test "${projects[@]}" "${args[@]}"
-    elif (( flags['all'] )); then
-        # Run tests locally first, then under nix (if not already in nix)
-        # Use env -u to prevent exported rayvn vars from being inherited by test subprocesses
-        env -u _rayvnCoreInitialized -u _rayvnCoreMapExports rayvnTest_NoEchoOnExit=1 rayvn test "${projects[@]}" \
-            "${args[@]}" || return 1
-        if [[ -z ${IN_NIX_SHELL} ]]; then
-            env -u _rayvnCoreInitialized -u _rayvnCoreMapExports rayvnTest_NoEchoOnExit=1 rayvn test --nix "${projects[@]}" \
-              "${args[@]}" || return 1
-        fi
-        return 0
-    fi
     echo
     require 'rayvn/spinner' 'rayvn/prompt'
-
-    # Make sure we can ctrl-c out
     unset rayvnNoExitOnCtrlC
 
-    # Clear logging and result directories
+    # Clear task state and directories
 
+    _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
+    _taskLogFileNames=() _taskProjects=() _taskBlocker=()
+    _taskSkip=() _taskSkipMsgs=() _taskPids=()
     rm "${_testLogDir:?}"/* 2> /dev/null
     rm "${_testResultDir:?}"/* 2> /dev/null
 
-    # Create map for project messages
+    # Build no-match message for filter display
 
-    local matchArg noMatchMsg=''
+    _testNoMatchMsg=''
+    local matchArg
     for matchArg in "${args[@]}"; do
-        (( ${#noMatchMsg} > 0)) && noMatchMsg+=' or '
-        noMatchMsg+="'${matchArg}'"
+        (( ${#_testNoMatchMsg} > 0 )) && _testNoMatchMsg+=' or '
+        _testNoMatchMsg+="'${matchArg}'"
     done
 
-    # Run tests in parallel
+    # Collect tasks based on mode
 
-    _runAllTestsParallel
+    local -A buildTaskIdx=()
 
-    # Collect failed test names from per-test result files
+    if (( flags['nix'] )); then
+        _collectBuildTasks buildTaskIdx
+        _collectNixTasks buildTaskIdx
+    elif (( flags['all'] )); then
+        if [[ -z ${IN_NIX_SHELL} ]]; then
+            _collectLocalTasks
+            _collectBuildTasks buildTaskIdx
+            _collectNixTasks buildTaskIdx
+        else
+            _collectLocalTasks
+        fi
+    else
+        _collectLocalTasks
+    fi
 
-    local failedTestLogNames=()
-    local result
-    for (( i=0; i < maxIndex; i++ )); do
-        if _readTestResult "${i}" result && [[ ${result} != "0" ]]; then
-            failedTestLogNames+=("${testLogFileNames[${i}]}")
+    _computeResultColumn
+    local taskCount=${#_taskTypes[@]}
+    (( taskCount == 0 )) && return 0
+
+    _runAllTasksParallel
+
+    # Collect failed test/nix log names (skip build tasks)
+
+    local failedTestLogNames=() result i
+    for (( i=0; i < taskCount; i++ )); do
+        [[ ${_taskTypes[${i}]} == 'build' ]] && continue
+        [[ -z ${_taskLogFileNames[${i}]} ]] && continue
+        if _readTaskResult "${i}" result && [[ ${result} != "0" ]]; then
+            failedTestLogNames+=("${_taskLogFileNames[${i}]}")
         fi
     done
     local failedTestCount=${#failedTestLogNames[@]}
 
-    # Any error logs?
-
     if (( failedTestCount )); then
         if (( isInteractive && ! inContainer )); then
-            local choiceIndex i logFile
+            local choiceIndex logFile
             echo
             for (( i=0; i < failedTestCount; i++ )); do
                 confirm "View ${failedTestLogNames[${i}]}?" yes no choiceIndex || bye
                 if (( choiceIndex == 0 )); then
-                    local logFile="${_testLogDir}/${failedTestLogNames[${i}]}"
+                    logFile="${_testLogDir}/${failedTestLogNames[${i}]}"
                     echo
                     cat "${logFile}"
                     echo
@@ -209,15 +179,72 @@ _executeTests() {
     return 0
 }
 
-_collectProjectTests() {
+_collectLocalTasks() {
+    local project projectRoot
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        if [[ -z ${projectRoot} ]]; then
+            show warning "unknown project:" bold "${project}"
+        elif [[ ! -d "${projectRoot}/test" ]]; then
+            _taskTypes+=('local')
+            _taskNames+=('')
+            _taskFiles+=('')
+            _taskFileNames+=('')
+            _taskLogFileNames+=('')
+            _taskProjects+=("${project}")
+            _taskBlocker+=(-1)
+            _taskSkip+=(2)
+            _taskSkipMsgs+=('no tests')
+        else
+            _collectProjectTestTasks "${project}" "${projectRoot}" 'local' -1
+        fi
+    done
+}
+
+_collectBuildTasks() {
+    local -n _buildTaskIdxRef="${1}"
+    local project projectRoot
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        if [[ -f "${projectRoot}/flake.nix" ]]; then
+            _buildTaskIdxRef["${project}"]=${#_taskTypes[@]}
+            _taskTypes+=('build')
+            _taskNames+=('')
+            _taskFiles+=('')
+            _taskFileNames+=('')
+            _taskLogFileNames+=('')
+            _taskProjects+=("${project}")
+            _taskBlocker+=(-1)
+            _taskSkip+=(0)
+            _taskSkipMsgs+=('')
+        fi
+    done
+}
+
+_collectNixTasks() {
+    local -n _nixBuildTaskIdxRef="${1}"
+    local project projectRoot buildIdx
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        [[ -z ${projectRoot} ]] && continue
+        [[ -f "${projectRoot}/flake.nix" ]] || continue
+        [[ -d "${projectRoot}/test" ]] || continue
+        buildIdx=-1
+        [[ -v _nixBuildTaskIdxRef["${project}"] ]] && buildIdx="${_nixBuildTaskIdxRef["${project}"]}"
+        _collectProjectTestTasks "${project}" "${projectRoot}" 'nix' "${buildIdx}"
+    done
+}
+
+_collectProjectTestTasks() {
     local project="${1}"
     local projectRoot="${2}"
+    local taskType="${3}"
+    local blocker="${4}"
     local testDir="${projectRoot}/test"
-    local testName
 
-    # Separate include and exclude patterns (- prefix = exclude)
-    local includePatterns=() excludePatterns=()
-    local arg
+    # Parse include/exclude patterns
+
+    local includePatterns=() excludePatterns=() arg
     for arg in "${args[@]}"; do
         if [[ "${arg}" == -* ]]; then
             excludePatterns+=("${arg#-}")
@@ -226,50 +253,283 @@ _collectProjectTests() {
         fi
     done
 
-    if [[ -d "${testDir}" ]]; then
-        local file fileName testName
-        local files=("${testDir}"/test-*.sh)
+    local file fileName testName skip skipMsg pattern
+    local files=("${testDir}"/test-*.sh)
 
-        for file in "${files[@]}"; do
-            fileName="${ basename ${file}; }"
-            testName="${fileName#test-}"
-            testName="${testName%.sh}"
+    for file in "${files[@]}"; do
+        fileName="${ basename ${file}; }"
+        testName="${fileName#test-}"
+        testName="${testName%.sh}"
 
-            # Add them all
+        local logPrefix="${project}-${testName}"
+        [[ ${taskType} == 'nix' ]] && logPrefix+="-nix"
 
-            testNames+=("${testName}")
-            testFileNames+=("${fileName}")
-            testFiles+=("${file}")
-            testLogFileNames+=("${project}-${testName}.log")
-            testProjects+=("${project}")
-            skipTestNames+=([${testName}]=0)
+        skip=0
+        skipMsg=''
 
-            # Check if test should be skipped
-            local skip=0 pattern
+        # Include filter: if patterns exist, test must match at least one
+        if (( ${#includePatterns[@]} )); then
+            skip=1
+            for pattern in "${includePatterns[@]}"; do
+                if [[ "${testName}" =~ ${pattern} ]]; then
+                    skip=0; break
+                fi
+            done
+        fi
 
-            # If include patterns exist, test must match at least one
-            if (( ${#includePatterns[@]} )); then
-                skip=1
-                for pattern in "${includePatterns[@]}"; do
-                    if [[ "${testName}" =~ ${pattern} ]]; then
-                        skip=0; break
+        # Exclude filter: always takes precedence
+        for pattern in "${excludePatterns[@]}"; do
+            if [[ "${testName}" =~ ${pattern} ]]; then
+                skip=1; break
+            fi
+        done
+
+        if (( skip )); then
+            skipMsg="skipped, does not match ${_testNoMatchMsg}"
+        elif [[ ${taskType} == 'local' ]] && (( inContainer )) && [[ ${file} == *linux*.sh ]]; then
+            skip=1
+            skipMsg="skipped, linux test in linux container"
+        fi
+
+        _taskTypes+=("${taskType}")
+        _taskNames+=("${testName}")
+        _taskFiles+=("${file}")
+        _taskFileNames+=("${fileName}")
+        _taskLogFileNames+=("${logPrefix}.log")
+        _taskProjects+=("${project}")
+        _taskBlocker+=("${blocker}")
+        _taskSkip+=("${skip}")
+        _taskSkipMsgs+=("${skipMsg}")
+    done
+}
+
+_computeResultColumn() {
+    local i nameLen maxTestNameLen=0 hasBuild=0 hasLocalTest=0 hasNixTest=0
+    for (( i=0; i < ${#_taskTypes[@]}; i++ )); do
+        (( _taskSkip[i] == 2 )) && continue
+        case "${_taskTypes[${i}]}" in
+            build) hasBuild=1 ;;
+            local) hasLocalTest=1 ;;
+            nix)   hasNixTest=1 ;;
+        esac
+        if [[ -n ${_taskNames[${i}]} ]]; then
+            nameLen=${#_taskNames[${i}]}
+            (( nameLen > maxTestNameLen )) && maxTestNameLen=${nameLen}
+        fi
+    done
+
+    # Minimum column width needed so each type fits with at least 1 space of padding:
+    # build: "project build" → needs maxProjectNameLen + 6 min
+    # local: "project test testName" → needs maxProjectNameLen + testNameLen + 6 min
+    # nix:   "project test testName nix" → needs maxProjectNameLen + testNameLen + 10 min
+
+    local colNeed=7
+    (( hasLocalTest && (maxTestNameLen + 7) > colNeed )) && colNeed=$(( maxTestNameLen + 7 ))
+    (( hasNixTest && (maxTestNameLen + 11) > colNeed )) && colNeed=$(( maxTestNameLen + 11 ))
+    _testResultColumn=$(( _maxProjectNameLength + colNeed ))
+}
+
+_runAllTasksParallel() {
+    local taskCount=${#_taskTypes[@]}
+    local i j lineNumber=0
+
+    addExitHandler _cancelAllTasks
+
+    if (( ! isInteractive )); then
+
+        # Non-interactive: start unblocked tasks, poll for completion, start newly-unblocked
+
+        local -A startedTasks=() completedTasks=()
+        local pendingCount=0 result
+
+        for (( i=0; i < taskCount; i++ )); do
+            (( _taskSkip[i] )) && continue
+            (( _taskBlocker[i] != -1 )) && continue
+            _startTask ${i}
+            startedTasks[${i}]=1
+            (( pendingCount += 1 ))
+        done
+
+        while (( pendingCount > 0 )); do
+            for i in "${!startedTasks[@]}"; do
+                [[ -v completedTasks[${i}] ]] && continue
+                if _readTaskResult ${i} result; then
+                    completedTasks[${i}]=1
+                    (( pendingCount-- ))
+                    for (( j=0; j < taskCount; j++ )); do
+                        (( _taskSkip[j] )) && continue
+                        [[ -v startedTasks[${j}] ]] && continue
+                        (( _taskBlocker[j] == i )) || continue
+                        if [[ ${_taskTypes[${i}]} == 'build' ]] && (( result != 0 )); then
+                            echo "1" > "${_testResultDir}/result-${j}.txt"
+                            completedTasks[${j}]=1
+                        else
+                            _startTask ${j}
+                            startedTasks[${j}]=1
+                            (( pendingCount += 1 ))
+                        fi
+                    done
+                fi
+            done
+            (( pendingCount > 0 )) && sleep 0.25
+        done
+
+        _displayAllTasks _displayTaskResult
+        return
+    fi
+
+    # Interactive: print all task lines, compute rows, start unblocked tasks with spinners
+
+    local -A taskLineOffsets=() taskSpinnerIds=() taskSpinnerRows=()
+    local -A startedTasks=() completedTasks=()
+    local pendingCount=0
+
+    _displayAllTasks _displayPendingTask
+    local totalLines=${lineNumber}
+
+    local endRow endCol
+    cursorPosition endRow endCol
+    _testDisplayEndRow=${endRow}
+
+    for i in "${!taskLineOffsets[@]}"; do
+        taskSpinnerRows[${i}]=$(( endRow - totalLines + taskLineOffsets[${i}] ))
+    done
+
+    local result spinnerId
+    for (( i=0; i < taskCount; i++ )); do
+        (( _taskSkip[i] )) && continue
+        (( _taskBlocker[i] != -1 )) && continue
+        _startTask ${i}
+        startedTasks[${i}]=1
+        (( pendingCount += 1 ))
+        addSpinner spinnerId star "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))"
+        taskSpinnerIds[${i}]="${spinnerId}"
+    done
+
+    while (( pendingCount > 0 )); do
+        for i in "${!startedTasks[@]}"; do
+            [[ -v completedTasks[${i}] ]] && continue
+            if _readTaskResult ${i} result; then
+                spinnerId="${taskSpinnerIds[${i}]}"
+                if (( result == 0 )); then
+                    removeSpinner spinnerId "${_greenCheckMark}" false 0
+                else
+                    removeSpinner spinnerId "${_redCrossMark}" false 0
+                fi
+                completedTasks[${i}]=1
+                (( pendingCount-- ))
+
+                for (( j=0; j < taskCount; j++ )); do
+                    (( _taskSkip[j] )) && continue
+                    [[ -v startedTasks[${j}] ]] && continue
+                    (( _taskBlocker[j] == i )) || continue
+                    if [[ ${_taskTypes[${i}]} == 'build' ]] && (( result != 0 )); then
+                        echo "1" > "${_testResultDir}/result-${j}.txt"
+                        completedTasks[${j}]=1
+                        addSpinner spinnerId star "${taskSpinnerRows[${j}]}" "$(( _testResultColumn + 2 ))"
+                        removeSpinner spinnerId "${_redCrossMark}" false 0
+                    else
+                        _startTask ${j}
+                        startedTasks[${j}]=1
+                        (( pendingCount += 1 ))
+                        addSpinner spinnerId star "${taskSpinnerRows[${j}]}" "$(( _testResultColumn + 2 ))"
+                        taskSpinnerIds[${j}]="${spinnerId}"
                     fi
                 done
             fi
-
-            # Exclude patterns always exclude (takes precedence)
-            for pattern in "${excludePatterns[@]}"; do
-                if [[ "${testName}" =~ ${pattern} ]]; then
-                    skip=1; break
-                fi
-            done
-
-            (( skip )) && skipTestNames+=(["${testName}"]=1)
         done
+        (( pendingCount > 0 )) && sleep 0.25
+    done
+
+    cursorTo "${endRow}" 1
+    _testDisplayEndRow=
+}
+
+_startTask() {
+    local i="${1}"
+    case "${_taskTypes[${i}]}" in
+        local) _startLocalTask ${i} ;;
+        build) _startBuildTask ${i} ;;
+        nix)   _startNixTask ${i} ;;
+    esac
+}
+
+_startLocalTask() {
+    local i="${1}"
+    local testFile="${_taskFiles[${i}]}"
+    local testName="${_taskNames[${i}]}"
+    local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+    local resultFile="${_testResultDir}/result-${i}.txt"
+
+    if [[ -x "${testFile}" ]]; then
+        local exports=()
+        if [[ ${testName} == "rayvn-up" ]]; then
+            local testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+              gawk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
+            exports+=(rayvnInstallHome="${rayvnHome}")
+            exports+=(rayvnInstallBinary="${rayvnHome}/bin/rayvn")
+            exports+=(testFunctionNames="${testFunctionNames%" "}")
+            exports+=(rayvnTest_NoEchoOnExit=1)
+        fi
+        (
+            _executeTestFile "${testFile}" "${exports[@]}" &> "${logFile}"
+            echo $? > "${resultFile}"
+        ) &
+        _taskPids+=($!)
+    else
+        echo "1" > "${resultFile}"
     fi
 }
 
-_readTestResult() {
+_startBuildTask() {
+    local i="${1}"
+    local project="${_taskProjects[${i}]}"
+    local projectRoot="${_rayvnProjects[${project}::project]}"
+    local resultFile="${_testResultDir}/result-${i}.txt"
+    git -C "${projectRoot}" add -u
+    (
+        nix build --no-warn-dirty "${projectRoot}" &> /dev/null
+        echo $? > "${resultFile}"
+    ) &
+    _taskPids+=($!)
+}
+
+_startNixTask() {
+    local i="${1}"
+    local testFile="${_taskFiles[${i}]}"
+    local project="${_taskProjects[${i}]}"
+    local projectRoot="${_rayvnProjects[${project}::project]}"
+    local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+    local resultFile="${_testResultDir}/result-${i}.txt"
+
+    if [[ -x "${testFile}" ]]; then
+        (
+            executeWithCleanVars rayvnTest_NonInteractive=1 \
+                nix develop --no-warn-dirty "${projectRoot}" \
+                --command "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}" \
+                &> "${logFile}"
+            echo $? > "${resultFile}"
+        ) &
+        _taskPids+=($!)
+    else
+        echo "1" > "${resultFile}"
+    fi
+}
+
+_cancelAllTasks() {
+    local pid
+    for pid in "${_taskPids[@]}"; do
+        kill "${pid}" 2> /dev/null
+    done
+    wait "${_taskPids[@]}" 2> /dev/null
+    _taskPids=()
+    if [[ -n ${_testDisplayEndRow} ]]; then
+        cursorTo _testDisplayEndRow 1
+        echo
+    fi
+}
+
+_readTaskResult() {
     local idx="${1}"
     local -n _resultRef="${2}"
     local resultFile="${_testResultDir}/result-${idx}.txt"
@@ -280,218 +540,105 @@ _readTestResult() {
     return 1
 }
 
-_displayAllTests() {
-    local runnableCallback="${1}"
-    local i
-    for (( i=0; i < maxIndex; i++ )); do
-        if [[ -z ${testFiles[${i}]} ]]; then
-            _displayNoTests "${i}"
-        elif [[ -v skippedTests[${i}] ]]; then
-            _displaySkippedTest "${i}" "${skippedTests[${i}]}"
+_displayAllTasks() {
+    local callback="${1}" i
+    for (( i=0; i < ${#_taskTypes[@]}; i++ )); do
+        if (( _taskSkip[i] == 2 )); then
+            _displayNoTestsTask ${i}
+        elif (( _taskSkip[i] )); then
+            _displaySkippedTask ${i}
         else
-            "${runnableCallback}" "${i}"
+            "${callback}" ${i}
         fi
         (( lineNumber += 1 )) 2> /dev/null || true
     done
 }
 
-_updateTestLine() {
-    local lineOffset="${1}"
-    local content="${2}"
-    local linesUp=$(( totalLines - lineOffset ))
-    cursorUpToColumn "${linesUp}" "$(( _testResultColumn + 2 ))"
-    echo -n " ${content} "
-    cursorDownToLineStart "${linesUp}"
+_displayPendingTask() {
+    local i="${1}"
+    local taskType="${_taskTypes[${i}]}"
+    local taskName="${_taskNames[${i}]}"
+    local project="${_taskProjects[${i}]}"
+    taskLineOffsets[${i}]=${lineNumber}
+    case ${taskType} in
+        local)
+            _setPadding _testResultColumn $(( -${#taskName} - 4 ))
+            local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+            local displayLogFile="${testLogFile/#${HOME}/\~}"
+            show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
+            ;;
+        nix)
+            _setPadding _testResultColumn $(( -${#taskName} - 8 ))
+            local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+            local displayLogFile="${testLogFile/#${HOME}/\~}"
+            show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
+            ;;
+        build)
+            _setPadding _testResultColumn -4
+            show bold "${project}" plain "build" plain "${_testPadding}"
+            ;;
+    esac
 }
 
-_cancelAllTests() {
-    local pid
-    for pid in "${_testPids[@]}"; do
-        kill "${pid}" 2> /dev/null
-    done
-    wait "${_testPids[@]}" 2> /dev/null
-    _testPids=()
-    if [[ -n ${_testDisplayEndRow} ]]; then
-        cursorTo _testDisplayEndRow 1
-        echo
-    fi
-}
-
-_waitForAllTests() {
-    local pendingCount=${#pendingTests[@]}
-    local i spinnerId
-    local -A testSpinnerIds=()
-
-    # Add a spinner for each pending test at its display row
-    for i in "${!pendingTests[@]}"; do
-        addSpinner spinnerId star "${testSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))"
-        testSpinnerIds[${i}]=${spinnerId}
-    done
-
-    while (( pendingCount > 0 )); do
-        for i in "${!pendingTests[@]}"; do
-            local result
-            if _readTestResult "${i}" result; then
-                spinnerId="${testSpinnerIds[${i}]}"
-                if (( result == 0 )); then
-                    removeSpinner spinnerId "${_greenCheckMark}" false 0
-                else
-                    removeSpinner spinnerId "${_redCrossMark}" false 0
-                fi
-                unset "pendingTests[${i}]"
-                (( pendingCount-- ))
+_displayTaskResult() {
+    local i="${1}"
+    local taskType="${_taskTypes[${i}]}"
+    local taskName="${_taskNames[${i}]}"
+    local project="${_taskProjects[${i}]}"
+    local result mark
+    _readTaskResult ${i} result || result=1
+    (( result == 0 )) && mark="${_greenCheckMark}" || mark="${_redCrossMark}"
+    case ${taskType} in
+        local)
+            _setPadding _testResultColumn $(( -${#taskName} - 4 ))
+            local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+            local displayLogFile="${logFile/#${HOME}/\~}"
+            if (( result == 0 )); then
+                show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" " ${mark}" plain dim "log at ${displayLogFile}"
+            else
+                show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
             fi
-        done
-        (( pendingCount > 0 )) && sleep 0.25
-    done
-
-    cursorTo "${_testDisplayEndRow}" 1  # Position cursor after all test lines
-    _testDisplayEndRow= # ensure cancel does not do this again
+            ;;
+        nix)
+            _setPadding _testResultColumn $(( -${#taskName} - 8 ))
+            local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+            local displayLogFile="${logFile/#${HOME}/\~}"
+            if (( result == 0 )); then
+                show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" " ${mark}" plain dim "log at ${displayLogFile}"
+            else
+                show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
+            fi
+            ;;
+        build)
+            _setPadding _testResultColumn -4
+            show bold "${project}" plain "build" plain "${_testPadding}" " ${mark}"
+            ;;
+    esac
 }
 
-_runAllTestsParallel() {
-    local i testName testFile project skip
-    _testPids=()
-    local -A skippedTests=()
-    local runIndices=()
-
-    addExitHandler _cancelAllTests
-
-    # Categorize tests: skipped vs runnable (all runnable tests run in parallel)
-    for (( i=0; i < maxIndex; i++ )); do
-        testName="${testNames[${i}]}"
-        testFile="${testFiles[${i}]}"
-        project="${testProjects[${i}]}"
-
-        # Skip "no tests" placeholder entries
-        [[ -z ${testFile} ]] && continue
-
-        skip="${skipTestNames["${testName}"]}"
-
-        if (( skip )); then
-            skippedTests[${i}]="skipped, does not match ${noMatchMsg}"
-        elif (( inContainer )) && [[ ${testFile} == *linux*.sh ]]; then
-            skippedTests[${i}]="skipped, linux test in linux container"
-        else
-            runIndices+=("${i}")
-        fi
-    done
-
-    # For interactive terminals, use per-row spinners; otherwise run silently and show results after
-    if (( ! isInteractive )); then
-        # Non-interactive: run tests silently, then display results
-        for i in "${runIndices[@]}"; do
-            _runOneTestSilent "${i}" &
-            _testPids+=($!)
-        done
-        wait "${_testPids[@]}"
-        _testPids=()
-
-        _displayAllTests _displayTestResult
-        return
-    fi
-
-    # Interactive: print all test lines and track line numbers (0-indexed from first test)
-    local -A testLineOffsets=()
-    local -A pendingTests=()
-    local -A testSpinnerRows=()
-    local lineNumber=0
-
-    _displayAllTests _displayPendingTest
-
-    local totalLines=${lineNumber}
-
-    # Compute absolute row positions now that all display is done, resilient to any scrolling
-    # that occurred during display. _testDisplayEndRow is the row after the last test line.
-    local displayEndCol
-    cursorPosition _testDisplayEndRow displayEndCol
-    for i in "${!testLineOffsets[@]}"; do
-        testSpinnerRows[${i}]=$(( _testDisplayEndRow - totalLines + testLineOffsets[${i}] ))
-    done
-
-    # Start all tests in parallel (they run silently and write results to files)
-    for i in "${runIndices[@]}"; do
-        _runOneTestSilent "${i}" &
-        _testPids+=($!)
-    done
-
-    _waitForAllTests
-    _testPids=()
-}
-
-_displayPendingTest() {
+_displaySkippedTask() {
     local i="${1}"
-    local testName="${testNames[${i}]}"
-    local project="${testProjects[${i}]}"
-    _setPadding _testResultColumn $(( - ${#testName} - 4 ))
-    local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
-    local displayLogFile="${testLogFile/#${HOME}/\~}"
-    testLineOffsets[${i}]=${lineNumber}
-    pendingTests[${i}]=1
-    show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
+    local taskType="${_taskTypes[${i}]}"
+    local taskName="${_taskNames[${i}]}"
+    local project="${_taskProjects[${i}]}"
+    local message="${_taskSkipMsgs[${i}]}"
+    case ${taskType} in
+        local)
+            _setPadding _testResultColumn $(( -${#taskName} - 6 ))
+            show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
+            ;;
+        nix)
+            _setPadding _testResultColumn $(( -${#taskName} - 10 ))
+            show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
+            ;;
+    esac
 }
 
-# Run a test silently (no spinner), just capture result
-_runOneTestSilent() {
+_displayNoTestsTask() {
     local i="${1}"
-    local testName="${testNames[${i}]}"
-    local testFile="${testFiles[${i}]}"
-    local testLogFileName="${testLogFileNames[${i}]}"
-    local testLogFile="${_testLogDir}/${testLogFileName}"
-    local resultFile="${_testResultDir}/result-${i}.txt"
-
-    if [[ -x "${testFile}" ]]; then
-        local exports=()
-        if [[ ${testName} == "rayvn-up" ]]; then
-            # rayvn-up needs special env setup for testing installation
-            local testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
-              gawk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
-            exports+=(rayvnInstallHome="${rayvnHome}")
-            exports+=(rayvnInstallBinary="${rayvnHome}/bin/rayvn")
-            exports+=(testFunctionNames="${testFunctionNames%" "}")
-            exports+=(rayvnTest_NoEchoOnExit=1)
-        fi
-        _executeTestFile "${testFile}" "${exports[@]}" &> "${testLogFile}"
-        echo $? > "${resultFile}"
-    else
-        echo "1" > "${resultFile}"
-    fi
-}
-
-_displaySkippedTest() {
-    local i="${1}"
-    local message="${2}"
-    local testName="${testNames[${i}]}"
-    local project="${testProjects[${i}]}"
-    _setPadding _testResultColumn $(( - ${#testName} - 6 ))
-    show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
-}
-
-_displayNoTests() {
-    local i="${1}"
-    local project="${testProjects[${i}]}"
+    local project="${_taskProjects[${i}]}"
     _setPadding _testResultColumn 0
     show bold "${project}" plain "${_testPadding}" secondary '⨯' plain dim "no tests"
-}
-
-_displayTestResult() {
-    local i="${1}"
-    local testName="${testNames[${i}]}"
-    local project="${testProjects[${i}]}"
-    local testLogFile="${_testLogDir}/${testLogFileNames[${i}]}"
-    local displayLogFile="${testLogFile/#${HOME}/\~}"
-    local result
-    _setPadding _testResultColumn $(( -${#testName} - 4 ))
-
-    if _readTestResult "${i}" result; then
-        if (( result == 0 )); then
-            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_greenCheckMark}" plain dim "log at ${displayLogFile}"
-        else
-            show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_redCrossMark}" "log at ${displayLogFile}"
-        fi
-    else
-        show bold "${project}" plain "test" primary "${testName}" plain "${_testPadding}" " ${_redCrossMark}" "no result file"
-    fi
 }
 
 _setPadding() {
