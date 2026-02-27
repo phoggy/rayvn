@@ -409,7 +409,7 @@ _runAllTasksParallel() {
     for (( i=0; i < taskCount; i++ )); do
         (( _taskSkip[i] )) && continue
         (( _taskBlocker[i] == -1 )) && continue
-        cursorTo "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))"
+        cursorTo "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 1 ))"
         printf '\e[2m○\e[0m' > /dev/tty
     done
 
