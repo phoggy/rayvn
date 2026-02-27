@@ -406,11 +406,12 @@ _runAllTasksParallel() {
         taskSpinnerIds[${i}]="${spinnerId}"
     done
 
+    local -A taskBlockedSpinnerIds=()
     for (( i=0; i < taskCount; i++ )); do
         (( _taskSkip[i] )) && continue
         (( _taskBlocker[i] == -1 )) && continue
-        cursorTo "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 1 ))"
-        printf '\e[2m○\e[0m' > /dev/tty
+        addSpinner spinnerId hollow "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))" muted
+        taskBlockedSpinnerIds[${i}]="${spinnerId}"
     done
 
     while (( pendingCount > 0 )); do
@@ -430,6 +431,11 @@ _runAllTasksParallel() {
                     (( _taskSkip[j] )) && continue
                     [[ -v startedTasks[${j}] ]] && continue
                     (( _taskBlocker[j] == i )) || continue
+                    if [[ -v taskBlockedSpinnerIds[${j}] ]]; then
+                        local blockedId="${taskBlockedSpinnerIds[${j}]}"
+                        removeSpinner blockedId '' false 0
+                        unset 'taskBlockedSpinnerIds[${j}]'
+                    fi
                     if [[ ${_taskTypes[${i}]} == 'build' ]] && (( result != 0 )); then
                         echo "1" > "${_testResultDir}/result-${j}.txt"
                         completedTasks[${j}]=1

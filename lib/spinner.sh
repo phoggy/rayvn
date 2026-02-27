@@ -144,7 +144,7 @@ _init_rayvn_spinner() {
 
     # Spinner type name list and map
 
-    declare -gra _spinnerNameList=('star' 'dots' 'line' 'circle' 'arrow' 'box' 'bounce' 'pulse' 'grow')
+    declare -gra _spinnerNameList=('star' 'dots' 'line' 'circle' 'arrow' 'box' 'bounce' 'pulse' 'grow' 'hollow')
     declare -gA _spinnerNameMap=()
     for type in "${_spinnerNameList[@]}"; do
         _spinnerNameMap+=([${type}]=1)
@@ -223,6 +223,7 @@ _initSpinnerServer() {
     declare -gra _bounceSpinner=('⠁' '⠂' '⠄' '⠂')
     declare -gra _pulseSpinner=('∙' '●' '◉' '●' '∙')
     declare -gra _growSpinner=('▁' '▃' '▅' '▇' '█' '▇' '▅' '▃')
+    declare -gra _hollowSpinner=('○')
 
     # Add exit handler
 
