@@ -288,10 +288,6 @@ _spinnerExit() {
 
 _shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
-        {
-            { printf '%d\n' 1; printf '%s\n' 'stop'; } >&${_spinnerClientRequestFd}
-        } &> /dev/null
-
         if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
             local errMsg="spinner process ${_spinnerServerPid} didn't exit"
             [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"

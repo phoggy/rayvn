@@ -1395,6 +1395,7 @@ _setFileSystemVar() {
 _ensureRayvnTempDir() {
     if [[ ! -n ${_rayvnTempDir} ]]; then
         declare -grx _rayvnTempDir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
+        declare -gr _rayvnTempDirOwner=${BASHPID}
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi
 }
@@ -1408,39 +1409,40 @@ _restoreTerminal() {
 
 _onRayvnTerm() {
     _restoreTerminal
-    show italic red "🔺 killed"
+    _rayvnExitMessage="${ show italic red "🔺 killed" ;}"
     exit 1
 }
 
 _onRayvnHup() {
     _restoreTerminal
-    show italic red "🔺 killed (SIGHUP)"
+    _rayvnExitMessage="${ show italic red "🔺 killed (SIGHUP)" ;}"
     exit 1
 }
 
 _onRayvnInt() {
     _restoreTerminal
     [[ -v rayvnNoExitOnCtrlC ]] && return
-    show italic red "🔺 exiting (ctrl-c)"
+    _rayvnExitMessage="${ show italic red "🔺 exiting (ctrl-c)" ;}"
     exit 1
 }
 
 _onRayvnExit() {
     _restoreTerminal
 
-    # Add a line unless disabled
-
-    (( rayvnTest_NoEchoOnExit )) || echo
-
-    # Delete temp dir if we created it
-
-    if [[ ${_rayvnTempDir} ]]; then
-        rm -rf -- "${_rayvnTempDir}" &>/dev/null
-    fi
-
-    # Run any added tasks
+    # Run any added tasks first (they may reposition the cursor and need the temp dir)
 
     for task in "${_rayvnExitTasks[@]}"; do
         eval "${task}"
     done
+
+    # Add a line and any deferred signal message after exit tasks have repositioned the cursor
+
+    (( rayvnTest_NoEchoOnExit )) || echo
+    [[ -v _rayvnExitMessage ]] && echo "${_rayvnExitMessage}"
+
+    # Delete temp dir if we created it
+
+    if [[ ${_rayvnTempDir} ]] && (( BASHPID == _rayvnTempDirOwner )); then
+        rm -rf -- "${_rayvnTempDir}" &>/dev/null
+    fi
 }
