@@ -615,7 +615,7 @@ _displayPendingTask() {
             _setPadding _testResultColumn $(( -${#taskName} - 8 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
             local displayLogFile="${testLogFile/#${HOME}/\~}"
-            show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
+            show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
             ;;
         build)
             local projectPad rightPad
