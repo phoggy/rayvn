@@ -157,7 +157,8 @@ _init_rayvn_spinner() {
 }
 
 _spinnerShutdown() {
-    _shutdownSpinnerServer
+    # Only shutdown if we are the owning process
+    (( BASHPID == _spinnerOwnerPid )) && _shutdownSpinnerServer
 }
 
 _initSpinnerClient() {
@@ -178,6 +179,10 @@ _initSpinnerClient() {
     # Normal response wait seconds
 
     declare -gr _spinnerMaxResponseWait=.25
+
+    # Record the owning process so children don't shut down the server on exit
+
+    declare -gr _spinnerOwnerPid=${BASHPID}
 
     # Don't come back here again
 
@@ -261,7 +266,7 @@ _spinnerRequest() {
 
     if (( $? == 0 )); then
         if [[ ${response[0]} == "ok" ]]; then
-            resopnseArrayRef=${response[1]}
+            responseArrayRef=${response[1]}
             return 0
         else
             fail "${response[0]}"
