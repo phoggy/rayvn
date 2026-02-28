@@ -651,9 +651,9 @@ _displayTaskResult() {
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
             local displayLogFile="${logFile/#${HOME}/\~}"
             if (( result == 0 )); then
-                show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" " ${mark}" plain dim "log at ${displayLogFile}"
+                show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" " ${mark}" plain dim "log at ${displayLogFile}"
             else
-                show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
+                show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
             fi
             ;;
         build)
@@ -679,7 +679,7 @@ _displaySkippedTask() {
             ;;
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 10 ))
-            show bold "${project}" plain "test" primary "${taskName}" plain "nix" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
+            show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
             ;;
     esac
 }
