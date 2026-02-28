@@ -339,7 +339,7 @@ _setDebug() {
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
             clear >&${_debugFd} # clear remote terminal
-            show -e bold green "BEGIN" primary "debug output from pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
+            show -e bold green "BEGIN" primary "debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
         fi
     else
         _prepareLogFile ${clearLog}
@@ -381,7 +381,7 @@ _debugExit() {
     exec {_debugFd}>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
-        show -e bold green "\r\nEND" primary "debug output from pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
+        show -e bold green "\r\nEND" primary "  debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
     fi
 }
 
