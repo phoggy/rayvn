@@ -60,13 +60,25 @@ rootDirPath() {
     echo "${rayvnRootDir}/${1}"
 }
 
-# Return the path to the session temp directory, optionally joined with a file name.
-# Args: [fileName]
+# Return the path to the session temp directory, optionally joined with a specified or random file name.
+# Args: [-r] [fileName]
 #
-#   fileName - optional file name to append to the temp directory path
+#   -r       - replace X placeholders in specified file name (if none, an 8 character random file name will be used)
+#   fileName - optional file name to append to the temp directory path.
 tempDirPath() {
     _ensureRayvnTempDir
-    local fileName="${1:-}"
+    local fileName
+    if [[ $1 == '-r' ]]; then
+        shift
+        if [[ -n "$1" ]]; then
+            fileName="$1"
+            replaceRandomHex X fileName
+        else
+            randomHexString 8 fileName
+        fi
+    else
+        fileName="${1:-}"
+    fi
     [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
@@ -86,12 +98,8 @@ makeTempFile() {
 #   nameTemplate - optional name template with X placeholders (default: XXXXXX)
 makeTempFifo() {
     _ensureRayvnTempDir
-    local name="${1:-XXXXXX}" hex
+    local name="${1:-XXXXXX}"
     replaceRandomHex X name
-    while [[ -e ${_rayvnTempDir}/${name} ]]; do
-        randomHexChar hex
-        name+=${hex}
-    done
     local fifoPath="${_rayvnTempDir}/${name}"
     mkfifo "${fifoPath}" || fail "could not create fifo ${fifoPath}"
     echo "${fifoPath}"
@@ -724,10 +732,26 @@ randomInteger() {
 #
 #   resultVar - nameref variable to receive a single hex character
 randomHexChar() {
-    local -n _hexResult="${1}"
+    local -n _hexResultRef="${1}"
     local _hexIndex
     randomInteger _hexIndex 15
-    _hexResult=${_hexChars[_hexIndex]}
+    _hexResultRef=${_hexChars[_hexIndex]}
+}
+
+# Set a variable to a random hex string (0-9, a-f) via nameref.
+# Args: length resultVar
+#
+#   length    - length of result string
+#   resultVar - nameref variable to receive string
+
+randomHexString() {
+    local count=$1
+    local -n _resultRef=$2
+    local _hex _i
+    for (( _i=0; _i < ${count}; _i++)); do
+        randomHexChar _hex
+        _resultRef+="${_hex}"
+    done
 }
 
 # Replace every occurrence of a placeholder character in a string with random hex characters.
