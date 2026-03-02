@@ -814,18 +814,29 @@ repeat() {
 
 # Return the 0-based index of an item in an array, or -1 if not found.
 # Exits 0 if found, 1 if not found.
-# Args: item arrayVar
+# Args: [-r] item arrayVar
 #
+#   -r       - treat item as a regex
 #   item     - the value to search for
 #   arrayVar - name of the indexed array to search
+
 indexOf() {
-    local item="${1}"
-    local -n arrayRef="${2}"
+    local regex=0 _i
+    if [[ $1 == '-r' ]]; then
+        regex=1; shift
+    fi
+    local item="$1"
+    local -n arrayRef="$2"
     local max="${#arrayRef[@]}"
-    local i
-    for (( i=0; i < max; i++ )); do
-        if [[ ${arrayRef[${i}]} == "${item}" ]]; then
-            echo ${i}; return 0
+    for (( _i=0; _i < max; _i++ )); do
+        if (( regex )); then
+            if [[ ${arrayRef[_i]} =~ ${item} ]]; then
+                echo ${_i}; return 0
+            fi
+        else
+            if [[ ${arrayRef[_i]} == "${item}" ]]; then
+                echo ${_i}; return 0
+            fi
         fi
     done
     echo -1
