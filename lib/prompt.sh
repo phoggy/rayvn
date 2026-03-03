@@ -334,7 +334,7 @@ _preparePrompt() {
 
     _promptHint="${_promptHintSpace}${ show -n muted italic "[${_promptPlainHint}]" ;}"
     _prompt="${ show -n bold success "?" plain bold "${_promptPlain}" ;}${_promptHint} "
-    echo -n "${_prompt}"
+    echo -n "${_prompt}" > ${terminal}
 
     # Reserve rows below prompt and set prompt row/col
 
@@ -465,7 +465,7 @@ _executePrompt() {
             *)
                 if ((_promptCollectInput)) && [[ "${key}" =~ [[:print:]] ]]; then
                     _promptInput+="${key}"
-                    (( _promptEcho )) && echo -n "${key}"
+                    (( _promptEcho )) && echo -n "${key}" > ${terminal}
                     SECONDS=0 # Reset timer
                 fi
                 ;;
@@ -585,9 +585,9 @@ _finalizePrompt() {
 
     cursorRestore
     if (( ! isSecure )); then
-        show ${_promptFinalizeArg} "${formats[@]}" "${resultMessageRef}"
+        show ${_promptFinalizeArg} "${formats[@]}" "${resultMessageRef}" > ${terminal}
     elif [[ ! -n ${_promptFinalizeArg} ]]; then
-        echo ${_promptFinalizeArg}
+        echo ${_promptFinalizeArg} > ${terminal}
     fi
 
     # Restore terminal settings
