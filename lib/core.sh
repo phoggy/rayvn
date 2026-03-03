@@ -678,6 +678,7 @@ show() {
         fi
         shift
     done
+    [[ -n $currentFormat ]] && output+=$currentFormat
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
