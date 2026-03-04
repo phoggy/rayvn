@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Library for generating and publishing rayvn library function indexes and Jekyll docs.
+# Generate and publish rayvn library function indexes and Jekyll docs.
 # Use via: require 'rayvn/index'
 
 # Generate function indexes and/or Jekyll docs for rayvn project libraries.

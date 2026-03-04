@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Library for project dependency checking and brew formula generation.
+# Project dependency checking and brew formula generation.
 # Use via: require 'rayvn/deps'
 
 # Check that all required project dependencies are available in PATH.

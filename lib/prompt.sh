@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Library of user input functions.
+# User input.
 # Use via: require 'rayvn/prompt'
 
 # Read user input.

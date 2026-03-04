@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Library for creating GitHub releases.
+# Create GitHub releases.
 # Use via: require 'rayvn/release'
 
 # Perform a complete release of a rayvn project to GitHub via the Nix flake release workflow.

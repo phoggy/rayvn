@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Library of common functions.
+# Test library.
 # Use via: require 'rayvn-up/main'
 
 testMainLibraryFunction () {
