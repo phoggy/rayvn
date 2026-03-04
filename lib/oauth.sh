@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# My library.
+# OAuth.
 # Use via: require 'rayvn/oauth'
 
 # Build and populate an OAuth service map for a given provider and scope.

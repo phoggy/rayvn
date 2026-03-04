@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Theme functions.
+# Themes.
 # Use via: require 'rayvn/theme'
 
 # Display the currently active theme with its color swatches.

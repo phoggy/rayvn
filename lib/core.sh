@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Core library.
+# Common core.
 # Use via: require 'rayvn/core'
 
 # Set umask to 0077 so that all new files and directories are accessible only by the current user.

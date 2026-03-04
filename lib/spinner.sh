@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# My library.
+# Spinners.
 # Use via: require 'rayvn/spinner'
 
 # IMPORTANT: While there are active spinners, the cursor is hidden globally. Before any

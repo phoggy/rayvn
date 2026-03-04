@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# My library.
+# Test harness.
 # Use via: require 'rayvn/test-harness'
 
 # Execute tests for one or more rayvn projects, running test files in parallel.

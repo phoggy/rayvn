@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Test case support library.
+# Test case support.
 # Use via: require 'rayvn/test'
 
 ### assert functions ----------------------------------------------------------------------------------------
