@@ -18,7 +18,7 @@ executeTests() {
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
     echo
-    require 'rayvn/spinner'
+    require 'rayvn/spinner' 'rayvn/prompt'
     _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
     _taskLogFileNames=() _taskProjects=() _taskBlocker=()
     _taskSkip=() _taskSkipMsgs=() _taskPids=()
@@ -28,6 +28,7 @@ executeNixBuild() {
     local taskCount=${#_taskTypes[@]}
     (( taskCount == 0 )) && return 0
     _runAllTasksParallel
+    _promptFailedLogs "${taskCount}"
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test-harness' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -147,35 +148,7 @@ _executeTests() {
     (( taskCount == 0 )) && return 0
 
     _runAllTasksParallel
-
-    # Collect failed test/nix log names (skip build tasks)
-
-    local failedTestLogNames=() result i
-    for (( i=0; i < taskCount; i++ )); do
-        [[ ${_taskTypes[${i}]} == 'build' ]] && continue
-        [[ -z ${_taskLogFileNames[${i}]} ]] && continue
-        if _readTaskResult "${i}" result && [[ ${result} != "0" ]]; then
-            failedTestLogNames+=("${_taskLogFileNames[${i}]}")
-        fi
-    done
-    local failedTestCount=${#failedTestLogNames[@]}
-
-    if (( failedTestCount )); then
-        if (( isInteractive && ! inContainer )); then
-            local choiceIndex logFile
-            echo
-            for (( i=0; i < failedTestCount; i++ )); do
-                confirm "View ${failedTestLogNames[${i}]}?" yes no choiceIndex || bye
-                if (( choiceIndex == 0 )); then
-                    logFile="${_testLogDir}/${failedTestLogNames[${i}]}"
-                    echo
-                    cat "${logFile}"
-                    echo
-                fi
-            done
-        fi
-        return 1
-    fi
+    _promptFailedLogs "${taskCount}" || return 1
     return 0
 }
 
@@ -212,7 +185,7 @@ _collectBuildTasks() {
             _taskNames+=('')
             _taskFiles+=('')
             _taskFileNames+=('')
-            _taskLogFileNames+=('')
+            _taskLogFileNames+=("${project}-nix-build.log")
             _taskProjects+=("${project}")
             _taskBlocker+=(-1)
             _taskSkip+=(0)
@@ -494,14 +467,44 @@ _startLocalTask() {
     fi
 }
 
+_promptFailedLogs() {
+    local taskCount="${1}"
+    local failedLogNames=() result i
+    for (( i=0; i < taskCount; i++ )); do
+        [[ -z ${_taskLogFileNames[${i}]} ]] && continue
+        if _readTaskResult "${i}" result && [[ ${result} != "0" ]]; then
+            failedLogNames+=("${_taskLogFileNames[${i}]}")
+        fi
+    done
+    local failedCount=${#failedLogNames[@]}
+
+    if (( failedCount )); then
+        if (( isInteractive && ! inContainer )); then
+            local choiceIndex logFile
+            echo
+            for (( i=0; i < failedCount; i++ )); do
+                confirm "View ${failedLogNames[${i}]}?" yes no choiceIndex || bye
+                if (( choiceIndex == 0 )); then
+                    logFile="${_testLogDir}/${failedLogNames[${i}]}"
+                    echo
+                    cat "${logFile}"
+                    echo
+                fi
+            done
+        fi
+        return 1
+    fi
+}
+
 _startBuildTask() {
     local i="${1}"
     local project="${_taskProjects[${i}]}"
     local projectRoot="${_rayvnProjects[${project}::project]}"
+    local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
     local resultFile="${_testResultDir}/result-${i}.txt"
     git -C "${projectRoot}" add -u
     (
-        nix build --no-warn-dirty "${projectRoot}" &> /dev/null
+        nix build --no-warn-dirty "${projectRoot}" &> "${logFile}"
         echo $? > "${resultFile}"
     ) &
     _taskPids+=($!)
@@ -620,9 +623,11 @@ _displayPendingTask() {
         build)
             local projectPad rightPad
             (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
+            local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+            local displayLogFile="${logFile/#${HOME}/\~}"
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
-            show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}"
+            show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" plain dim " log at ${displayLogFile}"
             ;;
     esac
 }
@@ -659,9 +664,15 @@ _displayTaskResult() {
         build)
             local projectPad rightPad
             (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
+            local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
+            local displayLogFile="${logFile/#${HOME}/\~}"
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
-            show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" " ${mark}"
+            if (( result == 0 )); then
+                show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" " ${mark}" plain dim "log at ${displayLogFile}"
+            else
+                show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" " ${mark}" "log at ${displayLogFile}"
+            fi
             ;;
     esac
 }
