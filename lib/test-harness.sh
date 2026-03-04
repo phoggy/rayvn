@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # My library.
-# Intended for use via: require 'rayvn/test-harness'
+# Use via: require 'rayvn/test-harness'
 
 # Execute tests for one or more rayvn projects, running test files in parallel.
 # Reads project list, filter args, and option flags from the caller's environment

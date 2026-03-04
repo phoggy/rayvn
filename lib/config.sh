@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Library supporting sanitizing and sourcing env style files.
-# Intended for use via: require 'rayvn/config'
+# Use via: require 'rayvn/config'
 
 # Source only safe variable declarations from a bash config file or string, optionally filtered
 # by prefix. See extractSafeStaticVars.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Manages rayvn-central project registration.
-# Intended for use via: require 'rayvn/central'
+# Use via: require 'rayvn/central'
 
 # Register a rayvn project on rayvn-central by creating a GitHub issue in the registry repo.
 # Uses the current directory's git remote URL to identify the project.

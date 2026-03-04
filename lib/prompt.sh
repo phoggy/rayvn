@@ -2,7 +2,7 @@
 # shellcheck disable=SC2155
 
 # Library of user input functions.
-# Intended for use via: require 'rayvn/prompt'
+# Use via: require 'rayvn/prompt'
 
 # Read user input.
 #

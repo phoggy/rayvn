@@ -2,7 +2,7 @@
 # shellcheck disable=SC2155
 
 # Core library.
-# Intended for use via: require 'rayvn/core'
+# Use via: require 'rayvn/core'
 
 # Set umask to 0077 so that all new files and directories are accessible only by the current user.
 allNewFilesUserOnly() {
@@ -953,7 +953,7 @@ fail() {
 }
 
 # Read lines from stdin and print each one in red to the terminal error stream.
-# Intended for use as a pipe consumer, e.g.: someCmd 2>&1 | redStream
+# Use as a pipe consumer, e.g.: someCmd 2>&1 | redStream
 redStream() {
     local error
     {

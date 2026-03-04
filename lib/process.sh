@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Process management library.
-# Intended for use via: require 'rayvn/process'
+# Use via: require 'rayvn/process'
 
 require 'rayvn/core'
 

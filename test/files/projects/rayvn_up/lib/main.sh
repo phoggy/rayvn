@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Library of common functions.
-# Intended for use via: require 'rayvn-up/main'
+# Use via: require 'rayvn-up/main'
 
 testMainLibraryFunction () {
     _testMainPrivateFunction

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Library supporting debug logging.
-# Intended for use via: require 'rayvn/debug'
+# Use via: require 'rayvn/debug'
 
 # IMPORTANT!
 #

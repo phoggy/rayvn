@@ -2,7 +2,7 @@
 # shellcheck disable=SC2155
 
 # Test case support library.
-# Intended for use via: require 'rayvn/test'
+# Use via: require 'rayvn/test'
 
 ### assert functions ----------------------------------------------------------------------------------------
 

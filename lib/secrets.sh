@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Secure credential storage library using system keychains.
-# Intended for use via: require 'rayvn/secrets'
+# Use via: require 'rayvn/secrets'
 
 # Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
 # Args: service account secret

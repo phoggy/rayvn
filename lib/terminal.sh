@@ -3,7 +3,7 @@
 # shellcheck disable=SC2120,SC2155
 
 # Library supporting terminal operations
-# Intended for use via: require 'rayvn/terminal'
+# Use via: require 'rayvn/terminal'
 
 # Hide the terminal cursor.
 cursorHide() {

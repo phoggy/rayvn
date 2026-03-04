@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Library for project dependency checking and brew formula generation.
-# Intended for use via: require 'rayvn/deps'
+# Use via: require 'rayvn/deps'
 
 # Check that all required project dependencies are available in PATH.
 # Reads flake.nix from the project root and applies overrides from rayvn.pkg.

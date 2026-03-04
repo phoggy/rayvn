@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # My library.
-# Intended for use via: require 'rayvn/oauth'
+# Use via: require 'rayvn/oauth'
 
 # Build and populate an OAuth service map for a given provider and scope.
 # Credentials are resolved from: caller args → environment variables → system keychain → interactive prompt.

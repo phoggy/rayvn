@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Theme functions.
-# Intended for use via: require 'rayvn/theme'
+# Use via: require 'rayvn/theme'
 
 # Display the currently active theme with its color swatches.
 # Args: [prefix]
