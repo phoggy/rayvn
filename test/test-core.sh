@@ -825,8 +825,8 @@ testShowEscapeCodesResets() {
     assertEqualEscapeCodes "${expected}" "${result}" "No arguments produces empty output"
 
     result=${ show bold red; }
-    expected=$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Format only produces only reset"
+    expected=$'\e[1m\e[31m\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Format only produces format and reset"
 }
 
 testShowEscapeCodesComplexPatterns() {
