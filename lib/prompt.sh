@@ -37,7 +37,7 @@ request() {
     _prompt --prompt "${prompt}" --hint "${hint}" --result "${resultVarName}" --timeout "${timeout}" \
             --reserveRows 4 --collect "${args[@]}" \
             --success '_textPromptSuccess'
- }
+}
 
 # Read user input without echoing it to the terminal.
 #
