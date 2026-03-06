@@ -320,7 +320,7 @@ _updateBrewFormula() {
     local depsBlock=''
     while IFS= read -r depLine; do
         depsBlock+="${depLine}"$'\n'
-    done < <( getBrewDeps "${project}" "${PWD}" )
+    done < <( getBrewDependencies "${project}" "${PWD}" )
     depsBlock="${depsBlock%$'\n'}"  # strip trailing newline
 
     # Read formula template and substitute markers

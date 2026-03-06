@@ -68,7 +68,7 @@ checkProjectDependencies() {
 #   projectName  - the rayvn project name (e.g. 'valt', 'wardn')
 #   projectRoot  - optional path override (defaults to ${projectName}Home then PWD)
 #
-getBrewDeps() {
+getBrewDependencies() {
     local projectName="${1}"
     local projectRoot="${2:-}"
 
@@ -108,7 +108,7 @@ getBrewDeps() {
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/dependencies' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_rayvn_deps() {
+_init_rayvn_dependencies() {
     require 'rayvn/config'
 }
 
