@@ -5,6 +5,7 @@ projectVersion='0.2.5+'
 projectReleaseDate=''
 docsWorktree='../rayvn-pages'
 
-# Brew formula metadata (used by rayvn/deps for formula generation and runtime dep checks)
+# Brew formula metadata (used by rayvn/dependencies for formula generation and runtime dep checks)
 declare -A nixBrewMap=([gnused]='gnu-sed')  # nix pkg name → homebrew formula name when they differ
+declare -A nixBinaryMap=([gnused]='gsed')   # nix pkg name → binary name when they differ
 declare -a nixBrewExclude=()  # nothing to exclude; gawk→gawk and gh→gh are 1:1

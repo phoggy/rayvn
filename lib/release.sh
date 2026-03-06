@@ -45,7 +45,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/release' PRIV
 
 _init_rayvn_release() {
     require 'rayvn/prompt'
-    require 'rayvn/deps'
+    require 'rayvn/dependencies'
     require 'rayvn/index'
     require 'rayvn/test-harness'
 }

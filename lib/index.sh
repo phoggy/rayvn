@@ -64,7 +64,7 @@ runIndex() {
 findDependencies() {
     local projectName="${1}"
     [[ ${projectName} ]] || fail "projectName required"
-    require 'rayvn/deps'
+    require 'rayvn/dependencies'
 
     local projectRoot="${_rayvnProjects[${projectName}::project]}"
     [[ ${projectRoot} ]] || fail "unknown project: ${projectName}"

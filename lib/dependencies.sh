@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Project dependency checking and brew formula generation.
-# Use via: require 'rayvn/deps'
+# Use via: require 'rayvn/dependencies'
 
 # Check that all required project dependencies are available in PATH.
 # Reads flake.nix from the project root and applies overrides from rayvn.pkg.
@@ -10,7 +10,7 @@
 #
 #   projectName  - the rayvn project name (e.g. 'valt', 'wardn')
 #
-checkProjectDeps() {
+checkProjectDependencies() {
     local projectName="${1}"
 
     # Find the project root (silently skip if flake.nix not accessible)
@@ -19,8 +19,7 @@ checkProjectDeps() {
 
     # Load overrides from rayvn.pkg (nixBinaryMap for correct binary names, nixBrewMap for install hints)
     local pkgFile="${projectRoot}/rayvn.pkg"
-    local -A nixBinaryMap=()
-    local -A nixBrewMap=()
+    unset nixBinaryMap nixBrewMap nixBrewExclude
     [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
 
     # Check each dep
@@ -30,6 +29,7 @@ checkProjectDeps() {
         case "${type}" in
             pkg)
                 nixN="${name}"
+                isMemberOf "${nixN}" nixBrewExclude && continue
                 binN="${nixBinaryMap[${nixN}]:-${nixN}}"
                 command -v "${binN}" &> /dev/null || missing+=("${nixN}:${binN}")
                 ;;
@@ -47,9 +47,15 @@ checkProjectDeps() {
             nixN="${entry%%:*}"
             binN="${entry##*:}"
             formula="${nixBrewMap[${nixN}]:-${nixN}}"
-            echo "${projectName}: missing required dependency '${binN}' (${nixN})" >&2
-            echo "  Install: brew install ${formula}" >&2
-            echo "           Or: nix run github:phoggy/${projectName}" >&2
+            if [[ ${binX} == "${nixX}" ]]; then
+                show bold "${projectName}" plain "missing required dependency:" primary ${binN} >&2
+            else
+                show bold "${projectName}" plain "missing required dependency:" primary ${binN} plain "(${nixN} for nix)" >&2
+            fi
+            echo
+            show "  brew envs:" primary "brew install ${formula}" >&2
+            show "   nix envs:" primary "nix profile install github:phoggy/${projectName}" >&2
+            echo
         done
         fail "required dependencies not found"
     fi
@@ -73,9 +79,7 @@ getBrewDeps() {
     fi
 
     local pkgFile="${projectRoot}/rayvn.pkg"
-    local -A nixBrewMap=()
-    local -a nixBrewExclude=()
-    local -A nixPkgTapOverrides=()
+    unset nixBrewMap nixBrewExclude nixPkgTapOverrides
     [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
 
     local type name
@@ -83,7 +87,7 @@ getBrewDeps() {
         case "${type}" in
             pkg)
                 local nixName="${name}"
-                isMemberOf nixBrewExclude "${nixName}" && continue
+                isMemberOf "${nixName}" nixBrewExclude && continue
                 local formula="${nixBrewMap[${nixName}]:-${nixName}}"
                 echo "  depends_on \"${formula}\""
                 ;;
@@ -102,7 +106,7 @@ getBrewDeps() {
     done < <( _extractFlakeDeps "${projectRoot}" )
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/deps' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/dependencies' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_deps() {
     require 'rayvn/config'
