@@ -138,7 +138,8 @@ debugVarIsNotSet() {
     fi
 }
 
-# Copy a file into the debug directory for inspection, if debug mode is enabled.
+# Copy a file into the debug directory for inspection, if debug logging is enabled, or
+# write as debug message if not.
 # Args: sourceFile [fileName]
 #
 #   sourceFile - path to the file to copy
@@ -146,10 +147,18 @@ debugVarIsNotSet() {
 debugFile() {
     if (( _debug )); then
         local sourceFile="${1}"
-        local fileName="${2:-${ baseName ${sourceFile}; }}"
-        local destFile="${_debugDir}/${fileName}"
-        cp "${sourceFile}" "${destFile}"
-        debug "Added file ${destFile}"
+        if (( _debugRemote )); then
+            local desc; desc=${ ls -la "${sourceFile}"; }
+            local content; content=${ cat "${sourceFile}"; }
+            debug "${desc} content:"
+            debug "${content}"
+            # debug < <( ${sourceFile} ) TODO! and desc
+        else
+            local fileName="${2:-${ baseName ${sourceFile}; }}"
+            local destFile="${_debugDir}/${fileName}"
+            cp "${sourceFile}" "${destFile}"
+            debug "Added file ${destFile}"
+        fi
     fi
 }
 
