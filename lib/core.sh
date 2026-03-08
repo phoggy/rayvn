@@ -89,6 +89,7 @@ tempDirPath() {
 makeTempFile() {
     _ensureRayvnTempDir
     local file="${ mktemp "${_rayvnTempDir}/${1:-XXXXXX}"; }" # random file name if not passed
+    chmod 600 "${file}"
     echo "${file}"
 }
 
@@ -101,7 +102,7 @@ makeTempFifo() {
     local name="${1:-XXXXXX}"
     replaceRandomHex X name
     local fifoPath="${_rayvnTempDir}/${name}"
-    mkfifo "${fifoPath}" || fail "could not create fifo ${fifoPath}"
+    mkfifo -m 600 "${fifoPath}" || fail "could not create fifo ${fifoPath}"
     echo "${fifoPath}"
 }
 
