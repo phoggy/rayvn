@@ -1,0 +1,161 @@
+#!/usr/bin/env rayvn-bash
+# shellcheck disable=SC2155
+
+# Manage RAM-backed temp storage for rayvn.
+#
+# On Linux, /dev/shm (tmpfs) is used automatically — nothing to configure.
+# On macOS 10.15+, an optional tmpfs mount can be set up for improved security.
+# Older macOS falls back to a mode-600 temp file (secure but disk-backed).
+
+usage() {
+    echo
+    show bold "Manage RAM-backed temp storage for rayvn."
+    echo
+    show "Usage:" bold "${scriptName}" plain "[COMMAND]"
+    echo
+    echo "Commands:"
+    echo
+    echo "    status            Show current temp storage strategy (default)."
+    echo "    install           Install LaunchDaemon to mount tmpfs at boot (macOS, requires sudo)."
+    echo "    uninstall         Remove the LaunchDaemon and unmount tmpfs (macOS, requires sudo)."
+    echo
+    echo "Options:"
+    echo
+    echo "    -h, --help        Print this help message and exit."
+    echo "    -v                Print the version and exit."
+    echo "    --version         Print the version with release date and exit."
+    echo
+    bye "$@"
+}
+
+main() {
+    init "$@"
+    ${command}
+}
+
+# shellcheck disable=SC2155
+init() {
+    declare -r scriptName="${0##*/}"
+    declare -g command='status'
+
+    while (( $# )); do
+        case "${1}" in
+            status | install | uninstall) command="${1}" ;;
+            -h | --help) usage ;;
+            -v) projectVersion 'rayvn'; exit 0 ;;
+            --version) projectVersion 'rayvn' true; exit 0 ;;
+            *) usage "Unknown option: ${1}" ;;
+        esac
+        shift
+    done
+}
+
+status() {
+    echo
+    show bold "rayvn temp storage"
+    echo
+    case "${_secureTempStrategy}" in
+        linux_shm)
+            show success "Active:" plain "Linux /dev/shm (RAM-backed tmpfs)"
+            ;;
+        macos_tmpfs)
+            show success "Active:" plain "macOS tmpfs at ${_secureTempBase}"
+            ;;
+        secure_temp)
+            show warning "Active:" plain "disk-backed temp (mode 600, secure but not RAM-backed)"
+            echo
+            if (( onMacOS )); then
+                local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
+                if _isMacOSSupportedVersion; then
+                    show "macOS 10.15+ detected — RAM-backed tmpfs is available."
+                    echo
+                    show "Run" bold "rayvn-tmp install" plain "to set up automatic mounting at boot,"
+                    show "or mount manually (does not survive reboot):"
+                    echo
+                    echo "    sudo mkdir -p ${shmPath}"
+                    echo "    sudo /sbin/mount_tmpfs ${shmPath}"
+                    echo "    sudo chown ${USER} ${shmPath}"
+                else
+                    show muted "RAM-backed tmpfs not available on this macOS version (requires 10.15+)."
+                fi
+            fi
+            ;;
+    esac
+    echo
+}
+
+install() {
+    (( onMacOS )) || fail "LaunchDaemon install is macOS-only"
+    _isMacOSSupportedVersion || fail "macOS 10.15+ required for tmpfs support"
+
+    local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
+    local plistDest='/Library/LaunchDaemons/org.rayvn.shm.plist'
+    local plistFile; plistFile="${ makeTempFile 'rayvn-shm-plist-XXXXXX'; }"
+
+    cat > "${plistFile}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.rayvn.shm</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>mkdir -p ${shmPath} &amp;&amp; /sbin/mount_tmpfs ${shmPath} &amp;&amp; chown ${UID} ${shmPath}</string>
+    </array>
+</dict>
+</plist>
+EOF
+
+    echo
+    show "Installing LaunchDaemon to" bold "${plistDest}"
+    show muted "(sudo required)"
+    echo
+    sudo cp "${plistFile}" "${plistDest}" || fail "failed to install plist"
+    sudo launchctl load "${plistDest}" || fail "failed to load LaunchDaemon"
+    echo
+    show success "Installed." plain "tmpfs will be mounted at" bold "${shmPath}" plain "on every boot."
+    show "Mounting now..."
+    sudo mkdir -p "${shmPath}" && sudo /sbin/mount_tmpfs "${shmPath}" && sudo chown "${UID}" "${shmPath}" || fail "failed to mount tmpfs"
+    show success "Mounted at ${shmPath}. Restart rayvn tools to use RAM-backed temp."
+    echo
+}
+
+uninstall() {
+    (( onMacOS )) || fail "LaunchDaemon uninstall is macOS-only"
+
+    local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
+    local plistDest='/Library/LaunchDaemons/org.rayvn.shm.plist'
+
+    echo
+    if [[ -f "${plistDest}" ]]; then
+        show "Removing LaunchDaemon" bold "${plistDest}"
+        show muted "(sudo required)"
+        echo
+        sudo launchctl unload "${plistDest}" 2>/dev/null || true
+        sudo rm "${plistDest}" || fail "failed to remove plist"
+        show success "LaunchDaemon removed."
+    else
+        show muted "LaunchDaemon not installed."
+    fi
+
+    if mount | grep -q " on ${shmPath} (tmpfs"; then
+        show "Unmounting ${shmPath}..."
+        sudo umount "${shmPath}" || fail "failed to unmount"
+        show success "Unmounted."
+    fi
+    echo
+}
+
+_isMacOSSupportedVersion() {
+    local major minor
+    IFS='.' read -r major minor _ < <(sw_vers -productVersion)
+    (( major > 10 || (major == 10 && minor >= 15) ))
+}
+
+source rayvn.up 'rayvn/core' || exit
+main "$@"

@@ -1128,7 +1128,30 @@ _init_rayvn_core() {
     declare -grx inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -grx inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
 
-    #    declare -gArx _symbols=(
+    # Detect the best available RAM-backed temp storage strategy.
+    # linux_shm:   /dev/shm (tmpfs, standard on Linux)
+    # macos_tmpfs: user-mounted tmpfs (mount_tmpfs, macOS 10.15+)
+    # secure_temp: regular mktemp with mode 600 (fallback)
+
+    local _shmBase
+    if (( onLinux )) && [[ -d /dev/shm && -w /dev/shm ]]; then
+        declare -grx _secureTempStrategy='linux_shm'
+        declare -grx _secureTempBase='/dev/shm'
+    elif (( onMacOS )); then
+        _shmBase="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
+        if [[ -d "${_shmBase}" ]] && mount | grep -q " on ${_shmBase} (tmpfs"; then
+            declare -grx _secureTempStrategy='macos_tmpfs'
+            declare -grx _secureTempBase="${_shmBase}"
+        else
+            declare -grx _secureTempStrategy='secure_temp'
+            declare -grx _secureTempBase=''
+        fi
+    else
+        declare -grx _secureTempStrategy='secure_temp'
+        declare -grx _secureTempBase=''
+    fi
+
+#    declare -gArx _symbols=( TODO: add these and box drawing to _textFormats??
 #
 #        # Vertical line variants (UTF-8)
 #
@@ -1431,7 +1454,13 @@ _setFileSystemVar() {
 
 _ensureRayvnTempDir() {
     if [[ ! -n ${_rayvnTempDir} ]]; then
-        declare -grx _rayvnTempDir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
+        local dir
+        if [[ -n "${_secureTempBase}" ]]; then
+            dir="${ withUmask 0077 mktemp -d "${_secureTempBase}/rayvn-XXXXXX"; }" || fail "could not create temp directory in ${_secureTempBase}"
+        else
+            dir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
+        fi
+        declare -grx _rayvnTempDir="${dir}"
         declare -gr _rayvnTempDirOwner=${BASHPID}
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi

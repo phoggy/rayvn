@@ -5,7 +5,7 @@
 
 A shared library ecosystem for bash 5.3+.
 
-#### Example 1: First Look                       
+#### First Look                       
 ```bash
 #!/usr/bin/env rayvn-bash    # ensures bash 5.3+
 
@@ -29,7 +29,7 @@ startSpinner spinnerId '' ${types[selectedIndex]}
 sleep 2
 stopSpinner spinnerId
 
-# View themes and optionally change current (takes effect on restart)
+# View themes and optionally change the current one (takes effect on next execution)
 
 require 'rayvn/theme'   
 setTheme
@@ -109,11 +109,38 @@ To build locally:
 nix build
 ```
 
+### Optional: RAM-backed Temp Storage
+
+By default, rayvn uses a mode-600 temp directory for secure temporary files. For improved security,
+RAM-backed temp storage can be configured to keep sensitive files out of persistent storage entirely.
+
+On **Linux**, `/dev/shm` is used automatically — nothing to configure.
+
+On **macOS 10.15+**, an optional tmpfs mount can be set up:
+
+```bash
+rayvn-tmp status     # show current strategy and instructions
+rayvn-tmp install    # install LaunchDaemon to auto-mount at boot (requires sudo)
+rayvn-tmp uninstall  # remove the LaunchDaemon (requires sudo)
+```
+
 # Developing With rayvn
 
-All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
+All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. To scan source files
+and automatically add any missing dependencies:
+
+```bash
+rayvn deps my-project
+```
+
+This is run automatically as part of `rayvn release`.
 
 ## Using rayvn within scripts
+
+All rayvn scripts use `#!/usr/bin/env rayvn-bash` as their shebang. `rayvn-bash` is a POSIX sh
+wrapper that locates a suitable bash 5.3+ on the system (checking common locations and `PATH`,
+with caching), then re-execs the script with it. This ensures scripts always run under the correct
+bash version regardless of what `/bin/bash` or the shell's `PATH` provides.
 
 The following line in your script will activate rayvn:
 ```bash
@@ -129,6 +156,12 @@ require 'rayvn/core'
 For convenience, `rayvn.up` accepts a list of library names to immediately `require`:
 ```bash
 source rayvn.up 'rayvn/core'
+```
+
+`rayvn.up` automatically detects other rayvn projects via `PATH`. If a project is not in `PATH`,
+it can be added explicitly:
+```bash
+source rayvn.up 'rayvn/core' --add myproject=/path/to/project
 ```
 
 The `require` function can be called lazily, e.g. within a function.
@@ -185,6 +218,14 @@ $ tty > ~/.debug.tty
 # Terminal 2: Run your script
 $ my-rayvn-app --debug-tty .
 ```
+
+## IDE Configuration
+
+### IntelliJ IDEA
+
+To enable bash syntax highlighting and tooling for rayvn scripts, add `rayvn-bash` as a recognized hashbang:
+
+**Settings → Editor → File Types → Shell Script → Hashbangs** → add `rayvn-bash`
 
 ## Developing rayvn projects
 
