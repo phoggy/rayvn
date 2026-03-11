@@ -106,7 +106,7 @@ findDependencies() {
         # Only accept absolute paths — shell functions/aliases don't return a path
         [[ "${cmdPath}" == /* ]] && confirmedBins+=("${word}")
     done
-    show success "Confirmed ${#confirmedBins[@]} external binaries: ${confirmedBins[*]:-none}"
+    show nl primary "Confirmed ${#confirmedBins[@]} external binaries:" nl nl secondary "${confirmedBins[*]:-none}"
 
     local flakeFile="${projectRoot}/flake.nix"
     if [[ ! -f "${flakeFile}" ]]; then
@@ -156,11 +156,11 @@ findDependencies() {
     done
 
     if (( ${#added[@]} == 0 )); then
-        show success "All dependencies already present in flake.nix"
+        show nl primary "All dependencies already present in flake.nix"
     else
         echo
-        show bold "Added ${#added[@]} dep(s) to flake.nix: ${added[*]}"
-        show "Run 'nix build' to verify, then commit the changes"
+        show bold "Added ${#added[@]} dep(s) to flake.nix:" nl primary "${added[*]}"
+        show nl "Run 'nix build' to verify, then commit the changes"
     fi
 }
 
@@ -746,15 +746,36 @@ _checkAndUpdateHashes() {
 _findDepsExtractCommands() {
     gawk '
         BEGIN {
+            inSingleQuote = 0
             n = split("if then else elif fi for while until do done case esac in select function return exit break continue declare local typeset readonly export unset eval exec source read readarray mapfile test bg fg jobs wait trap kill disown cd pwd pushd popd alias unalias type command which builtin true false shift set shopt time coproc getopts hash umask ulimit enable help history printf echo", arr, " ")
             for (i=1; i<=n; i++) skip[arr[i]] = 1
         }
+        BEGINFILE { inSingleQuote = 0 }
         /^[[:space:]]*#/ { next }
         /^[[:space:]]*$/ { next }
         {
             line = $0
             gsub(/^[[:space:]]+/, "", line)
             if (line ~ /^#!/) next
+            # Skip content inside multi-line single-quoted strings (e.g. embedded awk/sed scripts)
+            if (inSingleQuote) {
+                if (index(line, "\x27") > 0) {
+                    sub(/^[^\x27]*\x27/, "", line)
+                    inSingleQuote = 0
+                    if (line == "" || line ~ /^[[:space:]]*$/) next
+                } else {
+                    next
+                }
+            }
+            # Strip complete inline single-quoted strings (e.g. '"'"'pattern'"'"', '"'"'literal'"'"')
+            while (match(line, /\x27[^\x27]*\x27/)) {
+                line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
+            }
+            # If an unclosed single quote remains, it opens a multi-line embedded script
+            if (index(line, "\x27") > 0) {
+                sub(/\x27.*$/, "", line)
+                inSingleQuote = 1
+            }
             gsub(/\|\|?|&&|;/, "\n", line)
             n = split(line, segs, "\n")
             for (i=1; i<=n; i++) {
@@ -765,8 +786,17 @@ _findDepsExtractCommands() {
                 if (seg ~ /^[0-9]*[<>]/) continue
                 # Skip case statement pattern labels: word) or word|word)
                 if (seg ~ /^[A-Za-z][A-Za-z0-9_.-]*\)/) continue
-                while (seg ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=[^ \t]*/) {
-                    sub(/^[A-Za-z_][A-Za-z0-9_]*[+]?=[^ \t]*[ \t]*/, "", seg)
+                while (seg ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/) {
+                    if (seg ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?="/) {
+                        # Double-quoted value: strip complete pair or entire remainder
+                        if (seg ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?="[^"]*"/) {
+                            sub(/^[A-Za-z_][A-Za-z0-9_]*[+]?="[^"]*"[ \t]*/, "", seg)
+                        } else {
+                            seg = ""; break
+                        }
+                    } else {
+                        sub(/^[A-Za-z_][A-Za-z0-9_]*[+]?=[^ \t]*[ \t]*/, "", seg)
+                    }
                 }
                 if (match(seg, /^([A-Za-z][A-Za-z0-9_.-]*)/, m)) {
                     word = m[1]
