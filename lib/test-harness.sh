@@ -504,7 +504,7 @@ _startBuildTask() {
     local resultFile="${_testResultDir}/result-${i}.txt"
     git -C "${projectRoot}" add -u
     (
-        nix build --no-warn-dirty "${projectRoot}" &> "${logFile}"
+        nix build --no-warn-dirty --no-link "${projectRoot}" &> "${logFile}"
         echo $? > "${resultFile}"
     ) &
     _taskPids+=($!)
