@@ -243,7 +243,7 @@ _assertSpinnerServer() {
 _spinnerRequest() {
     local -n responseArrayRef=$1
     local delay=${_spinnerMaxResponseWait}
-    local count
+    local count readResult mapfileResult=1
 
     # Initialize if first request
 
@@ -256,25 +256,28 @@ _spinnerRequest() {
 
     { printf '%d\n' $#; printf '%s\n' "$@"; } >&${_spinnerClientRequestFd}
 
-    # Read the response
+    # Read the response (save exit codes explicitly to avoid $? staleness from if/fi)
 
-    if read -t ${delay} count <&${_spinnerClientResponseFd}; then
+    read -t ${delay} count <&${_spinnerClientResponseFd}
+    readResult=$?
+    if (( readResult == 0 )); then
         mapfile -t -n "${count}" response <&${_spinnerClientResponseFd}
+        mapfileResult=$?
     fi
 
     # Process the response
 
-    if (( $? == 0 )); then
+    if (( readResult == 0 && mapfileResult == 0 )); then
         if [[ ${response[0]} == "ok" ]]; then
             responseArrayRef=${response[1]}
             return 0
         else
             fail "${response[0]}"
         fi
-    elif (( $? > 128 )); then
+    elif (( readResult > 128 )); then
         fail "spinner request failed: response timeout"
     else
-        fail "spinner request failed with exit $?"
+        fail "spinner request failed with exit ${readResult}"
     fi
 }
 
@@ -314,22 +317,25 @@ _spinnerServerMain() {
 }
 
 _readSpinnerRequest() {
-    local count delay
+    local count delay readResult
 
     # Wait only for our spinner update delay if active, block on read if not active
 
     (( _activeSpinnerCount )) && delay="${_spinnerDelaySeconds}" || delay=100
 
-    if read -t "${delay}" count <&${_spinnerServerRequestFd}; then
+    # Save read exit code explicitly: elif chain reuses $? which gets overwritten by (( )) tests
+    read -t "${delay}" count <&${_spinnerServerRequestFd}
+    readResult=$?
+    if (( readResult == 0 )); then
         if ! mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}; then
             _spinnerResponse "read request parameters failed with $?, count=${count}"
             return 1
         fi
-    elif (( $? <= 128 )); then
-        _spinnerResponse "read request count failed with: $?"
+    elif (( readResult <= 128 )); then
+        _spinnerResponse "read request count failed with: ${readResult}"
         return 1
-    elif (( $? > 128 )); then
-        return $?
+    else
+        return "${readResult}"
     fi
     return 0
 }

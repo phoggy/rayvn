@@ -407,7 +407,7 @@ _runAllTasksParallel() {
                     if [[ -v taskBlockedSpinnerIds[${j}] ]]; then
                         local blockedId="${taskBlockedSpinnerIds[${j}]}"
                         removeSpinner blockedId '' false 0
-                        unset 'taskBlockedSpinnerIds[${j}]'
+                        unset "taskBlockedSpinnerIds[${j}]"
                     fi
                     if [[ ${_taskTypes[${i}]} == 'build' ]] && (( result != 0 )); then
                         echo "1" > "${_testResultDir}/result-${j}.txt"
