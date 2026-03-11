@@ -307,6 +307,7 @@ _runAllTasksParallel() {
     local i j lineNumber=0
 
     addExitHandler _cancelAllTasks
+    declare -g _testManagerPid=${BASHPID}
 
     if (( ! isInteractive )); then
 
@@ -558,6 +559,7 @@ _startNixTask() {
 }
 
 _cancelAllTasks() {
+    (( BASHPID == _testManagerPid )) || return 0
     local pid
     for pid in "${_taskPids[@]}"; do
         kill "${pid}" 2> /dev/null
