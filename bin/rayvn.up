@@ -49,7 +49,7 @@ require() {
 
             local failed=${_rayvnRequireFailHandler:-fail}
             local libraryRootKey="${projectName}${_libraryRootSuffix}"
-            [[ -v _rayvnProjects[${libraryRootKey}] ]] || _addRayvnProject ${projectName} # Add if possible
+            [[ -v _rayvnProjects[${libraryRootKey}] ]] || _addRayvnProjectFromExecutable ${projectName} # Add if possible
             local libraryRoot="${_rayvnProjects[${libraryRootKey}]}"
             local libraryFile="${libraryRoot}/${libraryName}.sh"
             [[ -f ${libraryFile} ]] || ${failed} "rayvn shared library '${qualifiedName}' not found at ${libraryFile}"
@@ -71,9 +71,16 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
     local initFunction="_init_${projectName}_${libraryName}"
     local loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
     local functionName hasInitFunction=0 sourceOut
-    local -A newFunctions
+    local -A newFunctions preExisting
 
     (( _loadLibraryDepth++ )); traceUp "loading '${qualifiedName}' [depth ${_loadLibraryDepth}]"
+
+    # At the top level only, snapshot functions already in the environment before sourcing.
+    # Bin scripts may define functions between require calls; pre-registering them prevents
+    # false "nested function" detection. Skipped for recursive library requires (depth > 1)
+    # since library code cannot inject script functions.
+
+    (( _loadLibraryDepth == 1 )) && _collectUnknownRayvnFunctions preExisting
 
     # Load the library, capturing any output. Many of the errors that can occur here will NOT return an
     # error code, as they are considered definition-time errors rather than command execution failures, so
@@ -101,7 +108,14 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
 
         _rayvnSources+=("${qualifiedName}")
 
-        # Collect new functions
+        # Pre-register any functions that existed before sourcing (from calling bin scripts)
+        # so they are not mistaken for functions defined by this library.
+
+        for functionName in "${!preExisting[@]}"; do
+            _rayvnFunctionSources["${functionName}"]="${currentProjectName}"
+        done
+
+        # Collect functions truly added by this library
 
         _collectUnknownRayvnFunctions newFunctions
 
@@ -132,7 +146,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
                         srcKey="${srcProject}${_libraryRootSuffix}"
                         [[ -v _rayvnProjects[${srcKey}] ]] || continue
                         srcFile="${_rayvnProjects[${srcKey}]}/${srcLibrary}.sh"
-                        grep -qE "${functionName}[[:space:]]*\(\)" "${srcFile}" && { nestedSource="${srcLib}"; break; }
+                        [[ -f "${srcFile}" ]] && grep -qE "${functionName}[[:space:]]*\(\)" "${srcFile}" && { nestedSource="${srcLib}"; break; }
                     done
                     fail "${functionName} is a nested function in '${nestedSource}' and will cause errors if not fixed."
                 fi
@@ -170,16 +184,16 @@ _collectUnknownRayvnFunctions() {
 
 _addRayvnProject() {
     local projectName="${1}"
-    local projectRoot="${2:-${projectName}}"
+    local projectRoot="${2:-}"
 
     # Add project root
 
-    if [[ -d ${projectRoot} ]]; then
+    if [[ -n ${projectRoot} && -d ${projectRoot} ]]; then
         traceUp "adding project ${projectName} at ${projectRoot}"
         _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
     else
         traceUp "adding project ${projectName} from executable"
-        _addRayvnProjectFromExecutable "${projectName}" "${projectRoot}"
+        _addRayvnProjectFromExecutable "${projectName}" "${projectName}"
     fi
 
     # Resolve resource root: where lib/, etc/, rayvn.pkg live.
@@ -214,12 +228,13 @@ _addRayvnProjectRoot() {
 
 _addRayvnProjectFromExecutable() {
     local projectName="${1}"
-    local executable="${2}"
+    local executable="${2:-${projectName}}"
     local path projectRoot
     if path="${ type -p "${executable}"; }"; then
         path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
         projectRoot="${ dirname "${path}"; }/.."
-        _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+        traceUp "adding rayvn project ${projectName} found at ${projectRoot}"
+        _addRayvnProject "${projectName}" "${projectRoot}"
     elif [[ ${executable} == "${projectName}" ]]; then
         fail "project '${executable}' executable not found in PATH"
     else
