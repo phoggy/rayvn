@@ -55,7 +55,7 @@ doSomething() {
     show "🌱" bold yellow "doSomething here!" plain "🌱"
 }
 
-source rayvn.up --add ${quotedName} 'rayvn/core' ${qualifiedName} || exit
+source rayvn.up 'rayvn/core' ${qualifiedName} || exit
 main "$@"
 
 
