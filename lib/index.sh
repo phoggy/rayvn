@@ -162,6 +162,9 @@ findDependencies() {
         show bold "Added ${#added[@]} dep(s) to flake.nix:" nl primary "${added[*]}"
         show nl "Run 'nix build' to verify, then commit the changes"
     fi
+
+    # Find and update npm dependencies in node/package.json
+    _findNpmDependencies "${projectName}" "${projectRoot}"
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/index' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -925,4 +928,133 @@ _findDepsAddToFlake() {
             print
         }
     ' "${flakeFile}" > "${tmpFile}" && mv "${tmpFile}" "${flakeFile}"
+}
+
+# Find npm dependencies in node/*.js files and update node/package.json.
+# Scans for require()/import statements, filters Node.js built-ins, queries npm for
+# versions of new packages, and writes/updates node/package.json.
+# Args: projectName projectRoot
+_findNpmDependencies() {
+    local projectName="${1}" projectRoot="${2}"
+    local nodeDir="${projectRoot}/node"
+
+    [[ -d "${nodeDir}" ]] || return 0
+
+    local -a jsFiles=()
+    local f
+    for f in "${nodeDir}"/*.js; do
+        [[ -f "${f}" ]] && jsFiles+=("${f}")
+    done
+    (( ${#jsFiles[@]} )) || return 0
+
+    show nl "Scanning ${#jsFiles[@]} JS file(s) in node/ for npm dependencies"
+
+    local -a packages=()
+    local pkg
+    while IFS= read -r pkg; do
+        [[ ${pkg} ]] && packages+=("${pkg}")
+    done < <( _findNpmExtractPackages "${jsFiles[@]}" )
+
+    show primary "Found npm package(s): ${packages[*]:-none}"
+    (( ${#packages[@]} )) || return 0
+
+    local packageJsonFile="${nodeDir}/package.json"
+
+    # Load existing dependencies from package.json
+    local -A existingDeps=()
+    if [[ -f "${packageJsonFile}" ]]; then
+        local existingPkg ver
+        while IFS='=' read -r existingPkg ver; do
+            [[ ${existingPkg} ]] && existingDeps["${existingPkg}"]="${ver}"
+        done < <( node -e "
+            const p = require('${packageJsonFile}');
+            Object.entries(p.dependencies||{}).forEach(([k,v])=>console.log(k+'='+v));
+        " 2>/dev/null )
+    fi
+
+    # Query npm for versions of new packages
+    local -A newDeps=()
+    local versionOut
+    for pkg in "${packages[@]}"; do
+        [[ ${existingDeps[${pkg}]+defined} ]] && continue
+        versionOut=${ npm view "${pkg}" version 2>/dev/null; }
+        if [[ -z "${versionOut}" ]]; then
+            warn "Could not find npm version for '${pkg}', skipping"
+            continue
+        fi
+        newDeps["${pkg}"]="^${versionOut}"
+        show success "Found new npm dependency: ${pkg}@^${versionOut}"
+    done
+
+    (( ${#newDeps[@]} )) || return 0
+
+    _findNpmWritePackageJson "${packageJsonFile}" "${projectName}" existingDeps newDeps
+}
+
+# Extract npm package names from JS files, filtering Node.js built-ins and relative imports.
+# Scans for require('pkg') and from 'pkg' patterns.
+# Args: jsFiles...
+_findNpmExtractPackages() {
+    gawk '
+        BEGIN {
+            split("assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib", a, " ")
+            for (i in a) builtin[a[i]] = 1
+        }
+        function extract(line,    full, pkg, lookup, p, n) {
+            while (match(line, /(require|from)[ \t(]*[\x22\x27][^\x22\x27]+[\x22\x27]/)) {
+                full = substr(line, RSTART, RLENGTH)
+                line = substr(line, RSTART + RLENGTH)
+                if (!match(full, /[\x22\x27][^\x22\x27]+[\x22\x27]/)) continue
+                pkg = substr(full, RSTART + 1, RLENGTH - 2)
+                if (pkg ~ /^[.\/]/) continue
+                lookup = pkg; sub(/^node:/, "", lookup)
+                if (builtin[lookup]) continue
+                if (pkg !~ /^@/) { n = split(pkg, p, "/"); pkg = p[1] }
+                if (!seen[pkg]++) print pkg
+            }
+        }
+        { extract($0) }
+    ' "$@" | sort -u
+}
+
+# Write node/package.json with merged existing and new dependencies.
+# Args: packageJsonFile projectName existingDepsVar newDepsVar
+_findNpmWritePackageJson() {
+    local packageJsonFile="${1}" projectName="${2}"
+    local -n _fNpwExisting="${3}"
+    local -n _fNpwNew="${4}"
+
+    # Merge deps
+    local -A allDeps=()
+    local k
+    for k in "${!_fNpwExisting[@]}"; do allDeps["${k}"]="${_fNpwExisting[${k}]}"; done
+    for k in "${!_fNpwNew[@]}"; do allDeps["${k}"]="${_fNpwNew[${k}]}"; done
+
+    # Sort keys
+    local -a sortedKeys=()
+    while IFS= read -r k; do
+        sortedKeys+=("${k}")
+    done < <( printf '%s\n' "${!allDeps[@]}" | sort )
+
+    local tmpFile="${packageJsonFile}.tmp"
+    {
+        printf '{\n'
+        printf '  "name": "%s-node",\n' "${projectName}"
+        printf '  "private": true,\n'
+        printf '  "dependencies": {\n'
+        local i
+        for (( i = 0; i < ${#sortedKeys[@]}; i++ )); do
+            k="${sortedKeys[${i}]}"
+            if (( i + 1 < ${#sortedKeys[@]} )); then
+                printf '    "%s": "%s",\n' "${k}" "${allDeps[${k}]}"
+            else
+                printf '    "%s": "%s"\n' "${k}" "${allDeps[${k}]}"
+            fi
+        done
+        printf '  }\n'
+        printf '}\n'
+    } > "${tmpFile}" && mv "${tmpFile}" "${packageJsonFile}"
+
+    show success "Updated ${packageJsonFile}"
+    show nl "Run 'nix build' to verify, then commit node/package.json and update npmDepsHash in flake.nix"
 }
