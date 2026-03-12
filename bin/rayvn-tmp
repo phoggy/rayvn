@@ -67,14 +67,28 @@ status() {
             if (( onMacOS )); then
                 local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
                 if _isMacOSSupportedVersion; then
-                    show "macOS 10.15+ detected — RAM-backed tmpfs is available."
+                    show "macOS 10.15+ detected — RAM-backed tmpfs is available and is even more secure."
                     echo
-                    show "Run" bold "rayvn-tmp install" plain "to set up automatic mounting at boot,"
-                    show "or mount manually (does not survive reboot):"
+                    show "Run" bold "rayvn-tmp install" plain "to set up automatic mounting at boot. It can be mounted now,"
+                    show "but note that this will" italic bold "not survive reboot."
                     echo
-                    echo "    sudo mkdir -p ${shmPath}"
-                    echo "    sudo /sbin/mount_tmpfs ${shmPath}"
-                    echo "    sudo chown ${USER} ${shmPath}"
+                    local answerIndex
+                    confirm "Would you like to mount it now?" yes no answerIndex || bye
+                    if (( answerIndex == 0 )); then
+                        show "OK. You will be asked to enter your login password" muted "(sudo required)"
+                        echo
+                        sudo mkdir -p "${shmPath}" || fail
+                        sudo /sbin/mount_tmpfs "${shmPath}" || fail
+                        sudo chown "${USER}" "${shmPath}" || fail
+                        show "Done, tmpFs at" blue "${shmPath}"
+                    else
+                        echo
+                        show "Ok. If you would like to do it yourself, run the following commands:"
+                        echo
+                        echo "    sudo mkdir -p ${shmPath}"
+                        echo "    sudo /sbin/mount_tmpfs ${shmPath}"
+                        echo "    sudo chown ${USER} ${shmPath}"
+                    fi
                 else
                     show muted "RAM-backed tmpfs not available on this macOS version (requires 10.15+)."
                 fi
@@ -113,7 +127,7 @@ EOF
 
     echo
     show "Installing LaunchDaemon to" bold "${plistDest}"
-    show muted "(sudo required)"
+    show "You will be asked to enter your login password" muted "(sudo required)"
     echo
     sudo cp "${plistFile}" "${plistDest}" || fail "failed to install plist"
     sudo launchctl load "${plistDest}" || fail "failed to load LaunchDaemon"
@@ -157,5 +171,5 @@ _isMacOSSupportedVersion() {
     (( major > 10 || (major == 10 && minor >= 15) ))
 }
 
-source rayvn.up 'rayvn/core' || exit
+source rayvn.up 'rayvn/core' 'rayvn/prompt' || exit
 main "$@"
