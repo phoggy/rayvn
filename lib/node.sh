@@ -23,15 +23,20 @@ requireNodeModules() {
     if [[ -n "${envVar}" && -n "${!envVar}" ]]; then
         nodeHome="${!envVar}"
     else
-        nodeHome=${ configDirPath "${projectName}"; }
+        local savedProjectName="${currentProjectName}"
+        currentProjectName="${projectName}"
+        nodeHome=${ configDirPath "node"; }
+        currentProjectName="${savedProjectName}"
+        ensureDir "${nodeHome}"
 
         if [[ ! -d "${nodeHome}/node_modules" ]]; then
             local varName="${projectName//-/_}Home"
             local projectHome="${!varName}"
-            local nodeDir="${projectHome}/node"
-            [[ -d "${nodeDir}" ]] || fail "no node dir for project '${projectName}' at ${nodeDir}"
-            cp "${nodeDir}/package.json" "${nodeHome}/"
-            [[ -f "${nodeDir}/package-lock.json" ]] && cp "${nodeDir}/package-lock.json" "${nodeHome}/"
+            local projectNodeDir="${projectHome}/node"
+            [[ -d "${projectNodeDir}" ]] || fail "no node dir for project '${projectName}' at ${projectNodeDir}"
+            cp "${projectNodeDir}/package.json" "${nodeHome}/"
+            [[ -f "${projectNodeDir}/package-lock.json" ]] && cp "${projectNodeDir}/package-lock.json" "${nodeHome}/"
+            show "Installing required node modules for '${projectName}'."
             local npmOut
             npmOut=${ npm install --prefix "${nodeHome}" 2>&1; } \
                 || fail "npm install failed for '${projectName}': ${npmOut}"
