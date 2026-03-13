@@ -75,7 +75,6 @@ tempDirPath() {
             replaceRandomHex X fileName
         else
             randomHexString 8 fileName
-declare -p fileName
         fi
     else
         fileName="${1:-}"
