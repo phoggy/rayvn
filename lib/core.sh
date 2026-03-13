@@ -75,6 +75,7 @@ tempDirPath() {
             replaceRandomHex X fileName
         else
             randomHexString 8 fileName
+declare -p fileName
         fi
     else
         fileName="${1:-}"
@@ -749,11 +750,12 @@ randomHexChar() {
 randomHexString() {
     local count=$1
     local -n _resultRef=$2
-    local _hex _i
+    local _hexChar _hexString _i
     for (( _i=0; _i < ${count}; _i++)); do
-        randomHexChar _hex
-        _resultRef+="${_hex}"
+        randomHexChar _hexChar
+        _hexString+="${_hexChar}"
     done
+    _resultRef=${_hexString}
 }
 
 # Replace every occurrence of a placeholder character in a string with random hex characters.
