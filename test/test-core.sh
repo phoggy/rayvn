@@ -181,10 +181,23 @@ testBaseName() {
 # ============================================================================
 
 testIndexOf() {
-    local arr=("apple" "banana" "cherry")
-    assertEqual "1" "${ indexOf "banana" arr; }" "indexOf finds element at index 1"
-    assertEqual "0" "${ indexOf "apple" arr; }" "indexOf finds element at index 0"
-    assertEqual "-1" "${ indexOf "missing" arr; }" "indexOf returns -1 for missing"
+    local array=("apple" "banana" "cherry")
+    local index
+
+    indexOf "banana" array index || fail "indexOf did not find element"
+    assertEqual 1 ${index} "indexOf finds element at index 1"
+
+    indexOf "apple" array index || fail "indexOf did not find element"
+    assertEqual 0 ${index} "indexOf finds element at index 0"
+
+    indexOf "missing" array index && fail "indexOf found element but should not have"
+    assertEqual -1 ${index} "indexOf returns -1 for missing"
+
+    indexOf -p 'ban' array index || fail "indexOf -p did not find element"
+    assertEqual 1 ${index} "indexOf -p finds element at index 1"
+
+    indexOf -s 'ry' array index || fail "indexOf -s did not find element"
+    assertEqual 2 ${index} "indexOf -s finds element at index s"
 }
 
 testIsMemberOf() {

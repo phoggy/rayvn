@@ -816,35 +816,40 @@ repeat() {
     echo -n "${result}"
 }
 
-# Return the 0-based index of an item in an array, or -1 if not found.
+# Return the index of an element in an array, or -1 if not found.
 # Exits 0 if found, 1 if not found.
-# Args: [-r] item arrayVar
+# Args: [-r | -p | -s] match arrayVar
 #
-#   -r       - treat item as a regex
-#   item     - the value to search for
-#   arrayVar - name of the indexed array to search
+#   -p        - match is a prefix
+#   -s        - match is a suffix
+#   -r        - match is a regex
+#   match     - the value to search for
+#   arrayVar  - name of the indexed array to search
+#   resultVar - name of the result var
 
 indexOf() {
-    local regex=0 _i
-    if [[ $1 == '-r' ]]; then
-        regex=1; shift
-    fi
-    local item="$1"
-    local -n arrayRef="$2"
+    local regex=0 _p _s _i
+    case $1 in
+        -p) shift; match="$1"; _s='*' ;;
+        -s) shift; match="$1"; _p='*' ;;
+        -r) shift; match="$1"; regex=1 ;;
+        *) match="$1"
+    esac
+    local -n arrayRef=$2
+    local -n resultRef=$3
     local max="${#arrayRef[@]}"
     for (( _i=0; _i < max; _i++ )); do
         if (( regex )); then
-            if [[ ${arrayRef[_i]} =~ ${item} ]]; then
-                echo ${_i}; return 0
+            if [[ ${arrayRef[_i]} =~ ${match} ]]; then
+                resultRef=${_i}; return 0
             fi
         else
-            if [[ ${arrayRef[_i]} == "${item}" ]]; then
-                echo ${_i}; return 0
+            if [[ ${arrayRef[_i]} == $_p"${match}"$_s ]]; then
+                resultRef=${_i}; return 0
             fi
         fi
     done
-    echo -1
-    return 1
+    resultRef=-1; return 1
 }
 
 # Return 0 if an item is a member of an array, 1 otherwise.
@@ -853,7 +858,8 @@ indexOf() {
 #   item     - the value to search for
 #   arrayVar - name of the indexed array to search
 isMemberOf() {
-    indexOf "${1}" "${2}" > /dev/null
+    local index
+    indexOf "${1}" "${2}" index
 }
 
 # Return the length of the longest string in an array (ANSI escape codes not stripped).
