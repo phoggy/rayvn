@@ -11,6 +11,9 @@
 functionName() {...}
 ```
 
+The only required element is the `# ◇` description line. All sections are optional — omit
+entirely if they add no value.
+
 ---
 
 ## Line 1
@@ -21,7 +24,7 @@ functionName() {...}
 
 ## Line 2
 
-- Always an empty `#`
+- Always an empty `#` (when sections follow or as closing line)
 
 ---
 
@@ -58,6 +61,9 @@ functionName() {...}
 ```
 
 - Columns: name, type, description
+- **Type column is optional.** Omit when the type is obvious from name and context
+  (most plain string args). Include for: `arrayRef`, `mapRef`, `stringRef`, `fnRef`,
+  `int`, `bool`, and any arg where type clarifies usage.
 - Alignment: `maxArgLen + 2` spaces to type column, `maxTypeLen + 3` spaces to description column
 - Multiline descriptions: continuation indented to description column, no dot
 - Arg name suffix convention:
@@ -118,6 +124,10 @@ functionName() {...}
 
 ## RETURNS
 
+- **Only document non-obvious exit codes.** Omit entirely for functions that simply
+  return 0 on success and non-zero on failure with no meaningful distinction.
+- Document when: there are 2+ meaningful codes, or when the semantics are surprising.
+
 ```
 #   0  success
 #   1  error description
@@ -129,6 +139,9 @@ functionName() {...}
 ---
 
 ## EXAMPLE
+
+- **Highest-value section.** Prioritize for: functions with ref args, non-obvious call
+  patterns, or any function where seeing usage makes intent clear.
 
 ```
 # · EXAMPLE
@@ -156,4 +169,16 @@ functionName() {...}
 
 ## Closing Line
 
-- Final line of doc block is empty, followed by function declaration
+- Final line of doc block is followed by a blank line, then the function declaration
+
+---
+
+## Practical guidance
+
+| Function complexity       | Expected doc                                    |
+|---------------------------|-------------------------------------------------|
+| Self-evident (≤5 lines)   | `◇` description only                           |
+| Simple with args          | `◇` + ARGS (types only where non-obvious)      |
+| Ref args or complex usage | `◇` + ARGS with types + EXAMPLE                |
+| Multiple return codes     | Add RETURNS                                     |
+| Non-trivial side effects  | Add SIDE EFFECTS or NOTES                       |
