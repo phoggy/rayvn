@@ -24,6 +24,7 @@ release () {
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _runTests "${project}" || fail
+    _auditDocs "${project}" || fail
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _updateFlakeVersion "${version}" || fail
@@ -47,7 +48,14 @@ _init_rayvn_release() {
     require 'rayvn/prompt'
     require 'rayvn/dependencies'
     require 'rayvn/index'
+    require 'rayvn/docs'
     require 'rayvn/test-harness'
+}
+
+_auditDocs() {
+    local project="${1}"
+    header 2 "Auditing documentation"
+    auditDocs --release "${project}"
 }
 
 _checkExistingRelease() {

@@ -648,7 +648,8 @@ _hashString() {
     echo -n "${1}" | shasum -a 256 | cut -c1-16
 }
 
-# Load stored function hashes from the hash file into _idxStoredHashes
+# Load stored function hashes from the hash file into _idxStoredHashes.
+# Only loads new-format keys (ending in :body or :doc); old-format keys are ignored.
 _loadHashes() {
     declare -gA _idxStoredHashes=()
     if [[ -f "${_idxHashFile}" ]]; then
@@ -656,6 +657,8 @@ _loadHashes() {
         while IFS= read -r line; do
             key="${line%:*}"   # everything before the last colon
             hash="${line##*:}" # everything after the last colon
+            # Only load new-format keys (ending in :body or :doc)
+            [[ "${key}" == *:body || "${key}" == *:doc ]] || continue
             [[ -n "${key}" ]] && _idxStoredHashes["${key}"]="${hash}"
         done < "${_idxHashFile}"
     fi
@@ -671,8 +674,9 @@ _saveHashes() {
     } | sort > "${_idxHashFile}"
 }
 
-# Extract public function bodies from a library file, populate _idxCurrentHashes,
-# and append changed function keys to _idxChangedFunctions.
+# Extract public function bodies and doc blocks from a library file. Populates
+# _idxCurrentHashes with :body and :doc hashes, and appends to _idxChangedFunctions,
+# _idxMissingDocs, and _idxStaleDocs as appropriate.
 _hashLibFile() {
     local libFile="${1}"
     local projectName="${2}"
@@ -683,13 +687,14 @@ _hashLibFile() {
         fileLines+=("${line}")
     done < "${libFile}"
 
-    local i j functionName body key hash
+    local i j k m functionName body doc key bodyHash docHash hasDoc
     for (( i=0; i < ${#fileLines[@]}; i++ )); do
         local line="${fileLines[${i}]}"
         if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{ ]]; then
             functionName="${BASH_REMATCH[1]}"
             [[ "${functionName}" =~ ^_ ]] && continue
 
+            # Extract function body
             body="${line}"$'\n'
             for (( j=i+1; j < ${#fileLines[@]}; j++ )); do
                 local bodyLine="${fileLines[${j}]}"
@@ -697,23 +702,62 @@ _hashLibFile() {
                 [[ "${bodyLine}" == "}" ]] && break
             done
 
-            key="${projectName}/${libraryName}:${functionName}"
-            hash=${ _hashString "${body}"; }
-            _idxCurrentHashes["${key}"]="${hash}"
+            # Extract doc comment block (scan backwards from function declaration)
+            doc=''
+            hasDoc=0
+            k=$(( i - 1 ))
+            # Skip blank lines immediately before function
+            while (( k >= 0 )) && [[ -z "${fileLines[${k}]}" ]]; do
+                (( k -= 1 ))
+            done
+            # Collect contiguous # lines going backwards
+            local -a reversedDocLines=()
+            while (( k >= 0 )) && [[ "${fileLines[${k}]}" =~ ^# ]]; do
+                reversedDocLines+=("${fileLines[${k}]}")
+                (( k -= 1 ))
+            done
+            # Build doc in forward order and check for ◇
+            for (( m=${#reversedDocLines[@]}-1; m >= 0; m-- )); do
+                local docLine="${reversedDocLines[${m}]}"
+                doc+="${docLine}"$'\n'
+                [[ "${docLine}" =~ ^#[[:space:]]◇ ]] && hasDoc=1
+            done
 
-            if [[ -v _idxStoredHashes["${key}"] ]] && [[ "${_idxStoredHashes[${key}]}" != "${hash}" ]]; then
+            key="${projectName}/${libraryName}:${functionName}"
+            bodyHash=${ _hashString "${body}"; }
+            docHash=${ _hashString "${doc}"; }
+            _idxCurrentHashes["${key}:body"]="${bodyHash}"
+            _idxCurrentHashes["${key}:doc"]="${docHash}"
+
+            # Detect missing docs (no # ◇ line)
+            if (( ! hasDoc )); then
+                _idxMissingDocs+=("${key}")
+            else
+                # Detect stale: body hash changed but doc hash unchanged
+                local storedBody="${_idxStoredHashes[${key}:body]:-}"
+                local storedDoc="${_idxStoredHashes[${key}:doc]:-}"
+                if [[ -n "${storedBody}" && "${storedBody}" != "${bodyHash}" && "${storedDoc}" == "${docHash}" ]]; then
+                    _idxStaleDocs+=("${key}")
+                fi
+            fi
+
+            # Track changed functions (body hash changed vs stored)
+            if [[ -v "_idxStoredHashes[${key}:body]" ]] && [[ "${_idxStoredHashes[${key}:body]}" != "${bodyHash}" ]]; then
                 _idxChangedFunctions+=("${key}")
             fi
         fi
     done
 }
 
-# Check all library files for changed functions, report results, and update stored hashes
+# Check all library files for changed functions, report results, and update stored hashes.
+# Populates globals: _idxChangedFunctions, _idxMissingDocs, _idxStaleDocs.
 _checkAndUpdateHashes() {
     local libFiles=("$@")
 
     declare -gA _idxCurrentHashes=()
     declare -ga _idxChangedFunctions=()
+    declare -ga _idxMissingDocs=()
+    declare -ga _idxStaleDocs=()
 
     _loadHashes
 
@@ -731,13 +775,31 @@ _checkAndUpdateHashes() {
 
     if (( ${#_idxChangedFunctions[@]} > 0 )); then
         echo
-        show warning "${#_idxChangedFunctions[@]} function(s) changed - doc comments may need updating:"
+        show warning "${#_idxChangedFunctions[@]} function(s) changed since last index:"
         local key
         for key in "${_idxChangedFunctions[@]}"; do
             show "  " bold "${key}"
         done
     elif [[ "${isFirstRun}" == false ]]; then
-        show success "No function changes detected"
+        show success "No function body changes detected"
+    fi
+
+    if (( ${#_idxMissingDocs[@]} > 0 )); then
+        echo
+        show warning "${#_idxMissingDocs[@]} public function(s) missing ◇ doc comment:"
+        local key
+        for key in "${_idxMissingDocs[@]}"; do
+            show "  " bold "${key}"
+        done
+    fi
+
+    if (( ${#_idxStaleDocs[@]} > 0 )); then
+        echo
+        show warning "${#_idxStaleDocs[@]} public function(s) may have stale docs (body changed, doc unchanged):"
+        local key
+        for key in "${_idxStaleDocs[@]}"; do
+            show "  " bold "${key}"
+        done
     fi
 }
 
