@@ -54,19 +54,19 @@ auditDocs() {
 }
 
 # Generate or update ◇ doc comments for public functions using the Claude API.
-# Processes missing docs, stale docs, or all docs depending on flags. Without
-# --all, shows proposed docs interactively for accept/skip/quit.
-# Args: [--all] [--dry-run] [--missing-only] [--stale-only] [--lib NAME] [PROJECT...]
+# Applies all changes directly; review results via git diff. Use --dry-run to
+# print proposed docs to the terminal without writing anything.
+# Args: [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [PROJECT...]
 #
-#   --all           Accept all proposed docs without prompting.
-#   --dry-run       Show proposed docs without writing any changes.
+#   --dry-run       Print proposed docs to terminal without writing any changes.
+#   --regen         Regenerate docs for all public functions, not just missing/stale.
 #   --missing-only  Only process functions missing a ◇ doc comment.
 #   --stale-only    Only process functions with potentially stale docs.
 #   --lib NAME      Limit to a single library (e.g. --lib core).
 #   PROJECT         One or more project names (default: all loaded projects).
 updateDocs() {
-    local doAll=0
     local doDryRun=0
+    local doRegen=0
     local doMissingOnly=0
     local doStaleOnly=0
     local libFilter=''
@@ -74,8 +74,8 @@ updateDocs() {
 
     while (( $# > 0 )); do
         case "${1}" in
-            --all)           doAll=1 ;;
             --dry-run)       doDryRun=1 ;;
+            --regen)         doRegen=1 ;;
             --missing-only)  doMissingOnly=1 ;;
             --stale-only)    doStaleOnly=1 ;;
             --lib)           shift; libFilter="${1}" ;;
@@ -100,7 +100,9 @@ updateDocs() {
     header "Updating documentation"
 
     local -a libFiles=()
-    if (( ${#targetProjects[@]} == 0 )); then
+    if [[ -n "${libFilter}" ]]; then
+        _collectLibFilesByName libFiles "${libFilter}" "${targetProjects[@]}"
+    elif (( ${#targetProjects[@]} == 0 )); then
         _collectLibFiles libFiles
     else
         _collectProjectLibFiles libFiles "${targetProjects[@]}"
@@ -112,7 +114,13 @@ updateDocs() {
 
     # Build list of functions to process
     local -a targets=()
-    if (( doMissingOnly )); then
+    if (( doRegen )); then
+        # All public functions from current hashes (deduplicated via :body keys)
+        local k
+        for k in "${!_idxCurrentHashes[@]}"; do
+            [[ "${k}" == *:body ]] && targets+=("${k%:body}")
+        done
+    elif (( doMissingOnly )); then
         targets=("${_idxMissingDocs[@]}")
     elif (( doStaleOnly )); then
         targets=("${_idxStaleDocs[@]}")
@@ -120,24 +128,15 @@ updateDocs() {
         targets=("${_idxMissingDocs[@]}" "${_idxStaleDocs[@]}")
     fi
 
-    # Filter by library name if --lib specified
-    if [[ -n "${libFilter}" ]]; then
-        local -a filtered=()
-        local t
-        for t in "${targets[@]}"; do
-            [[ "${t}" == *"/${libFilter}:"* ]] && filtered+=("${t}")
-        done
-        targets=("${filtered[@]}")
-    fi
-
     if (( ${#targets[@]} == 0 )); then
         show success "Nothing to update"
         return 0
     fi
 
-    show nl "Processing ${#targets[@]} function(s)"
+    local dryRunLabel=''
+    (( doDryRun )) && dryRunLabel=' (dry run)'
+    show nl "Processing ${#targets[@]} function(s)${dryRunLabel}"
 
-    local -a updateChoices=('Accept' 'Skip' 'Quit')
     local key
     for key in "${targets[@]}"; do
         # key is "project/lib:funcName"
@@ -161,35 +160,19 @@ updateDocs() {
         local proposedDoc
         proposedDoc=${ _callClaudeApi "${prompt}" "${apiKey}"; } || { warn "API call failed for ${key}"; continue; }
 
-        # Strip trailing blank lines
-        while [[ "${proposedDoc}" == *$'\n' ]]; do
+        # Strip trailing blank lines and bare # lines (only needed before sections)
+        while [[ "${proposedDoc}" == *$'\n' || "${proposedDoc}" == *$'\n#' || "${proposedDoc}" == '#' ]]; do
+            proposedDoc="${proposedDoc%$'\n'}"
+            proposedDoc="${proposedDoc%#}"
             proposedDoc="${proposedDoc%$'\n'}"
         done
 
-        echo
-        echo "--- Proposed doc for ${funcName} ---"
-        echo "${proposedDoc}"
-        echo "---"
-
         if (( doDryRun )); then
-            continue
-        fi
-
-        if (( doAll )); then
+            echo "${proposedDoc}"
+            echo
+        else
             _replaceDocComment "${funcLibFile}" "${funcName}" "${proposedDoc}"
             show success "Updated ${key}"
-        else
-            # Interactive: accept / skip / quit
-            local choiceIdx
-            choose "Apply this doc?" updateChoices choiceIdx || continue
-            case "${choiceIdx}" in
-                0)
-                    _replaceDocComment "${funcLibFile}" "${funcName}" "${proposedDoc}"
-                    show success "Updated ${key}"
-                    ;;
-                1) show "Skipped ${key}" ;;
-                2) show "Quit."; return 0 ;;
-            esac
         fi
     done
 
@@ -202,6 +185,40 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/docs' PRIVATE
 _init_rayvn_docs() {
     require 'rayvn/core'
     require 'rayvn/prompt'
+}
+
+# Collect a single named library file from one or more projects into a nameref array.
+# Args: libFilesRef libName [PROJECT...]
+_collectLibFilesByName() {
+    local -n _clbnRef="${1}"
+    local libName="${2}"
+    shift 2
+    local -a searchProjects=("${@}")
+
+    local project projectRoot libraryRoot file
+    if (( ${#searchProjects[@]} == 0 )); then
+        # Search all registered projects
+        for project in "${!_rayvnProjects[@]}"; do
+            [[ "${project}" == *"::project" ]] || continue
+            project="${project%::project}"
+            libraryRoot="${_rayvnProjects[${project}::library]:-}"
+            file="${libraryRoot}/${libName}.sh"
+            if [[ -f "${file}" ]]; then
+                show "Scanning" bold "${file}"
+                _clbnRef+=("${file}")
+            fi
+        done
+    else
+        for project in "${searchProjects[@]}"; do
+            libraryRoot="${_rayvnProjects[${project}::library]:-}"
+            [[ -n "${libraryRoot}" ]] || { warn "Unknown project: ${project}"; continue; }
+            file="${libraryRoot}/${libName}.sh"
+            if [[ -f "${file}" ]]; then
+                show "Scanning" bold "${file}"
+                _clbnRef+=("${file}")
+            fi
+        done
+    fi
 }
 
 # Collect library files for a specific list of projects into a nameref array.
@@ -356,7 +373,7 @@ _replaceDocComment() {
 _callClaudeApi() {
     local prompt="${1}"
     local apiKey="${2}"
-    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given function following the spec exactly. Return only the comment block, no other text.'
+    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Return only the comment block, no other text. Prefer brevity: for simple functions a single ◇ description line is ideal. Only add a section block when it contains multiple entries or genuinely non-obvious information. For REQUIRES, omit entirely if there is only one dependency — it is already visible in the source. For other sections with a single obvious entry, fold it into the description rather than adding a full section block.'
 
     local payload
     payload=${ jq -n \

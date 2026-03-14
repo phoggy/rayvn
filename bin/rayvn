@@ -396,10 +396,9 @@ depsCommand() {
 
 docsCommand() {
     if (( flags['help'] )); then
-        echo "rayvn docs audit|update [PROJECT...] [OPTIONS]"
-        echo "  audit   [--release]                    Report missing/stale docs"
-        echo "  update  [--all] [--dry-run]            Generate/fix docs via Claude API"
-        echo "          [--missing-only|--stale-only]"
+        echo "rayvn docs update | audit [PROJECT...] [OPTIONS]"
+        echo "  update  [--dry-run] [--regen] [--missing-only|--stale-only] [--lib NAME]  Generate/fix docs via Claude API"
+        echo "  audit   [--release]                                                       Report missing/stale docs"
     else
         require 'rayvn/docs'
         local subcommand="${args[0]}"

@@ -12,7 +12,8 @@ functionName() {...}
 ```
 
 The only required element is the `# ◇` description line. All sections are optional — omit
-entirely if they add no value.
+entirely if they add no value. When a section would contain only one obvious entry, prefer
+folding that information into the description rather than adding a full section block.
 
 ---
 
@@ -105,6 +106,8 @@ entirely if they add no value.
 
 - One lib path per line, no description
 - Mirrors actual `requires` call syntax
+- **Omit for a single dependency** — it is already visible in the source. Only add this
+  section when there are two or more non-obvious dependencies.
 
 ---
 
@@ -173,12 +176,30 @@ entirely if they add no value.
 
 ---
 
+## Subcommand usage lines
+
+For functions that dispatch subcommands, the `◇` description line doubles as a usage line:
+
+```
+# ◇ myCommand subcmd1 | subcmd2 [PROJECT...] [OPTIONS]
+#   subcmd1  [--opt1] [--opt2]              Brief description of subcmd1.
+#   subcmd2  [--opt3] [--opt4] [--lib NAME]  Brief description of subcmd2.
+```
+
+- Spaces around `|` between subcommands
+- Subcommand names left-aligned, descriptions right-aligned to a common column
+
+---
+
 ## Practical guidance
 
-| Function complexity       | Expected doc                                    |
-|---------------------------|-------------------------------------------------|
-| Self-evident (≤5 lines)   | `◇` description only                           |
-| Simple with args          | `◇` + ARGS (types only where non-obvious)      |
-| Ref args or complex usage | `◇` + ARGS with types + EXAMPLE                |
-| Multiple return codes     | Add RETURNS                                     |
-| Non-trivial side effects  | Add SIDE EFFECTS or NOTES                       |
+| Function complexity              | Expected doc                                        |
+|----------------------------------|-----------------------------------------------------|
+| Self-evident (≤5 lines)          | `◇` description only                               |
+| Simple with args                 | `◇` + ARGS (types only where non-obvious)          |
+| Simple optional arg              | Fold into description, no ARGS section             |
+| Single REQUIRES dependency       | Omit entirely (already visible in source)          |
+| Single obvious ENV VAR/etc.      | Fold into description or omit, no section block    |
+| Ref args or complex usage        | `◇` + ARGS with types + EXAMPLE                    |
+| Multiple return codes            | Add RETURNS                                         |
+| Non-trivial side effects         | Add SIDE EFFECTS or NOTES                           |
