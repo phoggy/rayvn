@@ -16,10 +16,11 @@ usage() {
     echo "    new TYPE NAME     Create a new project/script/library/test with the specified NAME."
     echo "    libraries         List libraries."
     echo "    functions         List public functions."
-    echo "    register          Register a project."
+    echo "    register NAME     Stake a claim on the project name, if available."
     echo "    release           Create a new release."
-    echo "    deps              Scan source files and auto-update flake.nix runtimeDeps."
+    echo "    deps              Scan source files and ensure dependency tracking is up to date."
     echo "    index             Generate function indexes and Jekyll docs."
+    echo "    docs              Audit or update function documentation."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified."
     echo
@@ -36,7 +37,6 @@ main() {
     init "${@}"
     local result=0
     ${command} "${args[@]}" || result=$?
-#    echo
     return ${result}
 }
 
@@ -64,6 +64,7 @@ init() {
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
             index) parseArgs true indexDocs "${@:2}" ;;
+            docs) parseArgs true docsCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
             --debug) debugCommand=('--debug') ;debugOptions=('showOnExit') ;;
             --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showOnExit') ;;
@@ -258,59 +259,63 @@ listLibraries() {
 
 _printLibraries() {
     local project="${1}"
-    echo "project '${project}'"
+    show bold "project ${project}" nl
     forEachLibrary "${project}" _printProjectLibrary
 }
 
 _printProjectLibrary() {
-    local library="${2}"
-    local file="${3}"
-    echo "    ${library} -> ${file}"
+    local project="$1"
+    local library="$2"
+    show primary "    ${project}/${library}"
 }
 
 listFunctions() {
-    local sourceName
-    local functions=()
-    local function
-    local suffix
-    for sourceName in "${_rayvnSources[@]}"; do
-        echo
-        show bold "${sourceName} functions"
-        echo
-        getFunctions functions "${sourceName}"
-        functions=(${ printf '%s\n' "${functions[@]}" | sort; })
-        for function in "${functions[@]}"; do
-            if declare -pF "${functionName}" 2> /dev/null | grep -q "declare -fr"; then
-                suffix=
-            else
-                suffix="${ show bold red " [NOT READONLY!]" ;}"
-            fi
-
-            if [[ ${function} == _* ]]; then
-                show italic red "    ${function}" "${suffix}"
-            else
-                echo "    ${function}" "${suffix}"
-            fi
-        done
-        functions=()
-    done
+    if (( flags['help'] )); then
+        echo "rayvn libraries [--all]"
+    else
+        forEachProject _listProjectLibraries "${1}"
+    fi
 }
 
-getFunctions() {
-    local -n arrayRef="${1}"
-    local filter="${2:-''}"
-    local applyFilter=${ [[ ${filter} == '' ]] && echo 0 || echo 1; }
-    local source
-    for functionName in "${!_rayvnFunctionSources[@]}"; do
-        source="${_rayvnFunctionSources[${functionName}]}"
-        if (( applyFilter )); then
-            if [[ ${source} == "${filter}" ]]; then
-                arrayRef+=("${functionName}")
-            fi
-        else
-            arrayRef+=("${functionName}")
-        fi
+_listProjectLibraries() {
+    local project="${1}"
+    forEachLibrary "${project}" _listFunctions
+}
+
+_listFunctions() {
+    local project=$1
+    local library="$2"
+    local libraryFile="$3"
+    local libraryName="${project}/${library}"
+    local functions=()
+    local function
+    local includePrivate=0
+    (( flags['all'] )) && includePrivate=1
+
+    _getFunctions "${libraryFile}" functions
+
+    echo
+    show bold "${libraryName} functions"
+    echo
+
+    for function in "${functions[@]}"; do
+        [[ ${function} != _* ]] && show primary "    ${function}"
     done
+    if (( includePrivate )); then
+        for function in "${functions[@]}"; do
+            [[ ${function} == _* ]] && show italic red "    ${function}"
+        done
+    fi
+}
+
+_getFunctions() {
+    local sourcePath="$1"
+    local -n arrayRef="$2"
+    local _functions
+    assertFile "${sourcePath}"
+    _functions=$( bash --norc --noprofile -c "source '${sourcePath}' 2>/dev/null; compgen -A function;" ) || return 1
+    _functions=(${ printf '%s\n' "${_functions[@]}" | sort; })
+    arrayRef=("${_functions[@]}")
 }
 
 forEachProject() {              # TODO: this pattern is a pain. Replace with getProjects()
@@ -386,6 +391,24 @@ depsCommand() {
         for project in "${projects[@]}"; do
             findDependencies "${project}"
         done
+    fi
+}
+
+docsCommand() {
+    if (( flags['help'] )); then
+        echo "rayvn docs audit|update [PROJECT...] [OPTIONS]"
+        echo "  audit   [--release]                    Report missing/stale docs"
+        echo "  update  [--all] [--dry-run]            Generate/fix docs via Claude API"
+        echo "          [--missing-only|--stale-only]"
+    else
+        require 'rayvn/docs'
+        local subcommand="${args[0]}"
+        local subArgs=("${args[@]:1}")
+        case "${subcommand}" in
+            audit)  auditDocs  "${subArgs[@]}" ;;
+            update) updateDocs "${subArgs[@]}" ;;
+            *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
+        esac
     fi
 }
 
