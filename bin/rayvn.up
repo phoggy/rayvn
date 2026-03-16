@@ -4,29 +4,9 @@
 # Bootstrap rayvn shared library system.
 # See https://github.com/phoggy/rayvn for details.
 
-# Verify key requirements
-
 if ! (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
-    echo -e "\033[0;31m🔺 rayvn requires bash version 5.2+, found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}\033[0m"; exit 1
-else
-    declare -grx onMacOS=${ [[ ${OSTYPE} == darwin* ]] && echo 1 || echo 0; }
-    declare -grx onLinux=${ [[ ${OSTYPE} == linux* ]] && echo 1 || echo 0; }
-    if ! (( onMacOS || onLinux )); then
-        echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${OSTYPE}\033[0m"; exit 1
-    fi
-fi
-
-if ! (( rayvnTest_DeferCore )); then
-    if ! command -v gawk &> /dev/null; then
-        echo -e "\033[0;31m🔺 rayvn requires gawk (GNU awk). Install via 'brew install gawk' or your package manager.\033[0m"; exit 1
-    fi
-    if ! command -v gsed &> /dev/null; then
-        if sed --version 2>/dev/null | grep -q 'GNU sed'; then
-            gsed() { sed "$@"; }
-        else
-            echo -e "\033[0;31m🔺 rayvn requires GNU sed. Install via 'brew install gnu-sed' (macOS) or your package manager.\033[0m"; exit 1
-        fi
-    fi
+    echo -e "\033[0;31m🔺 rayvn requires bash version 5.2+, found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]} \
+             \033[0m"; exit 1
 fi
 
 require() {
@@ -413,8 +393,31 @@ configure() {
 
     # Finally, set flag to indicate we have completed
 
-    declare -grx rayvnIsUp=1
+    declare -gr rayvnIsUp=1
 }
+
+# Verify key requirements
+
+declare -grx onMacOS=${ [[ ${OSTYPE} == darwin* ]] && echo 1 || echo 0; }
+declare -grx onLinux=${ [[ ${OSTYPE} == linux* ]] && echo 1 || echo 0; }
+if ! (( onMacOS || onLinux )); then
+    echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${OSTYPE}\033[0m"; exit 1
+fi
+
+if ! (( rayvnTest_DeferCore )); then
+    if ! command -v gawk &> /dev/null; then
+        echo -e "\033[0;31m🔺 rayvn requires gawk (GNU awk). Install via 'brew install gawk' or your package manager.\033[0m"; exit 1
+    fi
+    if ! command -v gsed &> /dev/null; then
+        if sed --version 2>/dev/null | grep -q 'GNU sed'; then
+            gsed() { sed "$@"; }
+        else
+            echo -e "\033[0;31m🔺 rayvn requires GNU sed. Install via 'brew install gnu-sed' (macOS) or your package manager.\033[0m"; exit 1
+        fi
+    fi
+fi
+
+(( rayvnIsUp )) && { echo -e "\033[0;31m🔺 rayvn.up was sourced in the current shell; re-sourcing is not supported.\033[0m"; exit 1; }
 
 # Configure, require specified libraries, then remove all temp functions and vars.
 
