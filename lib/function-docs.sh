@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 
 # Audit and update function doc comments using the ◇ structured format.
-# Use via: require 'rayvn/docs'
+# Use via: require 'rayvn/function-docs'
 
-# Audit doc comment coverage and staleness for registered projects.
-# Reports missing docs (no ◇ line) and potentially stale docs (body changed
-# but doc unchanged). With --release, exits non-zero if any docs are missing.
-# Args: [--release] [PROJECT...]
+# ◇ Audit function doc comment coverage for registered projects, reporting missing or stale docs.
 #
-#   --release    Exit 1 if any public functions are missing doc comments.
+# · USAGE
+#
+#   auditDocs [--release] [PROJECT]...
+#
+#   --release    Exit 1 if any public functions are missing ◇ doc comments.
 #   PROJECT      One or more project names to audit (default: all loaded projects).
+
 auditDocs() {
     local doRelease=0
     local -a targetProjects=()
@@ -53,23 +55,29 @@ auditDocs() {
     return 0
 }
 
-# Generate or update ◇ doc comments for public functions using the Claude API.
-# Applies all changes directly; review results via git diff. Use --dry-run to
-# print proposed docs to the terminal without writing anything.
-# Args: [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [PROJECT...]
+# ◇ Generate or update doc comments for public functions using the Claude API; applies changes directly.
 #
-#   --dry-run       Print proposed docs to terminal without writing any changes.
-#   --regen         Regenerate docs for all public functions, not just missing/stale.
-#   --missing-only  Only process functions missing a ◇ doc comment.
-#   --stale-only    Only process functions with potentially stale docs.
-#   --lib NAME      Limit to a single library (e.g. --lib core).
-#   PROJECT         One or more project names (default: all loaded projects).
+# · USAGE
+#
+#   updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
+#
+#   --dry-run         Print proposed docs without writing any changes.
+#   --regen           Regenerate docs for all public functions, not just missing/stale.
+#   --missing-only    Only process functions missing a ◇ doc comment.
+#   --stale-only      Only process functions with potentially stale docs.
+#   --lib NAME        Limit to a single library by name.
+#   --since DURATION  Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set.
+#   --delay SECS      Seconds to sleep between API calls to avoid rate limits (default: 5).
+#   PROJECT           One or more project names (default: all loaded projects).
+
 updateDocs() {
     local doDryRun=0
     local doRegen=0
     local doMissingOnly=0
     local doStaleOnly=0
     local libFilter=''
+    local callDelay=5
+    local since=''
     local -a targetProjects=()
 
     while (( $# > 0 )); do
@@ -79,6 +87,8 @@ updateDocs() {
             --missing-only)  doMissingOnly=1 ;;
             --stale-only)    doStaleOnly=1 ;;
             --lib)           shift; libFilter="${1}" ;;
+            --delay)         shift; callDelay="${1}" ;;
+            --since)         shift; since="${1}" ;;
             -*) error "Unknown option: ${1}" ;;
             *) targetProjects+=("${1}") ;;
         esac
@@ -114,9 +124,9 @@ updateDocs() {
 
     # Build list of functions to process
     local -a targets=()
+    local k
     if (( doRegen )); then
         # All public functions from current hashes (deduplicated via :body keys)
-        local k
         for k in "${!_idxCurrentHashes[@]}"; do
             [[ "${k}" == *:body ]] && targets+=("${k%:body}")
         done
@@ -126,6 +136,25 @@ updateDocs() {
         targets=("${_idxStaleDocs[@]}")
     else
         targets=("${_idxMissingDocs[@]}" "${_idxStaleDocs[@]}")
+    fi
+
+    # Sort by file and line order
+    _sortTargetsByFileOrder targets
+
+    # Filter out recently-updated functions unless --regen
+    _loadDocTimestamps
+    if [[ -n "${since}" ]] && (( ! doRegen )); then
+        local sinceSeconds; sinceSeconds=${ _parseDuration "${since}"; } || return 1
+        local now; now=${ date +%s; }
+        local cutoff=$(( now - sinceSeconds ))
+        local -a filteredTargets=()
+        for k in "${targets[@]}"; do
+            local ts="${_docTimestamps[${k}]:-0}"
+            (( ts < cutoff )) && filteredTargets+=("${k}")
+        done
+        local skipped=$(( ${#targets[@]} - ${#filteredTargets[@]} ))
+        (( skipped > 0 )) && show nl "Skipping ${skipped} function(s) updated within ${since}"
+        targets=("${filteredTargets[@]}")
     fi
 
     if (( ${#targets[@]} == 0 )); then
@@ -153,25 +182,41 @@ updateDocs() {
 
         local body; body=${ _extractFunctionBody "${funcLibFile}" "${funcName}"; }
         local currentDoc; currentDoc=${ _extractFunctionDoc "${funcLibFile}" "${funcName}"; }
+        local constants; constants=${ _extractReferencedConstants "${body}" "${funcLibFile}"; }
 
-        local prompt; prompt=${ _buildDocPrompt "${spec}" "${body}" "${currentDoc}"; }
+        local prompt; prompt=${ _buildDocPrompt "${body}" "${currentDoc}" "${constants}"; }
 
-        show "Calling Claude API..."
         local proposedDoc
-        proposedDoc=${ _callClaudeApi "${prompt}" "${apiKey}"; } || { warn "API call failed for ${key}"; continue; }
+        proposedDoc=${ _callClaudeApi "${prompt}" "${spec}" "${apiKey}"; } || { warn "API call failed for ${key}"; continue; }
 
-        # Strip trailing blank lines and bare # lines (only needed before sections)
-        while [[ "${proposedDoc}" == *$'\n' || "${proposedDoc}" == *$'\n#' || "${proposedDoc}" == '#' ]]; do
-            proposedDoc="${proposedDoc%$'\n'}"
-            proposedDoc="${proposedDoc%#}"
-            proposedDoc="${proposedDoc%$'\n'}"
+        (( callDelay > 0 )) && sleep "${callDelay}"
+
+        # Keep only comment lines — Claude sometimes appends the function declaration
+        local _filteredDoc='' _line
+        while IFS= read -r _line; do
+            [[ "${_line}" =~ ^# ]] && _filteredDoc+="${_line}"$'\n'
+        done <<< "${proposedDoc}"
+        proposedDoc="${_filteredDoc%$'\n'}"
+
+        # Strip trailing bare # lines (section separators added unnecessarily at end)
+        while [[ "${proposedDoc}" == *$'\n#' || "${proposedDoc}" == '#' ]]; do
+            proposedDoc="${proposedDoc%$'\n#'}"
+            [[ "${proposedDoc}" == '#' ]] && proposedDoc=''
         done
+
+        # Validate: must start with # ◇ (guards against malformed/empty responses)
+        if [[ "${proposedDoc}" != '# ◇'* ]]; then
+            warn "Skipping ${key}: response missing '# ◇' line"
+            continue
+        fi
 
         if (( doDryRun )); then
             echo "${proposedDoc}"
             echo
         else
             _replaceDocComment "${funcLibFile}" "${funcName}" "${proposedDoc}"
+            _docTimestamps["${key}"]=${ date +%s; }
+            _saveDocTimestamps
             show success "Updated ${key}"
         fi
     done
@@ -180,9 +225,9 @@ updateDocs() {
     show success "Done"
 }
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/docs' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/function-docs' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_rayvn_docs() {
+_init_rayvn_function-docs() {
     require 'rayvn/core'
     require 'rayvn/prompt'
 }
@@ -366,26 +411,41 @@ _replaceDocComment() {
 }
 
 # Call the Claude API with a prompt and return the response text.
-# Args: prompt apiKey
+# The spec and system prompt are sent as cached system content blocks to avoid
+# re-processing them on every call (prompt caching).
 #
-#   prompt   string  The user prompt to send to Claude.
+# · ARGS
+#
+#   prompt   string  The per-function user prompt (function body + current doc).
+#   spec     string  Contents of function-doc-spec.md (cached server-side).
 #   apiKey   string  Anthropic API key.
 _callClaudeApi() {
     local prompt="${1}"
-    local apiKey="${2}"
-    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Return only the comment block, no other text. Prefer brevity: for simple functions a single ◇ description line is ideal. Only add a section block when it contains multiple entries or genuinely non-obvious information. For REQUIRES, omit entirely if there is only one dependency — it is already visible in the source. For other sections with a single obvious entry, fold it into the description rather than adding a full section block.'
+    local spec="${2}"
+    local apiKey="${3}"
+    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst)).'
 
     local payload
     payload=${ jq -n \
         --arg model 'claude-sonnet-4-6' \
         --arg system "${systemPrompt}" \
+        --arg spec "${spec}" \
         --arg user "${prompt}" \
-        '{model: $model, max_tokens: 1024, system: $system, messages: [{role: "user", content: $user}]}'; }
+        '{
+            model: $model,
+            max_tokens: 1024,
+            system: [
+                {type: "text", text: $system, cache_control: {type: "ephemeral"}},
+                {type: "text", text: ("SPEC:\n" + $spec), cache_control: {type: "ephemeral"}}
+            ],
+            messages: [{role: "user", content: $user}]
+        }'; }
 
     local response
     response=${ curl -s -X POST 'https://api.anthropic.com/v1/messages' \
         -H "x-api-key: ${apiKey}" \
         -H 'anthropic-version: 2023-06-01' \
+        -H 'anthropic-beta: prompt-caching-2024-07-31' \
         -H 'content-type: application/json' \
         -d "${payload}"; }
 
@@ -398,20 +458,147 @@ _callClaudeApi() {
     echo "${response}" | jq -r '.content[0].text'
 }
 
-# Build the Claude prompt for generating a doc comment.
-# Args: spec body currentDoc
+# Build the per-function Claude prompt (excludes the spec, which is cached in the system block).
+# Args: body currentDoc
 #
-#   spec        string  Contents of function-doc-spec.md.
 #   body        string  The function body to document.
 #   currentDoc  string  The existing doc comment (may be empty).
+#   constants   string  Optional resolved private constant values referenced in the body.
 _buildDocPrompt() {
-    local spec="${1}"
-    local body="${2}"
-    local currentDoc="${3:-}"
+    local body="${1}"
+    local currentDoc="${2:-}"
+    local constants="${3:-}"
 
     local currentDocText="${currentDoc:-(none)}"
-    printf 'SPEC:\n%s\n\nFUNCTION:\n%s\n\nCURRENT DOC (may be empty):\n%s\n\nGenerate an accurate doc comment for this function per the spec.\n' \
-        "${spec}" "${body}" "${currentDocText}"
+    local constantsSection=''
+    [[ -n "${constants}" ]] && constantsSection=$'\n\nCONSTANTS (resolved values of private vars referenced above; use values not names in docs):\n'"${constants}"
+    printf 'FUNCTION:\n%s%s\n\nCURRENT DOC (may be empty):\n%s\n\nGenerate an accurate doc comment for this function per the spec.\n' \
+        "${body}" "${constantsSection}" "${currentDocText}"
+}
+
+# Scan a function body for references to private constants (_name), look up their
+# scalar values in the file (from declare statements), and output "name=value" lines.
+# Args: body libFile
+_extractReferencedConstants() {
+    local body="${1}"
+    local libFile="${2}"
+
+    # Collect unique _varName references from the body
+    local -A refs=()
+    local ref
+    while IFS= read -r ref; do
+        [[ -n "${ref}" ]] && refs["${ref}"]=1
+    done < <( grep -oE '\$\{?_[a-zA-Z][a-zA-Z0-9_]+' <<< "${body}" | sed 's/[${}]//g' | sort -u )
+
+    (( ${#refs[@]} == 0 )) && return 0
+
+    # For each referenced name, find its scalar value in the file via declare lines
+    local name line val
+    for name in "${!refs[@]}"; do
+        line=${ grep -m1 -E "(declare[[:space:]]+\S+[[:space:]]+)?${name}=" "${libFile}"; }
+        [[ -z "${line}" ]] && continue
+        # Extract value: unquoted or single/double-quoted
+        if [[ "${line}" =~ ${name}=\'([^\']*)\' ]]; then
+            val="${BASH_REMATCH[1]}"
+        elif [[ "${line}" =~ ${name}=\"([^\"]*)\" ]]; then
+            val="${BASH_REMATCH[1]}"
+        elif [[ "${line}" =~ ${name}=([^[:space:]\}\'\"]*) ]]; then
+            val="${BASH_REMATCH[1]}"
+        else
+            continue
+        fi
+        [[ -n "${val}" ]] && echo "${name}=${val}"
+    done
+}
+
+# Sort a targets array in-place by file and line order.
+# Scans each unique library file once and re-emits matching function keys in declaration order.
+# Args: targetsRef arrayRef
+_sortTargetsByFileOrder() {
+    local -n _stbfoRef="${1}"
+
+    # Build a set for O(1) membership lookup
+    local -A targetSet=()
+    local k
+    for k in "${_stbfoRef[@]}"; do
+        targetSet["${k}"]=1
+    done
+
+    # Collect unique libs in the order they first appear in targets
+    local -A seenLibs=()
+    local -a orderedLibs=()
+    for k in "${_stbfoRef[@]}"; do
+        local funcLib="${k%:*}"
+        if [[ ! "${seenLibs[${funcLib}]+_}" ]]; then
+            seenLibs["${funcLib}"]=1
+            orderedLibs+=("${funcLib}")
+        fi
+    done
+
+    local -a sorted=()
+    local funcLib funcProject funcLibName funcLibFile line fname fkey
+    for funcLib in "${orderedLibs[@]}"; do
+        funcProject="${funcLib%/*}"
+        funcLibName="${funcLib##*/}"
+        funcLibFile="${_rayvnProjects[${funcProject}::library]}/${funcLibName}.sh"
+        [[ -f "${funcLibFile}" ]] || continue
+        while IFS= read -r line; do
+            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{ ]]; then
+                fname="${BASH_REMATCH[1]}"
+                fkey="${funcLib}:${fname}"
+                [[ "${targetSet[${fkey}]+_}" ]] && sorted+=("${fkey}")
+            fi
+        done < "${funcLibFile}"
+    done
+
+    _stbfoRef=("${sorted[@]}")
+}
+
+# Parse a duration string (Nm, Nh, or Nd) and echo the equivalent number of seconds.
+# Args: duration
+_parseDuration() {
+    local duration="${1}"
+    if [[ "${duration}" =~ ^([0-9]+)([mhd])$ ]]; then
+        local num="${BASH_REMATCH[1]}"
+        case "${BASH_REMATCH[2]}" in
+            m) echo $(( num * 60 )) ;;
+            h) echo $(( num * 3600 )) ;;
+            d) echo $(( num * 86400 )) ;;
+        esac
+    else
+        error "Invalid duration '${duration}': use Nm, Nh, or Nd (e.g. 30m, 2h, 1d)"
+        return 1
+    fi
+}
+
+# Load doc update timestamps from the timestamps file into _docTimestamps.
+_loadDocTimestamps() {
+    declare -gA _docTimestamps=()
+    local tsFile; tsFile=${ _docTimestampsFile; }
+    [[ -f "${tsFile}" ]] || return 0
+    local line key ts
+    while IFS= read -r line; do
+        key="${line%%=*}"
+        ts="${line#*=}"
+        [[ -n "${key}" ]] && _docTimestamps["${key}"]="${ts}"
+    done < "${tsFile}"
+}
+
+# Save _docTimestamps to the timestamps file (sorted for stable diffs).
+_saveDocTimestamps() {
+    local tsFile; tsFile=${ _docTimestampsFile; }
+    local key
+    {
+        for key in "${!_docTimestamps[@]}"; do
+            echo "${key}=${_docTimestamps[${key}]}"
+        done
+    } | sort > "${tsFile}"
+}
+
+# Echo the path to the doc timestamps file.
+_docTimestampsFile() {
+    local configDir; configDir=${ configDirPath; }
+    echo "${configDir}/rayvn-doc-timestamps.txt"
 }
 
 # Echo the Anthropic API key from config file or env var, or fail with instructions.
