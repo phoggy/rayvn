@@ -23,6 +23,18 @@ folding that information into the description rather than adding a full section 
 - Continuation lines: `#   ` (3 spaces, no dot), aligned to description start
 - Icon: `◇`
 
+## Prose style
+
+- These are shell comments, not markdown — do **not** use backticks around names.
+- Functions, variables, and options: plain unquoted names (e.g. `configDirPath`, `rayvnHome`, `--release`).
+- Literal string values that need visual separation: single quotes (e.g. `'ephemeral'`, `'body'`).
+- Sentence case, end descriptions with a period.
+- Default values controlled by private constants: use the actual value, not the constant name
+  (e.g. `default: 30` not `default: _defaultPromptTimeout`).
+- For functions that produce a value via stdout (captured with `${ ; }` or `$()`), use **outputs** in the
+  description. Avoid echo, print, write, or return for this purpose. Use print/write only for side-effect
+  output (e.g. printing to stderr or writing to a file).
+
 ## Line 2
 
 - Always an empty `#` (when sections follow or as closing line)
@@ -33,13 +45,14 @@ folding that information into the description rather than adding a full section 
 
 ### Order (omit entirely if empty)
 
-1. ARGS
-2. ENV VARS
-3. REQUIRES
-4. SIDE EFFECTS
-5. NOTES
-6. RETURNS
-7. EXAMPLE
+1. USAGE
+2. ARGS
+3. ENV VARS
+4. REQUIRES
+5. SIDE EFFECTS
+6. NOTES
+7. RETURNS
+8. EXAMPLE
 
 ### Section header format
 
@@ -55,6 +68,36 @@ folding that information into the description rather than adding a full section 
 
 ---
 
+## USAGE
+
+Use when the calling convention itself is the key information — variadic functions,
+interleaved argument patterns, or any signature where a synopsis is clearer than a flat
+ARGS list alone.
+
+```
+# · USAGE
+#
+#   funcName [-flags] ARG [ARG...]
+```
+
+- One synopsis line showing the full call shape; use `[...]` for optional parts, `...` for variadic
+- May include inline per-item descriptions below the synopsis when ARGS would be redundant:
+
+```
+# · USAGE
+#
+#   funcName [-n] [-e|-E] [FORMAT TEXT]...
+#
+#   -n      No trailing newline.
+#   FORMAT  A format token.
+#   TEXT    Text to print.
+```
+
+- When USAGE is present, omit ARGS unless the individual argument detail adds genuine value
+  beyond what the synopsis and inline descriptions already convey
+
+---
+
 ## ARGS
 
 ```
@@ -67,6 +110,7 @@ folding that information into the description rather than adding a full section 
   `int`, `bool`, and any arg where type clarifies usage.
 - Alignment: `maxArgLen + 2` spaces to type column, `maxTypeLen + 3` spaces to description column
 - Multiline descriptions: continuation indented to description column, no dot
+- Default values: use `(default: value)` at the end of the description, not prose `Defaults to value.`
 - Arg name suffix convention:
   - Pass-by-ref args: suffix matches type — `myArrayRef`, `myMapRef`, `myStrRef`, `myFnRef`
 
@@ -164,7 +208,7 @@ folding that information into the description rather than adding a full section 
 ## Alignment Rules
 
 - All column alignment uses `maxLen + 1` gap
-- Max line length: 120 characters
+- Avoid artificial wrapping — do not split synopsis lines or mid-sentence descriptions to hit a column target
 - Applies to: ARGS (name→type, type→desc), ENV VARS (name→desc), RETURNS (code→desc)
 - Alignment computed per-section within each function
 
@@ -191,15 +235,29 @@ For functions that dispatch subcommands, the `◇` description line doubles as a
 
 ---
 
+## Empty / stub functions
+
+Functions with an empty or no-op body (e.g. `{ :; }` or `{ return 0; }`) are placeholders
+and **must not be documented**. No `◇` line, no sections. Examples:
+
+```bash
+debugEscapes() { :; }          # ← no doc
+_myStub() { return 0; }        # ← no doc
+```
+
+---
+
 ## Practical guidance
 
 | Function complexity              | Expected doc                                        |
 |----------------------------------|-----------------------------------------------------|
+| Empty / no-op body               | No doc at all                                       |
 | Self-evident (≤5 lines)          | `◇` description only                               |
 | Simple with args                 | `◇` + ARGS (types only where non-obvious)          |
 | Simple optional arg              | Fold into description, no ARGS section             |
 | Single REQUIRES dependency       | Omit entirely (already visible in source)          |
 | Single obvious ENV VAR/etc.      | Fold into description or omit, no section block    |
+| Variadic or interleaved args     | `◇` + USAGE (synopsis + inline descs) + NOTES/EXAMPLE |
 | Ref args or complex usage        | `◇` + ARGS with types + EXAMPLE                    |
 | Multiple return codes            | Add RETURNS                                         |
 | Non-trivial side effects         | Add SIDE EFFECTS or NOTES                           |
