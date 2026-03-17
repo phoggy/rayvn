@@ -79,7 +79,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
             fi
         fi
         if (( loadingRayvnCore )); then
-            echo "failed to load shared library '${qualifiedName}'${reason}"
+            ${failed} "failed to load shared library '${qualifiedName}'${reason}"
         else
             ${failed} "failed to load shared library '${qualifiedName}'${reason}"
         fi
@@ -372,11 +372,11 @@ configure() {
     _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownRayvnFunctions']='rayvn.up'
         ['_addRayvnProject']='rayvn.up' ['_addRayvnProjectFromExecutable']='rayvn.up' ['_addRayvnProjectRoot']='rayvn.up'
         ['fail']='rayvn/core' ['printStack']='rayvn/core'
-        ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugStatus']='rayvn/debug'
-        ['debugBinary']='rayvn/debug' ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug'
-        ['debugVarIsNotSet']='rayvn/debug' ['debugFile']='rayvn/debug' ['debugJson']='rayvn/debug' ['debugStack']='rayvn/debug'
-        ['debugTraceOn']='rayvn/debug' ['debugTraceOff']='rayvn/debug' ['debugEscapes']='rayvn/debug'
-        ['debugEnvironment']='rayvn/debug' ['debugFileDescriptors']='rayvn/debug')
+        ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugBinary']='rayvn/debug'
+        ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug' ['debugVarIsNotSet']='rayvn/debug'
+        ['debugFile']='rayvn/debug' ['debugJson']='rayvn/debug' ['debugStack']='rayvn/debug' ['debugTraceOn']='rayvn/debug'
+        ['debugTraceOff']='rayvn/debug' ['debugEscapes']='rayvn/debug' ['debugEnvironment']='rayvn/debug'
+        ['debugFileDescriptors']='rayvn/debug')
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 

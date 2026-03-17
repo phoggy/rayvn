@@ -12,54 +12,36 @@
 #    2. add a NO-OP function at the bottom of core.sh
 #    3. add it to _rayvnFunctionSources in rayvn.up
 
-# Write a message to debug output if debug mode is enabled. No-op otherwise.
-# Args: message [args...]
-#
-#   message - text to write; additional args are appended space-separated
+# ◇ Return 0 if debug mode is enabled, non-zero otherwise.
+
+isDebugEnabled() {
+    return ${_debug}
+}
+
+# ◇ Log args. No-op if debug is not enabled.
+
 debug() {
     (( _debug )) && _debugEcho "${@}" >&${_debugFd}; return 0
 }
 
-# Return 0 if debug mode is currently enabled, 1 otherwise.
-debugEnabled() {
-    return ${_debug}
-}
+# ◇ Log the debug output directory path to debug output. No-op if debug is not enabled.
 
-# Write the path to the debug output directory to debug output if debug mode is enabled.
 debugDir() {
     (( _debug )) && _debugEcho "${_debugDir}"; return 0
 }
 
-# Print the current debug configuration (log file path or output target) if debug is enabled.
-debugStatus() {
-    if (( _debug )); then
-        local prefix=
-        local suffix=
-        prefix="${ show accent italic 'debug ⮕ '; }"
-        if [[ -n ${_debugLogFile} ]]; then
-            local show=
-            [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]"; }"
-            suffix="${ show bold blue "${_debugLogFile}" ;}${show}"
-        elif [[ ${_debugOut} == "${terminal}" ]]; then
-            suffix="${ show bold blue "terminal"; }"
-        else
-            suffix="${ show bold blue "${_debugOut}"; }"
-        fi
-        echo "${prefix} ${suffix}"
-        echo
-    fi
-}
-
-# Write a binary string as hex bytes to debug output if debug mode is enabled.
-# Args: prompt binary
+# ◇ Log a binary string as hex bytes. No-op if debug is not enabled.
 #
-#   prompt - label printed before the hex bytes
-#   binary - the binary string to display as hex
+# · ARGS
+#
+#   label  Label logged before the hex bytes.
+#   binary Binary string to display as hex.
+
 debugBinary() {
     if (( _debug )); then
-        local prompt="${1}"
+        local label="${1}"
         local binary="${2}"
-        _debugEchoNoNewline "${prompt}"
+        _debugEchoNoNewline "${label}"
         for (( i=0; i < ${#binary}; i++ )); do
             printf '%02X ' "'${binary:i:1}" >&${_debugFd}
         done
@@ -67,18 +49,18 @@ debugBinary() {
     fi
 }
 
-# Write the declaration of a single variable to debug output if debug mode is enabled.
-# Args: varName
-#
-#   varName - name of the variable to inspect
+# ◇ Log variable declaration(s). Convenience alias for debugVars. No-op if debug is not enabled.
+
 debugVar() {
     debugVars "${@}"
 }
 
-# Write the declarations of one or more variables to debug output if debug mode is enabled.
-# Args: varName [varName...]
+# ◇ Log declarations of one or more variables. No-op if debug is not enabled.
 #
-#   varName - name of a variable to inspect; reports "not defined" if undefined
+# · ARGS
+#
+#   varName  Name of a variable to inspect; outputs "not defined" if undefined.
+
 debugVars() {
     if (( _debug )); then
         local line
@@ -91,11 +73,13 @@ debugVars() {
     return 0
 }
 
-# Assert and log that a variable is set; prints a stack trace to debug output if it is not.
-# Args: varName [prefix]
+# ◇ Assert and log that a variable is set, logging a stack trace if not. No-op if debug is not enabled.
 #
-#   varName - name of the variable expected to be set
-#   prefix  - optional label to prepend to the assertion message
+# · ARGS
+#
+#   varName  Name of the variable expected to be set.
+#   prefix   Optional label prepended to the assertion message.
+
 debugVarIsSet() {
     if (( _debug )); then
         local var="${1}"
@@ -114,11 +98,13 @@ debugVarIsSet() {
     fi
 }
 
-# Assert and log that a variable is NOT set; prints a stack trace to debug output if it is.
-# Args: varName [prefix]
+# ◇ Assert and log that a variable is not set, logging a stack trace if it is. No-op if debug is not enabled.
 #
-#   varName - name of the variable expected to be unset
-#   prefix  - optional label to prepend to the assertion message
+# · ARGS
+#
+#   var     Name of the variable expected to be unset.
+#   prefix  Optional label prepended to the assertion message.
+
 debugVarIsNotSet() {
     if (( _debug )); then
         local var="${1}"
@@ -138,49 +124,42 @@ debugVarIsNotSet() {
     fi
 }
 
-# Copy a file into the debug directory for inspection, if debug logging is enabled, or
-# write as debug message if not.
-# Args: sourceFile [fileName]
+# ◇ Copy a file into the debug directory.
 #
-#   sourceFile - path to the file to copy
-#   fileName   - optional name for the copy in the debug directory (default: basename of sourceFile)
+# · ARGS
+#
+#   sourceFile  Path to the source file.
+#   fileName    Optional filename (default: basename of sourceFile).
+
 debugFile() {
     if (( _debug )); then
         local sourceFile="${1}"
-        if (( _debugRemote )); then
-            local desc; desc=${ ls -la "${sourceFile}"; }
-            local content; content=${ cat "${sourceFile}"; }
-            debug "${desc} content:"
-            debug "${content}"
-            # debug < <( ${sourceFile} ) TODO! and desc
-        else
-            local fileName="${2:-${ baseName ${sourceFile}; }}"
-            local destFile="${_debugDir}/${fileName}"
-            cp "${sourceFile}" "${destFile}"
-            debug "Added file ${destFile}"
-        fi
+        local fileName="${2:-${ baseName ${sourceFile}; }}"
+        local destFile="${_debugDir}/${fileName}"
+        cp "${sourceFile}" "${destFile}"
+        debug "Added file ${destFile}"
     fi
 }
 
-# Write the contents of a variable as a JSON file in the debug directory, if debug is enabled.
-# Args: jsonVar fileName
+# ◇ Write a variable's JSON content as a file in the debug directory. No-op if debug is not enabled.
 #
-#   jsonVar  - name of the variable holding the JSON content
-#   fileName - base name for the output file (written as fileName.json in the debug directory)
+# · ARGS
+#
+#   jsonRef   stringRef  Name of the variable holding the JSON string.
+#   fileName             Base name for the output file.
+
 debugJson() {
     if (( _debug )); then
         local -n json="${1}"
         local fileName="${2}"
         local destFile="${_debugDir}/${fileName}.json"
         debug "created ${destFile}"
-        echo "${json}" > "${destFile}"
+        echo "${json}" | jq > "${destFile}"
     fi
 }
 
-# Write a stack trace to debug output if debug mode is enabled.
-# Args: [message [args...]]
-#
-#   message - optional message to include before the stack trace
+# ◇ Log a stack trace if enabled, with an optional message to log first. No-op if debug is not enabled.
+
 debugStack() {
     if (( _debug )); then
         _debugEcho
@@ -188,10 +167,8 @@ debugStack() {
     fi
 }
 
-# Enable bash xtrace (set -x) with output directed to debug output.
-# Args: [message [args...]]
-#
-#   message - optional message to log before enabling the trace
+# ◇ Enable bash xtrace (set -x), directing output to the debug stream, with an optional message to log first.
+
 debugTraceOn() {
     (( $# )) && debug "${@}"
     debug "${ show secondary "BEGIN CODE TRACE ----------------------------------"; }"
@@ -200,10 +177,9 @@ debugTraceOn() {
     set -x
 }
 
-# Disable bash xtrace (set +x) previously enabled by debugTraceOn.
-# Args: [message [args...]]
-#
-#   message - optional message to log after disabling the trace
+# ◇ Disable bash xtrace (set +x) previously enabled by debugTraceOn, optionally logging a message afterward.
+#   No-op if debug is not enabled.
+
 debugTraceOff() {
     set +x
     unset BASH_XTRACEFD
@@ -213,19 +189,20 @@ debugTraceOff() {
     (( $# )) && debug "${@}"
 }
 
-# Print each argument in its shell-quoted (printf %q) form to debug output if debug is enabled.
-# Args: value [value...]
-#
-#   value - one or more values to print in quoted form
+# ◇ Log each argument shell-quoted via 'printf %q'. No-op if debug is not enabled.
+
 debugEscapes() {
     (( _debug )) && printf '%q ' "${@}"
 }
 
-# Write the complete process environment (variables and functions) to a file in the debug directory.
-# Args: fileName
+# ◇ Log the full process environment (variables and functions) to '<name>.env' in the debug directory.
+#   No-op if debug is not enabled.
 #
-#   fileName - base name for the output file (written as fileName.env in the debug directory)
-debugEnvironment() {
+# · ARGS
+#
+#   name  Base name for the output file.
+
+debugEnvironment() {  # TODO: replace with full snapshot
     if (( _debug )); then
         local fileName="${1}.env"
         local destFile="${_debugDir}/${fileName}"
@@ -239,10 +216,12 @@ debugEnvironment() {
     fi
 }
 
-# Log the open/closed status and mode of one or more file descriptors to debug output.
-# Args: fdVar [fdVar...]
+# ◇ Log the open/closed status and mode of one or more file descriptors. No-op if debug is not enabled.
 #
-#   fdVar - either a numeric fd number, or the name of a variable that holds an fd number
+# · ARGS
+#
+#   fd | string  Numeric fd or nameref variable holding an fd; repeatable.
+
 debugFileDescriptors() {
     (( _debug )) || return 0
     while (( $# )); do
@@ -282,7 +261,7 @@ _init_rayvn_debug() {
     # Make our public functions readonly since rayvn.up treats these as a special case.
 
     if (( _rayvnReadOnlyFunctions )); then
-        declare -rf debug debugEnabled debugDir debugStatus debugBinary debugVars debugVarIsSet debugVarIsNotSet \
+        declare -rf debug debugEnabled debugDir debugBinary debugVars debugVarIsSet debugVarIsNotSet \
                     debugFile debugJson debugStack debugTraceOn debugTraceOff debugEscapes debugEnvironment \
                     debugFileDescriptors
     fi
@@ -322,7 +301,7 @@ _setDebug() {
     while (( ${#} > 0 )); do
         case "${1}" in
             tty) shift; _debugOut="${1}";;
-            showOnExit) _debugShowLogOnExit=1 ;;
+            showLogOnExit) _debugShowLogOnExit=1 ;;
             clearLog) clearLog=1 ;;
             noStatus) status=0 ;;
             *) fail "Unknown setDebug() option: ${1}" ;;
@@ -356,7 +335,23 @@ _setDebug() {
 
     addExitHandler _debugExit
 
-    (( status )) && debugStatus
+    (( status )) && _debugStatus
+}
+
+_debugStatus() {
+    local prefix=
+    local suffix=
+    prefix="${ show accent italic 'debug ⮕ '; }"
+    if [[ -n ${_debugLogFile} ]]; then
+        local show=
+        [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]"; }"
+        suffix="${ show bold blue "${_debugLogFile}" ;}${show}"
+    elif [[ ${_debugOut} == "${terminal}" ]]; then
+        suffix="${ show bold blue "terminal"; }"
+    else
+        suffix="${ show bold blue "${_debugOut}"; }"
+    fi
+    { echo "${prefix} ${suffix}"; echo; } > ${terminal}
 }
 
 _prepareLogFile() {
