@@ -3,13 +3,19 @@
 # Project dependency checking and brew formula generation.
 # Use via: require 'rayvn/dependencies'
 
-# Check that all required project dependencies are available in PATH.
-# Reads flake.nix from the project root and applies overrides from rayvn.pkg.
-# Silently skips if flake.nix is not found (Nix/Homebrew installs manage their own deps).
-# Args: projectName
+# ◇ Check that all required dependencies for a project are available in PATH, printing install hints and failing if
+#   any are missing. Silently skips if the project root or flake.nix is not accessible.
 #
-#   projectName  - the rayvn project name (e.g. 'valt', 'wardn')
+# · ARGS
 #
+#   projectName    Name of the rayvn project to check.
+#
+# · ENV VARS (from rayvn.pkg)
+#
+#   nixBinaryMap    Map of nix pkg name → binary name overrides. [R/W]
+#   nixBrewMap      Map of nix pkg name → brew formula overrides. [R/W]
+#   nixBrewExclude  Array of nix pkg names to skip brew checks for. [R/W]
+
 checkProjectDependencies() {
     local projectName="${1}"
 
@@ -61,13 +67,14 @@ checkProjectDependencies() {
     fi
 }
 
-# Print brew formula depends_on lines for a project.
-# Reads flake.nix and applies overrides from rayvn.pkg.
-# Args: projectName [projectRoot]
+# ◇ Outputs 'depends_on' formula lines for a project's brew dependencies. Reads flake.nix deps and applies name
+#   mappings and exclusions from rayvn.pkg.
 #
-#   projectName  - the rayvn project name (e.g. 'valt', 'wardn')
-#   projectRoot  - optional path override (defaults to ${projectName}Home then PWD)
+# · ARGS
 #
+#   projectName    Name of the rayvn project (e.g. "valt", "wardn").
+#   projectRoot    Root path of the project; defaults to ${projectName}Home or PWD.
+
 getBrewDependencies() {
     local projectName="${1}"
     local projectRoot="${2:-}"
