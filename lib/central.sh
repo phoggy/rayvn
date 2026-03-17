@@ -3,11 +3,21 @@
 # Manages rayvn-central project registration.
 # Use via: require 'rayvn/central'
 
-# Register a rayvn project on rayvn-central by creating a GitHub issue in the registry repo.
-# Uses the current directory's git remote URL to identify the project.
-# Args: projectName
+# ◇ Register a rayvn project on rayvn-central by creating a GitHub issue in the registry repo.
 #
-#   projectName - the name to register (must not already be taken in the registry)
+# · ARGS
+#
+#   projectName    Name to register; fails if already taken in the central registry.
+#
+# · SIDE EFFECTS
+#
+#   Creates a GitHub issue in the rayvn-central/registry repo with project name, remote URL,
+#   and earliest commit date (or current timestamp if no commits exist).
+#
+# · NOTES
+#
+#   Assumes PWD is within the repo for the given projectName.
+
 registerProjectOnRayvnCentral() {
     local registryFile entryFile projectUrl registeredDate title issueUrl
     local projectName="${1}"
@@ -63,11 +73,8 @@ registerProjectOnRayvnCentral() {
     )
 }
 
-# Return the path to a project's registry file in the rayvn-central registry repo.
-# The file may or may not exist.
-# Args: projectName
-#
-#   projectName - name of the project to look up
+# ◇ Returns the path to a project's registry file in the rayvn-central registry repo (may not exist).
+
 getProjectRegistryPath() {
     local projectName="${1}"
     echo "${_rayvnCentralRegistryRepoDir}/${projectName}"
