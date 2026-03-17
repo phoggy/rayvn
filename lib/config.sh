@@ -3,11 +3,12 @@
 # Sanitize and source env style files.
 # Use via: require 'rayvn/config'
 
-# Source only safe variable declarations from a bash config file or string, optionally filtered
-# by prefix. See extractSafeStaticVars.
+# ◇ Source only safe, static variable declarations from a config file or string into the current env.
 #
-# Usage: sourceConfigFile <file_or_string> [prefix_filter]
-# Output: variables are defined in current env
+# · ARGS
+#
+#   input         Path to a config file or a raw bash string to parse.
+#   prefixFilter  Optional variable name prefix to restrict which vars are sourced.
 
 sourceConfigFile() {
     local safeEnv
@@ -17,20 +18,13 @@ sourceConfigFile() {
     source <(echo "${safeEnv}")
 }
 
-# Parse a bash config file or string and extract only safe variable declarations.
+# ◇ Parse a bash config file or string, extracting only safe static variable declarations.
+#   Filters out function definitions, function calls, command substitutions, and comments.
 #
-# This function processes bash files to extract variable declarations while ensuring
-# no side effects can occur by filtering out:
+# · ARGS
 #
-# - All function definitions
-# - All function calls
-# - All variable declarations containing command substitutions
-#
-# It also filters out comments, but wraps the result with
-# begin/end comments.
-#
-# Usage: extractSafeStaticVars <file_or_string> [prefix_filter]
-# Output: Safe variable declarations that can be sourced
+#   input         String or file path containing bash variable declarations to parse.
+#   prefixFilter  Only include variables matching this prefix (optional).
 
 extractSafeStaticVars() {
     local input="${1}"
