@@ -227,7 +227,7 @@ testSourceRayvnUp() {
 
     # Ensure that functions from our core library are NOT present in this shell
 
-    _assertFunctionIsNotDefined 'rootDirPath'
+    _assertFunctionIsNotDefined 'maxArrayElementLength'
     _assertFunctionIsNotDefined 'tempDirPath'
     _assertFunctionIsNotDefined 'configDirPath'
 
@@ -267,7 +267,7 @@ testSourceRayvnUp() {
 
     # Ensure that functions from our core library are now present in this shell
 
-    assertFunctionIsDefined 'rootDirPath'
+    assertFunctionIsDefined 'maxArrayElementLength'
     assertFunctionIsDefined 'tempDirPath'
     assertFunctionIsDefined 'configDirPath'
 
