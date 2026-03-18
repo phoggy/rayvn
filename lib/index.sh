@@ -3,17 +3,20 @@
 # Generate and publish rayvn library function indexes and Jekyll docs.
 # Use via: require 'rayvn/index'
 
-# Generate function indexes and/or Jekyll docs for rayvn project libraries.
-# Reads options from args passed in; discovers libraries via _rayvnProjects.
-# Args: [OPTIONS]
+# ◇ Generate verbose and optional compact function indexes and Jekyll docs for rayvn libraries.
 #
-#   -o, --output FILE        Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)
-#   -c, --compact FILE       Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt)
-#   --no-compact             Skip generating compact index
-#   --no-hash                Skip function hash tracking
-#   --hash-file FILE         Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt)
-#   --docs DIR               Generate Jekyll docs pages into DIR
-#   --publish                Generate and publish docs to each project's gh-pages worktree
+# · USAGE
+#
+#   runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE] [--docs [DIR]] [--publish]
+#
+#   -o, --output FILE   Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
+#   -c, --compact FILE  Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
+#   --no-compact        Skip generating the compact index.
+#   --no-hash           Skip function hash tracking.
+#   --hash-file FILE    Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
+#   --docs [DIR]        Generate Jekyll doc pages into DIR (default: ./docs).
+#   --publish           Generate and publish docs to each project's gh-pages worktree.
+
 runIndex() {
     _initIndex "${@}"
 
@@ -54,13 +57,14 @@ runIndex() {
     fi
 }
 
-# Find all external command dependencies used in a project's source files.
-# Scans bin/ and lib/ for command calls, filters bash builtins, system tools,
-# and rayvn/project-defined functions, confirms external binaries via command -v,
-# and auto-adds any missing entries to flake.nix runtimeDeps.
-# Args: projectName
+# ◇ Scan a project's source files for external command dependencies and sync them to flake.nix.
+#   Confirms external binaries via command -v, maps them to nix package names via rayvn.pkg,
+#   and adds any missing entries to flake.nix. Also delegates npm dependency updates.
 #
-#   projectName - the rayvn project name (e.g. 'valt', 'wardn', 'rayvn')
+# · ARGS
+#
+#   projectName  Name of the rayvn project to scan (e.g. 'valt', 'rayvn').
+
 findDependencies() {
     local projectName="${1}"
     [[ ${projectName} ]] || fail "projectName required"
@@ -696,11 +700,24 @@ _hashLibFile() {
 
             # Extract function body
             body="${line}"$'\n'
-            for (( j=i+1; j < ${#fileLines[@]}; j++ )); do
-                local bodyLine="${fileLines[${j}]}"
-                body+="${bodyLine}"$'\n'
-                [[ "${bodyLine}" == "}" ]] && break
-            done
+            if [[ "${line}" =~ \}[[:space:]]*$ ]]; then
+                : # single-line function — body is just the declaration line
+            else
+                for (( j=i+1; j < ${#fileLines[@]}; j++ )); do
+                    local bodyLine="${fileLines[${j}]}"
+                    body+="${bodyLine}"$'\n'
+                    [[ "${bodyLine}" == "}" ]] && break
+                done
+            fi
+
+            # Skip stub functions (no-op body; per spec, stubs must not be documented)
+            local _bl _isStub=1
+            while IFS= read -r _bl; do
+                local _s="${_bl//[[:space:]]/}"
+                [[ "${_bl}" == "${line}" || -z "${_s}" || "${_s}" == "}" ]] && continue
+                [[ "${_s}" =~ ^(:;?|return[0-9]*;?)$ ]] || { _isStub=0; break; }
+            done <<< "${body}"
+            (( _isStub )) && continue
 
             # Extract doc comment block (scan backwards from function declaration)
             doc=''
