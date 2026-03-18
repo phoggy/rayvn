@@ -4,23 +4,19 @@
 # Common core.
 # Use via: require 'rayvn/core'
 
-# Set umask to 0077 so that all new files and directories are accessible only by the current user.
-allNewFilesUserOnly() {
-    # Ensure that all new files are accessible by the current user only
-    umask 0077
-}
+# ◇ Execute a command with umask 0022 (files readable by all, writable only by owner).
 
-# Execute a command with umask 0022 (files readable by all, writable only by owner).
-# Args: command [args...]
 withDefaultUmask() {
     withUmask 0022 "${@}"
 }
 
-# Execute a command with a temporary umask, then restore the original umask.
-# Args: newUmask command [args...]
+# ◇ Execute a command with a temporary umask, restoring the original afterward.
 #
-#   newUmask - the umask to set (e.g. 0077, 0022)
-#   command  - command and arguments to execute under the new umask
+# · ARGS
+#
+#   newUmask  Umask to set for the duration (e.g. 0022, 0077).
+#   command   Command and arguments to execute.
+
 withUmask() {
     local newUmask="${1}"
     local oldUmask status
@@ -41,86 +37,97 @@ withUmask() {
     return "${status}"
 }
 
-# Return the path to a binary, failing with an error if not found.
-# Args: name [errMsg]
+# ◇ Outputs the path to a binary, or fails with an optional custom error message if not found.
 #
-#   name   - name of the binary to locate in PATH
-#   errMsg - optional custom error message (default: "'name' not found")
+# · ARGS
+#
+#   name    Name of the binary to locate in PATH.
+#   errMsg  Error message if not found; defaults to "'${name}' not found".
+
 binaryPath() {
     local name="${1}"
     local errMsg="${2:-"'${name}' not found"}"
     type -p "${name}" || fail "${errMsg}"
 }
 
-# Return a path rooted at the rayvn project root directory.
-# Args: relativePath
+# ◇ Outputs the session temp directory path, optionally appended with a file name. Does not create the file or dir.
 #
-#   relativePath - path relative to the rayvn root
-rootDirPath() {
-    echo "${rayvnRootDir}/${1}"
-}
+# · ARGS
+#
+#   -r        Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if fileName is omitted.
+#             Ensures that no name collisions occur, regenerating name up to 16 times if required.
+#   fileName  Optional file name to append to the temp dir path.
 
-# Return the path to the session temp directory, optionally joined with a specified or random file name.
-# Args: [-r] [fileName]
-#
-#   -r       - replace X placeholders in specified file name (if none, an 8 character random file name will be used)
-#   fileName - optional file name to append to the temp directory path.
 tempDirPath() {
     _ensureRayvnTempDir
-    local fileName
     if [[ $1 == '-r' ]]; then
         shift
-        if [[ -n "$1" ]]; then
-            fileName="$1"
-            replaceRandomHex X fileName
-        else
-            randomHexString 8 fileName
-        fi
+        local template="${1:-}" fileName
+        for i in {0..15}; do
+            fileName="${template}"
+            if [[ -n "${template}" ]]; then
+                replaceRandomHex X fileName
+            else
+                randomHexString 8 fileName
+            fi
+            if [[ ! -e "${_rayvnTempDir}/${fileName}" ]]; then
+                echo "${_rayvnTempDir}/${fileName}"
+                return 0
+            fi
+        done
+        fail "could not create unique random path in the session temp directory"
+
+    elif [[ -n "$1" ]]; then
+        echo "${_rayvnTempDir}/$1"
     else
-        fileName="${1:-}"
+        echo "${_rayvnTempDir}"
     fi
-    [[ ${fileName} ]] && echo "${_rayvnTempDir}/${fileName}" || echo "${_rayvnTempDir}"
 }
 
-# Create a temp file in the session temp directory and return its path.
-# Args: [nameTemplate]
+# ◇ Creates a unique temp file in the session temp dir, outputting its path.
 #
-#   nameTemplate - optional mktemp name template with X placeholders (default: XXXXXX)
+# · ARGS
+#
+#   fileName  Optional; see tempDirPath -r.
+
 makeTempFile() {
-    _ensureRayvnTempDir
-    local file="${ mktemp "${_rayvnTempDir}/${1:-XXXXXX}"; }" # random file name if not passed
-    chmod 600 "${file}"
-    echo "${file}"
+    local filePath="${ tempDirPath -r "$1"; }"
+    touch "${filePath}"
+    chmod 600 "${filePath}"
+    echo "${filePath}"
 }
 
-# Create a named pipe (FIFO) in the session temp directory and return its path.
-# Args: [nameTemplate]
+# ◇ Creates a unique named pipe (FIFO) in the session temp dir, outputting its path.
 #
-#   nameTemplate - optional name template with X placeholders (default: XXXXXX)
+# · ARGS
+#
+#   fileName  Optional; see tempDirPath -r.
+
 makeTempFifo() {
-    _ensureRayvnTempDir
-    local name="${1:-XXXXXX}"
-    replaceRandomHex X name
-    local fifoPath="${_rayvnTempDir}/${name}"
-    mkfifo -m 600 "${fifoPath}" || fail "could not create fifo ${fifoPath}"
+    local fifoPath="${ tempDirPath -r "$1"; }"
+    mkfifo -m 600 "${fifoPath}" || fail "could not create fifo: ${fifoPath}"
     echo "${fifoPath}"
 }
 
-# Create a temp directory in the session temp directory and return its path.
-# Args: [nameTemplate]
+# ◇ Create a unique temp directory in the session temp directory, outputting its path.
 #
-#   nameTemplate - optional mktemp name template with X placeholders (default: XXXXXX)
+# · ARGS
+#
+#   dirName  Optional; see tempDirPath -r.
+
 makeTempDir() {
-    _ensureRayvnTempDir
-    local directory="${ mktemp -d "${_rayvnTempDir}/${1:-XXXXXX}"; }"  # random dir name if not passed
-    echo "${directory}"
+    local dirPath="${ tempDirPath -r "$1"; }"
+    mkdir "${dirPath}" || fail "could not create directory: ${dirPath}"
+    echo "${dirPath}"
 }
 
-# Return the path to the current project's config directory, optionally joined with a file name.
-# Creates the config directory if it does not exist.
-# Args: [fileName]
+# ◇ Outputs the config directory path for the current project, creating it if needed,
+#   optionally joined with fileName.
 #
-#   fileName - optional file name to append to the config directory path
+# · ARGS
+#
+#   fileName    Optional name of a file to append to the config dir path.
+
 configDirPath() {
     local fileName="${1:-}"
     local configDir="${_systemConfigDir}/${currentProjectName}"
@@ -139,10 +146,8 @@ configDirPath() {
     [[ -n ${fileName} ]] && echo "${configDir}/${fileName}" || echo "${configDir}"
 }
 
-# Create the directory if it does not already exist. Silently succeeds if already present.
-# Args: dir
-#
-#   dir - path of the directory to create
+# ◇ Create directory if it does not already exist.
+
 ensureDir() {
     local dir="${1}"
     if [[ ! -d ${dir} ]]; then
@@ -150,11 +155,13 @@ ensureDir() {
     fi
 }
 
-# Create a directory (and any missing parents) and return its path. Fails if creation fails.
-# Args: dir [subDir]
+# ◇ Create a directory (and any missing parents), outputting the final path.
 #
-#   dir    - base directory path
-#   subDir - optional subdirectory name to append before creating
+# · ARGS
+#
+#   dir     Base directory path.
+#   subDir  Optional subdirectory to append before creating.
+
 makeDir() {
     local dir="${1}"
     local subDir="${2:-}"
@@ -163,41 +170,34 @@ makeDir() {
     echo "${dir}"
 }
 
-# Fail with an error if not running interactively.
+# ◇ Fail with an error if not running interactively.
+
 assertIsInteractive() {
     (( isInteractive )) || fail "must be run interactively"
 }
 
-# Register a command to be executed at exit. Commands run in registration order.
-# Args: command
-#
-#   command - shell command string to execute on exit
+# ◇ Register a shell command to be executed at exit, in registration order.
+
 addExitHandler() {
     _rayvnExitTasks+=("${1}")
 }
 
-# Return the directory component of a path (equivalent to dirname).
-# Args: path
-#
-#   path - file or directory path
+# ◇ Outputs the directory component of a path, equivalent to dirname.
+
 dirName() {
     local path=${1%/}
     echo "${path%/*}"
 }
 
-# Return the final component of a path (equivalent to basename).
-# Args: path
-#
-#   path - file or directory path
+# ◇ Outputs the final component of a path, equivalent to basename.
+
 baseName() {
     local path=${1%/}
     echo "${path##*/}"
 }
 
-# Remove leading and trailing whitespace from a string.
-# Args: value
-#
-#   value - the string to trim
+# ◇ Outputs a string with leading and trailing whitespace removed.
+
 trim() {
     local value="${1}"
     value="${value#"${value%%[![:space:]]*}"}" # remove leading whitespace
@@ -205,12 +205,13 @@ trim() {
     echo "${value}"
 }
 
-# Return the number of decimal digits needed to represent values up to maxValue.
-# Useful for formatting aligned numeric output.
-# Args: maxValue [startValue]
+# ◇ Outputs the number of decimal digits needed to represent integers up to maxValue.
 #
-#   maxValue   - the largest value to be displayed (must be a positive integer)
-#   startValue - 0 (zero-indexed, default) or 1 (one-indexed)
+# · ARGS
+#
+#   maxValue    int   Largest value to represent; must be a positive integer.
+#   startValue  int   Index base: 0 (zero-indexed, default) or 1 (one-indexed).
+
 numericPlaces() {
     local maxValue="${1}"
     local startValue="${2:-0}"
@@ -223,22 +224,26 @@ numericPlaces() {
     echo "${#maxValue}" # return count of digits
 }
 
-# Print a number right-aligned within a fixed-width field.
-# Args: number places
+# ◇ Outputs a number right-aligned within a fixed-width field.
 #
-#   number - the number to print
-#   places - minimum field width (right-aligned with spaces)
+# · ARGS
+#
+#   number  Number to output.
+#   places  Minimum field width; defaults to 1.
+
 printNumber() {
     local number="${1}"
     local places=${2-:1}
     printf '%*s' "${places}" "${number}"
 }
 
-# Return the version string for a rayvn project (reads its rayvn.pkg file).
-# Args: projectName [verbose]
+# ◇ Outputs the version string for a rayvn project, reading its rayvn.pkg file.
 #
-#   projectName - name of the project (e.g. 'rayvn', 'valt')
-#   verbose     - if non-empty, include release date or "(development)" in the output
+# · ARGS
+#
+#   projectName  Name of the project (e.g. 'rayvn', 'valt').
+#   verbose      If non-empty, appends release date or "(development)" to output.
+
 projectVersion() {
     local projectName="${1}"
     local verbose="${2:-}"
@@ -257,14 +262,20 @@ projectVersion() {
     )
 }
 
-# Check if an argument matches an expected value and set a result variable via nameref.
-# Returns 0 if matched, 1 if not. Used for parsing optional flag-style arguments.
-# Args: argMatch argValue resultVar [resultValue]
+# ◇ Check if an argument matches an expected value, setting a result var via nameref.
 #
-#   argMatch    - the expected argument value to match against (e.g. '-n')
-#   argValue    - the actual argument value to test
-#   resultVar   - nameref variable to set to resultValue if matched, or '' if not
-#   resultValue - value to assign on match (default: argMatch)
+# · ARGS
+#
+#   argMatch              Expected argument value to match against (e.g. -n).
+#   argValue              Actual argument value to test.
+#   argResultRef    stringRef   Name of var to set to argResultValue on match, or '' if not.
+#   argResultValue              Value to assign on match; defaults to argMatch.
+#
+# · RETURNS
+#
+#   0  matched
+#   1  not matched
+
 parseOptionalArg() {
     local _argMatch=$1
     local _argValue=$2
@@ -279,35 +290,31 @@ parseOptionalArg() {
     fi
 }
 
-# Return 0 if a variable with the given name is defined (including empty or null-value vars).
-# Args: varName
-#
-#   varName - name of the variable to check
+# ◇ Return 0 if a variable with the given name is defined, including empty or null-value vars.
+
 varIsDefined() {
     declare -p "${1}" &> /dev/null
 }
 
-# Fail if a variable with the given name is not defined.
-# Args: varName
-#
-#   varName - name of the variable that must be defined
+# ◇ Fail if a variable with the given name is not defined.
+
 assertVarDefined() {
     varIsDefined "${1}" || fail "var ${1} not defined"
 }
 
-# Fail if the given path does not exist (as any filesystem entry type).
-# Args: path
-#
-#   path - path to check for existence
+# ◇ Fails if the given path does not exist.
+
 assertFileExists() {
     [[ -e ${1} ]] || fail "${1} not found"
 }
 
-# Fail if the given path does not exist or is not a regular file.
-# Args: file [description]
+# ◇ Fail if the given path does not exist or is not a regular file.
 #
-#   file        - path that must exist and be a regular file
-#   description - optional label for the error message (default: 'file')
+# · ARGS
+#
+#   file         Path that must exist and be a regular file.
+#   description  Label used in the error message (default: "file").
+
 assertFile() {
     local file="${1}"
     local description="${2:-file}"
@@ -315,28 +322,26 @@ assertFile() {
     [[ -f ${1} ]] || fail "${1} is not an ${description}"
 }
 
-# Fail if the given path does not exist or is not a directory.
-# Args: dir
-#
-#   dir - path that must exist and be a directory
+# ◇ Fail if the given path does not exist or is not a directory.
+
 assertDirectory() {
     assertFileExists "${1}"
     [[ -d ${1} ]] || fail "${1} is not a directory"
 }
 
-# Fail if the given path already exists.
-# Args: path
-#
-#   path - path that must not exist
+# ◇ Fail if the given path already exists.
+
 assertFileDoesNotExist() {
     [[ -e "${1}" ]] && fail "${1} already exists"
 }
 
-# Fail if filePath is not located within dirPath (resolves symlinks before checking).
-# Args: filePath dirPath
+# ◇ Fails if filePath is not located within dirPath, resolving symlinks before checking.
 #
-#   filePath - the path to verify
-#   dirPath  - the directory that must contain filePath
+# · ARGS
+#
+#   filePath    Path to verify.
+#   dirPath     Directory that must contain filePath.
+
 assertPathWithinDirectory() {
     local filePath=${1}
     local dirPath=${2}
@@ -346,11 +351,13 @@ assertPathWithinDirectory() {
     [[ "${absoluteFile}" == ${absoluteDir}/* ]] || fail "${filePath} is not within ${dirPath}"
 }
 
-# Fail if the given name is not a valid cross-platform filename component.
-# Rejects empty strings, ".", "..", paths with slashes, control characters, and reserved characters.
-# Args: name
+# ◇ Fail if name is not a valid cross-platform filename component.
+#   Rejects empty strings, '.', '..', slashes, control characters, and '<>:"\|?*'.
 #
-#   name - the filename component to validate (not a full path)
+# · ARGS
+#
+#   name    Filename component to validate (not a full path).
+
 assertValidFileName() {
     local name="${1}"
 
@@ -373,24 +380,27 @@ assertValidFileName() {
     return 0
 }
 
-# Run a command and fail if it fails (or produces stderr with --stderr).
-# Stdout passes through, so this works with command substitution.
+# ◇ Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
 #
-# Usage:
-#   assertCommand [options] command [args...]
-#   result="${ assertCommand some-command; }"
+# · ARGS
 #
-# Options:
-#   --error "msg"     Custom error message (default: generic failure message)
-#   --quiet           Don't include stderr in failure message
-#   --stderr          Also fail if command produces stderr output
-#   --strip-brackets  Filter out lines matching [text] and trailing blank lines
+#   --strip-brackets  Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
+#   --quiet           Suppress stderr content from the failure message.
+#   --stderr          Also fail if the command produces any stderr output.
+#   --error MSG       Custom failure message (default: stderr output or generic exit code message).
+#   command [args…]   The command and arguments to execute.
 #
-# Examples:
+# · EXAMPLE
+#
 #   assertCommand git commit -m "message"
+#
+# · EXAMPLE
+#
 #   session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
 #
-#   # For pipelines, use eval with a quoted string:
+# · EXAMPLE
+#
+#   # For pipelines, wrap in eval:
 #   assertCommand --stderr --error "Failed to encrypt" \
 #       eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
 
@@ -443,59 +453,70 @@ assertCommand() {
     fi
 }
 
-# Append a value to an exported variable, space-separated.
-# Args: varName value
+# ◇ Append a value to an exported variable, space-separated.
 #
-#   varName - name of the variable to append to
-#   value   - value to append (prepended with a space if variable is non-empty)
+# · ARGS
+#
+#   varName    Name of the variable to append to.
+#   value      Value to append.
+
 appendVar() {
     export ${1}="${!1:+${!1} }${2}"
 }
 
-# Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
-# Args: resultVar filePath description
+# ◇ Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
 #
-#   resultVar   - nameref variable to receive the resolved file path
-#   filePath    - path to the file (must exist and be a regular file)
-#   description - label used in error messages
+# · ARGS
+#
+#   resultVar    stringRef   Name of variable to receive the resolved file path.
+#   filePath                 Path to the file (must exist and be a regular file).
+#   description              Label used in error messages.
+
 setFileVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" false
 }
 
-# Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
-# Args: resultVar dirPath description
+# ◇ Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
 #
-#   resultVar   - nameref variable to receive the resolved directory path
-#   dirPath     - path to the directory (must exist and be a directory)
-#   description - label used in error messages
+# · ARGS
+#
+#   resultVar    Description of the variable in error messages.
+#   dirPath      Path to the directory (must exist and be a directory).
+#   description  Label used in error messages.
+
 setDirVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" true
 }
 
-# Return the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
+# ◇ Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
+
 timeStamp() {
     date "+%Y-%m-%d_%H.%M.%S_%Z"
 }
 
-# Return the current epoch time with microsecond precision (from EPOCHREALTIME).
+# ◇ Outputs the current epoch time with microsecond precision via EPOCHREALTIME.
+
 epochSeconds() {
     echo "${EPOCHREALTIME}"
 }
 
-# Return the elapsed seconds since a previously captured epoch time (6 decimal places).
-# Args: startTime
+# ◇ Outputs elapsed seconds since a previously captured EPOCHREALTIME value (6 decimal places).
 #
-#   startTime - start time value captured from ${EPOCHREALTIME}
+# · ARGS
+#
+#   startTime    Value previously captured from EPOCHREALTIME.
+
 elapsedEpochSeconds() {
     local startTime="${1}"
     echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
-# Overwrite and unset one or more variables containing sensitive data.
-# Each variable's contents are overwritten with spaces before being unset.
-# Args: varName [varName...]
+# ◇ Overwrite with spaces then unset one or more variables containing sensitive data.
 #
-#   varName - name of a variable to securely erase; silently ignored if not defined
+# · ARGS
+#
+#   varName    Name of a variable to erase; may be repeated, silently ignored if unset.
+
 secureEraseVars() {
     local varName value length
     while ((${#} > 0)); do
@@ -510,10 +531,12 @@ secureEraseVars() {
     done
 }
 
-# Open a URL in the default browser (macOS: open; Linux: xdg-open).
-# Args: url
+# ◇ Open a URL in the default browser (macOS: open, Linux: xdg-open).
 #
-#   url - the URL to open
+# · ARGS
+#
+#   url    The URL to open.
+
 openUrl() {
     local url="${1}"
 
@@ -534,110 +557,58 @@ openUrl() {
     esac
 }
 
-# Execute a command with all rayvn-internal variables unset, simulating a clean environment.
-# Args: command [args...]
-#
-#   command - command and arguments to execute in the clean environment
+# ◇ Execute a command with rayvn internal variables unset, simulating a clean environment.
+
 executeWithCleanVars() {
     env "${_unsetChildVars[@]}" "${@}"
 }
 
-# Enhanced echo function supporting text color and styles in addition to standard echo
-# options (-n, -e, -E). Formats can appear at any argument position and affect the subsequent
-# arguments until another format occurs. Styles accumulate and persist (e.g., bold remains
-# bold across subsequent arguments), while colors replace previous colors. Use 'plain' to
-# reset all formatting. IMPORTANT: When transitioning from colored text to style-only text,
-# use 'plain' first to reset the color, then apply the style. See examples below.
+# ◇ Enhanced echo with text colors, styles, and standard echo options.
+#   FORMAT tokens appear at any position and affect all subsequent TEXT args until the next
+#   format. Styles accumulate (bold persists); colors replace. Resets to plain after the
+#   last text to prevent color bleed.
 #
-# Automatically resets formatting to plain after text to prevent color bleed.
+# · USAGE
 #
-# USAGE:
-#   show [-neE] [[FORMAT [FORMAT]...] [TEXT]...]
+#   show [-n] [-e|-E] [FORMAT|TEXT]...
 #
-# Options:
+#   -n      No trailing newline.
+#   -e      Enable backslash escape interpretation.
+#   -E      Suppress backslash escape interpretation.
+#   FORMAT  A format token (see NOTES); affects all subsequent text.
+#   TEXT    A string to print with the current format applied.
 #
-#   -n do not append a newline
-#   -e enable interpretation of backslash escapes (see help echo for list)
-#   -E explicitly suppress interpretation of backslash escapes
+# · NOTES
 #
-# EXAMPLES:
-#   show blue "This is blue text"
-#   show bold red "Bold red text"
-#   show -n yellow "Yellow text with no newline"
-#   show success "Operation completed"
-#   show italic underline green "Italic underline green text"
-#   show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" plain blue "blue text" # style continuation
-#   show italic IDX 62 "italic 256 color #62 text" plain red "plain red text" # style continuation
-#   show IDX 42 "Display 256 color #42"
-#   show RGB 52:208:88 "rgb 52 208 88 colored text"
-#   show "The answer is" bold 42 "not a color code" # numeric values display normally
-#   show "Line 1" nl "Line 2" # insert newline between text
+#   When transitioning from color+style back to style-only, use plain first to drop the color:
 #
-#   # IMPORTANT: Use 'plain' to reset colors BEFORE applying styles-only
-#   show cyan "colored text" plain dim "dim text (no color)"
+#     show cyan "colored" plain dim "dimmed, no color"  ← correct
+#     show cyan "colored" dim "dimmed"                  ← wrong: dim inherits cyan
 #
-#   # Reset after combining color+style before continuing
-#   show bold green "Note" plain "Regular text continues here"
+#   Available formats:
 #
-#   # Transitioning between different color+style combinations
-#   show bold blue "heading" plain "text" italic "emphasis"
+#     Theme:      success, error, warning, info, accent, muted
+#     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
+#     Color:      black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
+#     256-color:  IDX <0-255>
+#     Truecolor:  RGB <R:G:B>
+#     Special:    nl  (insert newline between args), glue  (suppress space before next arg)
+#     Reset:      plain
 #
-#   # In command substitution (bash 5.3+)
-#   prompt "${ show bold green "Proceed?" ;}" yes no reply
+# · EXAMPLE
 #
-# COMMON PATTERNS:
-#
-#   Applying color only:
-#     show blue "text"
-#
-#   Applying style only:
-#     show bold "text"
-#
-#   Combining color and style:
-#     show bold blue "text"
-#
-#   Resetting after color/style combination:
-#     show bold green "styled" plain "back to normal"
-#
-#   Transitioning from color to style-only (IMPORTANT):
-#     show cyan "colored" plain dim "dimmed, not colored"
-#     # NOT: show cyan "colored" dim "dimmed" - dim inherits cyan!
-#
-#   Style continuation (styles persist):
-#     show italic "starts italic" blue "still italic, now blue"
-#
-#   Color replacement (colors don't persist):
-#     show blue "blue" red "red (replaces blue)"
-#
-#   In command substitution:
-#     message="${ show bold "text" ;}"
-#     stopSpinner spinnerId ": ${ show green "success" ;}"
-#
-# AVAILABLE FORMATS:
-#
-#   Theme Colors (semantic):
-#     success, error, warning, info, accent, muted
-#
-#   Text Styles:
-#     bold, dim, italic, underline, blink, reverse, strikethrough
-#
-#   Basic Colors:
-#     black, red, green, yellow, blue, magenta, cyan, white
-#     bright-black, bright-red, bright-green, bright-yellow,
-#     bright-blue, bright-magenta, bright-cyan, bright-white
-#
-#   256 Colors ('indexed' colors):
-#     IDX 0-255
-#
-#   RGB Colors ('truecolor'):
-#     RGB 0-255:0-255:0-255
-#
-#   Special:
-#     nl - inserts a newline character
-#
-#   Reset:
-#     plain
-#
+#   show blue "blue text"
+#   show bold red "bold red"
+#   show -n yellow "no trailing newline"
+#   show success "done" / show warning "check this" / show error "failed"
+#   show italic underline green "italic underline green"
+#   show bold blue "heading" plain "body text"                  # reset color, keep no style
+#   show cyan "colored" plain dim "dim, no color"               # transition to style-only
+#   show "Line 1" nl "Line 2"                                   # newline between args
+#   show IDX 42 "256-color #42" plain RGB 52:208:88 "truecolor"
+#   show "(default:" blue "${configDir}" plain glue ")."        # suppress space before closing paren
+#   result="${ show bold green "ok"; }"                         # in command substitution
+
 show() {
     if (( ! $# )); then
         echo
@@ -670,6 +641,8 @@ show() {
                 fi
             elif [[ ${1} == RGB ]] && (( $# >= 2 )) && (( terminalColorBits >= 24 )); then
                 shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
+            elif [[ ${1} == 'glue' ]]; then
+                addSpace=0
             else
                 (( addSpace )) && output+=' '
                 output+=${currentFormat}${1}
@@ -683,13 +656,15 @@ show() {
     echo "${options[@]}" "${output}"$'\e[0m'
 }
 
-# Print a styled section header with optional sub-text. An optional numeric index selects the color
-# and converts the title to uppercase if 1.
-# Args: [-u] [index] title [subtitle...]
+# ◇ Print a styled section header with optional subtitle lines.
 #
-#   -u       - convert title to uppercase
-#   index    - optional color index from the header color list (default: 0).
-#   subtitle - optional additional lines printed below the header
+# · ARGS
+#
+#   [-u]                Flag to convert header text to uppercase.
+#   [colorIndex]  int   Index into _headerColors (clamped to max).
+#   header              Title text printed in bold.
+#   [...]               Optional subtitle lines printed below the title.
+
 header() {
     local toUpper=0 colorIndex=0
     local maxIndex=$(( ${#_headerColors[@]} - 1))
@@ -700,7 +675,6 @@ header() {
         (( colorIndex > maxIndex )) && colorIndex=${maxIndex}
         shift
     fi
-
     local header="${1}"
     (( toUpper )) && header="${header^^}"
     local color="${_headerColors[${colorIndex}]}"
@@ -713,11 +687,13 @@ header() {
     echo
 }
 
-# Set a variable to a random non-negative integer via nameref.
-# Args: resultVar [maxValue]
+# ◇ Set a variable to a random integer, optionally capped at maxValue (inclusive).
 #
-#   resultVar - nameref variable to receive the result; accepts scalars, 'array[i]', or 'map[key]'
-#   maxValue  - optional upper bound (inclusive); if omitted, returns full 32-bit range 0..4294967295
+# · ARGS
+#
+#   intResult   stringRef   Variable to receive the result.
+#   maxValue    int         Optional inclusive upper bound; omits for full SRANDOM range.
+
 randomInteger() {
     local -n _intResult="${1}"
     local maxValue="${2:-}"
@@ -729,10 +705,12 @@ randomInteger() {
     fi
 }
 
-# Set a variable to a random hex character (0-9, a-f) via nameref.
-# Args: resultVar
+# ◇ Set a random hex character (0–9, a–f) via nameref.
 #
-#   resultVar - nameref variable to receive a single hex character
+# · ARGS
+#
+#   _hexResultRef  stringRef   Name of the variable to receive the result.
+
 randomHexChar() {
     local -n _hexResultRef="${1}"
     local _hexIndex
@@ -740,11 +718,12 @@ randomHexChar() {
     _hexResultRef=${_hexChars[_hexIndex]}
 }
 
-# Set a variable to a random hex string (0-9, a-f) via nameref.
-# Args: length resultVar
+# ◇ Generate a random hex string of count characters, stored via name-ref.
 #
-#   length    - length of result string
-#   resultVar - nameref variable to receive string
+# · ARGS
+#
+#   count       int         Number of hex characters to generate.
+#   _resultRef  stringRef   Name of the variable to receive the result.
 
 randomHexString() {
     local count=$1
@@ -757,11 +736,19 @@ randomHexString() {
     _resultRef=${_hexString}
 }
 
-# Replace every occurrence of a placeholder character in a string with random hex characters.
-# Args: replaceChar stringVar
+# ◇ Replace every occurrence of a placeholder character in a string with random hex chars, in-place.
 #
-#   replaceChar - the character to replace (e.g. 'X')
-#   stringVar   - nameref variable containing the string to modify in-place
+# · ARGS
+#
+#   replaceChar    The placeholder character to replace.
+#   replaceRef     stringRef    Name of the variable to modify in-place.
+#
+# · EXAMPLE
+#
+#   myStr="XXXX-XXXX"
+#   replaceRandomHex "X" myStr
+#   # myStr is now e.g. "3a7f-c209"
+
 replaceRandomHex() {
     local replaceChar="${1}"
     local -n replaceRef="${2}"
@@ -772,11 +759,13 @@ replaceRandomHex() {
     done
 }
 
-# Copy all key-value pairs from one associative array to another.
-# Args: srcVar destVar
+# ◇ Copy all key-value pairs from one associative array to another.
 #
-#   srcVar  - name of the source associative array
-#   destVar - name of the destination associative array (must already be declared as -A)
+# · ARGS
+#
+#   src   mapRef   Name of the source map.
+#   dest  mapRef   Name of the destination map (must already be declared with -A).
+
 copyMap() {
     local -n src="${1}"
     local -n dest="${2}"
@@ -785,27 +774,25 @@ copyMap() {
     done
 }
 
-# Remove all ANSI escape sequences from a string and print the result.
-# Args: string
-#
-#   string - the string to strip
+# ◇ Outputs a string with all ANSI escape sequences removed.
+
 stripAnsi() {
     echo -n "${1}" | gsed 's/\x1b\[[0-9;]*m//g'
 }
 
-# Return 0 if a string contains ANSI escape sequences, 1 otherwise.
-# Args: string
-#
-#   string - the string to test
+# ◇ Return 0 if a string contains ANSI escape sequences, 1 otherwise.
+
 containsAnsi() {
     [[ "${1}" =~ $'\e[' ]]
 }
 
-# Repeat a string a given number of times and print the result (no trailing newline).
-# Args: str count
+# ◇ Outputs a string repeated N times, without a trailing newline.
 #
-#   str   - string to repeat
-#   count - number of times to repeat the string
+# · ARGS
+#
+#   str          String to repeat.
+#   count  int   Number of repetitions.
+
 repeat() {
     local str=${1}
     local count=${2}
@@ -815,16 +802,18 @@ repeat() {
     echo -n "${result}"
 }
 
-# Return the index of an element in an array, or -1 if not found.
-# Exits 0 if found, 1 if not found.
-# Args: [-r | -p | -s] match arrayVar
+# ◇ Find the index of a matching element in an array, storing the result in resultRef (-1 if not found).
 #
-#   -p        - match is a prefix
-#   -s        - match is a suffix
-#   -r        - match is a regex
-#   match     - the value to search for
-#   arrayVar  - name of the indexed array to search
-#   resultVar - name of the result var
+# · ARGS
+#
+#   match                  Match value; prefix with -p for prefix match, -s for suffix match, -r for regex.
+#   arrayRef   arrayRef    Name of the indexed array to search.
+#   resultRef  stringRef   Name of the variable to store the found index.
+#
+# · RETURNS
+#
+#   0  match found
+#   1  no match found
 
 indexOf() {
     local regex=0 _p _s _i
@@ -851,20 +840,24 @@ indexOf() {
     resultRef=-1; return 1
 }
 
-# Return 0 if an item is a member of an array, 1 otherwise.
-# Args: item arrayVar
+# ◇ Return 0 if item is a member of an array, 1 otherwise.
 #
-#   item     - the value to search for
-#   arrayVar - name of the indexed array to search
+# · ARGS
+#
+#   item      Value to search for.
+#   arrayRef  Name of the indexed array to search.
+
 isMemberOf() {
     local index
     indexOf "${1}" "${2}" index
 }
 
-# Return the length of the longest string in an array (ANSI escape codes not stripped).
-# Args: arrayVar
+# ◇ Outputs the length of the longest element in an array.
 #
-#   arrayVar - name of the indexed array to measure
+# · ARGS
+#
+#   arrayRef  arrayRef   Name of the indexed array to measure.
+
 maxArrayElementLength() {
     local -n arrayRef="${1}"
     local max=0 len element
@@ -875,12 +868,14 @@ maxArrayElementLength() {
     echo -n "${max}"
 }
 
-# Pad a string to a minimum width, stripping ANSI codes when measuring the visible length.
-# Args: string width [position]
+# ◇ Outputs a string padded to a given width, measuring visible length by stripping ANSI codes.
 #
-#   string   - the string to pad
-#   width    - minimum total visible character width
-#   position - where to add padding: 'after'/'left' (default), 'before'/'right', or 'center'
+# · ARGS
+#
+#   string          Target string.
+#   width     int   Minimum visible character width.
+#   position        Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
+
 padString() {
     local string="${1}"
     local width="${2}"
@@ -904,35 +899,31 @@ padString() {
     esac
 }
 
-# Print a warning message to the terminal error stream with a warning prefix.
-# Args: message [args...]
-#
-#   message - warning text; additional args are passed as extra show() arguments
+# ◇ Print a warning message to stderr with a ⚠️ prefix.
+
 warn() {
     show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
 }
 
-# Print an error message to the terminal error stream with an error prefix.
-# Args: message [args...]
-#
-#   message - error text; additional args are passed as extra show() arguments
+# ◇ Print an error message to stderr with a 🔺 prefix.
+
 error() {
     show error "🔺 ${1}" "${@:2}" > ${terminalErr}
 }
 
-# Fail with a stack trace. Shorthand for fail --trace when invalid arguments are passed.
-# Args: message [args...]
-#
-#   message - error message describing the invalid arguments
+# ◇ Fails with a stack trace; shorthand for fail --trace on invalid arguments.
+
 invalidArgs() {
     fail --trace "${@}"
 }
 
-# Print an error message (or stack trace in debug mode) and exit with status 1.
-# Args: [--trace] message [args...]
+# ◇ Print an error and exit 1, optionally with a stack trace.
 #
-#   --trace - force a stack trace even outside debug mode
-#   message - error message to display
+# · ARGS
+#
+#   --trace  Force a stack trace regardless of debug mode.
+#   message  Error message passed to error or stackTrace.
+
 fail() {
 
     # Determine if we should generate a stack trace
@@ -960,31 +951,31 @@ fail() {
     exit 1
 }
 
-# Read lines from stdin and print each one in red to the terminal error stream.
-# Use as a pipe consumer, e.g.: someCmd 2>&1 | redStream
+# ◇ Print each line of a piped stream in red to terminalErr.
+#
+# · EXAMPLE
+#
+#   someCommand 2> >( redStream )
+
 redStream() {
-    local error
     {
+        local error
         while read error; do
             show red "${error}"
         done
     } > "${terminalErr}"
 }
 
-# Print an optional red message and exit with status 0. Used for clean but early exits.
-# Args: [message [args...]]
-#
-#   message - optional message to display in red before exiting
+# ◇ Print an optional message in red, show stack if in debug mode, and exit 0.
+
 bye() {
-    (( $# )) && show red "${1}" "${@:2}"
+    (( $# )) && show red "${1}" plain "${@:2}"
     debugStack
     exit 0
 }
 
-# Print a formatted call stack, optionally preceded by an error message.
-# Args: [message [args...]]
-#
-#   message - optional error message to display before the stack trace
+# ◇ Print a formatted call stack, optionally preceded by a message.
+
 stackTrace() {
     local message=("${@}")
     local caller=${FUNCNAME[1]}
@@ -1007,25 +998,51 @@ stackTrace() {
     done
 }
 
-# Enable debug mode, loading the rayvn/debug library and configuring debug output.
-# See rayvn/debug for full usage documentation.
-# Args: [tty path] [showOnExit] [clearLog] [noStatus]
+# ◇ Enable debug mode.
 #
-#   tty path   - 'tty <path>' sends debug output to a terminal device; '.' reads ~/.debug.tty
-#   showOnExit - 'showOnExit' dumps the debug log to the terminal on exit
-#   clearLog   - 'clearLog' clears the log file before writing
-#   noStatus   - 'noStatus' suppresses the initial debug status message
+# · ARGS
+#
+#   tty TTY        Log debug messages to TTY instead of log file. If TTY is '.', the tty path is read from "${HOME}/.debug.tty".
+#   noStatus       Suppress debug status line display.
+#   clearLog       Clear the log file if not tty mode.
+#   showLogOnExit  Show the log file on exit if not tty mode.
+
 setDebug() {
     require 'rayvn/debug'
     _setDebug "${@}"
 }
 
-# Placeholder debug functions, replaced in setDebug()
+# ◇ Test if a string is a valid rayvn shared library name.
 
+isSharedLibraryName() {
+    case "$1" in
+        *//*|/*|*/) return 1 ;; # double slash, leading or trailing
+        */*) return 0 ;;        # exactly one slash, not at edges
+        *) return 1 ;;          # no slash
+    esac
+}
+
+# ◇ Export one or more maps (associative arrays) by var name.
+
+exportGlobalMaps() {
+    [[ -v _rayvnGlobalMaps ]] || declare -gx _rayvnGlobalMaps=''
+
+    while (( $# )); do
+        local declaration="${ declare -p "$1"; }"
+        # Normalize to 'declare -gA varname=(...)' — strips extra flags (-r, -x, -i, etc.)
+        # so that _restoreGlobalMaps can use a simple fixed-format regex and eval.
+        [[ "${declaration}" =~ ^declare[[:space:]]+-[a-zA-Z]*A[a-zA-Z]*([[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*)=(.*) ]] \
+            || fail "'$1' is not a map (associative array)"
+        _rayvnGlobalMaps+="declare -gA${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"$'\n'
+        shift
+    done
+}
+
+
+# Placeholder debug functions; replaced by rayvn/debug when debug mode is enabled.
 debug() { :; }
 debugEnabled() { return 0; }
 debugDir() { :; }
-debugStatus() { echo 'debug disabled'; }
 debugBinary() { :; }
 debugVar() { :; }
 debugVars() { :; }
@@ -1044,21 +1061,15 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE
 
 _init_rayvn_core() {
 
-    # Did we already do this in a parent process?
-
-    if (( _rayvnCoreInitialized )); then
-
-        # Yes, so just instantiate our "exported" maps
-
-        eval "${_rayvnCoreMapExports}"
-        return 0
-    fi
-
     # Ensure we are being invoked from rayvn.up
 
     if ! (( onMacOS || onLinux )); then
         echo -e "\033[0;31m🔺 Run 'source rayvn.up' to initialize rayvn\033[0m"; exit 1
     fi
+
+    # Restrict file creation permissions to owner only
+
+    umask 0077
 
     # Setup exit handling
 
@@ -1224,7 +1235,7 @@ _init_rayvn_core() {
     # This allows executeWithCleanVars to exclude all vars set by rayvn.up and core, which ensures that those
     # run as if started from the command line. Manually add vars that are created lazily after init.
 
-    local var unsetVars=('-u' '_rayvnCoreInitialized' '-u' '_rayvnTempDir')
+    local var unsetVars=('-u' '_rayvnCoreInitialized' '-u' '_rayvnTempDir' '-u' 'rayvnIsUp' '-u' '_rayvnGlobalMaps' '-u' '_unsetChildVars')
     IFS=$'\n'
     for var in ${ compgen -v | grep -E '^([a-z]|_[^_])'; }; do
         unsetVars+=("-u")
@@ -1237,10 +1248,9 @@ _init_rayvn_core() {
     unset _init_theme _init_colors _init_noColors
 
     # Since maps (associative arrays) cannot be exported to child processes, save them so we
-    # can restore in children. Note that we must force them to be restored as globals.
+    # can restore in children.
 
-    local declareOutput="${ declare -p _textFormats; }"  # Can append multiple ; separated declarations
-    declare -grx _rayvnCoreMapExports="${declareOutput//declare -A/declare -gA}"
+    exportGlobalMaps _textFormats
 
     # Remember that we've completed this initialization
 
@@ -1441,6 +1451,7 @@ _init_noColors() {
         ['nl']=$'\n'
     )
 }
+
 
 _setFileSystemVar() {
     local -n resultVar="${1}"
