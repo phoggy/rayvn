@@ -5,21 +5,30 @@
 # Terminal operations.
 # Use via: require 'rayvn/terminal'
 
-# Hide the terminal cursor.
+# ◇ Hide the terminal cursor.
+
 cursorHide() {
     echo -n $'\e[?25l' > /dev/tty
 }
 
-# Show the terminal cursor.
+# ◇ Show the terminal cursor.
+
 cursorShow() {
     echo -n $'\e[?25h' > /dev/tty
 }
 
-# Read the current cursor position via the terminal's CPR response and store it via namerefs.
-# Args: rowVar colVar
+# ◇ Read the current cursor position.
 #
-#   rowVar - nameref variable to receive the 1-based row number
-#   colVar - nameref variable to receive the 1-based column number
+# · ARGS
+#
+#   rowVarRef  stringRef  Receives the 1-based row number.
+#   colVarRef  stringRef  Receives the 1-based column number.
+#
+# · EXAMPLE
+#
+#   cursorPosition row col
+#   echo "Cursor is at row $row, col $col"
+
 cursorPosition() {
     local -n rowVarRef="${1}"
     local -n colVarRef="${2}"
@@ -48,127 +57,131 @@ cursorPosition() {
     fi
 }
 
-# Save the current cursor position. Note: save/restore does not work correctly if scrolling
-# occurs between the save and restore; use reserveRows() first to prevent scrolling.
+# ◇ Save the current cursor position. Note: save/restore does not work correctly if scrolling
+#   occurs between the save and restore; use reserveRows() first to prevent scrolling.
+
 cursorSave() {
     echo -n $'\e[s' > /dev/tty
 }
 
-# Restore the cursor to the position saved by cursorSave().
+# ◇ Restore the cursor to the position saved by cursorSave().
+
 cursorRestore() {
     echo -n $'\e[u' > /dev/tty
 }
 
-# Move the cursor up by a number of rows.
-# Args: [rows]
-#
-#   rows - number of rows to move up (default: 1)
+# ◇ Move the cursor up N rows (default: 1).
+
 cursorUp() {
     printf '\e[%dA' "${1:-1}" > /dev/tty
 }
 
-# Move the cursor up by a number of rows and place it at the start of the line.
-# Args: [rows]
-#
-#   rows - number of rows to move up (default: 1)
+# ◇ Move cursor up N rows and back to line start (default: 1).
+
 cursorUpToLineStart() {
     printf '\e[%dA\r' "${1:-1}" > /dev/tty
 }
 
-# Move the cursor up by a number of rows and place it at a specific column.
-# Args: rows col
+# ◇ Move the cursor up N rows and place it at a 1-based column.
 #
-#   rows - number of rows to move up
-#   col  - 1-based column to move to
+# · ARGS
+#
+#   rows  int  Number of rows to move up.
+#   col   int  1-based column to move to.
+
 cursorUpToColumn() {
     printf '\e[%dA\e[%dG' "${1}" "${2}" > /dev/tty
 }
 
-# Move the cursor down by a number of rows.
-# Args: [rows]
-#
-#   rows - number of rows to move down (default: 1)
+# ◇ Move the cursor down by the given number of rows (default: 1).
+
 cursorDown() {
     printf '\e[%dB' "${1:-1}" > /dev/tty
 }
 
-# Move the cursor down by a number of rows and place it at the start of the line.
-# Args: [rows]
-#
-#   rows - number of rows to move down (default: 1)
+# ◇ Move the cursor down N rows and to the start of the line (default: 1).
+
 cursorDownToLineStart() {
     printf '\e[%dB\r' "${1:-1}" > /dev/tty
 }
 
-# Move the cursor down by a number of rows and place it at a specific column.
-# Args: rows col
+# ◇ Move the cursor down N rows then to a 1-based column position.
 #
-#   rows - number of rows to move down
-#   col  - 1-based column to move to
+# · ARGS
+#
+#   rows  int  Number of rows to move down.
+#   col   int  1-based column to place the cursor at.
+
 cursorDownToColumn() {
     printf '\e[%dB\e[%dG' "${1}" "${2}" > /dev/tty
 }
 
-# Move the cursor to an absolute terminal position (row, col).
-# Args: row [col]
+# ◇ Move the cursor to an absolute terminal position, writing to /dev/tty.
 #
-#   row - 1-based row to move to
-#   col - 1-based column to move to (default: 0)
+# · ARGS
+#
+#   row  int  1-based row to move to.
+#   col  int  1-based column to move to (default: 0).
+
 cursorTo() {
     printf '\e[%i;%iH' ${1} ${2:-0} > /dev/tty
 }
 
-# Move the cursor to an absolute column on the current row.
-# Args: col
-#
-#   col - 1-based column to move to
+# ◇ Move the cursor to an absolute 1-based column on the current row.
+
 cursorToColumn() {
     printf '\e[%dG' "${1}" > /dev/tty
 }
 
-# Move the cursor to column 1 (start) of the current row.
+# ◇ Move the cursor to column 1 of the current row.
+
 cursorToLineStart() {
     printf '\r' > /dev/tty
 }
 
-# Move the cursor to a column and erase from that position to the end of the line.
-# Args: col
-#
-#   col - 1-based column to move to before erasing
+# ◇ Move cursor to column N (1-based) and erase to end of line.
+
 cursorToColumnAndEraseToEndOfLine() {
     printf '\e[%dG\e[K' "${1}" > /dev/tty
 }
 
-# Move the cursor up one row and erase the entire line.
+# ◇ Move the cursor up one row and erase the entire line.
+
 cursorUpOneAndEraseLine() {
     echo -n $'\e[A\e[2K\r' > /dev/tty
 }
 
-# Move the cursor down one row and erase the entire line.
+# ◇ Move the cursor down one row and erase the entire line.
+
 cursorDownOneAndEraseLine() {
     echo -n $'\e[B\e[2K\r' > /dev/tty
 }
 
-# Erase from the cursor position to the end of the current line.
+# ◇ Erase from the cursor position to the end of the current line.
+
 eraseToEndOfLine() {
     echo -n $'\e[0K' > /dev/tty
 }
 
-# Erase the entire current line and move the cursor to column 1.
+# ◇ Erase the entire current line and move the cursor to column 1.
+
 eraseCurrentLine() {
     echo -n $'\e[2K\r' > /dev/tty
 }
 
-# Clear the entire terminal and move the cursor to the top-left.
+# ◇ Clear the entire terminal and move the cursor to the top-left.
+
 clearTerminal() {
     echo -n $'\e[2J\e[H' > /dev/tty
 }
 
-# Scroll the terminal if necessary to ensure a minimum number of rows are available below the cursor.
-# Adjusts the current cursor row to account for any scrolling that occurred.
-# Args: [requiredRows]
+# ◇ Scroll the terminal to ensure requiredRows are available below the cursor,
+#   adjusting the cursor position to account for any scrolling that occurred.
 #
-#   requiredRows - number of rows needed below the current cursor position (default: 2)
+# · ARGS
+#
+#   requiredRows  int  Rows needed below the cursor (default: 2).
+
 reserveRows() {
     local requiredRows="${1:-2}"
     local terminalHeight=${ tput lines; }
