@@ -5,17 +5,26 @@
 
 require 'rayvn/core'
 
-# Wait for a process to exit, sending TERM then KILL signals if needed. Returns 0 on success.
-# Args: pid timeoutMs [checkIntervalMs] [termWaitMs]
+# ◇ Wait for a process to exit, escalating SIGTERM then SIGKILL if needed.
 #
-#   pid             - process ID to wait for
-#   timeoutMs       - maximum wait time in milliseconds before returning failure (1)
-#   checkIntervalMs - polling interval in milliseconds (default: 10)
-#   termWaitMs      - milliseconds after first check before sending SIGTERM (default: 1000)
+# · ARGS
 #
-# If process has not exited on its own after waiting one check interval, a TERM signal is
-# sent if timeout has not expired. After termWaitMs, a KILL signal is sent if timeout has
-# not expired. Waiting will then continue until timeout expires.
+#   pid              int  Process ID to wait for.
+#   timeoutMs        int  Maximum wait time in milliseconds before returning failure.
+#   checkIntervalMs  int  Polling interval in milliseconds (default: 10).
+#   termWaitMs       int  Milliseconds after first check before sending SIGKILL (default: 1000).
+#
+# · NOTES
+#
+#   SIGTERM is sent after the first check interval if the process is still running.
+#   SIGKILL is sent once termWaitMs has elapsed. Polling continues until timeoutMs
+#   is reached regardless of which signals have been sent.
+#
+# · RETURNS
+#
+#   0  process exited
+#   1  timeout expired
+
 waitForProcessExit() {
     local pid=${1}
     declare -i timeoutMs=${2}
