@@ -16,8 +16,8 @@ main() {
 init() {
     while (( $# )); do
         case "${1}" in
-            --debug) setDebug showOnExit ;;
-            --debug-new) setDebug clearLog showOnExit ;;
+            --debug) setDebug showLogOnExit ;;
+            --debug-new) setDebug clearLog showLogOnExit ;;
             --debug-out) setDebug tty "${ tty; }" ;;
             --debug-tty) shift; setDebug tty "${1}" ;;
         esac
