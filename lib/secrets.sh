@@ -3,12 +3,14 @@
 # Secure credential storage library using system keychains.
 # Use via: require 'rayvn/secrets'
 
-# Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
-# Args: service account secret
+# ◇ Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
 #
-#   service - service name used to identify the credential group
-#   account - account name (key) within the service
-#   secret  - secret value to store
+# · ARGS
+#
+#   service  Service name identifying the credential group.
+#   account  Account name (key) within the service.
+#   secret   Secret value to store.
+
 secretStore() {
     local service="${1}"
     local account="${2}"
@@ -23,11 +25,13 @@ secretStore() {
     fi
 }
 
-# Retrieve a secret from the system keychain. Prints the value, or empty string if not found.
-# Args: service account
+# ◇ Retrieve a secret from the system keychain for the given service and account.
 #
-#   service - service name used to identify the credential group
-#   account - account name (key) within the service
+# · ARGS
+#
+#   service  Service name identifying the credential group.
+#   account  The account name (key) within the service.
+
 secretRetrieve() {
     local service="${1}"
     local account="${2}"
@@ -41,11 +45,13 @@ secretRetrieve() {
     fi
 }
 
-# Delete a secret from the system keychain.
-# Args: service account
+# ◇ Delete a secret from the system keychain.
 #
-#   service - service name used to identify the credential group
-#   account - account name (key) within the service
+# · ARGS
+#
+#   service  Service name identifying the credential group.
+#   account  Account name (key) within the service.
+
 secretDelete() {
     local service="${1}"
     local account="${2}"
@@ -59,11 +65,13 @@ secretDelete() {
     fi
 }
 
-# Return 0 if a secret exists in the system keychain, 1 if not.
-# Args: service account
+# ◇ Return 0 if a secret exists in the system keychain for the given service and account.
 #
-#   service - service name used to identify the credential group
-#   account - account name (key) within the service
+# · ARGS
+#
+#   service  Service name used to identify the credential group.
+#   account  Account name (key) within the service.
+
 secretExists() {
     local service="${1}"
     local account="${2}"
