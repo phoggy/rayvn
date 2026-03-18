@@ -10,7 +10,7 @@ showCurrentTheme() {
     _displayTheme "${_currentThemeIndex}"
 }
 
-# ◇ Display all available themes with color swatches at the given position ('after', 'before', or 'center'), defaulting to 'after'.
+# ◇ Display all available themes with color swatches at the given position, defaulting to 'after'.
 
 showThemes() {
     local position="${1:-after}"
