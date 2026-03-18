@@ -227,13 +227,13 @@ TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTION
 # --- These functions will be REPLACED when rayvn/core is loaded -----------------------------------
 
 fail() {
-    printStack "${*}"
+    stackTrace "${*}"
     exit 1
 }
 
 # And so will this one
 
-printStack() {
+stackTrace() {
     [[ -n ${1} ]] && echo -e "${*}\n"
     local caller=${FUNCNAME[1]}
     declare -i start=1
@@ -262,7 +262,7 @@ traceUpVar() {
 }
 
 traceUpStack() {
-    (( _tracing )) && printStack "[trace] ${*}" > "${traceOut}"
+    (( _tracing )) && stackTrace "[trace] ${*}" > "${traceOut}"
 }
 
 traceUpInit() {
@@ -272,7 +272,7 @@ traceUpInit() {
             _tracing=1
             _rayvnFunctionSources+=(['traceUp']='rayvn.up' ['traceUpVar']='rayvn.up' ['traceUpStack']='rayvn.up'
                                     ['traceUpInit']='rayvn.up')
-            traceUp "${1}"
+            traceUpStack "${1}"
         else
             _tracing=0
             traceUp() { :; }
@@ -371,7 +371,7 @@ configure() {
 
     _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownRayvnFunctions']='rayvn.up'
         ['_addRayvnProject']='rayvn.up' ['_addRayvnProjectFromExecutable']='rayvn.up' ['_addRayvnProjectRoot']='rayvn.up'
-        ['fail']='rayvn/core' ['printStack']='rayvn/core'
+        ['fail']='rayvn/core' ['stackTrace']='rayvn/core'
         ['debug']='rayvn/debug' ['debugEnabled']='rayvn/debug' ['debugDir']='rayvn/debug' ['debugBinary']='rayvn/debug'
         ['debugVar']='rayvn/debug'  ['debugVars']='rayvn/debug' ['debugVarIsSet']='rayvn/debug' ['debugVarIsNotSet']='rayvn/debug'
         ['debugFile']='rayvn/debug' ['debugJson']='rayvn/debug' ['debugStack']='rayvn/debug' ['debugTraceOn']='rayvn/debug'
