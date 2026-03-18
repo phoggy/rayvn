@@ -4,18 +4,18 @@
 # Node.js / npm utilities.
 # Use via: require 'rayvn/node'
 
-# requireNodeModules [projectName] [envVar]
+# ◇ Ensure node_modules are installed for a project, setting ${projectName}NodeHome globally.
 #
-# Ensures that node_modules are installed for the project in its config directory,
-# installing via npm if needed. Sets ${projectName}NodeHome globally (hyphens to underscores).
-# If envVar is provided and set in the environment, its value is used directly.
+# · ARGS
 #
-#   projectName - project name (default: $currentProjectName)
-#   envVar      - optional name of an environment variable that overrides the location
+#   projectName  Name of the project (default: currentProjectName).
+#   envVar       If set and non-empty in the environment, use its value as nodeHome directly.
 #
-# Example:
+# · EXAMPLE
+#
 #   requireNodeModules valt VALT_PDF_DEPS_HOME
-#   # valtNodeHome is now set globally
+#   # valtNodeHome is now set to the resolved node home path
+
 requireNodeModules() {
     local projectName="${1:-${currentProjectName}}" envVar="${2:-}"
 
@@ -46,19 +46,20 @@ requireNodeModules() {
     declare -gr "${projectName//-/_}NodeHome=${nodeHome}"
 }
 
-# executeNodeScript [projectName] script [args...]
+# ◇ Runs a Node.js script from the project's node/ directory using the project's
+#   node_modules. If script ends in .js, projectName defaults to $currentProjectName.
 #
-# Runs a Node.js script from the project's node/ directory. Requires requireNodeModules
-# to have been called first for the project (sets ${projectName}NodeHome).
-# If the first argument ends in '.js', projectName defaults to $currentProjectName.
+# · ARGS
 #
-#   projectName - project name (default: $currentProjectName)
-#   script      - script filename (relative to projectHome/node/)
-#   args...     - additional arguments passed to the script
+#   projectName  Name of the project (default: currentProjectName).
+#   script       Script filename relative to projectHome/node/.
+#   args...      Additional arguments passed to the script.
 #
-# Example:
+# · EXAMPLE
+#
 #   executeNodeScript valt generate-pdf.js "${htmlFile}" "${outputFile}"
-#   executeNodeScript generate-pdf.js "${htmlFile}" "${outputFile}"   # uses currentProjectName
+#   executeNodeScript generate-pdf.js "${htmlFile}" "${outputFile}"
+
 executeNodeScript() {
     local projectName script
     if [[ "${1}" == *.js ]]; then
