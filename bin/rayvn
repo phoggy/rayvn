@@ -66,8 +66,8 @@ init() {
             index) parseArgs true indexDocs "${@:2}" ;;
             docs) parseArgs true docsCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
-            --debug) debugCommand=('--debug') ;debugOptions=('showOnExit') ;;
-            --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showOnExit') ;;
+            --debug) debugCommand=('--debug') ;debugOptions=('showLogOnExit') ;;
+            --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showLogOnExit') ;;
             --debug-out) debugCommand=('--debug-out') ;debugOptions=('tty' "${ tty; }") ;;
             --debug-tty) shift; debugCommand=('--debug-tty' "${1}") ;debugOptions=('tty' "${1}") ;;
             -v) printVersion; exit 0 ;;
@@ -100,8 +100,8 @@ parseArgs() {
             --local) flags+=(['local']=1) ;;
             --nix) flags+=(['nix']=1) ;;
             --all) flags+=(['all']=1) ;;
-            --debug) debugOptions=('showOnExit') ;;
-            --debug-new) debugOptions=('clearLog' 'showOnExit') ;;
+            --debug) debugOptions=('showLogOnExit') ;;
+            --debug-new) debugOptions=('clearLog' 'showLogOnExit') ;;
             --debug-out) debugOptions=('tty' "${ tty; }") ;;
             --debug-tty) shift; debugOptions=('tty' "${1}") ;;
             --repo) shift; gitHubRepo="${1}";;
@@ -398,9 +398,10 @@ docsCommand() {
     if (( flags['help'] )); then
         echo "rayvn docs update | audit [PROJECT...] [OPTIONS]"
         echo "  update  [--dry-run] [--regen] [--missing-only|--stale-only] [--lib NAME]  Generate/fix docs via Claude API"
+        echo "          [--since DUR] [--delay N]"
         echo "  audit   [--release]                                                       Report missing/stale docs"
     else
-        require 'rayvn/docs'
+        require 'rayvn/function-docs'
         local subcommand="${args[0]}"
         local subArgs=("${args[@]:1}")
         case "${subcommand}" in
