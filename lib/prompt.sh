@@ -4,15 +4,26 @@
 # User input.
 # Use via: require 'rayvn/prompt'
 
-# Read user input.
+# ◇ Read user input into a variable.
 #
-# Usage: request [-n] <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds] [true/false hidden]
+# · ARGS
 #
-# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-# the same as in echo: no newline is appended.
+#   prompt               Displayed prompt text.
+#   resultVarName        Name of the variable to store the result in.
+#   cancelOnEmpty  bool  Cancel on empty input (default: true).
+#   timeout        int   Inactivity timeout in seconds (default: 30). Resets on each key press.
+#   hide           bool  Hide input (default: false).
 #
-# Output: resultVar set to input.
-# Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
+# · NOTES
+#
+#   The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
+#
+# · RETURNS
+#
+#   0    success
+#   1    empty input and cancelOnEmpty is true
+#   124  timeout
+#   130  user canceled (ESC)
 
 request() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
@@ -39,37 +50,54 @@ request() {
             --success '_textPromptSuccess'
 }
 
-# Read user input without echoing it to the terminal.
+# ◇ Read user input without echoing it to the terminal.
 #
-# Usage: requestHidden [-n] <prompt> <resultVarName> [true/false cancelOnEmpty] [timeout seconds]
+# · ARGS
 #
-# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-# the same as in echo: no newline is appended.
+#   prompt               Displayed prompt text.
+#   resultVarName        Name of the variable to store the input.
+#   cancelOnEmpty  bool  Whether to cancel on empty input (default: true).
+#   timeout              Inactivity timeout in seconds (default: 30). Resets on every key press.
 #
-# Output: resultVar set to input.
-# Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
+# · NOTES
+#
+#   The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
+#
+# · RETURNS
+#
+#   0    success
+#   1    empty input and cancelOnEmpty is true
+#   124  timeout
+#   130  user canceled (ESC pressed)
 
 secureRequest() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
     request "${1}" "${2}" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
 }
 
-# Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
+# ◇ Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
 #
-# Usage: confirm [-n] <prompt> <answer1> <answer2> <choiceIndexVarName> [true/false defaultAnswerTwo] [timeout seconds]
+# · ARGS
 #
-# Answer 1 will be selected first by default. For an important action (e.g. deleting / creating something), consider
-# making it a *little* harder to select the positive choice so that two key presses (arrow and enter) are required.
-# There are two ways to accomplish this:
+#   prompt                  Displayed prompt text.
+#   answer1                 First choice label.
+#   answer2                 Second choice label.
+#   resultVarName           Name of var to receive the selected choice label.
+#   defaultAnswerTwo  bool  When true, answer2 is selected initially (default: false).
+#   timeout           int   Inactivity timeout in seconds (default: 30). Resets on every key press.
 #
-#    1. Pass the negative answer first, or
-#    2. Pass 'true' for defaultAnswerTwo to maintain a consistent answer sequence across invocations
+# · NOTES
 #
-# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-# the same as in echo: no newline is appended.
+#   The -n flag suppresses the trailing newline, as in echo -n.
 #
-# Output: choiceIndexVar set to 0 for answer 1 or 1 for answer 2
-# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
+#   For destructive actions, consider defaulting to the safer choice: either put the negative answer first, or
+#   pass true for defaultAnswerTwo.
+#
+# · RETURNS
+#
+#   0    success
+#   124  timeout
+#   130  user canceled (ESC pressed)
 
 confirm() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
@@ -88,21 +116,35 @@ confirm() {
             --init _confirmInit --paint _confirmPaint --left _confirmLeft --right _confirmRight --success _arrowPromptSuccess
 }
 
-# Choose from a list of options using the arrow keys.
+# ◇ Choose from a list of options using the arrow keys.
 #
-# Usage: choose [-n] <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [numberChoices]
-#               [maxVisible] [timeout seconds]
+# · ARGS
 #
-# If numberChoices is > 0 choices will be numbered, and if < 0, numbers will be added only if there are non-visible choices.
+#   prompt                     Displayed prompt text.
+#   choicesVarName   arrayRef  Name of the array var containing choices.
+#   resultVarName              Name of the var to store the selected choice index.
+#   addSeparator     bool      Add a blank line between items (default: false).
+#   startIndex       int       Index of the initially selected item (default: 0).
+#   numberChoices    int       When or if to number the choices: > 0 = always; < 0 = only if 1 or more items are off-screen;
+#                              0 = never (default: 0).
+#   maxVisibleItems  int       Max items to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0).
+#   timeout          int       Inactivity timeout in seconds (default: 30). Resets on any keypress.
 #
-# If maxVisible is not passed, or is set to 0, uses all lines below the current cursor to display items; if < 0, clears and
-# uses entire terminal.
+# · NOTES
 #
-# The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-# the same as in echo: no newline is appended.
+#   The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
 #
-# Output: choiceIndexVar set to index of selected choice.
-# Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
+# · RETURNS
+#
+#   0    success
+#   124  timeout (inactivity)
+#   130  user canceled (ESC pressed)
+#
+# · EXAMPLE
+#
+#   choices=("Apple" "Banana" "Cherry")
+#   choose "Pick a fruit:" choices selectedIndex
+#   echo "You picked index: ${selectedIndex}"
 
 choose() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
