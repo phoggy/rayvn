@@ -348,7 +348,7 @@ readFile() {
     local _readFilePreserve=0
     [[ $1 == -p ]] && { _readFilePreserve=1; shift; }
     local _readFilePath="$1"
-    local -n _readFileRef="$2"
+    local -n _readFileRef=$2
     assertFile "${_readFilePath}"
     IFS= read -r -d '' _readFileRef < "${_readFilePath}" || true
     if (( ! _readFilePreserve )); then
