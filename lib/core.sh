@@ -1486,7 +1486,7 @@ _ensureRayvnTempDir() {
 
 _restoreTerminal() {
     if (( isInteractive )); then
-        stty sane 2> /dev/null
+        stty sane &> /dev/null
         printf '\e[0K\e[?25h' > ${terminal} # Clear to end of line and show cursor in case sane does not
     fi
 }

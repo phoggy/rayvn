@@ -214,10 +214,10 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRI
 _init_rayvn_terminal() {
     require 'rayvn/core'
 
-    # Save original terminal settings from the terminal device (works even when stdin is not a tty)
-    [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g < "${terminal}"; }"
-
     (( isInteractive )) || return 0  # Silently succeed when not interactive
+
+    # Save original terminal settings from the terminal device
+    [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g < "${terminal}"; }"
 
     declare -g _cursorRow=
     declare -g _cursorCol=
