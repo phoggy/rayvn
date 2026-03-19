@@ -1084,10 +1084,10 @@ _init_rayvn_core() {
     declare -grx LC_ALL=en_US.UTF-8
     declare -grx LANG=en_US.UTF-8
     if [[ "${LC_ALL:-${LANG}}" =~ UTF-8 ]]; then
-        declare -grx _hasUTF8=1
+        declare -gr _hasUTF8=1
     else
         echo "Warning: UTF-8 locale not detected. Unicode may not render correctly." >&2
-        declare -grx _hasUTF8=0
+        declare -gr _hasUTF8=0
     fi
 
     # We need to set ${terminal} so that it can be used as a redirect.
@@ -1097,9 +1097,9 @@ _init_rayvn_core() {
 
         # Yes, so set terminal to the tty and remember that we are interactive
 
-        declare -grx terminal="/dev/tty"
-        declare -grx terminalErr="/dev/tty"
-        declare -grxi isInteractive=1
+        declare -gr terminal="/dev/tty"
+        declare -gr terminalErr="/dev/tty"
+        declare -gri isInteractive=1
 
         # Determine the # of bits of color supported
 
@@ -1115,36 +1115,36 @@ _init_rayvn_core() {
         elif [[ "${TERM}" =~ color ]]; then
             bits=4
         fi
-        declare -grxi terminalColorBits=${bits}
+        declare -gri terminalColorBits=${bits}
 
     else
 
         # No. Discard terminal output in non-interactive mode.
 
-        declare -grx terminal="/dev/null"
-        declare -grx terminalErr="/dev/stderr"
-        declare -grxi isInteractive=0
+        declare -gr terminal="/dev/null"
+        declare -gr terminalErr="/dev/stderr"
+        declare -gri isInteractive=0
 
         # Unless a special flag is set, turn off colors
 
         if (( rayvnTest_Force24BitColor )); then
-            declare -grxi terminalColorBits=24
+            declare -gri terminalColorBits=24
         else
-            declare -grxi terminalColorBits=0
+            declare -gri terminalColorBits=0
         fi
     fi
 
     # Misc global vars and constants
 
-    declare -gxi _debug=0
-    declare -grx rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
-    declare -grx _checkMark='✔' # U+2714 Check mark
-    declare -grx _crossMark='✘' # U+2718 Heavy ballot X
-    declare -grx _hexChars=( '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'a' 'b' 'c' 'd' 'e' 'f' )
+    declare -gi _debug=0
+    declare -gr rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
+    declare -gr _checkMark='✔' # U+2714 Check mark
+    declare -gr _crossMark='✘' # U+2718 Heavy ballot X
+    declare -gr _hexChars=( '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'a' 'b' 'c' 'd' 'e' 'f' )
 
-    declare -garx _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
-    declare -grx inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
-    declare -grx inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
+    declare -gar _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
+    declare -gr inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
+    declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
 
     # Detect the best available RAM-backed temp storage strategy.
     # linux_shm:   /dev/shm (tmpfs, standard on Linux)
@@ -1153,23 +1153,23 @@ _init_rayvn_core() {
 
     local _shmBase
     if (( onLinux )) && [[ -d /dev/shm && -w /dev/shm ]]; then
-        declare -grx _secureTempStrategy='linux_shm'
-        declare -grx _secureTempBase='/dev/shm'
+        declare -gr _secureTempStrategy='linux_shm'
+        declare -gr _secureTempBase='/dev/shm'
     elif (( onMacOS )); then
         _shmBase="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
         if [[ -d "${_shmBase}" ]] && mount | grep -q " on ${_shmBase} (tmpfs"; then
-            declare -grx _secureTempStrategy='macos_tmpfs'
-            declare -grx _secureTempBase="${_shmBase}"
+            declare -gr _secureTempStrategy='macos_tmpfs'
+            declare -gr _secureTempBase="${_shmBase}"
         else
-            declare -grx _secureTempStrategy='secure_temp'
-            declare -grx _secureTempBase=''
+            declare -gr _secureTempStrategy='secure_temp'
+            declare -gr _secureTempBase=''
         fi
     else
-        declare -grx _secureTempStrategy='secure_temp'
-        declare -grx _secureTempBase=''
+        declare -gr _secureTempStrategy='secure_temp'
+        declare -gr _secureTempBase=''
     fi
 
-#    declare -gArx _symbols=( TODO: add these and box drawing to _textFormats??
+#    declare -gAr _symbols=( TODO: add these and box drawing to _textFormats??
 #
 #        # Vertical line variants (UTF-8)
 #
@@ -1192,8 +1192,8 @@ _init_rayvn_core() {
 
     # Ensure system and rayvn config dirs set to valid directories
 
-    declare -grx _systemConfigDir="${HOME}/.config"
-    declare -grx _rayvnConfigDir="${_systemConfigDir}/rayvn"
+    declare -gr _systemConfigDir="${HOME}/.config"
+    declare -gr _rayvnConfigDir="${_systemConfigDir}/rayvn"
     [[ -d ${_systemConfigDir} ]] || withUmask 0077 ensureDir "${_systemConfigDir}"
     [[ -d ${_rayvnConfigDir} ]] || withUmask 0077 ensureDir "${_rayvnConfigDir}"
 
@@ -1213,8 +1213,8 @@ _init_rayvn_core() {
 
     # Create 'success' check mark and 'error' cross mark
 
-    declare -grx _greenCheckMark="${ show success ${_checkMark}; }"
-    declare -grx _redCrossMark="${ show error ${_crossMark}; }"
+    declare -gr _greenCheckMark="${ show success ${_checkMark}; }"
+    declare -gr _redCrossMark="${ show error ${_crossMark}; }"
 
     # Is this a mac?
 
@@ -1223,7 +1223,7 @@ _init_rayvn_core() {
         # Yes, remember if brew is available
 
         if command -v brew >/dev/null; then
-            declare -grxi _brewIsInstalled=1
+            declare -gri _brewIsInstalled=1
         fi
     fi
 
@@ -1241,7 +1241,7 @@ _init_rayvn_core() {
         unsetVars+=("-u")
         unsetVars+=("${var}")
     done
-    declare -gax _unsetChildVars=("${unsetVars[@]}")
+    declare -ga _unsetChildVars=("${unsetVars[@]}")
 
     # Remove our init helper functions. The current function will be removed by rayvn.up
 
@@ -1254,11 +1254,11 @@ _init_rayvn_core() {
 
     # Remember that we've completed this initialization
 
-    declare -grx _rayvnCoreInitialized=1
+    declare -gr _rayvnCoreInitialized=1
 }
 
 _init_theme() {
-    declare -grx _themeConfigFile="${_rayvnConfigDir}/current.theme"
+    declare -gr _themeConfigFile="${_rayvnConfigDir}/current.theme"
     local index=0
 
     # load theme config file if it exists
@@ -1283,7 +1283,7 @@ _init_theme() {
         index=${theme[1]}
     fi
 
-    declare -grx _currentThemeIndex=${index}
+    declare -gr _currentThemeIndex=${index}
 }
 
 _init_colors() {
@@ -1478,7 +1478,7 @@ _ensureRayvnTempDir() {
         else
             dir="${ withUmask 0077 mktemp -d; }" || fail "could not create temp directory"
         fi
-        declare -grx _rayvnTempDir="${dir}"
+        declare -gr _rayvnTempDir="${dir}"
         declare -gr _rayvnTempDirOwner=${BASHPID}
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
     fi

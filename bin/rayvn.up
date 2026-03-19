@@ -256,44 +256,10 @@ _restoreGlobalMaps() {
 }
 
 _rayvnChildInit() {
-    # Child process: parent exported project paths via _rayvnGlobalMaps so we can skip re-discovery.
-    # Reset require counts and function tracking so libraries are loaded fresh in this process
-    # (bash does not inherit function definitions; only _rayvnProjects and _ignoreRayvnUpFunctions are kept).
-
+    # Child process: restore parent's project paths to skip re-discovery, then configure normally.
     _restoreGlobalMaps
-    declare -gAix _rayvnRequireCounts=()
-    declare -gA _rayvnFunctionSources=()
-    declare -gax _rayvnSources=()
-    declare -g _loadLibraryDepth=0
-    declare -g _tracing=0
-
-    (( _rayvnReadOnlyFunctions )) && declare -fr require _loadRayvnLibrary _collectUnknownRayvnFunctions _addRayvnProject \
-                                                 _addRayvnProjectFromExecutable _addRayvnProjectRoot \
-                                                 _restoreGlobalMaps _rayvnChildInit
-
-    local project projects=() split=() required=()
-    while (( $# )); do
-        case "${1}" in
-            -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
-            *) required+=("${1}") ;;
-        esac
-        shift
-    done
-
-    for project in "${projects[@]}"; do
-        project="${project#"${project%%[![:space:]]*}"}"    # remove leading whitespace
-        project="${project%"${project##*[![:space:]]}"}"    # remove trailing whitespace
-        _addRayvnProject "${project%%=*}" "${project#*=}"
-    done
-
-    _rayvnSources+=('rayvn.up')
-    _collectUnknownRayvnFunctions _rayvnFunctionSources 'rayvn.up'
-    _rayvnFunctionSources+=(['require']='rayvn.up' ['_loadRayvnLibrary']='rayvn.up' ['_collectUnknownRayvnFunctions']='rayvn.up'
-        ['_addRayvnProject']='rayvn.up' ['_addRayvnProjectFromExecutable']='rayvn.up' ['_addRayvnProjectRoot']='rayvn.up'
-        ['_restoreGlobalMaps']='rayvn.up' ['_rayvnChildInit']='rayvn.up'
-        ['fail']='rayvn/core' ['stackTrace']='rayvn/core')
-
-    require "${required[@]}"
+    currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+    configure "${@}"
 }
 
 TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTIONS ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -362,20 +328,20 @@ traceUpInit() {
 
 # bashsupport disable=BP3002
 configure() {
-    declare -gAx _rayvnProjects=()
-    declare -gAix _rayvnRequireCounts=()
-    declare -grx _projectRootSuffix='::project'
-    declare -grx _libraryRootSuffix='::library'
-    declare -gax _rayvnSources=() # in addition order
+    [[ -v _rayvnProjects ]] || declare -gA _rayvnProjects=()
+    declare -gAi _rayvnRequireCounts=()
+    declare -gr _projectRootSuffix='::project'
+    declare -gr _libraryRootSuffix='::library'
+    declare -ga _rayvnSources=() # in addition order
     declare -gA _rayvnFunctionSources=() # function name -> source map
     declare -gA _ignoreRayvnUpFunctions=()
     declare -ga _rayvnUpUnsetIds=()
     declare -g _required=()
     declare -g _loadLibraryDepth=0
-    declare -grx _rayvnReadOnlyFunctions=${ (( rayvnTest_ModifiableFunctions )) && echo 0 || echo 1; }
-    declare -gx currentProjectName
+    declare -gr _rayvnReadOnlyFunctions=${ (( rayvnTest_ModifiableFunctions )) && echo 0 || echo 1; }
+    declare -g currentProjectName
     declare -g _tracing=-1
-    currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+    [[ -n "${currentProjectName}" ]] || { currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail; }
     local projects=() split=() project key
 
     # Init tracing if traceOut is set
@@ -479,8 +445,8 @@ configure() {
 
 # Verify key requirements
 
-declare -grx onMacOS=${ [[ ${OSTYPE} == darwin* ]] && echo 1 || echo 0; }
-declare -grx onLinux=${ [[ ${OSTYPE} == linux* ]] && echo 1 || echo 0; }
+declare -gr onMacOS=${ [[ ${OSTYPE} == darwin* ]] && echo 1 || echo 0; }
+declare -gr onLinux=${ [[ ${OSTYPE} == linux* ]] && echo 1 || echo 0; }
 if ! (( onMacOS || onLinux )); then
     echo -e "\033[0;31m🔺 rayvn requires either MacOS or Linux, found ${OSTYPE}\033[0m"; exit 1
 fi
@@ -516,9 +482,11 @@ if (( ! rayvnIsUp )); then
 elif [[ -z "${_rayvnShellPid:-}" ]]; then
 
     # Child process: rayvnIsUp was exported by parent but _rayvnShellPid was not.
-    # Restore maps and require any specified libraries.
+    # Restore project paths from parent, then configure and load libraries normally.
 
     _rayvnChildInit "${@}"
+    (( rayvnTest_DeferCore )) || exportGlobalMaps _rayvnProjects _rayvnRequireCounts _rayvnFunctionSources _ignoreRayvnUpFunctions
+    unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
     return 0
 
 else
