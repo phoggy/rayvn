@@ -335,6 +335,29 @@ assertFileDoesNotExist() {
     [[ -e "${1}" ]] && fail "${1} already exists"
 }
 
+# ◇ Read the entire contents of a file into a variable, without forking a subprocess.
+#   Trailing newlines are stripped, matching command substitution behavior.
+#
+# · ARGS
+#
+#   -p         flag       Preserve trailing newlines instead of stripping them.
+#   file       string     Path to the file to read.
+#   resultVar  stringRef  Name of variable to receive the file contents.
+
+readFile() {
+    local _readFilePreserve=0
+    [[ $1 == -p ]] && { _readFilePreserve=1; shift; }
+    local _readFilePath="$1"
+    local -n _readFileRef="$2"
+    assertFile "${_readFilePath}"
+    IFS= read -r -d '' _readFileRef < "${_readFilePath}" || true
+    if (( ! _readFilePreserve )); then
+        while [[ "${_readFileRef}" == *$'\n' ]]; do
+            _readFileRef="${_readFileRef%$'\n'}"
+        done
+    fi
+}
+
 # ◇ Fails if filePath is not located within dirPath, resolving symlinks before checking.
 #
 # · ARGS
