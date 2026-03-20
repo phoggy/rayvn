@@ -19,10 +19,12 @@ usage() {
     echo "    register NAME     Stake a claim on the project name, if available."
     echo "    release           Create a new release."
     echo "    deps              Scan source files and ensure dependency tracking is up to date."
-    echo "    index             Generate function indexes and Jekyll docs."
+    echo "    index             Generate function indexes for AI agent use."
+    echo "    pages             Generate and preview project gh-pages site."
     echo "    docs              Audit or update function documentation."
     echo
-    echo "Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified."
+    echo "Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project"
+    echo "if within one. 'test' falls back to rayvn if not in a project."
     echo
     echo "Options:"
     echo
@@ -64,6 +66,7 @@ init() {
             register) parseArgs false registerProject "${@:2}" ;;
             release) parseArgs true releaseProject "${@:2}" ;;
             index) parseArgs true indexDocs "${@:2}" ;;
+            pages) parseArgs true pagesCommand "${@:2}" ;;
             docs) parseArgs true docsCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
             --debug) debugCommand=('--debug') ;debugOptions=('showLogOnExit') ;;
@@ -114,6 +117,21 @@ parseArgs() {
         esac
         shift
     done
+    [[ ${add} == true ]] && (( ${#projects[@]} == 0 )) && _detectCurrentProject
+}
+
+_detectCurrentProject() {
+    local dir="${PWD}"
+    while [[ "${dir}" != '/' ]]; do
+        if [[ -f "${dir}/rayvn.pkg" ]]; then
+            local pkgName
+            pkgName=${ bash -c "source '${dir}/rayvn.pkg' 2>/dev/null && printf '%s' \"\${projectName}\""; }
+            [[ -n "${pkgName}" ]] && addProject "${pkgName}=${dir}"
+            return 0
+        fi
+        dir="${dir%/*}"
+    done
+    return 0
 }
 
 theme() {
@@ -196,6 +214,7 @@ registerProject() {
     if (( flags['help'] )); then
         echo "rayvn register PROJECT [--remove] "
     else
+        assertGitRepo
         require 'rayvn/central'
         local projectName=${args[0]}
         [[ -n ${projectName} ]] || fail "project name required"
@@ -372,16 +391,41 @@ nixBuild() {
 
 indexDocs() {
     if (( flags['help'] )); then
-        echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE] [--docs DIR] [--publish]"
+        echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
+        echo "  Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
+        echo "  Run after adding or modifying library functions to keep the indexes current."
     else
         require 'rayvn/index'
         runIndex "${args[@]}"
     fi
 }
 
+pagesCommand() {
+    if (( flags['help'] )); then
+        echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --publish | --view]"
+        echo "  PROJECT defaults to the current directory's project; only one may be specified."
+        echo "  --setup     First-time setup: create gh-pages branch, worktree, and workflow."
+        echo "  --dir DIR   Output directory (default: project's configured worktree)."
+        echo "  --publish   Generate pages, then commit and push to gh-pages."
+        echo "  --view      Generate pages, then serve locally with Jekyll."
+    else
+        if (( ${#projects[@]} == 0 )); then
+            local candidate="${args[0]}"
+            if [[ -n "${candidate}" && "${candidate}" != -* ]]; then
+                fail "Unknown project:" blue "${candidate}" plain "— is its bin directory in PATH?"
+            else
+                fail "A project name is required (e.g. rayvn, valt, wardn)"
+            fi
+        fi
+        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+        require 'rayvn/index'
+        runPages "${projects[0]}" "${args[@]}"
+    fi
+}
+
 depsCommand() {
     if (( flags['help'] )) || (( ${#projects[@]} == 0 )); then
-        echo "rayvn deps PROJECT [PROJECT...]"
+        echo "rayvn deps [PROJECT...]"
         echo
         echo "Scan source files for external command dependencies and auto-add missing"
         echo "entries to flake.nix runtimeDeps."

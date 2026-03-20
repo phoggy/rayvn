@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
 
-# Generate and publish rayvn library function indexes and Jekyll docs.
+# Generate rayvn library function indexes and Jekyll docs.
 # Use via: require 'rayvn/index'
 
-# ◇ Generate verbose and optional compact function indexes and Jekyll docs for rayvn libraries.
+# ◇ Generate verbose and optional compact function indexes for rayvn libraries.
 #
 # · USAGE
 #
-#   runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE] [--docs [DIR]] [--publish]
+#   runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]
 #
 #   -o, --output FILE   Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
 #   -c, --compact FILE  Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
 #   --no-compact        Skip generating the compact index.
 #   --no-hash           Skip function hash tracking.
 #   --hash-file FILE    Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
-#   --docs [DIR]        Generate Jekyll doc pages into DIR (default: ./docs).
-#   --publish           Generate and publish docs to each project's gh-pages worktree.
 
 runIndex() {
     _initIndex "${@}"
@@ -41,20 +39,330 @@ runIndex() {
         show success "Compact index written to ${_idxCompactFile}"
     fi
 
-    # Generate Jekyll docs if requested
-    if [[ -n "${_idxDocsDir}" ]]; then
-        _generateDocs "${libFiles[@]}"
-    fi
-
-    # Publish per-project docs to gh-pages worktrees
-    if (( _idxPublish )); then
-        _publishDocs "${libFiles[@]}"
-    fi
-
     # Check for changed functions and update hashes
     if (( _idxDoHash )); then
         _checkAndUpdateHashes "${libFiles[@]}"
     fi
+}
+
+# ◇ Generate Jekyll pages for a single project's gh-pages site.
+#
+# · USAGE
+#
+#   runPages PROJECT [--dir DIR] [--publish | --view]
+#
+#   PROJECT      The project to generate pages for (e.g. rayvn, valt, wardn).
+#   --dir DIR    Output directory (default: project's configured worktree).
+#   --publish    Commit and push changes to gh-pages after generating.
+#   --view       Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
+
+runPages() {
+    local projectName="${1}"
+    [[ -n "${projectName}" ]] || fail "project name required"
+    shift
+
+    local dir=''
+    local publish=0
+    local setup=0
+    local view=0
+    local _userSpecifiedDir=0
+
+    while (( $# )); do
+        case ${1} in
+            --dir)     shift; dir="${1}"; _userSpecifiedDir=1 ;;
+            --publish) publish=1 ;;
+            --setup)   setup=1 ;;
+            --view)    view=1 ;;
+            *)         fail "Unknown option: ${1}" ;;
+        esac
+        shift
+    done
+
+    (( publish && view )) && fail "--publish and --view are mutually exclusive"
+    (( setup && publish )) && fail "--setup and --publish are mutually exclusive"
+    (( setup && view )) && fail "--setup and --view are mutually exclusive"
+
+    local projectRoot="${_rayvnProjects[${projectName}::project]}"
+    [[ -n "${projectRoot}" ]] || fail "unknown project: ${projectName}"
+
+    if [[ -z "${dir}" ]]; then
+        dir=${ _getDocsWorktree "${projectName}" "${projectRoot}"; }
+        dir=${ realpath "${dir}" 2>/dev/null || echo "${dir}"; }
+    fi
+
+    if (( setup )); then
+        assertGitRepo "${projectRoot}"
+        _setupPages "${projectName}" "${projectRoot}" "${dir}"
+        return
+    fi
+
+    if [[ ! -d "${dir}" ]]; then
+        if (( ! _userSpecifiedDir )); then
+            fail "Pages not set up for ${projectName}." plain "Run:" blue "rayvn pages ${projectName} --setup" nl \
+                 plain "   Default worktree:" blue "${dir}" plain "— use --dir DIR for a different location."
+        else
+            fail "Pages not set up for ${projectName}." plain "Run:" blue "rayvn pages ${projectName} --setup" nl \
+                 plain "   Worktree location:" blue "${dir}"
+        fi
+    fi
+
+    local libFiles=()
+    _collectLibFiles libFiles
+    (( ${#libFiles[@]} )) || fail "no library files found"
+
+    declare -g _idxDocsDir="${dir}"
+    _generateDocs --project "${projectName}" "${libFiles[@]}"
+
+    if (( publish )); then
+        assertGitRepo "${dir}"
+        local changedFiles; changedFiles=${ git -C "${dir}" status --porcelain; }
+        if [[ -n "${changedFiles}" ]]; then
+            git -C "${dir}" add -A || fail "git add failed"
+            git -C "${dir}" commit -m "Update docs ${ date '+%Y-%m-%d'; }" || fail "git commit failed"
+            git -C "${dir}" push || fail "git push failed"
+            show success "${projectName} pages published"
+        else
+            show success "${projectName} pages unchanged, nothing to push"
+        fi
+    elif (( view )); then
+        show bold "Starting Jekyll server in ${dir}"
+        cd "${dir}" || fail "could not cd to ${dir}"
+        bundle check 2>/dev/null || bundle install 2>/dev/null || {
+            show "Installing bundler..."
+            gem install bundler || fail "gem install bundler failed"
+            bundle install || fail "bundle install failed"
+        }
+        bundle exec jekyll serve
+    fi
+}
+
+_setupPages() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    local worktreePath="${3}"
+
+    header "Setting up ${projectName} pages"
+
+    _ensurePagesWorktree "${projectName}" "${projectRoot}" "${worktreePath}"
+    _ensurePagesFiles "${projectName}" "${projectRoot}" "${worktreePath}"
+    _ensurePagesWorkflow "${projectName}" "${projectRoot}"
+    _showPagesSetupInstructions "${projectName}" "${projectRoot}"
+}
+
+_ensurePagesWorktree() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    local worktreePath="${3}"
+
+    if [[ -d "${worktreePath}" ]]; then
+        show success "Worktree already exists: ${worktreePath}"
+        return 0
+    fi
+
+    show "Creating gh-pages worktree at ${worktreePath}..."
+
+    local hasRemoteBranch; hasRemoteBranch=${ git -C "${projectRoot}" ls-remote --heads origin gh-pages; }
+    if [[ -z "${hasRemoteBranch}" ]]; then
+        show "Creating orphan gh-pages branch..."
+        git -C "${projectRoot}" worktree add --orphan -b gh-pages "${worktreePath}" || fail "could not create gh-pages worktree"
+        git -C "${worktreePath}" commit --allow-empty -m "Initialize gh-pages" || fail "initial commit failed"
+        git -C "${worktreePath}" push -u origin gh-pages || fail "could not push gh-pages branch"
+    else
+        git -C "${projectRoot}" worktree add "${worktreePath}" gh-pages || fail "could not create worktree"
+    fi
+
+    show success "Worktree created: ${worktreePath}"
+}
+
+_ensurePagesFiles() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    local worktreePath="${3}"
+
+    local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
+    local githubUser; githubUser=${ echo "${remoteUrl}" | gsed -E 's|.*github\.com[:/]([^/]+)/.*|\1|'; }
+
+    local gemfile="${worktreePath}/Gemfile"
+    if [[ ! -f "${gemfile}" ]]; then
+        printf 'source "https://rubygems.org"\ngem "jekyll", "~> 4.3"\ngem "just-the-docs"\n' > "${gemfile}"
+        show "Created Gemfile"
+    fi
+
+    local config="${worktreePath}/_config.yml"
+    if [[ ! -f "${config}" ]]; then
+        printf 'title: %s\ndescription:\ntheme: just-the-docs\ncolor_scheme: dark\nurl: https://%s.github.io\nbaseurl: /%s\n\nsass:\n  quiet_deps: true\n  silence_deprecations: [import]\n' \
+            "${projectName}" "${githubUser}" "${projectName}" > "${config}"
+        show "Created _config.yml"
+        show warning "  Update 'url' in ${config} if you use a custom domain"
+    fi
+
+    local indexFile="${worktreePath}/index.md"
+    if [[ ! -f "${indexFile}" ]]; then
+        printf -- '---\nlayout: home\ntitle: Home\nnav_order: 1\n---\n\n# %s\n\n<!-- Add project description here -->\n' "${projectName}" > "${indexFile}"
+        show "Created index.md (placeholder — update with project description)"
+    fi
+
+    local includesDir="${worktreePath}/_includes"
+    local footerFile="${includesDir}/nav_footer_custom.html"
+    if [[ ! -f "${footerFile}" ]]; then
+        ensureDir "${includesDir}"
+        cat > "${footerFile}" << 'EOF'
+<button id="theme-toggle" class="btn"></button>
+
+<script>
+  (function () {
+    function init() {
+      var btn = document.getElementById('theme-toggle');
+      if (!btn || typeof jtd === 'undefined') return;
+      function updateLabel() {
+        btn.textContent = jtd.getTheme() === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
+      }
+      btn.addEventListener('click', function () {
+        jtd.setTheme(jtd.getTheme() === 'dark' ? 'light' : 'dark');
+        updateLabel();
+      });
+      updateLabel();
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>
+EOF
+        show "Created _includes/nav_footer_custom.html"
+    fi
+
+    local pluginFile="${worktreePath}/_plugins/ruby4_compat.rb"
+    if [[ ! -f "${pluginFile}" ]]; then
+        ensureDir "${worktreePath}/_plugins"
+        cat > "${pluginFile}" << 'EOF'
+# Restore tainted? for Ruby 3.2+ compatibility with Liquid 4.x (removed from Ruby 3.2).
+[String, Integer, Float, Array, Hash, Symbol, NilClass, TrueClass, FalseClass].each do |klass|
+  klass.define_method(:tainted?) { false }
+end
+
+# Patch jekyll-sass-converter 3.x to support silence_deprecations from _config.yml sass section.
+# The converter passes quiet_deps and verbose to sass-embedded but not silence_deprecations.
+Jekyll::Hooks.register :site, :after_init do |site|
+  require "jekyll/converters/scss"
+  Jekyll::Converters::Scss.prepend(Module.new do
+    def sass_configs
+      configs = super
+      silence = jekyll_sass_configuration["silence_deprecations"]
+      configs[:silence_deprecations] = Array(silence).map(&:to_sym) if silence
+      configs
+    end
+  end)
+end
+EOF
+        show "Created _plugins/ruby4_compat.rb"
+    fi
+
+    local changedFiles; changedFiles=${ git -C "${worktreePath}" status --porcelain; }
+    if [[ -n "${changedFiles}" ]]; then
+        git -C "${worktreePath}" add -A || fail "git add failed"
+        git -C "${worktreePath}" commit -m "Initialize pages scaffolding" || fail "commit failed"
+        git -C "${worktreePath}" push || fail "git push failed"
+        show success "Pages scaffolding committed and pushed"
+    fi
+}
+
+_ensurePagesWorkflow() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    local workflowDir="${projectRoot}/.github/workflows"
+    local workflowFile="${workflowDir}/deploy-pages.yml"
+
+    if [[ -f "${workflowFile}" ]]; then
+        show success "Workflow already exists: ${workflowFile}"
+        # Commit and push if it's staged but not yet committed
+        local staged; staged=${ git -C "${projectRoot}" diff --cached --name-only; }
+        if echo "${staged}" | grep -q "deploy-pages.yml"; then
+            git -C "${projectRoot}" commit -m "Add GitHub Pages deployment workflow" || fail "commit failed"
+            git -C "${projectRoot}" push || fail "git push failed"
+            show success "Workflow committed and pushed"
+        fi
+        return 0
+    fi
+
+    ensureDir "${workflowDir}"
+    cat > "${workflowFile}" << 'EOF'
+name: Deploy Pages
+
+on:
+  push:
+    branches: [gh-pages]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build with Jekyll
+        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
+        env:
+          JEKYLL_ENV: production
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+EOF
+
+    git -C "${projectRoot}" add "${workflowFile}" || fail "git add failed"
+    git -C "${projectRoot}" commit -m "Add GitHub Pages deployment workflow" || fail "commit failed"
+    git -C "${projectRoot}" push || fail "git push failed"
+    show success "Workflow committed and pushed to main"
+}
+
+_showPagesSetupInstructions() {
+    local projectName="${1}"
+    local projectRoot="${2}"
+    local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
+    local repoUrl="${remoteUrl%.git}"
+
+    echo
+    show bold "One manual step required in GitHub:"
+    echo
+    show "  1. Go to:" blue "${repoUrl}/settings/pages"
+    show "  2. Under" bold "Source" plain "select" bold "GitHub Actions"
+    echo
+    show "Then run:" bold "rayvn pages ${projectName} --publish"
+    echo
 }
 
 # ◇ Scan a project's source files for external command dependencies and sync them to flake.nix.
@@ -184,8 +492,6 @@ _initIndex() {
     declare -g _idxHashFile="${configDir}/rayvn-function-hashes.txt"
     declare -gi _idxGenerateCompact=1
     declare -gi _idxDoHash=1
-    declare -gi _idxPublish=0
-    declare -g _idxDocsDir=''
 
     while (( $# )); do
         case ${1} in
@@ -194,8 +500,6 @@ _initIndex() {
             --no-compact)   _idxGenerateCompact=0 ;;
             --no-hash)      _idxDoHash=0 ;;
             --hash-file)    shift; _idxHashFile="${1}" ;;
-            --publish)      _idxPublish=1 ;;
-            --docs)         _idxDocsDir="${2:-${PWD}/docs}"; [[ "${2}" != -* && -n "${2}" ]] && shift ;;
             *)              error "Unknown option: ${1}" ;;
         esac
         shift
@@ -492,44 +796,6 @@ _generateDocs() {
     fi
 
     show success "Docs written to ${_idxDocsDir}"
-}
-
-# Generate and publish per-project docs to each project's gh-pages worktree.
-# Reads docsWorktree from each project's rayvn.pkg file.
-_publishDocs() {
-    local libFiles=("$@")
-    local project projectRoot worktree
-
-    for project in "${!_rayvnProjects[@]}"; do
-        [[ "${project}" == *"::project" ]] || continue
-        project="${project%::project}"
-        projectRoot="${_rayvnProjects[${project}::project]}"
-        worktree=${ _getDocsWorktree "${project}" "${projectRoot}"; }
-        worktree=${ realpath "${worktree}" 2>/dev/null || echo "${worktree}"; }
-
-        if [[ ! -d "${worktree}" ]]; then
-            warn "Worktree not found for ${project}: ${worktree} — skipping"
-            continue
-        fi
-
-        show bold "Publishing ${project} docs to ${worktree}"
-
-        local savedDocsDir="${_idxDocsDir}"
-        _idxDocsDir="${worktree}"
-        _generateDocs --project "${project}" "${libFiles[@]}"
-        _idxDocsDir="${savedDocsDir}"
-
-        local changedFiles; changedFiles=${ git -C "${worktree}" status --porcelain; }
-        if [[ -n "${changedFiles}" ]]; then
-            git -C "${worktree}" add -A || fail "git add failed for ${project}"
-            git -C "${worktree}" commit -m "Update docs ${ date '+%Y-%m-%d'; }" || fail "git commit failed for ${project}"
-            git -C "${worktree}" push || fail "git push failed for ${project}"
-            show success "${project} docs published"
-        else
-            show success "${project} docs unchanged, nothing to push"
-        fi
-        echo
-    done
 }
 
 # Generate a single per-library Jekyll documentation page
