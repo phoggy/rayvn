@@ -403,6 +403,17 @@ assertValidFileName() {
     return 0
 }
 
+# ◇ Fail if the given directory (or PWD) is not within a git repository.
+#
+# · ARGS
+#
+#   dir  Directory to check (default: ${PWD}).
+
+assertGitRepo() {
+    local dir="${1:-${PWD}}"
+    git -C "${dir}" rev-parse --git-dir &> /dev/null || fail "${dir} is not a git repository"
+}
+
 # ◇ Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
 #
 # · ARGS
