@@ -21,8 +21,8 @@ cursorShow() {
 #
 # · ARGS
 #
-#   rowVarRef  stringRef  Receives the 1-based row number.
-#   colVarRef  stringRef  Receives the 1-based column number.
+#   rowVarRef (stringRef)  Receives the 1-based row number.
+#   colVarRef (stringRef)  Receives the 1-based column number.
 #
 # · EXAMPLE
 #
@@ -86,8 +86,8 @@ cursorUpToLineStart() {
 #
 # · ARGS
 #
-#   rows  int  Number of rows to move up.
-#   col   int  1-based column to move to.
+#   rows (int)  Number of rows to move up.
+#   col (int)   1-based column to move to.
 
 cursorUpToColumn() {
     printf '\e[%dA\e[%dG' "${1}" "${2}" > /dev/tty
@@ -109,8 +109,8 @@ cursorDownToLineStart() {
 #
 # · ARGS
 #
-#   rows  int  Number of rows to move down.
-#   col   int  1-based column to place the cursor at.
+#   rows (int)  Number of rows to move down.
+#   col (int)   1-based column to place the cursor at.
 
 cursorDownToColumn() {
     printf '\e[%dB\e[%dG' "${1}" "${2}" > /dev/tty
@@ -120,8 +120,8 @@ cursorDownToColumn() {
 #
 # · ARGS
 #
-#   row  int  1-based row to move to.
-#   col  int  1-based column to move to (default: 0).
+#   row (int)  1-based row to move to.
+#   col (int)  1-based column to move to (default: 0).
 
 cursorTo() {
     printf '\e[%i;%iH' ${1} ${2:-0} > /dev/tty
@@ -180,7 +180,7 @@ clearTerminal() {
 #
 # · ARGS
 #
-#   requiredRows  int  Rows needed below the cursor (default: 2).
+#   requiredRows (int)  Rows needed below the cursor (default: 2).
 
 reserveRows() {
     local requiredRows="${1:-2}"

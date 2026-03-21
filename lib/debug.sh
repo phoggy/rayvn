@@ -34,8 +34,8 @@ debugDir() {
 #
 # · ARGS
 #
-#   label  Label logged before the hex bytes.
-#   binary Binary string to display as hex.
+#   label (string)   Label logged before the hex bytes.
+#   binary (string)  Binary string to display as hex.
 
 debugBinary() {
     if (( _debug )); then
@@ -59,7 +59,7 @@ debugVar() {
 #
 # · ARGS
 #
-#   varName  Name of a variable to inspect; outputs "not defined" if undefined.
+#   varName (stringRef)  Name of a variable to inspect; outputs "not defined" if undefined.
 
 debugVars() {
     if (( _debug )); then
@@ -77,8 +77,8 @@ debugVars() {
 #
 # · ARGS
 #
-#   varName  Name of the variable expected to be set.
-#   prefix   Optional label prepended to the assertion message.
+#   varName (stringRef)  Name of the variable expected to be set.
+#   prefix (string)      Optional label prepended to the assertion message.
 
 debugVarIsSet() {
     if (( _debug )); then
@@ -102,8 +102,8 @@ debugVarIsSet() {
 #
 # · ARGS
 #
-#   var     Name of the variable expected to be unset.
-#   prefix  Optional label prepended to the assertion message.
+#   var (stringRef)  Name of the variable expected to be unset.
+#   prefix (string)  Optional label prepended to the assertion message.
 
 debugVarIsNotSet() {
     if (( _debug )); then
@@ -128,8 +128,8 @@ debugVarIsNotSet() {
 #
 # · ARGS
 #
-#   sourceFile  Path to the source file.
-#   fileName    Optional filename (default: basename of sourceFile).
+#   sourceFile (string)  Path to the source file.
+#   fileName (string)    Optional filename (default: basename of sourceFile).
 
 debugFile() {
     if (( _debug )); then
@@ -145,8 +145,8 @@ debugFile() {
 #
 # · ARGS
 #
-#   jsonRef   stringRef  Name of the variable holding the JSON string.
-#   fileName             Base name for the output file.
+#   jsonRef (stringRef)  Name of the variable holding the JSON string.
+#   fileName (string)    Base name for the output file.
 
 debugJson() {
     if (( _debug )); then
@@ -200,7 +200,7 @@ debugEscapes() {
 #
 # · ARGS
 #
-#   name  Base name for the output file.
+#   name (string)  Base name for the output file.
 
 debugEnvironment() {  # TODO: replace with full snapshot
     if (( _debug )); then

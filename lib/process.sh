@@ -9,10 +9,10 @@ require 'rayvn/core'
 #
 # · ARGS
 #
-#   pid              int  Process ID to wait for.
-#   timeoutMs        int  Maximum wait time in milliseconds before returning failure.
-#   checkIntervalMs  int  Polling interval in milliseconds (default: 10).
-#   termWaitMs       int  Milliseconds after first check before sending SIGKILL (default: 1000).
+#   pid (int)              Process ID to wait for.
+#   timeoutMs (int)        Maximum wait time in milliseconds before returning failure.
+#   checkIntervalMs (int)  Polling interval in milliseconds (default: 10).
+#   termWaitMs (int)       Milliseconds after first check before sending SIGKILL (default: 1000).
 #
 # · NOTES
 #

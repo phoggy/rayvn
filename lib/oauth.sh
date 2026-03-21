@@ -8,11 +8,11 @@
 #
 # · ARGS
 #
-#   providerName          Name of the OAuth provider (e.g. 'google').
-#   resultMapRef  mapRef  Associative array to populate with service config.
-#   serviceScope          OAuth scope string.
-#   clientId              Optional client ID; if empty, resolved automatically.
-#   clientSecret          Optional client secret; if empty, resolved automatically.
+#   providerName (string)  Name of the OAuth provider (e.g. 'google').
+#   resultMapRef (mapRef)  Associative array to populate with service config.
+#   serviceScope (string)  OAuth scope string.
+#   clientId (string)      Optional client ID; if empty, resolved automatically.
+#   clientSecret (string)  Optional client secret; if empty, resolved automatically.
 
 getOAuthService() {
     local providerName="${1,,}" # e.g. 'google'
@@ -63,7 +63,7 @@ getOAuthService() {
 #
 # · ARGS
 #
-#   serviceVarName  Name of an OAuth service map populated by getOAuthService.
+#   serviceVarName (mapRef)  Name of an OAuth service map populated by getOAuthService.
 
 setupOAuthService() {
     local serviceVarName="${1}"
@@ -75,7 +75,7 @@ setupOAuthService() {
 #
 # · ARGS
 #
-#   serviceVarName  mapRef  Name of an OAuth service map populated by getOAuthService.
+#   serviceVarName (mapRef)  Name of an OAuth service map populated by getOAuthService.
 
 getOAuthAccessToken() {
     local serviceVarName="${1}"

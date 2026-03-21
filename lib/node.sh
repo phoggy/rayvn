@@ -8,8 +8,8 @@
 #
 # · ARGS
 #
-#   projectName  Name of the project (default: currentProjectName).
-#   envVar       If set and non-empty in the environment, use its value as nodeHome directly.
+#   projectName (string)  Name of the project (default: currentProjectName).
+#   envVar (string)       If set and non-empty in the environment, use its value as nodeHome directly.
 #
 # · EXAMPLE
 #
@@ -51,9 +51,9 @@ requireNodeModules() {
 #
 # · ARGS
 #
-#   projectName  Name of the project (default: currentProjectName).
-#   script       Script filename relative to projectHome/node/.
-#   args...      Additional arguments passed to the script.
+#   projectName (string)  Name of the project (default: currentProjectName).
+#   script (string)       Script filename relative to projectHome/node/.
+#   args...               Additional arguments passed to the script.
 #
 # · EXAMPLE
 #

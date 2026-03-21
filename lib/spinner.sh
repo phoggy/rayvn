@@ -12,7 +12,7 @@
 #
 # · ARGS
 #
-#   resultArray  arrayRef  Array to populate with spinner type names.
+#   resultArray (arrayRef)  Array to populate with spinner type names.
 #
 # · EXAMPLE
 #
@@ -31,10 +31,10 @@ spinnerTypes() {
 #
 # · ARGS
 #
-#   idVarName  stringRef  Name of var holding the spinner ID (from startSpinner).
-#   label      string     Optional text displayed before the spinner.
-#   type       string     Spinner type (default: 'star').
-#   color      string     Color name (default: 'secondary').
+#   idVarName (stringRef)  Name of var holding the spinner ID (from startSpinner).
+#   label (string)         Optional text displayed before the spinner.
+#   type (string)          Spinner type (default: 'star').
+#   color (string)         Color name (default: 'secondary').
 #
 # · EXAMPLE
 #
@@ -60,8 +60,8 @@ startSpinner() {
 #
 # · ARGS
 #
-#   idVarName    stringRef  Name of var holding the spinner ID (from startSpinner).
-#   replacement  string     Text to display in place of the spinner (default: space).
+#   idVarName (stringRef)  Name of var holding the spinner ID (from startSpinner).
+#   replacement (string)   Text to display in place of the spinner (default: space).
 #
 # · NOTES
 #
@@ -90,11 +90,11 @@ stopSpinner() {
 #
 # · ARGS
 #
-#   idRef  stringRef  Name of var to receive the spinner id.
-#   type   string     Spinner type.
-#   row    int        Terminal row (1-based).
-#   col    int        Terminal column (1-based).
-#   color  string     Color name for the spinner (default: 'secondary').
+#   idRef (stringRef)  Name of var to receive the spinner id.
+#   type (string)      Spinner type.
+#   row (int)          Terminal row (1-based).
+#   col (int)          Terminal column (1-based).
+#   color (string)     Color name for the spinner (default: 'secondary').
 
 addSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive
@@ -117,10 +117,10 @@ addSpinner() {
 #
 # · ARGS
 #
-#   idVarName    stringRef  Name of var holding the spinner id (from addSpinner).
-#   replacement  string     Text to display in place of the spinner (default: space).
-#   newline      bool       Emit a newline after replacement (default: true).
-#   backup       int        Characters to back up before writing replacement (default: 0).
+#   idVarName (stringRef)  Name of var holding the spinner id (from addSpinner).
+#   replacement (string)   Text to display in place of the spinner (default: space).
+#   newline (bool)         Emit a newline after replacement (default: true).
+#   backup (int)           Characters to back up before writing replacement (default: 0).
 
 removeSpinner() {
     (( isInteractive )) || return 0  # No-op when not interactive

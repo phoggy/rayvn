@@ -101,18 +101,17 @@ ARGS list alone.
 ## ARGS
 
 ```
-#   argName    type    Description
+#   argName (type)  Description
 ```
 
-- Columns: name, type, description
-- **Type column is optional.** Omit when the type is obvious from name and context
-  (most plain string args). Include for: `arrayRef`, `mapRef`, `stringRef`, `fnRef`,
-  `int`, `bool`, and any arg where type clarifies usage.
-- Alignment: `maxArgLen + 2` spaces to type column, `maxTypeLen + 3` spaces to description column
+- Format: name, type in parens, description
+- **Type is required.** If an ARGS section exists, every entry must have a type.
+- Alignment: align description column across all args in the section (`maxArgTypeLen + 2` spaces)
 - Multiline descriptions: continuation indented to description column, no dot
 - Default values: use `(default: value)` at the end of the description, not prose `Defaults to value.`
 - Arg name suffix convention:
   - Pass-by-ref args: suffix matches type — `myArrayRef`, `myMapRef`, `myStrRef`, `myFnRef`
+- Flag args (e.g. `-p`): use type `flag` — it is recognised but not shown in rendered output
 
 ### Types
 

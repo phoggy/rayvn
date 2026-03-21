@@ -7,8 +7,8 @@
 #
 # · ARGS
 #
-#   input         Path to a config file or a raw bash string to parse.
-#   prefixFilter  Optional variable name prefix to restrict which vars are sourced.
+#   input (string)         Path to a config file or a raw bash string to parse.
+#   prefixFilter (string)  Optional variable name prefix to restrict which vars are sourced.
 
 sourceConfigFile() {
     local safeEnv
@@ -23,8 +23,8 @@ sourceConfigFile() {
 #
 # · ARGS
 #
-#   input         String or file path containing bash variable declarations to parse.
-#   prefixFilter  Only include variables matching this prefix (optional).
+#   input (string)         String or file path containing bash variable declarations to parse.
+#   prefixFilter (string)  Only include variables matching this prefix (optional).
 
 extractSafeStaticVars() {
     local input="${1}"

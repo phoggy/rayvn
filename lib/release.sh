@@ -8,8 +8,8 @@
 #
 # · ARGS
 #
-#   ghRepo   GitHub repo in 'account/repo' format.
-#   version  Version string to release (e.g. '1.2.3').
+#   ghRepo (string)   GitHub repo in 'account/repo' format.
+#   version (string)  Version string to release (e.g. '1.2.3').
 
 release () {
     local ghRepo="${1}"

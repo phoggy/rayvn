@@ -7,7 +7,7 @@
 #
 # · ARGS
 #
-#   projectName    Name to register; fails if already taken in the central registry.
+#   projectName (string)  Name to register; fails if already taken in the central registry.
 #
 # · SIDE EFFECTS
 #

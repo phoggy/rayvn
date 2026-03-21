@@ -269,8 +269,8 @@ _collectLibFilesByName() {
 # Collect library files for a specific list of projects into a nameref array.
 # Args: libFilesRef PROJECT...
 #
-#   libFilesRef  arrayRef  Name of array to receive discovered library file paths.
-#   PROJECT      One or more project names to collect libraries from.
+#   libFilesRef (arrayRef)  Name of array to receive discovered library file paths.
+#   PROJECT (string)        One or more project names to collect libraries from.
 _collectProjectLibFiles() {
     local -n _cplfRef="${1}"
     shift
@@ -416,9 +416,9 @@ _replaceDocComment() {
 #
 # · ARGS
 #
-#   prompt   string  The per-function user prompt (function body + current doc).
-#   spec     string  Contents of function-doc-spec.md (cached server-side).
-#   apiKey   string  Anthropic API key.
+#   prompt (string)  The per-function user prompt (function body + current doc).
+#   spec (string)    Contents of function-doc-spec.md (cached server-side).
+#   apiKey (string)  Anthropic API key.
 _callClaudeApi() {
     local prompt="${1}"
     local spec="${2}"
@@ -461,9 +461,9 @@ _callClaudeApi() {
 # Build the per-function Claude prompt (excludes the spec, which is cached in the system block).
 # Args: body currentDoc
 #
-#   body        string  The function body to document.
-#   currentDoc  string  The existing doc comment (may be empty).
-#   constants   string  Optional resolved private constant values referenced in the body.
+#   body (string)        The function body to document.
+#   currentDoc (string)  The existing doc comment (may be empty).
+#   constants (string)   Optional resolved private constant values referenced in the body.
 _buildDocPrompt() {
     local body="${1}"
     local currentDoc="${2:-}"

@@ -7,9 +7,9 @@
 #
 # · ARGS
 #
-#   service  Service name identifying the credential group.
-#   account  Account name (key) within the service.
-#   secret   Secret value to store.
+#   service (string)  Service name identifying the credential group.
+#   account (string)  Account name (key) within the service.
+#   secret (string)   Secret value to store.
 
 secretStore() {
     local service="${1}"
@@ -29,8 +29,8 @@ secretStore() {
 #
 # · ARGS
 #
-#   service  Service name identifying the credential group.
-#   account  The account name (key) within the service.
+#   service (string)  Service name identifying the credential group.
+#   account (string)  The account name (key) within the service.
 
 secretRetrieve() {
     local service="${1}"
@@ -49,8 +49,8 @@ secretRetrieve() {
 #
 # · ARGS
 #
-#   service  Service name identifying the credential group.
-#   account  Account name (key) within the service.
+#   service (string)  Service name identifying the credential group.
+#   account (string)  Account name (key) within the service.
 
 secretDelete() {
     local service="${1}"
@@ -69,8 +69,8 @@ secretDelete() {
 #
 # · ARGS
 #
-#   service  Service name used to identify the credential group.
-#   account  Account name (key) within the service.
+#   service (string)  Service name used to identify the credential group.
+#   account (string)  Account name (key) within the service.
 
 secretExists() {
     local service="${1}"

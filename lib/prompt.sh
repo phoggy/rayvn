@@ -8,11 +8,11 @@
 #
 # · ARGS
 #
-#   prompt               Displayed prompt text.
-#   resultVarName        Name of the variable to store the result in.
-#   cancelOnEmpty  bool  Cancel on empty input (default: true).
-#   timeout        int   Inactivity timeout in seconds (default: 30). Resets on each key press.
-#   hide           bool  Hide input (default: false).
+#   prompt (string)            Displayed prompt text.
+#   resultVarName (stringRef)  Name of the variable to store the result in.
+#   cancelOnEmpty (bool)       Cancel on empty input (default: true).
+#   timeout (int)              Inactivity timeout in seconds (default: 30). Resets on each key press.
+#   hide (bool)                Hide input (default: false).
 #
 # · NOTES
 #
@@ -54,10 +54,10 @@ request() {
 #
 # · ARGS
 #
-#   prompt               Displayed prompt text.
-#   resultVarName        Name of the variable to store the input.
-#   cancelOnEmpty  bool  Whether to cancel on empty input (default: true).
-#   timeout              Inactivity timeout in seconds (default: 30). Resets on every key press.
+#   prompt (string)            Displayed prompt text.
+#   resultVarName (stringRef)  Name of the variable to store the input.
+#   cancelOnEmpty (bool)       Whether to cancel on empty input (default: true).
+#   timeout (int)              Inactivity timeout in seconds (default: 30). Resets on every key press.
 #
 # · NOTES
 #
@@ -79,12 +79,12 @@ secureRequest() {
 #
 # · ARGS
 #
-#   prompt                  Displayed prompt text.
-#   answer1                 First choice label.
-#   answer2                 Second choice label.
-#   resultVarName           Name of var to receive the selected choice label.
-#   defaultAnswerTwo  bool  When true, answer2 is selected initially (default: false).
-#   timeout           int   Inactivity timeout in seconds (default: 30). Resets on every key press.
+#   prompt (string)            Displayed prompt text.
+#   answer1 (string)           First choice label.
+#   answer2 (string)           Second choice label.
+#   resultVarName (stringRef)  Name of var to receive the selected choice label.
+#   defaultAnswerTwo (bool)    When true, answer2 is selected initially (default: false).
+#   timeout (int)              Inactivity timeout in seconds (default: 30). Resets on every key press.
 #
 # · NOTES
 #
@@ -120,15 +120,15 @@ confirm() {
 #
 # · ARGS
 #
-#   prompt                     Displayed prompt text.
-#   choicesVarName   arrayRef  Name of the array var containing choices.
-#   resultVarName              Name of the var to store the selected choice index.
-#   addSeparator     bool      Add a blank line between items (default: false).
-#   startIndex       int       Index of the initially selected item (default: 0).
-#   numberChoices    int       When or if to number the choices: > 0 = always; < 0 = only if 1 or more items are off-screen;
+#   prompt (string)            Displayed prompt text.
+#   choicesVarName (arrayRef)  Name of the array var containing choices.
+#   resultVarName (stringRef)  Name of the var to store the selected choice index.
+#   addSeparator (bool)        Add a blank line between items (default: false).
+#   startIndex (int)           Index of the initially selected item (default: 0).
+#   numberChoices (int)        When or if to number the choices: > 0 = always; < 0 = only if 1 or more items are off-screen;
 #                              0 = never (default: 0).
-#   maxVisibleItems  int       Max items to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0).
-#   timeout          int       Inactivity timeout in seconds (default: 30). Resets on any keypress.
+#   maxVisibleItems (int)      Max items to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0).
+#   timeout (int)              Inactivity timeout in seconds (default: 30). Resets on any keypress.
 #
 # · NOTES
 #

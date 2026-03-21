@@ -10,8 +10,8 @@
 #
 # · ARGS
 #
-#   match  Pattern to search for.
-#   file   Path to the file to search.
+#   match (string)  Pattern to search for.
+#   file (string)   Path to the file to search.
 
 assertNotInFile() {
     local match="${1}"
@@ -23,8 +23,8 @@ assertNotInFile() {
 #
 # · ARGS
 #
-#   match  Pattern to search for.
-#   file   Path to the file to search.
+#   match (string)  Pattern to search for.
+#   file (string)   Path to the file to search.
 
 assertInFile() {
     local match="${1}"
@@ -36,9 +36,9 @@ assertInFile() {
 #
 # · ARGS
 #
-#   expected  Expected value.
-#   actual    Actual value.
-#   message   Optional custom failure message.
+#   expected (string)  Expected value.
+#   actual (string)    Actual value.
+#   message (string)   Optional custom failure message.
 
 assertEqual() {
     local msg="${3:-"assert '${1}' == '${2}' failed"}"
@@ -49,9 +49,9 @@ assertEqual() {
 #
 # · ARGS
 #
-#   expected  Expected plain-text value.
-#   actual    Value to compare; ANSI codes are stripped before comparison.
-#   msg       Optional failure message.
+#   expected (string)  Expected plain-text value.
+#   actual (string)    Value to compare; ANSI codes are stripped before comparison.
+#   msg (string)       Optional failure message.
 
 assertEqualStripped() {
     local expected="${1}"
@@ -64,9 +64,9 @@ assertEqualStripped() {
 #
 # · ARGS
 #
-#   expected  Expected value (may contain escape codes).
-#   actual    Actual value to compare.
-#   msg       Failure message; defaults to "assertEqualEscapeCodes failed".
+#   expected (string)  Expected value (may contain escape codes).
+#   actual (string)    Actual value to compare.
+#   msg (string)       Failure message; defaults to "assertEqualEscapeCodes failed".
 
 assertEqualEscapeCodes() {
     local expected="${1}"
@@ -83,8 +83,8 @@ assertEqualEscapeCodes() {
 #
 # · ARGS
 #
-#   msg    Failure message to display.
-#   @      Command and arguments to execute.
+#   msg (string)  Failure message to display.
+#   @             Command and arguments to execute.
 
 assertTrue() {
     local msg="${1}"
@@ -96,8 +96,8 @@ assertTrue() {
 #
 # · ARGS
 #
-#   msg  Message to display on failure.
-#   cmd  Command and arguments to execute.
+#   msg (string)  Message to display on failure.
+#   cmd (string)  Command and arguments to execute.
 
 assertFalse() {
     local msg="${1}"
@@ -110,9 +110,9 @@ assertFalse() {
 #
 # · ARGS
 #
-#   expected  Substring that must be present in actual.
-#   actual    Value to search within.
-#   msg       Optional custom failure message.
+#   expected (string)  Substring that must be present in actual.
+#   actual (string)    Value to search within.
+#   msg (string)       Optional custom failure message.
 
 assertContains() {
     local expected="${1}"
@@ -125,10 +125,10 @@ assertContains() {
 #
 # · ARGS
 #
-#   value  int  Value to check.
-#   min    int  Minimum allowed value (inclusive).
-#   max    int  Maximum allowed value (inclusive).
-#   msg         Custom failure message.
+#   value (int)   Value to check.
+#   min (int)     Minimum allowed value (inclusive).
+#   max (int)     Maximum allowed value (inclusive).
+#   msg (string)  Custom failure message.
 
 assertInRange() {
     local value="${1}"
@@ -156,9 +156,9 @@ assertNotInPath() {
 #
 # · ARGS
 #
-#   executable    Name of the command that must be in PATH.
-#   expectedPath  Expected path; checked against both the found path and its
-#                 realpath to account for symlinks.
+#   executable (string)    Name of the command that must be in PATH.
+#   expectedPath (string)  Expected path; checked against both the found path and its
+#                          realpath to account for symlinks.
 
 assertInPath() {
     local executable="${1}"
@@ -183,7 +183,7 @@ assertInPath() {
 #
 # · ARGS
 #
-#   name  Name of the function that must not be defined.
+#   name (string)  Name of the function that must not be defined.
 
 assertFunctionIsNotDefined() {
     local name="${1}"
@@ -194,7 +194,7 @@ assertFunctionIsNotDefined() {
 #
 # · ARGS
 #
-#   name  Variable name that must not be defined.
+#   name (string)  Variable name that must not be defined.
 
 assertVarIsNotDefined() {
     local name="${1}"
@@ -205,7 +205,7 @@ assertVarIsNotDefined() {
 #
 # · ARGS
 #
-#   name  Name of the function that must be defined.
+#   name (string)  Name of the function that must be defined.
 
 assertFunctionIsDefined() {
     local name="${1}"
@@ -216,7 +216,7 @@ assertFunctionIsDefined() {
 #
 # · ARGS
 #
-#   name  Name of the variable to check.
+#   name (string)  Name of the variable to check.
 
 assertVarIsDefined() {
     local name="${1}"
@@ -228,8 +228,8 @@ assertVarIsDefined() {
 #
 # · ARGS
 #
-#   varName        Name of the variable to inspect.
-#   expectedFlags  Expected declare flags as a string (e.g. "ir", "r", "arx", "A").
+#   varName (stringRef)     Name of the variable to inspect.
+#   expectedFlags (string)  Expected declare flags as a string (e.g. "ir", "r", "arx", "A").
 
 assertVarType() {
     local varName="${1}"
@@ -256,8 +256,8 @@ assertVarType() {
 #
 # · ARGS
 #
-#   varName   The name of the variable to check.
-#   expected  The expected string value.
+#   varName (stringRef)  The name of the variable to check.
+#   expected (string)    The expected string value.
 
 assertVarEquals() {
     local varName="${1}"
@@ -273,8 +273,8 @@ assertVarEquals() {
 #
 # · ARGS
 #
-#   varName   Name of the variable to check.
-#   expected  Substring that must be present in the variable's value.
+#   varName (stringRef)  Name of the variable to check.
+#   expected (string)    Substring that must be present in the variable's value.
 
 assertVarContains() {
     local varName="${1}"
@@ -290,8 +290,8 @@ assertVarContains() {
 #
 # · ARGS
 #
-#   varName   Name of the indexed array variable to check.
-#   expected  Remaining args are the expected element values in order.
+#   varName (arrayRef)  Name of the indexed array variable to check.
+#   expected (string)   Remaining args are the expected element values in order.
 
 assertArrayEquals() {
     local varName="${1}"
@@ -315,7 +315,7 @@ assertArrayEquals() {
 #
 # · ARGS
 #
-#   varName  Name of the variable that must be a defined associative array.
+#   varName (mapRef)  Name of the variable that must be a defined associative array.
 
 assertHashTableIsDefined() {
     local varName=${1}
@@ -327,7 +327,7 @@ assertHashTableIsDefined() {
 #
 # · ARGS
 #
-#   varName  Name of the variable that must not be defined.
+#   varName (mapRef)  Name of the variable that must not be defined.
 
 assertHashTableIsNotDefined() {
     local varName=${1}
@@ -338,8 +338,8 @@ assertHashTableIsNotDefined() {
 #
 # · ARGS
 #
-#   varName  Name of the associative array variable.
-#   keyName  Key that must be defined in the array.
+#   varName (mapRef)  Name of the associative array variable.
+#   keyName (string)  Key that must be defined in the array.
 
 assertHashKeyIsDefined() {
     local varName="${1}"
@@ -353,8 +353,8 @@ assertHashKeyIsDefined() {
 #
 # · ARGS
 #
-#   varName  Name of the associative array variable.
-#   keyName  Key that must NOT be defined in the array.
+#   varName (mapRef)  Name of the associative array variable.
+#   keyName (string)  Key that must NOT be defined in the array.
 
 assertHashKeyIsNotDefined() {
     local varName="${1}"
@@ -366,9 +366,9 @@ assertHashKeyIsNotDefined() {
 #
 # · ARGS
 #
-#   varName        Name of the associative array variable.
-#   keyName        Key to look up.
-#   expectedValue  Expected value at that key.
+#   varName (mapRef)        Name of the associative array variable.
+#   keyName (string)        Key to look up.
+#   expectedValue (string)  Expected value at that key.
 
 assertHashValue() {
     local varName="${1}"
@@ -386,8 +386,8 @@ assertHashValue() {
 #
 # · ARGS
 #
-#   path          Name of the directory to prepend.
-#   pathVariable  Name of the colon-separated path variable (default: PATH).
+#   path (string)          Name of the directory to prepend.
+#   pathVariable (string)  Name of the colon-separated path variable (default: PATH).
 
 prependPath () {
     local path="${1}"
@@ -400,8 +400,8 @@ prependPath () {
 #
 # · ARGS
 #
-#   path          Name of directory to append.
-#   pathVariable  Name of the colon-separated path variable (default: PATH).
+#   path (string)          Name of directory to append.
+#   pathVariable (string)  Name of the colon-separated path variable (default: PATH).
 
 appendPath () {
     local path="${1}"
@@ -414,8 +414,8 @@ appendPath () {
 #
 # · ARGS
 #
-#   removePath    Directory path to remove.
-#   pathVariable  Name of the path variable to modify (default: PATH). [R/W]
+#   removePath (string)    Directory path to remove.
+#   pathVariable (string)  Name of the path variable to modify (default: PATH). [R/W]
 
 removePath () {
     local removePath="${1}"
@@ -438,7 +438,7 @@ removePath () {
 #
 # · ARGS
 #
-#   pathVariable  Name of the colon-separated path variable to display (default: PATH).
+#   pathVariable (string)  Name of the colon-separated path variable to display (default: PATH).
 
 printPath() {
     local pathVariable=${1:-PATH}
@@ -456,8 +456,8 @@ printPath() {
 #
 # · ARGS
 #
-#   projectName  Name to register the project under.
-#   projectRoot  Path to the project root directory (resolved to real path).
+#   projectName (string)  Name to register the project under.
+#   projectRoot (string)  Path to the project root directory (resolved to real path).
 #
 # · RETURNS
 #
@@ -496,7 +496,7 @@ addRayvnProject() {
 #
 # · ARGS
 #
-#   projectName  Name of the project to remove.
+#   projectName (string)  Name of the project to remove.
 
 removeRayvnProject() {
     local projectName="${1}"
@@ -508,8 +508,8 @@ removeRayvnProject() {
 #
 # · ARGS
 #
-#   library   Path to require (e.g. 'rayvn/core').
-#   expected  Substring that must appear in the captured failure message.
+#   library (string)   Path to require (e.g. 'rayvn/core').
+#   expected (string)  Substring that must appear in the captured failure message.
 
 requireAndAssertFailureContains() {
     local library="${1}"
@@ -524,10 +524,10 @@ requireAndAssertFailureContains() {
 #
 # · ARGS
 #
-#   functionName       Name of the function to benchmark.
-#   iterations    int  Number of times to call the function.
-#   testCase           Label printed in the results line.
-#   args...            Optional arguments passed to the function on each invocation.
+#   functionName (string)  Name of the function to benchmark.
+#   iterations (int)       Number of times to call the function.
+#   testCase (string)      Label printed in the results line.
+#   args... (string)       Optional arguments passed to the function on each invocation.
 
 benchmark() {
     local functionName=${1}

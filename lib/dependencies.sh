@@ -8,7 +8,7 @@
 #
 # · ARGS
 #
-#   projectName    Name of the rayvn project to check.
+#   projectName (string)  Name of the rayvn project to check.
 #
 # · ENV VARS (from rayvn.pkg)
 #
@@ -72,8 +72,8 @@ checkProjectDependencies() {
 #
 # · ARGS
 #
-#   projectName    Name of the rayvn project (e.g. "valt", "wardn").
-#   projectRoot    Root path of the project; defaults to ${projectName}Home or PWD.
+#   projectName (string)  Name of the rayvn project (e.g. "valt", "wardn").
+#   projectRoot (string)  Root path of the project; defaults to ${projectName}Home or PWD.
 
 getBrewDependencies() {
     local projectName="${1}"

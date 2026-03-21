@@ -14,8 +14,8 @@ withDefaultUmask() {
 #
 # · ARGS
 #
-#   newUmask  Umask to set for the duration (e.g. 0022, 0077).
-#   command   Command and arguments to execute.
+#   newUmask (string)  Umask to set for the duration (e.g. 0022, 0077).
+#   command (string)   Command and arguments to execute.
 
 withUmask() {
     local newUmask="${1}"
@@ -41,8 +41,8 @@ withUmask() {
 #
 # · ARGS
 #
-#   name    Name of the binary to locate in PATH.
-#   errMsg  Error message if not found; defaults to "'${name}' not found".
+#   name (string)    Name of the binary to locate in PATH.
+#   errMsg (string)  Error message if not found; defaults to "'${name}' not found".
 
 binaryPath() {
     local name="${1}"
@@ -56,7 +56,7 @@ binaryPath() {
 #
 #   -r        Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if fileName is omitted.
 #             Ensures that no name collisions occur, regenerating name up to 16 times if required.
-#   fileName  Optional file name to append to the temp dir path.
+#   fileName (string)  Optional file name to append to the temp dir path.
 
 tempDirPath() {
     _ensureRayvnTempDir
@@ -88,7 +88,7 @@ tempDirPath() {
 #
 # · ARGS
 #
-#   fileName  Optional; see tempDirPath -r.
+#   fileName (string)  Optional; see tempDirPath -r.
 
 makeTempFile() {
     local filePath="${ tempDirPath -r "$1"; }"
@@ -101,7 +101,7 @@ makeTempFile() {
 #
 # · ARGS
 #
-#   fileName  Optional; see tempDirPath -r.
+#   fileName (string)  Optional; see tempDirPath -r.
 
 makeTempFifo() {
     local fifoPath="${ tempDirPath -r "$1"; }"
@@ -113,7 +113,7 @@ makeTempFifo() {
 #
 # · ARGS
 #
-#   dirName  Optional; see tempDirPath -r.
+#   dirName (string)  Optional; see tempDirPath -r.
 
 makeTempDir() {
     local dirPath="${ tempDirPath -r "$1"; }"
@@ -126,7 +126,7 @@ makeTempDir() {
 #
 # · ARGS
 #
-#   fileName    Optional name of a file to append to the config dir path.
+#   fileName (string)    Optional name of a file to append to the config dir path.
 
 configDirPath() {
     local fileName="${1:-}"
@@ -159,8 +159,8 @@ ensureDir() {
 #
 # · ARGS
 #
-#   dir     Base directory path.
-#   subDir  Optional subdirectory to append before creating.
+#   dir (string)     Base directory path.
+#   subDir (string)  Optional subdirectory to append before creating.
 
 makeDir() {
     local dir="${1}"
@@ -209,8 +209,8 @@ trim() {
 #
 # · ARGS
 #
-#   maxValue    int   Largest value to represent; must be a positive integer.
-#   startValue  int   Index base: 0 (zero-indexed, default) or 1 (one-indexed).
+#   maxValue (int)  Largest value to represent; must be a positive integer.
+#   startValue (int)  Index base: 0 (zero-indexed, default) or 1 (one-indexed).
 
 numericPlaces() {
     local maxValue="${1}"
@@ -228,8 +228,8 @@ numericPlaces() {
 #
 # · ARGS
 #
-#   number  Number to output.
-#   places  Minimum field width; defaults to 1.
+#   number (int)  Number to output.
+#   places (int)  Minimum field width; defaults to 1.
 
 printNumber() {
     local number="${1}"
@@ -241,8 +241,8 @@ printNumber() {
 #
 # · ARGS
 #
-#   projectName  Name of the project (e.g. 'rayvn', 'valt').
-#   verbose      If non-empty, appends release date or "(development)" to output.
+#   projectName (string)  Name of the project (e.g. 'rayvn', 'valt').
+#   verbose (string)      If non-empty, appends release date or "(development)" to output.
 
 projectVersion() {
     local projectName="${1}"
@@ -266,10 +266,10 @@ projectVersion() {
 #
 # · ARGS
 #
-#   argMatch              Expected argument value to match against (e.g. -n).
-#   argValue              Actual argument value to test.
-#   argResultRef    stringRef   Name of var to set to argResultValue on match, or '' if not.
-#   argResultValue              Value to assign on match; defaults to argMatch.
+#   argMatch (string)         Expected argument value to match against (e.g. -n).
+#   argValue (string)         Actual argument value to test.
+#   argResultRef (stringRef)  Name of var to set to argResultValue on match, or '' if not.
+#   argResultValue (string)   Value to assign on match; defaults to ${argMatch}.
 #
 # · RETURNS
 #
@@ -312,8 +312,8 @@ assertFileExists() {
 #
 # · ARGS
 #
-#   file         Path that must exist and be a regular file.
-#   description  Label used in the error message (default: "file").
+#   file (string)         Path that must exist and be a regular file.
+#   description (string)  Label used in the error message (default: "file").
 
 assertFile() {
     local file="${1}"
@@ -340,9 +340,9 @@ assertFileDoesNotExist() {
 #
 # · ARGS
 #
-#   -p         flag       Preserve trailing newlines instead of stripping them.
-#   file       string     Path to the file to read.
-#   resultVar  stringRef  Name of variable to receive the file contents.
+#   -p (flag)  Preserve trailing newlines instead of stripping them.
+#   file (string)  Path to the file to read.
+#   resultVar (stringRef)  Name of variable to receive the file contents.
 
 readFile() {
     local _readFilePreserve=0
@@ -362,8 +362,8 @@ readFile() {
 #
 # · ARGS
 #
-#   filePath    Path to verify.
-#   dirPath     Directory that must contain filePath.
+#   filePath (string)    Path to verify.
+#   dirPath (string)     Directory that must contain filePath.
 
 assertPathWithinDirectory() {
     local filePath=${1}
@@ -379,7 +379,7 @@ assertPathWithinDirectory() {
 #
 # · ARGS
 #
-#   name    Filename component to validate (not a full path).
+#   name (string)    Filename component to validate (not a full path).
 
 assertValidFileName() {
     local name="${1}"
@@ -407,7 +407,7 @@ assertValidFileName() {
 #
 # · ARGS
 #
-#   dir  Directory to check (default: ${PWD}).
+#   dir (string)  Directory to check (default: ${PWD}).
 
 assertGitRepo() {
     local dir="${1:-${PWD}}"
@@ -422,7 +422,7 @@ assertGitRepo() {
 #   --quiet           Suppress stderr content from the failure message.
 #   --stderr          Also fail if the command produces any stderr output.
 #   --error MSG       Custom failure message (default: stderr output or generic exit code message).
-#   command [args…]   The command and arguments to execute.
+#   command (string)  The command and arguments to execute.
 #
 # · EXAMPLE
 #
@@ -491,8 +491,8 @@ assertCommand() {
 #
 # · ARGS
 #
-#   varName    Name of the variable to append to.
-#   value      Value to append.
+#   varName (stringRef)  Name of the variable to append to.
+#   value (string)       Value to append.
 
 appendVar() {
     export ${1}="${!1:+${!1} }${2}"
@@ -502,9 +502,9 @@ appendVar() {
 #
 # · ARGS
 #
-#   resultVar    stringRef   Name of variable to receive the resolved file path.
-#   filePath                 Path to the file (must exist and be a regular file).
-#   description              Label used in error messages.
+#   resultVar (stringRef)  Name of variable to receive the resolved file path.
+#   filePath (string)        Path to the file (must exist and be a regular file).
+#   description (string)     Label used in error messages.
 
 setFileVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" false
@@ -514,9 +514,9 @@ setFileVar() {
 #
 # · ARGS
 #
-#   resultVar    Description of the variable in error messages.
-#   dirPath      Path to the directory (must exist and be a directory).
-#   description  Label used in error messages.
+#   resultVar (stringRef)  Name of variable to receive the resolved directory path.
+#   dirPath (string)       Path to the directory (must exist and be a directory).
+#   description (string)   Label used in error messages.
 
 setDirVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" true
@@ -538,7 +538,7 @@ epochSeconds() {
 #
 # · ARGS
 #
-#   startTime    Value previously captured from EPOCHREALTIME.
+#   startTime (string)    Value previously captured from EPOCHREALTIME.
 
 elapsedEpochSeconds() {
     local startTime="${1}"
@@ -549,7 +549,7 @@ elapsedEpochSeconds() {
 #
 # · ARGS
 #
-#   varName    Name of a variable to erase; may be repeated, silently ignored if unset.
+#   varName (stringRef)    Name of a variable to erase; may be repeated, silently ignored if unset.
 
 secureEraseVars() {
     local varName value length
@@ -569,7 +569,7 @@ secureEraseVars() {
 #
 # · ARGS
 #
-#   url    The URL to open.
+#   url (string)    The URL to open.
 
 openUrl() {
     local url="${1}"
@@ -614,20 +614,23 @@ executeWithCleanVars() {
 #
 # · NOTES
 #
-#   When transitioning from color+style back to style-only, use plain first to drop the color:
-#
-#     show cyan "colored" plain dim "dimmed, no color"  ← correct
-#     show cyan "colored" dim "dimmed"                  ← wrong: dim inherits cyan
-#
 #   Available formats:
 #
 #     Theme:      success, error, warning, info, accent, muted
 #     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
-#     Color:      black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
+#     16-color:   black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
 #     256-color:  IDX <0-255>
-#     Truecolor:  RGB <R:G:B>
+#     true-color: RGB <R:G:B>
 #     Special:    nl  (insert newline between args), glue  (suppress space before next arg)
 #     Reset:      plain
+#
+#   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert to 16-color if
+#   true-color is not available. Some terminals may not support strikethrough.
+#
+#   When transitioning from color+style back to style-only, use plain first to drop the color:
+#
+#     show cyan "colored" plain dim "dimmed, no color"  ← correct
+#     show cyan "colored" dim "dimmed"                  ← wrong: dim inherits cyan
 #
 # · EXAMPLE
 #
@@ -694,10 +697,10 @@ show() {
 #
 # · ARGS
 #
-#   [-u]                Flag to convert header text to uppercase.
-#   [colorIndex]  int   Index into _headerColors (clamped to max).
-#   header              Title text printed in bold.
-#   [...]               Optional subtitle lines printed below the title.
+#   [-u] (flag)              Flag to convert header text to uppercase.
+#   [colorIndex] (int)       Index into _headerColors (clamped to max).
+#   header (string)          Title text printed in bold.
+#   [...] (string)           Optional subtitle lines printed below the title.
 
 header() {
     local toUpper=0 colorIndex=0
@@ -725,8 +728,8 @@ header() {
 #
 # · ARGS
 #
-#   intResult   stringRef   Variable to receive the result.
-#   maxValue    int         Optional inclusive upper bound; omits for full SRANDOM range.
+#   intResult (stringRef)  Variable to receive the result.
+#   maxValue (int)  Optional inclusive upper bound; omits for full SRANDOM range.
 
 randomInteger() {
     local -n _intResult="${1}"
@@ -743,7 +746,7 @@ randomInteger() {
 #
 # · ARGS
 #
-#   _hexResultRef  stringRef   Name of the variable to receive the result.
+#   _hexResultRef (stringRef)  Name of the variable to receive the result.
 
 randomHexChar() {
     local -n _hexResultRef="${1}"
@@ -756,8 +759,8 @@ randomHexChar() {
 #
 # · ARGS
 #
-#   count       int         Number of hex characters to generate.
-#   _resultRef  stringRef   Name of the variable to receive the result.
+#   count (int)  Number of hex characters to generate.
+#   _resultRef (stringRef)  Name of the variable to receive the result.
 
 randomHexString() {
     local count=$1
@@ -774,8 +777,8 @@ randomHexString() {
 #
 # · ARGS
 #
-#   replaceChar    The placeholder character to replace.
-#   replaceRef     stringRef    Name of the variable to modify in-place.
+#   replaceChar (string)    The placeholder character to replace.
+#   replaceRef (stringRef)  Name of the variable to modify in-place.
 #
 # · EXAMPLE
 #
@@ -797,8 +800,8 @@ replaceRandomHex() {
 #
 # · ARGS
 #
-#   src   mapRef   Name of the source map.
-#   dest  mapRef   Name of the destination map (must already be declared with -A).
+#   src (mapRef)  Name of the source map.
+#   dest (mapRef)  Name of the destination map (must already be declared with -A).
 
 copyMap() {
     local -n src="${1}"
@@ -824,8 +827,8 @@ containsAnsi() {
 #
 # · ARGS
 #
-#   str          String to repeat.
-#   count  int   Number of repetitions.
+#   str (string)  String to repeat.
+#   count (int)   Number of repetitions.
 
 repeat() {
     local str=${1}
@@ -840,9 +843,9 @@ repeat() {
 #
 # · ARGS
 #
-#   match                  Match value; prefix with -p for prefix match, -s for suffix match, -r for regex.
-#   arrayRef   arrayRef    Name of the indexed array to search.
-#   resultRef  stringRef   Name of the variable to store the found index.
+#   match (string)         Match value; prefix with -p for prefix match, -s for suffix match, -r for regex.
+#   arrayRef (arrayRef)  Name of the indexed array to search.
+#   resultRef (stringRef)  Name of the variable to store the found index.
 #
 # · RETURNS
 #
@@ -878,8 +881,8 @@ indexOf() {
 #
 # · ARGS
 #
-#   item      Value to search for.
-#   arrayRef  Name of the indexed array to search.
+#   item (string)      Value to search for.
+#   arrayRef (arrayRef)  Name of the indexed array to search.
 
 isMemberOf() {
     local index
@@ -890,7 +893,7 @@ isMemberOf() {
 #
 # · ARGS
 #
-#   arrayRef  arrayRef   Name of the indexed array to measure.
+#   arrayRef (arrayRef)  Name of the indexed array to measure.
 
 maxArrayElementLength() {
     local -n arrayRef="${1}"
@@ -906,9 +909,9 @@ maxArrayElementLength() {
 #
 # · ARGS
 #
-#   string          Target string.
-#   width     int   Minimum visible character width.
-#   position        Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
+#   string (string)  Target string.
+#   width (int)      Minimum visible character width.
+#   position (string) Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
 
 padString() {
     local string="${1}"
@@ -956,7 +959,7 @@ invalidArgs() {
 # · ARGS
 #
 #   --trace  Force a stack trace regardless of debug mode.
-#   message  Error message passed to error or stackTrace.
+#   message (string)  Error message passed to error or stackTrace.
 
 fail() {
 
@@ -1036,10 +1039,10 @@ stackTrace() {
 #
 # · ARGS
 #
-#   tty TTY        Log debug messages to TTY instead of log file. If TTY is '.', the tty path is read from "${HOME}/.debug.tty".
-#   noStatus       Suppress debug status line display.
-#   clearLog       Clear the log file if not tty mode.
-#   showLogOnExit  Show the log file on exit if not tty mode.
+#   tty TTY (flag)        Log debug messages to TTY instead of log file. If TTY is '.', the tty path is read from "${HOME}/.debug.tty".
+#   noStatus (flag)       Suppress debug status line display.
+#   clearLog (flag)       Clear the log file if not tty mode.
+#   showLogOnExit (flag)  Show the log file on exit if not tty mode.
 
 setDebug() {
     require 'rayvn/debug'
@@ -1333,7 +1336,7 @@ _init_colors() {
         ['underline']=$'\e[4m'
         ['blink']=$'\e[5m'
         ['reverse']=$'\e[7m'
-        ['strikethrough']='' # $'\e[9m' often not supported
+        ['strikethrough']=$'\e[9m' # often not supported!
 
         # Effects off
 
@@ -1343,7 +1346,7 @@ _init_colors() {
         ['!underline']=$'\e[24m'
         ['!blink']=$'\e[25m'
         ['!reverse']=$'\e[27m'
-        ['!strikethrough']='' # $'\e[29m' often not supported
+        ['!strikethrough']=$'\e[29m' # often not supported!
 
         # Basic Foreground Colors
 
