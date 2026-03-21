@@ -1,0 +1,39 @@
+// Left-align table header cells (just-the-docs centers them by default)
+th {
+  text-align: left;
+}
+
+// Style function/command name headings to match link color, with extra space below
+h3 {
+  color: $link-color;
+  margin-bottom: 1rem;
+}
+
+// Remove border from code blocks
+pre.highlight, div.highlight, .highlighter-rouge,
+div.highlighter-rouge div.highlight {
+  border: none;
+}
+
+// Remove row/column lines from tables
+table, th, td {
+  border: none;
+}
+
+// Shrink first column to fit its content
+td:first-child, th:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+// Hide header row on args/returns tables (header cells are empty placeholders)
+.args-table thead {
+  display: none;
+}
+
+// Tighter row height for tables; top-align so wrapped descriptions don't center the arg name
+td, th {
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+  vertical-align: top;
+}

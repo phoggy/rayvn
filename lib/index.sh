@@ -234,6 +234,13 @@ EOF
         show "Created _includes/nav_footer_custom.html"
     fi
 
+    local customScss="${worktreePath}/_sass/custom/custom.scss"
+    if [[ ! -f "${customScss}" ]]; then
+        ensureDir "${worktreePath}/_sass/custom"
+        cp "${rayvnHome}/etc/pages-custom.scss" "${customScss}" || fail "could not copy pages-custom.scss"
+        show "Created _sass/custom/custom.scss"
+    fi
+
     local pluginFile="${worktreePath}/_plugins/ruby4_compat.rb"
     if [[ ! -f "${pluginFile}" ]]; then
         ensureDir "${worktreePath}/_plugins"
@@ -371,7 +378,7 @@ _showPagesSetupInstructions() {
 #
 # · ARGS
 #
-#   projectName  Name of the rayvn project to scan (e.g. 'valt', 'rayvn').
+#   projectName (string)  Name of the rayvn project to scan (e.g. 'valt', 'rayvn').
 
 findDependencies() {
     local projectName="${1}"
@@ -602,8 +609,9 @@ _extractFunctions() {
     local projectName="${2}"
     local libraryName="${3}"
 
-    local functionName='' functionDoc='' functionLine=''
-    local prevFunctionName='' prevFunctionDoc='' prevFunctionLine=''
+    local functionDoc=''
+    local prevFunctionName='' prevFunctionDoc=''
+    local inPreamble=1  # 1 until first # ◇ line or function is seen
 
     while IFS= read -r line; do
         if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
@@ -612,22 +620,26 @@ _extractFunctions() {
                 functionDoc=''
                 continue
             fi
+            inPreamble=0
             if [[ -n "${prevFunctionName}" ]]; then
-                _outputFunction "${prevFunctionName}" "${prevFunctionDoc}" "${prevFunctionLine}" "${projectName}" "${libraryName}"
+                _outputFunction "${prevFunctionName}" "${prevFunctionDoc}" "${projectName}" "${libraryName}"
             fi
             prevFunctionName="${newFunctionName}"
             prevFunctionDoc="${functionDoc}"
-            prevFunctionLine="${newFunctionName}()"
             functionDoc=''
-        elif [[ "${line}" =~ ^#[[:space:]](.*)$ ]]; then
+        elif [[ "${line}" =~ ^#[[:space:]]?(.*)$ ]]; then
             local comment="${BASH_REMATCH[1]}"
-            comment=${ _wrapCodeInBackticks "${comment}"; }
+            [[ "${comment}" =~ ^shellcheck ]] && continue
+            [[ "${comment}" == '◇'* ]] && inPreamble=0
             if [[ -z "${functionDoc}" ]]; then
                 functionDoc="${comment}"
             else
                 functionDoc="${functionDoc}"$'\n'"${comment}"
             fi
-        elif [[ ! "${line}" =~ ^[[:space:]]*$ ]] && [[ ! "${line}" =~ ^# ]]; then
+        elif [[ "${line}" =~ ^[[:space:]]*$ ]]; then
+            # Blank line before any ◇ doc or function: reset accumulated preamble
+            (( inPreamble )) && [[ -z "${prevFunctionName}" ]] && functionDoc=''
+        elif [[ ! "${line}" =~ ^# ]]; then
             if [[ -z "${prevFunctionName}" ]]; then
                 functionDoc=''
             fi
@@ -635,7 +647,7 @@ _extractFunctions() {
     done < "${libFile}"
 
     if [[ -n "${prevFunctionName}" ]]; then
-        _outputFunction "${prevFunctionName}" "${prevFunctionDoc}" "${prevFunctionLine}" "${projectName}" "${libraryName}"
+        _outputFunction "${prevFunctionName}" "${prevFunctionDoc}" "${projectName}" "${libraryName}"
     fi
 }
 
@@ -686,24 +698,128 @@ _extractFunctionsCompact() {
 _outputFunction() {
     local name="${1}"
     local doc="${2}"
-    local signature="${3}"
-    local project="${4}"
-    local library="${5}"
+    local project="${3}"
+    local library="${4}"
 
-    echo "### ${name}"
-    echo ""
-    echo "**Library:** \`${project}/${library}\`"
+    echo "### ${name}()"
     echo ""
     if [[ -n "${doc}" ]]; then
-        echo "${doc}"
+        local formattedDoc; formattedDoc=${ _renderDocMarkdown "${doc}"; }
+        echo "${formattedDoc}"
         echo ""
     fi
-    if [[ -n "${signature}" ]]; then
-        echo '```bash'
-        echo "${signature}"
-        echo '```'
-        echo ""
+}
+
+# Render a raw function doc string (from source comment lines) as formatted markdown.
+# Removes ◇ prefix, formats · SECTION headers and their content.
+_renderDocMarkdown() {
+    local doc="${1}"
+    local -a output=()
+    local currentSection=''
+    local -a sectionLines=()
+    local line
+
+    while IFS= read -r line; do
+        if [[ "${line}" == '◇ '* ]]; then
+            output+=("${ _wrapCodeInBackticks "${line#◇ }"; }")
+        elif [[ "${line}" =~ ^'· '(.+)$ ]]; then
+            local newSection="${BASH_REMATCH[1]}"
+            if [[ -n "${currentSection}" ]]; then
+                _flushDocSection "${currentSection}" sectionLines output
+            fi
+            currentSection="${newSection}"
+            sectionLines=()
+        elif [[ -n "${currentSection}" ]]; then
+            sectionLines+=("${line}")
+        else
+            output+=("${ _wrapCodeInBackticks "${line#  }"; }")
+        fi
+    done <<< "${doc}"
+
+    if [[ -n "${currentSection}" ]]; then
+        _flushDocSection "${currentSection}" sectionLines output
     fi
+
+    local i
+    for i in "${!output[@]}"; do
+        if (( i == 0 )); then
+            printf '%s' "${output[${i}]}"
+        else
+            printf '\n%s' "${output[${i}]}"
+        fi
+    done
+}
+
+# Flush a collected doc section into the output array with proper markdown formatting.
+# Args: section sectionLinesRef outputRef
+_flushDocSection() {
+    local section="${1}"
+    local -n _fds_lines="${2}"
+    local -n _fds_out="${3}"
+    local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
+    local sectionTitle="${section,,}"; sectionTitle="${sectionTitle^}"
+
+    _fds_out+=("" "*${sectionTitle}*" "")
+
+    case "${section}" in
+        USAGE|EXAMPLE|NOTES)
+            local fenceOpen='```bash'
+            [[ "${section}" == 'NOTES' ]] && fenceOpen='```'
+            _fds_out+=("${fenceOpen}")
+            local l hasContent=0
+            local -a pendingBlanks=()
+            for l in "${_fds_lines[@]}"; do
+                l="${l#  }"
+                if [[ -z "${l}" ]]; then
+                    (( hasContent )) && pendingBlanks+=("")
+                else
+                    if (( ${#pendingBlanks[@]} )); then
+                        _fds_out+=("${pendingBlanks[@]}")
+                        pendingBlanks=()
+                    fi
+                    hasContent=1
+                    _fds_out+=("${l}")
+                fi
+            done
+            _fds_out+=('```')
+            ;;
+        ARGS|RETURNS)
+            _fds_out+=('| | |' '|---|---|')
+            local l
+            for l in "${_fds_lines[@]}"; do
+                [[ -z "${l}" ]] && continue
+                l="${l#  }"
+                [[ "${l}" == ' '* ]] && continue  # skip wrapped continuation lines
+                local argName rest
+                IFS=' ' read -r argName rest <<< "${l}"
+                [[ -z "${argName}" ]] && continue
+                local typeWord remaining
+                local parenTypePattern='^\(([^)]+)\)[[:space:]]+(.*)'
+                if [[ "${rest}" =~ ${parenTypePattern} ]]; then
+                    # New format: argName (type) description
+                    typeWord="${BASH_REMATCH[1]}"
+                    remaining="${BASH_REMATCH[2]}"
+                else
+                    IFS=' ' read -r typeWord remaining <<< "${rest}"
+                fi
+                if [[ "${typeWord}" == 'flag' ]] && [[ -n "${remaining}" ]]; then
+                    _fds_out+=("| \`${argName}\` | ${remaining} |")
+                elif [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
+                    _fds_out+=("| \`${argName}\` *(${typeWord})* | ${remaining} |")
+                else
+                    _fds_out+=("| \`${argName}\` | ${rest# } |")
+                fi
+            done
+            _fds_out+=('{: .args-table}')
+            ;;
+        *)
+            local l
+            for l in "${_fds_lines[@]}"; do
+                [[ -z "${l}" ]] && continue
+                _fds_out+=("${ _wrapCodeInBackticks "${l#  }"; }")
+            done
+            ;;
+    esac
 }
 
 # Extract a meaningful one-line description from a function's doc comment
@@ -766,6 +882,90 @@ _wrapCodeInBackticks() {
     echo "${text}"
 }
 
+# Parse library descriptions from the home page's library table into _idxHomePageDescriptions.
+# Recognizes table rows of the form: | [project/library](url) | description |
+_loadHomePageDescriptions() {
+    declare -gA _idxHomePageDescriptions=()
+    local indexFile="${_idxDocsDir}/index.md"
+    [[ -f "${indexFile}" ]] || return 0
+
+    local line libKey description
+    local tableRowPattern='^\|[[:space:]]*\[([^/]+)/([^]]+)\]\([^)]*\)[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\|'
+    while IFS= read -r line; do
+        if [[ "${line}" =~ ${tableRowPattern} ]]; then
+            libKey="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+            description="${BASH_REMATCH[3]}"
+            description=${ trim "${description}"; }
+            [[ -n "${description}" ]] && _idxHomePageDescriptions["${libKey}"]="${description}"
+        fi
+    done < "${indexFile}"
+}
+
+# Update the library table in index.md, appending rows for any libraries not yet listed.
+# New rows use the first line of the preamble description from the source file as a placeholder.
+_updateHomePageLibraryTable() {
+    local filterProject="${1}"
+    shift
+    local libFiles=("$@")
+
+    local indexFile="${_idxDocsDir}/index.md"
+    [[ -f "${indexFile}" ]] || return 0
+
+    # Collect libs not yet in the table
+    local -a newRows=()
+    local libFile projectName libraryName libDescription
+    for libFile in "${libFiles[@]}"; do
+        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
+        libraryName=${ basename "${libFile}" .sh; }
+        [[ -n "${filterProject}" && "${projectName}" != "${filterProject}" ]] && continue
+        if [[ -z "${_idxHomePageDescriptions[${projectName}/${libraryName}]:-}" ]]; then
+            libDescription=${ _extractLibraryDescription "${libFile}"; }
+            libDescription="${libDescription%%$'\n'*}"
+            [[ -z "${libDescription}" ]] && libDescription="TODO: add description"
+            newRows+=("| [${projectName}/${libraryName}](/${projectName}/api/${projectName}-${libraryName}) | ${libDescription} |")
+        fi
+    done
+
+    (( ${#newRows[@]} == 0 )) && return 0
+
+    # Find the last table row in the ## Libraries section
+    local -a fileLines=()
+    local line inLibTable=0 lastTableLine=-1 idx=0
+    while IFS= read -r line; do
+        fileLines+=("${line}")
+        if [[ "${line}" == '## Libraries' ]]; then
+            inLibTable=1
+        elif (( inLibTable )) && [[ "${line}" =~ ^## ]]; then
+            inLibTable=0
+        fi
+        (( inLibTable )) && [[ "${line}" =~ ^\| ]] && lastTableLine=${idx}
+        (( idx += 1 ))
+    done < "${indexFile}"
+
+    if (( lastTableLine < 0 )); then
+        warn "No library table found in ${indexFile}; skipping table update"
+        return 0
+    fi
+
+    # Rebuild file with new rows inserted after the last table row
+    local tmpFile="${indexFile}.tmp"
+    {
+        for (( idx=0; idx <= lastTableLine; idx++ )); do
+            printf '%s\n' "${fileLines[${idx}]}"
+        done
+        for line in "${newRows[@]}"; do
+            printf '%s\n' "${line}"
+        done
+        for (( idx=lastTableLine+1; idx < ${#fileLines[@]}; idx++ )); do
+            printf '%s\n' "${fileLines[${idx}]}"
+        done
+    } > "${tmpFile}"
+    mv "${tmpFile}" "${indexFile}"
+
+    local count=${#newRows[@]}
+    show "Added ${count} new librar${ (( count == 1 )) && echo y || echo ies; } to index.md"
+}
+
 # Generate Jekyll documentation pages for library files.
 # Args: [--project NAME] libFiles...
 #
@@ -779,6 +979,8 @@ _generateDocs() {
     local libFiles=("$@")
 
     mkdir -p "${_idxDocsDir}/api" "${_idxDocsDir}/cli"
+    _loadHomePageDescriptions
+    _updateHomePageLibraryTable "${filterProject}" "${libFiles[@]}"
 
     local navOrder=1
     local libFile projectName libraryName
@@ -806,8 +1008,13 @@ _generateLibraryPage() {
     local navOrder="${4}"
     local outFile="${_idxDocsDir}/api/${projectName}-${libraryName}.md"
 
-    local docBlock notesBlock
-    docBlock=${ _extractDocBlock "${libFile}" "doc"; }
+    local libDescription notesBlock homePageDesc
+    homePageDesc="${_idxHomePageDescriptions[${projectName}/${libraryName}]:-}"
+    if [[ -n "${homePageDesc}" ]]; then
+        libDescription="${homePageDesc}"
+    else
+        libDescription=${ _extractLibraryDescription "${libFile}"; }
+    fi
     notesBlock=${ _extractDocBlock "${libFile}" "notes"; }
 
     {
@@ -820,8 +1027,8 @@ _generateLibraryPage() {
 
         printf '# %s/%s\n\n' "${projectName}" "${libraryName}"
 
-        if [[ -n "${docBlock}" ]]; then
-            printf '%s\n\n' "${docBlock}"
+        if [[ -n "${libDescription}" ]]; then
+            printf '%s\n\n' "${libDescription}"
         fi
 
         printf '## Functions\n\n'
@@ -833,6 +1040,33 @@ _generateLibraryPage() {
     } > "${outFile}"
 
     show "Generated" bold "${outFile}"
+}
+
+# Extract the library description from the file preamble (before the first # ◇ or function).
+# Filters out shellcheck directives. Returns the last contiguous comment block before the first
+# function doc marker or declaration.
+_extractLibraryDescription() {
+    local libFile="${1}"
+    local description='' currentBlock='' line
+
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^#! ]] && continue
+        [[ "${line}" =~ ^#[[:space:]]*shellcheck ]] && continue
+        [[ "${line}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*\(\)[[:space:]]*\{ ]] && break
+        [[ "${line}" =~ ^#[[:space:]]◇ ]] && break
+        if [[ "${line}" =~ ^[[:space:]]*$ ]] || [[ "${line}" == '#' ]]; then
+            [[ -n "${currentBlock}" ]] && description="${currentBlock}"
+            currentBlock=''
+            continue
+        fi
+        if [[ "${line}" =~ ^#[[:space:]](.*)$ ]]; then
+            [[ -n "${currentBlock}" ]] && currentBlock+=$'\n'
+            currentBlock+="${BASH_REMATCH[1]}"
+        fi
+    done < "${libFile}"
+
+    [[ -z "${description}" ]] && [[ -n "${currentBlock}" ]] && description="${currentBlock}"
+    printf '%s' "${description}"
 }
 
 # Extract a #@doc or #@notes block from a source file
@@ -870,7 +1104,8 @@ _extractDocBlock() {
     printf '%s' "${content}"
 }
 
-# Generate CLI reference page from rayvn --help output
+# Generate CLI reference page from rayvn --help output.
+# If the file already exists, only adds sections for commands not yet documented.
 _generateCliPage() {
     local outFile="${_idxDocsDir}/cli/index.md"
     local rayvnBin; rayvnBin=${ command -v rayvn 2>/dev/null; }
@@ -880,6 +1115,21 @@ _generateCliPage() {
         return 0
     fi
 
+    if [[ ! -f "${outFile}" ]]; then
+        _initCliPage "${outFile}"
+        show "Generated" bold "${outFile}"
+        return 0
+    fi
+
+    _updateCliPageCommands "${outFile}"
+    show "Generated" bold "${outFile}"
+}
+
+# Write the initial CLI page with frontmatter, overview, and a section per command.
+_initCliPage() {
+    local outFile="${1}"
+    local helpText; helpText=${ rayvn --help 2>&1; }
+    helpText=${ stripAnsi "${helpText}"; }
     {
         printf '%s\n' '---'
         printf 'layout: default\n'
@@ -888,29 +1138,85 @@ _generateCliPage() {
         printf '%s\n\n' '---'
 
         printf '# rayvn CLI\n\n'
+        printf 'rayvn is the command-line tool for managing shared bash libraries and projects. It handles project scaffolding, testing, documentation, publishing, and more.\n\n'
 
-        local helpText; helpText=${ rayvn --help 2>&1; }
-        helpText=${ stripAnsi "${helpText}"; }
+        printf '## Usage\n\n'
         printf '```\n%s\n```\n\n' "${helpText}"
+        printf 'PROJECT defaults to the current directory'\''s project when run from within a rayvn project. Most commands accept multiple project names to operate on several at once.\n\n'
 
         printf '## Commands\n\n'
 
-        local cmd cmdHelp
-        for cmd in test build theme 'new' libraries functions register release index; do
-            printf '### %s\n\n' "${cmd}"
-            if [[ "${cmd}" == 'theme' ]]; then
-                printf 'Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.\n\n'
-                printf '![Theme selector]({{ site.baseurl }}/assets/images/theme-selector.png)\n\n'
-                continue
-            fi
-            cmdHelp=${ rayvn ${cmd} --help 2>&1; }
-            cmdHelp=${ stripAnsi "${cmdHelp}"; }
-            cmdHelp="${cmdHelp//${HOME}//Users/phoggy}"
-            printf '```\n%s\n```\n\n' "${cmdHelp}"
+        local -a cmds=()
+        _parseCliCommands cmds
+        local cmd
+        for cmd in "${cmds[@]}"; do
+            _writeCliCommandSection "${cmd}"
         done
     } > "${outFile}"
+}
 
-    show "Generated" bold "${outFile}"
+# Write a documentation section for a single CLI command to stdout.
+_writeCliCommandSection() {
+    local cmd="${1}"
+
+    printf '### %s\n\n' "${cmd}"
+    if [[ "${cmd}" == 'theme' ]]; then
+        printf 'Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.\n\n'
+        printf '![Theme selector]({{ site.baseurl }}/assets/images/theme-selector.png)\n\n'
+        return
+    fi
+
+    local cmdHelp; cmdHelp=${ rayvn "${cmd}" --help 2>&1; }
+    cmdHelp=${ stripAnsi "${cmdHelp}"; }
+    cmdHelp="${cmdHelp//${HOME}/~}"
+    printf '```\n%s\n```\n\n' "${cmdHelp}"
+}
+
+# Parse command names from rayvn --help into the named array.
+_parseCliCommands() {
+    local -n _pcc_result=$1
+    local helpText; helpText=${ rayvn --help 2>&1; }
+    helpText=${ stripAnsi "${helpText}"; }
+
+    local line inCommands=0
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^Commands ]] && { inCommands=1; continue; }
+        [[ "${line}" =~ ^Options ]] && inCommands=0
+        if (( inCommands )) && [[ "${line}" =~ ^[[:space:]]+([a-z][a-z-]*) ]]; then
+            _pcc_result+=("${BASH_REMATCH[1]}")
+        fi
+    done <<< "${helpText}"
+}
+
+# Add sections to cli/index.md for any commands not yet documented there.
+_updateCliPageCommands() {
+    local outFile="${1}"
+
+    # Find commands already documented
+    local -A existingCmds=()
+    local line
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^###[[:space:]]+([a-z][a-z-]*) ]] && existingCmds["${BASH_REMATCH[1]}"]=1
+    done < "${outFile}"
+
+    # Find commands now in rayvn --help that are missing from the file
+    local -a allCmds=()
+    _parseCliCommands allCmds
+
+    local -a newCmds=()
+    local cmd
+    for cmd in "${allCmds[@]}"; do
+        [[ -z "${existingCmds[${cmd}]:-}" ]] && newCmds+=("${cmd}")
+    done
+
+    (( ${#newCmds[@]} == 0 )) && return 0
+
+    for cmd in "${newCmds[@]}"; do
+        _writeCliCommandSection "${cmd}" >> "${outFile}"
+    done
+
+    local count=${#newCmds[@]}
+    show "Added ${count} new command section${ (( count == 1 )) && echo '' || echo s; } to cli/index.md"
 }
 
 # Compute a short hash of a string using shasum

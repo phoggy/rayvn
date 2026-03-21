@@ -273,7 +273,11 @@ _printProject() {
 }
 
 listLibraries() {
-    forEachProject _printLibraries "${1}"
+    if (( flags['help'] )); then
+        echo "rayvn libraries [PROJECT...]"
+    else
+        forEachProject _printLibraries "${1}"
+    fi
 }
 
 _printLibraries() {
@@ -290,7 +294,7 @@ _printProjectLibrary() {
 
 listFunctions() {
     if (( flags['help'] )); then
-        echo "rayvn libraries [--all]"
+        echo "rayvn functions [PROJECT...] [--all]"
     else
         forEachProject _listProjectLibraries "${1}"
     fi
@@ -380,13 +384,21 @@ _printLibrary() {
 }
 
 runTests() {
-    require 'rayvn/test-harness'
-    executeTests
+    if (( flags['help'] )); then
+        echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
+    else
+        require 'rayvn/test-harness'
+        executeTests
+    fi
 }
 
 nixBuild() {
-    require 'rayvn/test-harness'
-    executeNixBuild
+    if (( flags['help'] )); then
+        echo "rayvn build [PROJECT...]"
+    else
+        require 'rayvn/test-harness'
+        executeNixBuild
+    fi
 }
 
 indexDocs() {

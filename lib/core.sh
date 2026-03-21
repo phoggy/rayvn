@@ -783,8 +783,7 @@ randomHexString() {
 # · EXAMPLE
 #
 #   myStr="XXXX-XXXX"
-#   replaceRandomHex "X" myStr
-#   # myStr is now e.g. "3a7f-c209"
+#   replaceRandomHex "X" myStr  # myStr becomes e.g. "3a7f-c209"
 
 replaceRandomHex() {
     local replaceChar="${1}"
