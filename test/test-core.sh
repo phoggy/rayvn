@@ -335,7 +335,7 @@ testShowBasicUsage() {
     result=${ show italic green "text"; }
     assertEqualStripped "text" "${result}" "Combined: italic green"
 
-    result=${ show "off text"; }
+    result=${ show "plain text"; }
     assertEqualStripped "plain text" "${result}" "Plain text"
 
     result=${ show "word1" "word2" "word3"; }
