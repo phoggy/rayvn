@@ -1402,8 +1402,8 @@ _init_colors() {
 
         # Symbols  TODO: keep? expand?
 
-        ['check']="${theme[2]}${_checkMark}"
-        ['cross']="${theme[3]}${_crossMark}"
+#        ['check']="${theme[2]}${_checkMark}"
+#        ['cross']="${theme[3]}${_crossMark}"
 
         # Special formats
 
@@ -1495,6 +1495,7 @@ _init_noColors() {
         # Special formats
 
         ['nl']=$'\n'
+    )
 }
 
 
