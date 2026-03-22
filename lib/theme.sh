@@ -18,9 +18,14 @@ showThemes() {
 }
 
 # ◇ Interactively prompt the user to select and apply a new theme.
+#
+# · ARGS
+#
+#   maxVisible (int)  Max themes to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0).
 
 setTheme() {
     require 'rayvn/prompt'
+    local maxVisible=${1:-0}
     local theme
     local themes=()
     local selectedIndex
@@ -32,7 +37,7 @@ setTheme() {
         themes+=("${theme}")
     done
 
-    choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" 1 || return 1
+    choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" 1 "${maxVisible}" || return 1
     if (( selectedIndex != _currentThemeIndex )); then
         _setTheme "${selectedIndex}"
         show "Theme changed to" bold "${_themeNames[${selectedIndex}]}"

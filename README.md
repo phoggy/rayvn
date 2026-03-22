@@ -11,7 +11,11 @@ A shared library ecosystem for bash 5.3+.
 
 # Boot rayvn & require two shared libraries ('rayvn/core' is automatic)
 
-source rayvn.up 'rayvn/prompt' 'rayvn/spinner'
+rayvnUp 'rayvn/prompt' 'rayvn/spinner'
+
+# Display styled text using the current theme and add an extra newline
+
+show primary "Hello" plain bold "Bold New" plain secondary "World" success glue "!" nl
 
 # Display a header and subhead
 
@@ -21,18 +25,20 @@ header "Example 1" plain primary "using libraries 'rayvn/core' 'rayvn/prompt' 'r
 
 local types selectedIndex spinnerId
 spinnerTypes types
-choose -n 'What type of spinner would you like to see?' types selectedIndex || bye
+choose 'What type of spinner would you like to see?' types selectedIndex || bye
 
 # Start the chosen spinner, pretend to do some work and stop spinner
 
-startSpinner spinnerId '' ${types[selectedIndex]}
-sleep 2
-stopSpinner spinnerId
+echo
+startSpinner spinnerId "Doing something" ${types[selectedIndex]}
+sleep 4
+stopSpinner spinnerId " ${successCheckMark}"
 
-# View themes and optionally change the current one (takes effect on next execution)
+# View themes (10 visible), and optionally change the current one (takes effect on next execution)
 
-require 'rayvn/theme'   
-setTheme
+require 'rayvn/theme'
+echo
+setTheme 10 || bye
 
 # Generate a random 6 word passphrase using a library from the valt project (must be in PATH)
 
