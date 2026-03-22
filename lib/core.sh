@@ -1247,10 +1247,10 @@ _init_rayvn_core() {
         _init_noColors
     fi
 
-    # Create 'success' check mark and 'error' cross mark
+    # Create success check mark and error cross mark
 
-    declare -gr _greenCheckMark="${ show success ${_checkMark}; }"
-    declare -gr _redCrossMark="${ show error ${_crossMark}; }"
+    declare -gr successCheckMark="${ show success ${_checkMark}; }"
+    declare -gr errorCrossMark="${ show error ${_crossMark}; }"
 
     # Is this a mac?
 
@@ -1400,6 +1400,11 @@ _init_colors() {
 
         ['plain']=$'\e[0m'
 
+        # Symbols  TODO: keep? expand?
+
+        ['check']="${theme[2]}${_checkMark}"
+        ['cross']="${theme[3]}${_crossMark}"
+
         # Special formats
 
         ['nl']=$'\n'
@@ -1482,10 +1487,14 @@ _init_noColors() {
 
         ['plain']=''
 
+        # Symbols  TODO: keep? expand?
+
+        ['check']="${_checkMark}"
+        ['cross']="${_crossMark}"
+
         # Special formats
 
         ['nl']=$'\n'
-    )
 }
 
 

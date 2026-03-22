@@ -397,9 +397,9 @@ _runAllTasksParallel() {
             if _readTaskResult ${i} result; then
                 spinnerId="${taskSpinnerIds[${i}]}"
                 if (( result == 0 )); then
-                    removeSpinner spinnerId "${_greenCheckMark}" false 0
+                    removeSpinner spinnerId "${successCheckMark}" false 0
                 else
-                    removeSpinner spinnerId "${_redCrossMark}" false 0
+                    removeSpinner spinnerId "${errorCrossMark}" false 0
                 fi
                 completedTasks[${i}]=1
                 (( pendingCount-- ))
@@ -417,7 +417,7 @@ _runAllTasksParallel() {
                         echo "1" > "${_testResultDir}/result-${j}.txt"
                         completedTasks[${j}]=1
                         addSpinner spinnerId star "${taskSpinnerRows[${j}]}" "$(( _testResultColumn + 2 ))"
-                        removeSpinner spinnerId "${_redCrossMark}" false 0
+                        removeSpinner spinnerId "${errorCrossMark}" false 0
                     else
                         _startTask ${j}
                         startedTasks[${j}]=1
@@ -644,7 +644,7 @@ _displayTaskResult() {
     local project="${_taskProjects[${i}]}"
     local result mark
     _readTaskResult ${i} result || result=1
-    (( result == 0 )) && mark="${_greenCheckMark}" || mark="${_redCrossMark}"
+    (( result == 0 )) && mark="${successCheckMark}" || mark="${errorCrossMark}"
     case ${taskType} in
         local)
             _setPadding _testResultColumn $(( -${#taskName} - 4 ))

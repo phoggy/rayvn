@@ -441,6 +441,7 @@ configure() {
 
     declare -grx rayvnIsUp=1
     declare -g _rayvnShellPid="${BASHPID}"
+
 }
 
 # Verify key requirements

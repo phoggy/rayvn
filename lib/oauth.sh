@@ -261,7 +261,7 @@ _setupOAuthService() {
         fail "Failed to capture authorization code"
     fi
 
-    echo " ${_greenCheckMark}"
+    echo " ${successCheckMark}"
 
     # Exchange authorization code for tokens
     local tokenResponse
