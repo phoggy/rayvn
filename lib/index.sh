@@ -98,11 +98,11 @@ runPages() {
 
     if [[ ! -d "${dir}" ]]; then
         if (( ! _userSpecifiedDir )); then
-            fail "Pages not set up for ${projectName}." plain "Run:" blue "rayvn pages ${projectName} --setup" nl \
-                 plain "   Default worktree:" blue "${dir}" plain "— use --dir DIR for a different location."
+            fail "Pages not set up for ${projectName}." off "Run:" blue "rayvn pages ${projectName} --setup" nl \
+                 off "   Default worktree:" blue "${dir}" off "— use --dir DIR for a different location."
         else
-            fail "Pages not set up for ${projectName}." plain "Run:" blue "rayvn pages ${projectName} --setup" nl \
-                 plain "   Worktree location:" blue "${dir}"
+            fail "Pages not set up for ${projectName}." off "Run:" blue "rayvn pages ${projectName} --setup" nl \
+                 off "   Worktree location:" blue "${dir}"
         fi
     fi
 
@@ -366,7 +366,7 @@ _showPagesSetupInstructions() {
     show bold "One manual step required in GitHub:"
     echo
     show "  1. Go to:" blue "${repoUrl}/settings/pages"
-    show "  2. Under" bold "Source" plain "select" bold "GitHub Actions"
+    show "  2. Under" bold "Source" off "select" bold "GitHub Actions"
     echo
     show "Then run:" bold "rayvn pages ${projectName} --publish"
     echo

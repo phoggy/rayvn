@@ -599,7 +599,7 @@ executeWithCleanVars() {
 
 # ◇ Enhanced echo with text colors, styles, and standard echo options.
 #   FORMAT tokens appear at any position and affect all subsequent TEXT args until the next
-#   format. Styles accumulate (bold persists); colors replace. Resets to plain after the
+#   format. Styles accumulate (bold persists); colors replace. Resets to off after the
 #   last text to prevent color bleed.
 #
 # · USAGE
@@ -622,14 +622,14 @@ executeWithCleanVars() {
 #     256-color:  IDX <0-255>
 #     true-color: RGB <R:G:B>
 #     Special:    nl  (insert newline between args), glue  (suppress space before next arg)
-#     Reset:      plain
+#     Reset:      off
 #
 #   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert to 16-color if
 #   true-color is not available. Some terminals may not support strikethrough.
 #
-#   When transitioning from color+style back to style-only, use plain first to drop the color:
+#   When transitioning from color+style back to style-only, use off first to drop the color:
 #
-#     show cyan "colored" plain dim "dimmed, no color"  ← correct
+#     show cyan "colored" off dim "dimmed, no color"  ← correct
 #     show cyan "colored" dim "dimmed"                  ← wrong: dim inherits cyan
 #
 # · EXAMPLE
@@ -639,12 +639,12 @@ executeWithCleanVars() {
 #   show -n yellow "no trailing newline"
 #   show success "done" / show warning "check this" / show error "failed"
 #   show italic underline green "italic underline green"
-#   show bold blue "heading" plain "body text"                  # reset color, keep no style
-#   show cyan "colored" plain dim "dim, no color"               # transition to style-only
-#   show "Line 1" nl "Line 2"                                   # newline between args
-#   show IDX 42 "256-color #42" plain RGB 52:208:88 "truecolor"
-#   show "(default:" blue "${configDir}" plain glue ")."        # suppress space before closing paren
-#   result="${ show bold green "ok"; }"                         # in command substitution
+#   show bold blue "heading" off "body text"                  # reset color, keep no style
+#   show cyan "colored" off dim "dim, no color"               # transition to style-only
+#   show "Line 1" nl "Line 2"                                 # newline between args
+#   show IDX 42 "256-color #42" off RGB 52:208:88 "truecolor"
+#   show "(default:" blue "${configDir}" off glue ")."        # suppress space before closing paren
+#   result="${ show bold green "ok"; }"                       # in command substitution
 
 show() {
     if (( ! $# )); then
@@ -716,10 +716,10 @@ header() {
     (( toUpper )) && header="${header^^}"
     local color="${_headerColors[${colorIndex}]}"
     echo
-    show bold primary "┃┃" plain "${color}" "${header[@]}"
+    show bold primary "┃┃" off "${color}" "${header[@]}"
     if (( $# > 1 )); then
         shift
-        show primary "┃┃" plain "${color}" "${@}"
+        show primary "┃┃" off "${color}" "${@}"
     fi
     echo
 }
@@ -1005,7 +1005,7 @@ redStream() {
 # ◇ Print an optional message in red, show stack if in debug mode, and exit 0.
 
 bye() {
-    (( $# )) && show red "${1}" plain "${@:2}"
+    (( $# )) && show red "${1}" off "${@:2}"
     debugStack
     exit 0
 }
@@ -1398,7 +1398,7 @@ _init_colors() {
 
         # Turn off all formats
 
-        ['plain']=$'\e[0m'
+        ['off']=$'\e[0m'
 
         # Symbols  TODO: keep? expand?
 
@@ -1485,7 +1485,7 @@ _init_noColors() {
 
         # Turn off all formats
 
-        ['plain']=''
+        ['off']=''
 
         # Symbols  TODO: keep? expand?
 

@@ -54,9 +54,9 @@ checkProjectDependencies() {
             binN="${entry##*:}"
             formula="${nixBrewMap[${nixN}]:-${nixN}}"
             if [[ ${binX} == "${nixX}" ]]; then
-                show bold "${projectName}" plain "missing required dependency:" primary ${binN} >&2
+                show bold "${projectName}" off "missing required dependency:" primary ${binN} >&2
             else
-                show bold "${projectName}" plain "missing required dependency:" primary ${binN} plain "(${nixN} for nix)" >&2
+                show bold "${projectName}" off "missing required dependency:" primary ${binN} off "(${nixN} for nix)" >&2
             fi
             echo
             show "  brew envs:" primary "brew install ${formula}" >&2

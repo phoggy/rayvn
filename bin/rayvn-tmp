@@ -11,7 +11,7 @@ usage() {
     echo
     show bold "Manage RAM-backed temp storage for rayvn."
     echo
-    show "Usage:" bold "${scriptName}" plain "[COMMAND]"
+    show "Usage:" bold "${scriptName}" off "[COMMAND]"
     echo
     echo "Commands:"
     echo
@@ -56,20 +56,20 @@ status() {
     echo
     case "${_secureTempStrategy}" in
         linux_shm)
-            show success "Active:" plain "Linux /dev/shm (RAM-backed tmpfs)"
+            show success "Active:" off "Linux /dev/shm (RAM-backed tmpfs)"
             ;;
         macos_tmpfs)
-            show success "Active:" plain "macOS tmpfs at ${_secureTempBase}"
+            show success "Active:" off "macOS tmpfs at ${_secureTempBase}"
             ;;
         secure_temp)
-            show warning "Active:" plain "disk-backed temp (mode 600, secure but not RAM-backed)"
+            show warning "Active:" off "disk-backed temp (mode 600, secure but not RAM-backed)"
             echo
             if (( onMacOS )); then
                 local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
                 if _isMacOSSupportedVersion; then
                     show "macOS 10.15+ detected — RAM-backed tmpfs is available and is even more secure."
                     echo
-                    show "Run" bold "rayvn-tmp install" plain "to set up automatic mounting at boot. It can be mounted now,"
+                    show "Run" bold "rayvn-tmp install" off "to set up automatic mounting at boot. It can be mounted now,"
                     show "but note that this will" italic bold "not survive reboot."
                     echo
                     local answerIndex
@@ -132,7 +132,7 @@ EOF
     sudo cp "${plistFile}" "${plistDest}" || fail "failed to install plist"
     sudo launchctl load "${plistDest}" || fail "failed to load LaunchDaemon"
     echo
-    show success "Installed." plain "tmpfs will be mounted at" bold "${shmPath}" plain "on every boot."
+    show success "Installed." off "tmpfs will be mounted at" bold "${shmPath}" off "on every boot."
     show "Mounting now..."
     sudo mkdir -p "${shmPath}" && sudo /sbin/mount_tmpfs "${shmPath}" && sudo chown "${UID}" "${shmPath}" || fail "failed to mount tmpfs"
     show success "Mounted at ${shmPath}. Restart rayvn tools to use RAM-backed temp."

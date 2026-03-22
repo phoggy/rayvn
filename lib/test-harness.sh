@@ -617,13 +617,13 @@ _displayPendingTask() {
             _setPadding _testResultColumn $(( -${#taskName} - 4 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
             local displayLogFile="${testLogFile/#${HOME}/\~}"
-            show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
+            show bold "${project}" off "test" primary "${taskName}" off "${_testPadding}" off dim "log at ${displayLogFile}"
             ;;
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 8 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
             local displayLogFile="${testLogFile/#${HOME}/\~}"
-            show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" plain dim "log at ${displayLogFile}"
+            show bold "${project}" off "test" primary "${taskName}" muted "nix" off "${_testPadding}" off dim "log at ${displayLogFile}"
             ;;
         build)
             local projectPad rightPad
@@ -632,7 +632,7 @@ _displayPendingTask() {
             local displayLogFile="${logFile/#${HOME}/\~}"
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
-            show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" plain dim " log at ${displayLogFile}"
+            show bold "${project}" off "${projectPad}nix" off "build" off "${rightPad}" off dim " log at ${displayLogFile}"
             ;;
     esac
 }
@@ -651,9 +651,9 @@ _displayTaskResult() {
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
             local displayLogFile="${logFile/#${HOME}/\~}"
             if (( result == 0 )); then
-                show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" " ${mark}" plain dim "log at ${displayLogFile}"
+                show bold "${project}" off "test" primary "${taskName}" off "${_testPadding}" " ${mark}" off dim "log at ${displayLogFile}"
             else
-                show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
+                show bold "${project}" off "test" primary "${taskName}" off "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
             fi
             ;;
         nix)
@@ -661,9 +661,9 @@ _displayTaskResult() {
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
             local displayLogFile="${logFile/#${HOME}/\~}"
             if (( result == 0 )); then
-                show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" " ${mark}" plain dim "log at ${displayLogFile}"
+                show bold "${project}" off "test" primary "${taskName}" muted "nix" off "${_testPadding}" " ${mark}" off dim "log at ${displayLogFile}"
             else
-                show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
+                show bold "${project}" off "test" primary "${taskName}" muted "nix" off "${_testPadding}" " ${mark}" "log at ${displayLogFile}"
             fi
             ;;
         build)
@@ -674,9 +674,9 @@ _displayTaskResult() {
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
             if (( result == 0 )); then
-                show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" " ${mark}" plain dim "log at ${displayLogFile}"
+                show bold "${project}" off "${projectPad}nix" off "build" off "${rightPad}" " ${mark}" off dim "log at ${displayLogFile}"
             else
-                show bold "${project}" plain "${projectPad}nix" plain "build" plain "${rightPad}" " ${mark}" "log at ${displayLogFile}"
+                show bold "${project}" off "${projectPad}nix" off "build" off "${rightPad}" " ${mark}" "log at ${displayLogFile}"
             fi
             ;;
     esac
@@ -691,11 +691,11 @@ _displaySkippedTask() {
     case ${taskType} in
         local)
             _setPadding _testResultColumn $(( -${#taskName} - 6 ))
-            show bold "${project}" plain "test" primary "${taskName}" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
+            show bold "${project}" off "test" primary "${taskName}" off "${_testPadding}" dim warning '⨯' off dim "${message}"
             ;;
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 10 ))
-            show bold "${project}" plain "test" primary "${taskName}" muted "nix" plain "${_testPadding}" dim warning '⨯' plain dim "${message}"
+            show bold "${project}" off "test" primary "${taskName}" muted "nix" off "${_testPadding}" dim warning '⨯' off dim "${message}"
             ;;
     esac
 }
@@ -704,7 +704,7 @@ _displayNoTestsTask() {
     local i="${1}"
     local project="${_taskProjects[${i}]}"
     _setPadding _testResultColumn 0
-    show bold "${project}" plain "${_testPadding}" secondary '⨯' plain dim "no tests"
+    show bold "${project}" off "${_testPadding}" secondary '⨯' off dim "no tests"
 }
 
 _setPadding() {

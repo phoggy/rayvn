@@ -6,7 +6,7 @@ usage() {
     echo
     show bold "Manage shared bash libraries and executables."
     echo
-    show "Usage:" bold "rayvn" plain "COMMAND [PROJECT] [PROJECT...] <options>"
+    show "Usage:" bold "rayvn" off "COMMAND [PROJECT] [PROJECT...] <options>"
     echo
     echo "Commands"
     echo
@@ -424,7 +424,7 @@ pagesCommand() {
         if (( ${#projects[@]} == 0 )); then
             local candidate="${args[0]}"
             if [[ -n "${candidate}" && "${candidate}" != -* ]]; then
-                fail "Unknown project:" blue "${candidate}" plain "— is its bin directory in PATH?"
+                fail "Unknown project:" blue "${candidate}" off "— is its bin directory in PATH?"
             else
                 fail "A project name is required (e.g. rayvn, valt, wardn)"
             fi
@@ -570,7 +570,7 @@ createProject() {
 remindIfNotInPath() {
     local binDir="${1}"
     if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
-        show "Remember to add" blue "${binDir}" plain "to your PATH."
+        show "Remember to add" blue "${binDir}" off "to your PATH."
     fi
 }
 

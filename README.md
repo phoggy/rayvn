@@ -15,11 +15,11 @@ rayvnUp 'rayvn/prompt' 'rayvn/spinner'
 
 # Display styled text using the current theme and add an extra newline
 
-show primary "Hello" plain bold "Bold New" plain secondary "World" success glue "!" nl
+show primary "Hello" off bold "Bold New" off secondary "World" success glue "!" nl
 
 # Display a header and subhead
 
-header "Example 1" plain primary "using libraries 'rayvn/core' 'rayvn/prompt' 'rayvn/spinner'"
+header "Example 1" off primary "using libraries 'rayvn/core' 'rayvn/prompt' 'rayvn/spinner'"
 
 # Ask user to choose spinner type
 

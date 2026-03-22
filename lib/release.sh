@@ -19,7 +19,7 @@ release () {
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
     [[ ${version} ]] || fail "version required"
 
-    header -u "Releasing ${project} v${version}" plain primary "${ghRepo}"
+    header -u "Releasing ${project} v${version}" off primary "${ghRepo}"
 
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
