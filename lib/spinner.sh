@@ -301,6 +301,7 @@ _spinnerExit() {
 
 _shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
+        { printf '%d\n' 1; printf '%s\n' 'stop'; } 1>&${_spinnerClientRequestFd} 2>/dev/null || true
         if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
             local errMsg="spinner process ${_spinnerServerPid} didn't exit"
             [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
@@ -314,12 +315,13 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ SERVER ⚠️ )+---)++++--
 _spinnerServerMain() {
     local request
     _initSpinnerServer
-    while true; do
+    while kill -0 $$; do
         request=()
         if _readSpinnerRequest; then
             case "${request[0]}" in
                 add) _addSpinner "${request[1]}" "${request[2]}" "${request[3]}" "${request[4]}" ;;
                 remove) _removeSpinner "${request[1]}" "${request[2]}" "${request[3]}" "${request[4]}";;
+                stop) _stopSpinnerServer ;;
             esac
         fi
         _renderSpinners
