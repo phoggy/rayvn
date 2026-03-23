@@ -4,7 +4,7 @@
 
 usage() {
     echo
-    show bold "Manage shared bash libraries and executables."
+    show bold "Manage shared libraries and executables."
     echo
     show "Usage:" bold "rayvn" off "COMMAND [PROJECT] [PROJECT...] <options>"
     echo
@@ -32,6 +32,13 @@ usage() {
     echo "    -v                Print the version and exit."
     echo "    --version         Print the version with release date and exit."
     echo
+    echo "Debug Options:"
+    echo
+    echo "    --debug           Enable debug, write output to log file and show on exit."
+    echo "    --debug-new       Enable debug, clear log file, write output to log file and show on exit."
+    echo "    --debug-out       Enable debug, write output to the current terminal."
+    echo "    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
+    echo "    --debug-tty .     Enable debug, write output to the TTY path read from the '${HOME}/.debug.tty' file."
     bye "${@}"
 }
 
@@ -43,7 +50,6 @@ main() {
 }
 
 init() {
-    declare -g debugCommand=()
     declare -g debugOptions=()
     declare -g command=
     declare -g projects=()
@@ -69,10 +75,10 @@ init() {
             pages) parseArgs true pagesCommand "${@:2}" ;;
             docs) parseArgs true docsCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
-            --debug) debugCommand=('--debug') ;debugOptions=('showLogOnExit') ;;
-            --debug-new) debugCommand=('--debug-new') ;debugOptions=('clearLog' 'showLogOnExit') ;;
-            --debug-out) debugCommand=('--debug-out') ;debugOptions=('tty' "${ tty; }") ;;
-            --debug-tty) shift; debugCommand=('--debug-tty' "${1}") ;debugOptions=('tty' "${1}") ;;
+            --debug) debugOptions=('--showLogOnExit') ;;
+            --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
+            --debug-out) debugOptions=('--tty' "${ tty; }") ;;
+            --debug-tty) shift; debugOptions=('--tty' "${1}") ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -h | --help | help) command='usage' ;;
@@ -103,10 +109,10 @@ parseArgs() {
             --local) flags+=(['local']=1) ;;
             --nix) flags+=(['nix']=1) ;;
             --all) flags+=(['all']=1) ;;
-            --debug) debugOptions=('showLogOnExit') ;;
-            --debug-new) debugOptions=('clearLog' 'showLogOnExit') ;;
-            --debug-out) debugOptions=('tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('tty' "${1}") ;;
+            --debug) debugOptions=('--showLogOnExit') ;;
+            --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
+            --debug-out) debugOptions=('--tty' "${ tty; }") ;;
+            --debug-tty) shift; debugOptions=('--tty' "${1}") ;;
             --repo) shift; gitHubRepo="${1}";;
             -*) args+=("${1}") ;;
             *)  if [[ ${add} == true ]]; then

@@ -300,10 +300,10 @@ _setDebug() {
 
     while (( ${#} > 0 )); do
         case "${1}" in
-            tty) shift; _debugOut="${1}";;
-            showLogOnExit) _debugShowLogOnExit=1 ;;
-            clearLog) clearLog=1 ;;
-            noStatus) status=0 ;;
+            --tty) shift; _debugOut="${1}";;
+            --showLogOnExit) _debugShowLogOnExit=1 ;;
+            --clearLog) clearLog=1 ;;
+            --noStatus) status=0 ;;
             *) fail "Unknown setDebug() option: ${1}" ;;
         esac
         shift

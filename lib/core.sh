@@ -621,16 +621,18 @@ executeWithCleanVars() {
 #     16-color:   black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
 #     256-color:  IDX <0-255>
 #     true-color: RGB <R:G:B>
-#     Special:    nl  (insert newline between args), glue  (suppress space before next arg)
+#     Special:    nl (insert newline), glue (suppress space before next arg)
 #     Reset:      off
 #
 #   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert to 16-color if
 #   true-color is not available. Some terminals may not support strikethrough.
 #
-#   When transitioning from color+style back to style-only, use off first to drop the color:
+#   Formats accumulate until off — use off any time you want a clean slate:
 #
-#     show cyan "colored" off dim "dimmed, no color"  ← correct
-#     show cyan "colored" dim "dimmed"                  ← wrong: dim inherits cyan
+#     show cyan "colored" off dim "dimmed, no color"  ← off drops the color
+#     show cyan "colored" dim "dimmed"                ← wrong: dim inherits cyan
+#     show bold "bold" off cyan "cyan, not bold"      ← off drops the style
+#     show bold "bold" cyan "bold cyan"               ← wrong if bold not wanted
 #
 # · EXAMPLE
 #
@@ -1038,10 +1040,11 @@ stackTrace() {
 #
 # · ARGS
 #
-#   tty TTY (flag)        Log debug messages to TTY instead of log file. If TTY is '.', the tty path is read from "${HOME}/.debug.tty".
-#   noStatus (flag)       Suppress debug status line display.
-#   clearLog (flag)       Clear the log file if not tty mode.
-#   showLogOnExit (flag)  Show the log file on exit if not tty mode.
+#   --tty TTY        Log debug messages to the TTY instead of the log file.
+#   --tty .          Log debug messages to the TTY read from "${HOME}/.debug.tty".
+#   --noStatus       Suppress debug status line display.
+#   --clearLog       Clear the log file if not tty mode.
+#   --showLogOnExit  Show the log file on exit if not tty mode.
 
 setDebug() {
     require 'rayvn/debug'
