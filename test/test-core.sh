@@ -202,8 +202,8 @@ testIndexOf() {
 
 testIsMemberOf() {
     local arr=("apple" "banana" "cherry")
-    assertTrue "isMemberOf finds 'banana'" isMemberOf "banana" arr
-    assertFalse "isMemberOf does not find 'grape'" isMemberOf "grape" arr
+    assertTrue "memberOf finds 'banana'" memberOf "banana" arr
+    assertFalse "memberOf does not find 'grape'" memberOf "grape" arr
 }
 
 testMaxArrayElementLength() {
