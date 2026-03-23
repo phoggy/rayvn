@@ -9,9 +9,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Enhanced echo with text colors, styles, and standard echo options.
-#   FORMAT tokens appear at any position and affect all subsequent TEXT args until the next
-#   format. Styles accumulate (bold persists); colors replace. Resets to off after the
-#   last text to prevent color bleed.
+#   Each FORMAT token applies to the immediately following TEXT arg only, then auto-resets.
+#   Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 #
 # · USAGE
 #
@@ -20,8 +19,8 @@
 #   -n      No trailing newline.
 #   -e      Enable backslash escape interpretation.
 #   -E      Suppress backslash escape interpretation.
-#   FORMAT  A format token (see NOTES); affects all subsequent text.
-#   TEXT    A string to print with the current format applied.
+#   FORMAT  A format token (see NOTES); applies to the next TEXT arg.
+#   TEXT    A string to print with accumulated formats applied, then reset.
 #
 # · NOTES
 #
@@ -29,21 +28,13 @@
 #
 #     Theme:      success, error, warning, info, accent, muted
 #     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
-#     16-color:   black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
+#     16-color:   black, red, green, yellow, blue, magenta, cyan, white (and bright-* variants)
 #     256-color:  IDX <0-255>
 #     true-color: RGB <R:G:B>
 #     Special:    nl (insert newline), glue (suppress space before next arg)
-#     Reset:      off
 #
-#   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert to 16-color if
-#   true-color is not available. Some terminals may not support strikethrough.
-#
-#   Formats accumulate until off — use off any time you want a clean slate:
-#
-#     show cyan "colored" off dim "dimmed, no color"  ← off drops the color
-#     show cyan "colored" dim "dimmed"                ← wrong: dim inherits cyan
-#     show bold "bold" off cyan "cyan, not bold"      ← off drops the style
-#     show bold "bold" cyan "bold cyan"               ← wrong if bold not wanted
+#   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert
+#   to 16-color if true-color is not available. Some terminals may not support strikethrough.
 #
 # · EXAMPLE
 #
@@ -54,11 +45,11 @@
 #   show warning "check this"
 #   show error "failed"
 #   show italic underline green "italic underline green"
-#   show bold blue "heading" off "body text"                  # reset color, keep no style
-#   show cyan "colored" off dim "dim, no color"               # transition to style-only
+#   show bold blue "heading" "body text"                      # heading resets; body is plain
+#   show cyan "colored" dim "dim, no color"                   # each arg gets its own format
 #   show "Line 1" nl "Line 2"                                 # newline between args
-#   show IDX 42 "256-color #42" off RGB 52:208:88 "truecolor"
-#   show "(default:" blue "${configDir}" off glue ")."        # suppress space before closing paren
+#   show IDX 42 "256-color #42" RGB 52:208:88 "truecolor"
+#   show "(default:" blue "${configDir}" glue ")."            # suppress space before closing paren
 #   result="${ show bold green "ok"; }"                       # in command substitution
 
 show() {
@@ -88,6 +79,7 @@ show() {
                     # Invalid color value, treat IDX and value as text
                     (( addSpace )) && output+=' '
                     output+=${currentFormat}"IDX ${1}"
+                    [[ -n $currentFormat ]] && output+=$'\e[0m'
                     currentFormat=''
                     addSpace=1
                 fi
@@ -98,14 +90,15 @@ show() {
             else
                 (( addSpace )) && output+=' '
                 output+=${currentFormat}${1}
+                [[ -n $currentFormat ]] && output+=$'\e[0m'
                 currentFormat=''
                 addSpace=1
             fi
         fi
         shift
     done
-    [[ -n $currentFormat ]] && output+=$currentFormat
-    echo "${options[@]}" "${output}"$'\e[0m'
+    [[ -n $currentFormat ]] && output+=$currentFormat$'\e[0m'
+    echo "${options[@]}" "${output}"
 }
 
 # ◇ Print a styled section header with optional subtitle lines.
@@ -131,10 +124,10 @@ header() {
     (( toUpper )) && header="${header^^}"
     local color="${_headerColors[${colorIndex}]}"
     echo
-    show bold primary "┃┃" off "${color}" "${header[@]}"
+    show bold primary "┃┃" "${color}" "${header[@]}"
     if (( $# > 1 )); then
         shift
-        show primary "┃┃" off "${color}" "${@}"
+        show primary "┃┃" "${color}" "${@}"
     fi
     echo
 }
@@ -154,13 +147,13 @@ containsAnsi() {
 # ◇ Print a warning message to stderr with a ⚠️ prefix.
 
 warn() {
-    show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
+    show warning "⚠️ ${*}" > ${terminalErr}
 }
 
 # ◇ Print an error message to stderr with a 🔺 prefix.
 
 error() {
-    show error "🔺 ${1}" "${@:2}" > ${terminalErr}
+    show error "🔺 ${*}" > ${terminalErr}
 }
 
 # ◇ Fails with a stack trace; shorthand for fail --trace on invalid arguments.
@@ -221,7 +214,7 @@ redStream() {
 # ◇ Print an optional message in red, show stack if in debug mode, and exit 0.
 
 bye() {
-    (( $# )) && show red "${1}" off "${@:2}"
+    (( $# )) && show red "${1}" "${@:2}"
     debugStack
     exit 0
 }
@@ -1430,10 +1423,6 @@ _init_colors() {
         ['primary']=${theme[8]}
         ['secondary']=${theme[9]}
 
-        # Turn off all formats
-
-        ['off']=$'\e[0m'
-
         # Symbols  TODO: keep? expand?
 
 #        ['check']="${theme[2]}${_checkMark}"
@@ -1516,10 +1505,6 @@ _init_noColors() {
         ['muted']=''
         ['primary']=''
         ['secondary']=''
-
-        # Turn off all formats
-
-        ['off']=''
 
         # Symbols  TODO: keep? expand?
 

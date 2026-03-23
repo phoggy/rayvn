@@ -375,7 +375,7 @@ _preparePrompt() {
     # Initialize/show hint and prompt
 
     _promptHint="${_promptHintSpace}${ show -n muted italic "[${_promptPlainHint}]" ;}"
-    _prompt="${ show -n bold success "?" off bold "${_promptPlain}" ;}${_promptHint} "
+    _prompt="${ show -n bold success "?" bold "${_promptPlain}" ;}${_promptHint} "
     echo -n "${_prompt}" > ${terminal}
 
     # Reserve rows below prompt and set prompt row/col
@@ -455,7 +455,7 @@ _preparePromptChoices() {
         local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
         for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++ )); do
             number="${ printNumber $(( $promptIndex +1 )) ${places} ; }"
-            _promptDisplayChoices[$promptIndex]="${ show dim "${number}." off "${_promptDisplayChoices[${promptIndex}]}"; }"
+            _promptDisplayChoices[$promptIndex]="${ show dim "${number}." "${_promptDisplayChoices[${promptIndex}]}"; }"
         done
     fi
 }

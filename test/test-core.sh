@@ -35,9 +35,8 @@ main() {
     # show() function tests
     testShowBasicUsage
     testShowFormatCombinations
-    testShowStylePersistence
+    testShowPerTextReset
     testShowColorReplacement
-    testShowPlainResetPattern
     testShowCommandSubstitution
     testShowThemeColors
     testShow256Colors
@@ -51,7 +50,6 @@ main() {
     testShowEscapeCodes256Colors
     testShowEscapeCodesRGBColors
     testShowEscapeCodesStyleCombinations
-    testShowEscapeCodesResets
     testShowEscapeCodesComplexPatterns
 
 }
@@ -354,21 +352,21 @@ testShowFormatCombinations() {
     assertEqualStripped "text" "${result}" "Styles + color: dim underline red"
 }
 
-testShowStylePersistence() {
+testShowPerTextReset() {
     echo ""
-    echo "Testing show() Style Persistence"
-    echo "================================="
+    echo "Testing show() Per-Text Reset"
+    echo "=============================="
 
     local result
 
-    result=${ show italic "starts italic" blue "still italic, now blue"; }
-    assertEqualStripped "starts italic still italic, now blue" "${result}" "Style persists: italic continues"
+    result=${ show italic "starts italic" blue "blue only"; }
+    assertEqualStripped "starts italic blue only" "${result}" "Auto-reset: italic does not carry to next arg"
 
-    result=${ show bold "bold start" "bold continues" "still bold"; }
-    assertEqualStripped "bold start bold continues still bold" "${result}" "Style persists: bold continues"
+    result=${ show bold "bold start" "plain continues" "still plain"; }
+    assertEqualStripped "bold start plain continues still plain" "${result}" "Auto-reset: bold does not carry to next arg"
 
-    result=${ show italic "italic" bold "italic+bold" underline "italic+bold+underline"; }
-    assertEqualStripped "italic+bold italic+bold+underline" "${result}" "Styles accumulate"
+    result=${ show italic "one" bold "two" underline "three"; }
+    assertEqualStripped "one two three" "${result}" "Each arg gets only its own format"
 }
 
 testShowColorReplacement() {
@@ -388,28 +386,6 @@ testShowColorReplacement() {
     assertEqualStripped "bold blue bold red (color replaced)" "${result}" "Color replacement preserves style"
 }
 
-testShowPlainResetPattern() {
-    echo ""
-    echo "Testing show() 'off' Reset Pattern"
-    echo "====================================="
-
-    local result
-
-    result=${ show bold green "styled" off "back to normal"; }
-    assertEqualStripped "styled back to normal" "${result}" "Reset after bold+color"
-
-    result=${ show cyan "colored" off dim "dimmed, not colored"; }
-    assertEqualStripped "colored dimmed, not colored" "${result}" "Color to style-only: cyan to dim"
-
-    result=${ show blue "blue text" off italic "italic only"; }
-    assertEqualStripped "blue text italic only" "${result}" "Color to style-only: blue to italic"
-
-    result=${ show bold blue "heading" off "text" italic "emphasis"; }
-    assertEqualStripped "heading text emphasis" "${result}" "Reset between combinations"
-
-    result=${ show bold "bold" off "normal" italic "italic" off "normal again"; }
-    assertEqualStripped "normal normal again" "${result}" "Multiple resets"
-}
 
 testShowCommandSubstitution() {
     echo ""
@@ -424,7 +400,7 @@ testShowCommandSubstitution() {
     message="${ show bold green "styled text" ;}"
     assertEqualStripped "styled text" "${message}" "Command substitution: styled"
 
-    message="${ show "Start" cyan "middle" off "end" ;}"
+    message="${ show "Start" cyan "middle" "end" ;}"
     assertEqualStripped "Start middle end" "${message}" "Command substitution: multiple formats"
 
     result="${ show green "success" ;}"
@@ -581,16 +557,16 @@ testShowDocumentedPatterns() {
     result=${ show italic underline green "Italic underline green text"; }
     assertEqualStripped "Italic underline green text" "${result}" "Doc example: multi-style green"
 
-    result=${ show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" off blue "blue text"; }
+    result=${ show "Plain text" italic bold blue "italic bold blue text" red "italic bold red" blue "blue text"; }
     assertEqualStripped "Plain text italic bold blue text italic bold red blue text" "${result}" "Doc example: style continuation"
 
-    result=${ show cyan "colored text" off dim "dim text (no color)"; }
+    result=${ show cyan "colored text" dim "dim text (no color)"; }
     assertEqualStripped "colored text dim text (no color)" "${result}" "Doc pattern: cyan to dim"
 
-    result=${ show bold green "Note" off "Regular text continues here"; }
+    result=${ show bold green "Note" "Regular text continues here"; }
     assertEqualStripped "Note Regular text continues here" "${result}" "Doc pattern: reset after combo"
 
-    result=${ show bold blue "heading" off "text" italic "emphasis"; }
+    result=${ show bold blue "heading" "text" italic "emphasis"; }
     assertEqualStripped "heading text emphasis" "${result}" "Doc pattern: transitions"
 }
 
@@ -730,15 +706,15 @@ testShowEscapeCodes256Colors() {
     assertEqualEscapeCodes "${expected}" "${result}" "256 color: 255"
 
     result=${ show IDX 256 "text"; }
-    expected="IDX 256 text"$'\e[0m'
+    expected="IDX 256 text"
     assertEqualEscapeCodes "${expected}" "${result}" "Invalid 256 color (256) treated as text"
 
     result=${ show IDX 999 "text"; }
-    expected="IDX 999 text"$'\e[0m'
+    expected="IDX 999 text"
     assertEqualEscapeCodes "${expected}" "${result}" "Invalid 256 color (999) treated as text"
 
     result=${ show 42 "text"; }
-    expected="42 text"$'\e[0m'
+    expected="42 text"
     assertEqualEscapeCodes "${expected}" "${result}" "Numeric value without IDX treated as text"
 }
 
@@ -802,28 +778,40 @@ testShowEscapeCodesStyleCombinations() {
     assertEqualEscapeCodes "${expected}" "${result}" "All styles: bold+italic+underline+dim+reverse"
 }
 
-testShowEscapeCodesResets() {
+testShowEscapeCodesComplexPatterns() {
     echo ""
-    echo "Testing show() Reset Escape Codes"
-    echo "=================================="
+    echo "Testing show() Per-Text Reset Escape Codes"
+    echo "==========================================="
 
     local result expected
 
-    result=${ show bold green "text1" off "text2"; }
-    expected=$'\e[1m\e[32m'"text1 "$'\e[0m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Plain resets formatting"
+    result=${ show italic "text1" blue "text2"; }
+    expected=$'\e[3m'"text1"$'\e[0m'' '$'\e[34m'"text2"$'\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Style per-text reset with color change"
 
-    result=${ show blue "text1" off italic "text2"; }
-    expected=$'\e[34m'"text1 "$'\e[0m\e[3m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Plain between color and style"
+    result=${ show bold blue "text1" red "text2"; }
+    expected=$'\e[1m\e[34m'"text1"$'\e[0m'' '$'\e[31m'"text2"$'\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Color replacement, style resets"
 
-    result=${ show bold "text1" off "text2" off "text3"; }
-    expected=$'\e[1m'"text1 "$'\e[0m'"text2 "$'\e[0m'"text3"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Multiple plain resets"
+    result=${ show "text1" bold "text2" italic "text3"; }
+    expected="text1"' '$'\e[1m'"text2"$'\e[0m'' '$'\e[3m'"text3"$'\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Styles reset per text arg"
+
+    result=${ show bold green "text1" dim "text2"; }
+    expected=$'\e[1m\e[32m'"text1"$'\e[0m'' '$'\e[2m'"text2"$'\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Style after reset"
+
+    result=${ show cyan "colored text" dim "dim text"; }
+    expected=$'\e[36m'"colored text"$'\e[0m'' '$'\e[2m'"dim text"$'\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Cyan to dim auto-reset"
+
+    result=${ show red "A" blue "B" green "C"; }
+    expected=$'\e[31m'"A"$'\e[0m'' '$'\e[34m'"B"$'\e[0m'' '$'\e[32m'"C"$'\e[0m'
+    assertEqualEscapeCodes "${expected}" "${result}" "Multiple color changes"
 
     result=${ show bold red "text"; }
     expected=$'\e[1m\e[31m'"text"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Final reset code present"
+    assertEqualEscapeCodes "${expected}" "${result}" "Single text arg resets after itself"
 
     result=${ show; }
     expected=''
@@ -831,39 +819,7 @@ testShowEscapeCodesResets() {
 
     result=${ show bold red; }
     expected=$'\e[1m\e[31m\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Format only produces format and reset"
-}
-
-testShowEscapeCodesComplexPatterns() {
-    echo ""
-    echo "Testing show() Complex Pattern Escape Codes"
-    echo "============================================"
-
-    local result expected
-
-    result=${ show italic "text1" blue "text2"; }
-    expected=$'\e[3m'"text1 "$'\e[34m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Style persistence with color change"
-
-    result=${ show bold blue "text1" red "text2"; }
-    expected=$'\e[1m\e[34m'"text1 "$'\e[31m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Color replacement with style persistence"
-
-    result=${ show "text1" bold "text2" italic "text3"; }
-    expected="text1 "$'\e[1m'"text2 "$'\e[3m'"text3"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Accumulating styles across arguments"
-
-    result=${ show bold green "text1" off dim "text2"; }
-    expected=$'\e[1m\e[32m'"text1 "$'\e[0m\e[2m'"text2"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Reset then new style"
-
-    result=${ show cyan "colored text" off dim "dim text"; }
-    expected=$'\e[36m'"colored text "$'\e[0m\e[2m'"dim text"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Cyan to dim via plain"
-
-    result=${ show red "A" blue "B" green "C"; }
-    expected=$'\e[31m'"A "$'\e[34m'"B "$'\e[32m'"C"$'\e[0m'
-    assertEqualEscapeCodes "${expected}" "${result}" "Multiple color changes"
+    assertEqualEscapeCodes "${expected}" "${result}" "Format only (no text) produces format and reset"
 }
 
 # Force 24-bit color mode if not running in a terminal

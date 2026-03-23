@@ -6,7 +6,7 @@ usage() {
     echo
     show bold "Manage shared libraries and executables."
     echo
-    show "Usage:" bold "rayvn" off "COMMAND [PROJECT] [PROJECT...] <options>"
+    show "Usage:" bold "rayvn" "COMMAND [PROJECT] [PROJECT...] <options>"
     echo
     echo "Commands"
     echo
@@ -576,7 +576,7 @@ createProject() {
 remindIfNotInPath() {
     local binDir="${1}"
     if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
-        show "Remember to add" blue "${binDir}" off "to your PATH."
+        show "Remember to add" blue "${binDir}" "to your PATH."
     fi
 }
 

@@ -135,6 +135,16 @@ removeSpinner() {
     _spinnerRequest remove "${idRef}" "${replacement}" ${newline} ${backup} > /dev/null
 }
 
+# ◇ Close the inherited spinner client fds in a subshell forked from the spinner owner.
+#   Call this at the start of any ( ) & subshell that inherits these fds, to prevent
+#   accidental writes that would corrupt the spinner FIFO protocol.
+
+spinnerCloseInheritedFds() {
+    (( _spinnerFirstRequest )) && return  # Not initialized; nothing to close
+    exec {_spinnerClientRequestFd}>&- 2>/dev/null
+    exec {_spinnerClientResponseFd}<&- 2>/dev/null
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_spinner() {
@@ -262,9 +272,16 @@ _spinnerRequest() {
         delay=1 # wait a little longer on first request
     fi
 
-    # Send the request
+    # Send the request as a single atomic write (prevents framing corruption if a signal
+    # is delivered between writes, since bash signals fire between commands)
 
-    { printf '%d\n' $#; printf '%s\n' "$@"; } >&${_spinnerClientRequestFd}
+    local _req
+    printf -v _req '%d\n' $#
+    local _arg
+    for _arg in "$@"; do
+        _req+="${_arg}"$'\n'
+    done
+    printf '%s' "${_req}" >&${_spinnerClientRequestFd}
 
     # Read the response (save exit codes explicitly to avoid $? staleness from if/fi)
 
@@ -301,7 +318,7 @@ _spinnerExit() {
 
 _shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
-        { printf '%d\n' 1; printf '%s\n' 'stop'; } 1>&${_spinnerClientRequestFd} 2>/dev/null || true
+        printf '%s' $'1\nstop\n' 1>&${_spinnerClientRequestFd} 2>/dev/null || true
         if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
             local errMsg="spinner process ${_spinnerServerPid} didn't exit"
             [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
@@ -339,6 +356,10 @@ _readSpinnerRequest() {
     read -t "${delay}" count <&${_spinnerServerRequestFd}
     readResult=$?
     if (( readResult == 0 )); then
+        if [[ ! "${count}" =~ ^[0-9]+$ ]]; then
+            _spinnerResponse "bad request count: ${count}"
+            return 1
+        fi
         if ! mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}; then
             _spinnerResponse "read request parameters failed with $?, count=${count}"
             return 1

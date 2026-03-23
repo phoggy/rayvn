@@ -366,7 +366,7 @@ _showPagesSetupInstructions() {
     show bold "One manual step required in GitHub:"
     echo
     show "  1. Go to:" blue "${repoUrl}/settings/pages"
-    show "  2. Under" bold "Source" off "select" bold "GitHub Actions"
+    show "  2. Under" bold "Source" "select" bold "GitHub Actions"
     echo
     show "Then run:" bold "rayvn pages ${projectName} --publish"
     echo
@@ -619,6 +619,14 @@ _extractFunctions() {
             if [[ "${newFunctionName}" =~ ^_ ]]; then
                 functionDoc=''
                 continue
+            fi
+            # Skip single-line stub functions (no-op body per spec)
+            if [[ "${line}" =~ \}[[:space:]]*$ ]]; then
+                local _stubBody="${line#*\{}"; _stubBody="${_stubBody%\}*}"; _stubBody="${_stubBody//[[:space:]]/}"
+                if [[ "${_stubBody}" =~ ^(:;?|return[[:digit:]]*;?)?$ ]]; then
+                    functionDoc=''
+                    continue
+                fi
             fi
             inPreamble=0
             if [[ -n "${prevFunctionName}" ]]; then
