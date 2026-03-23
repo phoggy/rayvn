@@ -292,14 +292,14 @@ parseOptionalArg() {
 
 # ◇ Return 0 if a variable with the given name is defined, including empty or null-value vars.
 
-varIsDefined() {
+varDefined() {
     declare -p "${1}" &> /dev/null
 }
 
 # ◇ Fail if a variable with the given name is not defined.
 
 assertVarDefined() {
-    varIsDefined "${1}" || fail "var ${1} not defined"
+    varDefined "${1}" || fail "var ${1} not defined"
 }
 
 # ◇ Fails if the given path does not exist.
@@ -485,17 +485,6 @@ assertCommand() {
             fail "command failed with exit code ${result}"
         fi
     fi
-}
-
-# ◇ Append a value to an exported variable, space-separated.
-#
-# · ARGS
-#
-#   varName (stringRef)  Name of the variable to append to.
-#   value (string)       Value to append.
-
-appendVar() {
-    export ${1}="${!1:+${!1} }${2}"
 }
 
 # ◇ Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
@@ -801,7 +790,7 @@ replaceRandomHex() {
 #
 # · ARGS
 #
-#   src (mapRef)  Name of the source map.
+#   src (mapRef)   Name of the source map.
 #   dest (mapRef)  Name of the destination map (must already be declared with -A).
 
 copyMap() {
@@ -845,7 +834,7 @@ repeat() {
 # · ARGS
 #
 #   match (string)         Match value; prefix with -p for prefix match, -s for suffix match, -r for regex.
-#   arrayRef (arrayRef)  Name of the indexed array to search.
+#   arrayRef (arrayRef)    Name of the indexed array to search.
 #   resultRef (stringRef)  Name of the variable to store the found index.
 #
 # · RETURNS
@@ -882,7 +871,7 @@ indexOf() {
 #
 # · ARGS
 #
-#   item (string)      Value to search for.
+#   item (string)        Value to search for.
 #   arrayRef (arrayRef)  Name of the indexed array to search.
 
 isMemberOf() {
@@ -910,9 +899,9 @@ maxArrayElementLength() {
 #
 # · ARGS
 #
-#   string (string)  Target string.
-#   width (int)      Minimum visible character width.
-#   position (string) Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
+#   string (string)    Target string.
+#   width (int)        Minimum visible character width.
+#   position (string)  Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
 
 padString() {
     local string="${1}"
@@ -975,7 +964,7 @@ fail() {
 
     # If spinner is running, stop it
 
-    if varIsDefined _spinnerServerPid; then
+    if varDefined _spinnerServerPid; then
         local inRayvnFail=1
         _spinnerExit
     fi

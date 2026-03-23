@@ -110,7 +110,7 @@ testProviderNameCaseInsensitive() {
     # should resolve correctly regardless of input case
     local upperVarName="_${ echo "GOOGLE" | tr '[:upper:]' '[:lower:]'; }AuthUrl"
     assertEqual "${upperVarName}" "_googleAuthUrl" "lowercased provider var name"
-    varIsDefined "${upperVarName}" || fail "lowercased Google auth URL var should be defined"
+    varDefined "${upperVarName}" || fail "lowercased Google auth URL var should be defined"
 }
 
 # --- Service map structure ---

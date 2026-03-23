@@ -23,7 +23,7 @@ main() {
     testIndexOf
     testIsMemberOf
     testMaxArrayElementLength
-    testVarIsDefined
+    testVarDefined
     testAppendVar
     testNumericPlaces
     testRandomInteger
@@ -217,22 +217,14 @@ testMaxArrayElementLength() {
 # Variable utilities
 # ============================================================================
 
-testVarIsDefined() {
+testVarDefined() {
     local definedVar="value"
-    assertTrue "varIsDefined finds defined var" varIsDefined definedVar
-    assertFalse "varIsDefined does not find undefined var" varIsDefined undefinedVar
+    assertTrue "varDefined finds defined var" varDefined definedVar
+    assertFalse "varDefined does not find undefined var" varDefined undefinedVar
     local emptyVar=""
-    assertTrue "varIsDefined finds empty var" varIsDefined emptyVar
+    assertTrue "varDefined finds empty var" varDefined emptyVar
 }
 
-testAppendVar() {
-    local testVar="first"
-    appendVar testVar "second"
-    assertEqual "first second" "${testVar}" "appendVar adds with space separator"
-    local emptyVar=""
-    appendVar emptyVar "only"
-    assertEqual "only" "${emptyVar}" "appendVar on empty doesn't add leading space"
-}
 
 # ============================================================================
 # Numeric utilities

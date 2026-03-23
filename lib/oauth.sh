@@ -25,7 +25,7 @@ getOAuthService() {
 
     local authUrlVarName="_${providerName}AuthUrl"
     local tokenUrlVarName="_${providerName}TokenUrl"
-    if ! varIsDefined authUrlVarName || ! varIsDefined tokenUrlVarName; then
+    if ! varDefined authUrlVarName || ! varDefined tokenUrlVarName; then
         fail "OAuth service '${providerName}' not supported"
     fi
 
