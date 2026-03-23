@@ -9,7 +9,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Enhanced echo with text colors, styles, and standard echo options.
-#   Each FORMAT token applies to the immediately following TEXT arg only, then auto-resets.
+#   Each FORMAT token applies to the immediately following TEXT arg only, then resets.
 #   Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 #
 # · USAGE
@@ -1083,8 +1083,8 @@ openUrl() {
 
 # ◇ Execute a command with rayvn internal variables unset, simulating a clean environment.
 
-executeWithCleanVars() {
-    env "${_unsetChildVars[@]}" "${@}"
+execute() {
+    env "${_unsetVars[@]}" "${@}"
 }
 
 # ◇ Enable debug mode.
@@ -1232,27 +1232,6 @@ _init_rayvn_core() {
         declare -gr _secureTempBase=''
     fi
 
-#    declare -gAr _symbols=( TODO: add these and box drawing to _textFormats??
-#
-#        # Vertical line variants (UTF-8)
-#
-#        ['v-line']="│"          # U+2502 Box drawings light vertical
-#        ['v-line-heavy']="┃"    # U+2503 Box drawings heavy vertical
-#        ['v-line-2']="║"        # U+2551 Box drawings double vertical
-#        ['v-dash-2']="╎"        # U+254E Box drawings light double dash vertical
-#        ['v-dash-2-heavy']="╏"  # U+254F Box drawings heavy double dash vertical
-#        ['v-dash-3']="┆"        # U+2506 Box drawings light triple dash vertical
-#        ['v-dash-3-heavy']="┇"  # U+2507 Box drawings heavy triple dash vertical
-#        ['v-dash-4']="┊"        # U+250A Box drawings light quadruple dash vertical
-#        ['v-dash-4-heavy']="┋"  # U+250B Box drawings heavy quadruple dash vertical
-#
-#        # Block elements (solid)
-#
-#        ['block-full']="█"      # U+2588 Full block
-#        ['block-left']="▌"      # U+258C Left half block
-#        ['block-right']="▐"     # U+2590 Right half block
-#    )
-
     # Ensure system and rayvn config dirs set to valid directories
 
     declare -gr _systemConfigDir="${HOME}/.config"
@@ -1279,18 +1258,7 @@ _init_rayvn_core() {
     declare -gr successCheckMark="${ show success ${_checkMark}; }"
     declare -gr errorCrossMark="${ show error ${_crossMark}; }"
 
-    # Is this a mac?
-
-    if (( onMacOS )); then
-
-        # Yes, remember if brew is available
-
-        if command -v brew >/dev/null; then
-            declare -gri _brewIsInstalled=1
-        fi
-    fi
-
-    # Force these readonly since we have to handle them specially in rayvn.up
+    # Force these functions readonly since we have to handle them specially in rayvn.up
 
     (( _rayvnReadOnlyFunctions )) && declare -fr fail printStack
 
@@ -1304,7 +1272,7 @@ _init_rayvn_core() {
         unsetVars+=("-u")
         unsetVars+=("${var}")
     done
-    declare -ga _unsetChildVars=("${unsetVars[@]}")
+    declare -ga _unsetVars=("${unsetVars[@]}")
 
     # Remove our init helper functions. The current function will be removed by rayvn.up
 
@@ -1354,7 +1322,7 @@ _init_colors() {
 
     declare -grA _textFormats=(
 
-       # Effects on
+       # Styles
 
         ['bold']=$'\e[1m'
         ['dim']=$'\e[2m'
@@ -1363,16 +1331,6 @@ _init_colors() {
         ['blink']=$'\e[5m'
         ['reverse']=$'\e[7m'
         ['strikethrough']=$'\e[9m' # often not supported!
-
-        # Effects off
-
-        ['!bold']=$'\e[22m'
-        ['!dim']=$'\e[22m'
-        ['!italic']=$'\e[23m'
-        ['!underline']=$'\e[24m'
-        ['!blink']=$'\e[25m'
-        ['!reverse']=$'\e[27m'
-        ['!strikethrough']=$'\e[29m' # often not supported!
 
         # Basic Foreground Colors
 
@@ -1423,11 +1381,6 @@ _init_colors() {
         ['primary']=${theme[8]}
         ['secondary']=${theme[9]}
 
-        # Symbols  TODO: keep? expand?
-
-#        ['check']="${theme[2]}${_checkMark}"
-#        ['cross']="${theme[3]}${_crossMark}"
-
         # Special formats
 
         ['nl']=$'\n'
@@ -1437,7 +1390,7 @@ _init_colors() {
 _init_noColors() {
     declare -grA _textFormats=(
 
-        # Effects on
+        # Styles
 
         ['bold']=''
         ['dim']=''
@@ -1446,16 +1399,6 @@ _init_noColors() {
         ['blink']=''
         ['reverse']=''
         ['strikethrough']=''
-
-        # Effects off
-
-        ['!bold']=''
-        ['!dim']=''
-        ['!italic']=''
-        ['!underline']=''
-        ['!blink']=''
-        ['!reverse']=''
-        ['!strikethrough']=''
 
         # Basic Foreground Colors
 
@@ -1506,17 +1449,11 @@ _init_noColors() {
         ['primary']=''
         ['secondary']=''
 
-        # Symbols  TODO: keep? expand?
-
-        ['check']="${_checkMark}"
-        ['cross']="${_crossMark}"
-
         # Special formats
 
         ['nl']=$'\n'
     )
 }
-
 
 _setFileSystemVar() {
     local -n resultVar="${1}"
