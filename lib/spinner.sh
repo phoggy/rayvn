@@ -356,14 +356,20 @@ _readSpinnerRequest() {
     read -t "${delay}" count <&${_spinnerServerRequestFd}
     readResult=$?
     if (( readResult == 0 )); then
-        if [[ ! "${count}" =~ ^[0-9]+$ ]]; then
-            _spinnerResponse "bad request count: ${count}"
+        if [[ ! "${count}" =~ ^[0-9]+$ ]] || (( count == 0 )); then
+            # Stray write to request FIFO — do NOT send an error response. There is no
+            # corresponding client waiting for one, and sending to the response FIFO would
+            # corrupt the next real client exchange by leaving a stale response in it.
             return 1
         fi
-        if ! mapfile -t -n "${count}" request <&${_spinnerServerRequestFd}; then
-            _spinnerResponse "read request parameters failed with $?, count=${count}"
-            return 1
-        fi
+        local i
+        for (( i=0; i < count; i++ )); do
+            # Use read with a short timeout per arg: if args don't arrive promptly, this is a
+            # partial stray write (not a real client request), so ignore it without responding.
+            if ! IFS= read -r -t 1 "request[${i}]" <&${_spinnerServerRequestFd}; then
+                return 1
+            fi
+        done
     elif (( readResult <= 128 )); then
         _spinnerResponse "read request count failed with: ${readResult}"
         return 1
