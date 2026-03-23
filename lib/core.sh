@@ -4,6 +4,802 @@
 # Common core.
 # Use via: require 'rayvn/core'
 
+# ──────────────────────────────────────────────────────────────────────────────
+# OUTPUT & ERRORS
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Enhanced echo with text colors, styles, and standard echo options.
+#   FORMAT tokens appear at any position and affect all subsequent TEXT args until the next
+#   format. Styles accumulate (bold persists); colors replace. Resets to off after the
+#   last text to prevent color bleed.
+#
+# · USAGE
+#
+#   show [-n] [-e|-E] [FORMAT|TEXT]...
+#
+#   -n      No trailing newline.
+#   -e      Enable backslash escape interpretation.
+#   -E      Suppress backslash escape interpretation.
+#   FORMAT  A format token (see NOTES); affects all subsequent text.
+#   TEXT    A string to print with the current format applied.
+#
+# · NOTES
+#
+#   Available formats:
+#
+#     Theme:      success, error, warning, info, accent, muted
+#     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
+#     16-color:   black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
+#     256-color:  IDX <0-255>
+#     true-color: RGB <R:G:B>
+#     Special:    nl (insert newline), glue (suppress space before next arg)
+#     Reset:      off
+#
+#   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert to 16-color if
+#   true-color is not available. Some terminals may not support strikethrough.
+#
+#   Formats accumulate until off — use off any time you want a clean slate:
+#
+#     show cyan "colored" off dim "dimmed, no color"  ← off drops the color
+#     show cyan "colored" dim "dimmed"                ← wrong: dim inherits cyan
+#     show bold "bold" off cyan "cyan, not bold"      ← off drops the style
+#     show bold "bold" cyan "bold cyan"               ← wrong if bold not wanted
+#
+# · EXAMPLE
+#
+#   show blue "blue text"
+#   show bold red "bold red"
+#   show -n yellow "no trailing newline"
+#   show success "done"
+#   show warning "check this"
+#   show error "failed"
+#   show italic underline green "italic underline green"
+#   show bold blue "heading" off "body text"                  # reset color, keep no style
+#   show cyan "colored" off dim "dim, no color"               # transition to style-only
+#   show "Line 1" nl "Line 2"                                 # newline between args
+#   show IDX 42 "256-color #42" off RGB 52:208:88 "truecolor"
+#   show "(default:" blue "${configDir}" off glue ")."        # suppress space before closing paren
+#   result="${ show bold green "ok"; }"                       # in command substitution
+
+show() {
+    if (( ! $# )); then
+        echo
+        return
+    fi
+
+    local options=()
+    if [[ ${1} == -* ]]; then
+        options+=("${1}"); shift
+        while (( $# )) && [[ ${1} == -* ]]; do
+            options+=("${1}"); shift
+        done
+    fi
+
+    local output='' currentFormat='' addSpace=0
+    while (( $# )); do
+        if [[ -n ${1} ]]; then
+            if [[ -v _textFormats[${1}] ]]; then
+                currentFormat+=${_textFormats[${1}]}
+            elif [[ ${1} == IDX ]] && (( $# >= 2 )) && (( terminalColorBits >= 8 )); then
+                shift
+                if [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )); then
+                    currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
+                else
+                    # Invalid color value, treat IDX and value as text
+                    (( addSpace )) && output+=' '
+                    output+=${currentFormat}"IDX ${1}"
+                    currentFormat=''
+                    addSpace=1
+                fi
+            elif [[ ${1} == RGB ]] && (( $# >= 2 )) && (( terminalColorBits >= 24 )); then
+                shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
+            elif [[ ${1} == 'glue' ]]; then
+                addSpace=0
+            else
+                (( addSpace )) && output+=' '
+                output+=${currentFormat}${1}
+                currentFormat=''
+                addSpace=1
+            fi
+        fi
+        shift
+    done
+    [[ -n $currentFormat ]] && output+=$currentFormat
+    echo "${options[@]}" "${output}"$'\e[0m'
+}
+
+# ◇ Print a styled section header with optional subtitle lines.
+#
+# · ARGS
+#
+#   [-u] (flag)              Flag to convert header text to uppercase.
+#   [colorIndex] (int)       Index into _headerColors (clamped to max).
+#   header (string)          Title text printed in bold.
+#   [...] (string)           Optional subtitle lines printed below the title.
+
+header() {
+    local toUpper=0 colorIndex=0
+    local maxIndex=$(( ${#_headerColors[@]} - 1))
+    parseOptionalArg '-u' "$1" toUpper 1 && shift
+
+    if [[ -z "${1//[0-9]/}" ]]; then
+        colorIndex="$1"
+        (( colorIndex > maxIndex )) && colorIndex=${maxIndex}
+        shift
+    fi
+    local header="${1}"
+    (( toUpper )) && header="${header^^}"
+    local color="${_headerColors[${colorIndex}]}"
+    echo
+    show bold primary "┃┃" off "${color}" "${header[@]}"
+    if (( $# > 1 )); then
+        shift
+        show primary "┃┃" off "${color}" "${@}"
+    fi
+    echo
+}
+
+# ◇ Outputs a string with all ANSI escape sequences removed.
+
+stripAnsi() {
+    echo -n "${1}" | gsed 's/\x1b\[[0-9;]*m//g'
+}
+
+# ◇ Return 0 if a string contains ANSI escape sequences, 1 otherwise.
+
+containsAnsi() {
+    [[ "${1}" =~ $'\e[' ]]
+}
+
+# ◇ Print a warning message to stderr with a ⚠️ prefix.
+
+warn() {
+    show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
+}
+
+# ◇ Print an error message to stderr with a 🔺 prefix.
+
+error() {
+    show error "🔺 ${1}" "${@:2}" > ${terminalErr}
+}
+
+# ◇ Fails with a stack trace; shorthand for fail --trace on invalid arguments.
+
+invalidArgs() {
+    fail --trace "${@}"
+}
+
+# ◇ Print an error and exit 1, optionally with a stack trace.
+#
+# · ARGS
+#
+#   --trace  Force a stack trace regardless of debug mode.
+#   message (string)  Error message passed to error or stackTrace.
+
+fail() {
+
+    # Determine if we should generate a stack trace
+
+    local trace=0
+    if [[ $1 == '--trace' ]]; then
+        trace=1; shift
+    elif (( _debug || rayvnTest_TraceFail )); then
+        trace=1
+    fi
+
+    # If spinner is running, stop it
+
+    if varDefined _spinnerServerPid; then
+        local inRayvnFail=1
+        _spinnerExit
+    fi
+
+    # Write trace and/or error
+
+    (( trace )) && stackTrace "${@}" > "${terminalErr}" || error "${@}"
+
+    # See ya
+
+    exit 1
+}
+
+# ◇ Print each line of a piped stream in red to terminalErr.
+#
+# · EXAMPLE
+#
+#   someCommand 2> >( redStream )
+
+redStream() {
+    {
+        local error
+        while read error; do
+            show red "${error}"
+        done
+    } > "${terminalErr}"
+}
+
+# ◇ Print an optional message in red, show stack if in debug mode, and exit 0.
+
+bye() {
+    (( $# )) && show red "${1}" off "${@:2}"
+    debugStack
+    exit 0
+}
+
+# ◇ Print a formatted call stack, optionally preceded by a message.
+
+stackTrace() {
+    local message=("${@}")
+    local caller=${FUNCNAME[1]}
+    declare -i start=1
+    declare -i depth=${#FUNCNAME[@]}
+
+    (( ${#message[@]} )) && error "${@}"
+    if ((depth > 2)); then
+        [[ ${caller} == "fail" || ${caller} == "bye" ]] && start=2
+    fi
+
+    for ((i = start; i < depth; i++)); do
+        local function="${FUNCNAME[${i}]}"
+        local line="${ show bold blue "${BASH_LINENO[${i} - 1]}" ;}"
+        local arrow="${ show cyan "->" ;}"
+        local called=${FUNCNAME[${i} - 1]}
+        local script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
+        ((i == start)) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
+        echo "   ${function} ${script}:${line} ${arrow} ${called}()"
+    done
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ARGUMENTS & VARIABLES
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Check if an argument matches an expected value, setting a result var via nameref.
+#
+# · ARGS
+#
+#   argMatch (string)         Expected argument value to match against (e.g. -n).
+#   argValue (string)         Actual argument value to test.
+#   argResultRef (stringRef)  Name of var to set to argResultValue on match, or '' if not.
+#   argResultValue (string)   Value to assign on match; defaults to ${argMatch}.
+#
+# · RETURNS
+#
+#   0  matched
+#   1  not matched
+
+parseOptionalArg() {
+    local _argMatch=$1
+    local _argValue=$2
+    local -n _argResultRef=$3
+    local _argResultValue="${4:-${_argMatch}}"
+    if [[ ${_argValue} == "${_argMatch}" ]]; then
+        _argResultRef=${_argResultValue}
+        return 0
+    else
+        _argResultRef=''
+        return 1
+    fi
+}
+
+# ◇ Return 0 if a variable with the given name is defined, including empty or null-value vars.
+
+varDefined() {
+    declare -p "${1}" &> /dev/null
+}
+
+# ◇ Fail if a variable with the given name is not defined.
+
+assertVarDefined() {
+    varDefined "${1}" || fail "var ${1} not defined"
+}
+
+# ◇ Overwrite one or more security sensitive variables with spaces then unset.
+#
+# · ARGS
+#
+#   varName (stringRef)  Name of a variable to erase; may be repeated, silently ignored if unset.
+
+eraseVars() {
+    local varName value length
+    while (( $# > 0 )); do
+        varName="${1}"
+        if [[ -n ${!varName+x} ]]; then
+            value="${!varName}"
+            length="${#value}"
+            printf -v "${varName}" '%*s' "${length}" ''
+            unset "${varName}"
+        fi
+        shift
+    done
+}
+
+# ◇ Register one or more associative arrays (passed by name) for export to child processes.
+#   Bash cannot export associative arrays directly; this serializes them into an internal
+#   exported variable. When a child process sources rayvn.up, the map(s) will be restored.
+#   Needed when a script spawns a child process (e.g. via bash or exec) that sources rayvn.up
+#   and calls functions that depend on the map. Not needed for subshells (${ } and $( )),
+#   which inherit variables automatically. Call from a library _init function.
+#
+# · ARGS
+#
+#   varName (stringRef)  Name of an associative array to register; may be repeated.
+#
+# · EXAMPLE
+#
+#   # In 'myproject/mylib' _init_myproject_mylib(),  build a lookup table, then register it so that
+#   # child processes launched by the user's script (e.g. bash myOtherScript) see the populated map.
+#   declare -gA myLookup=([foo]=1 [bar]=2)
+#   exportGlobalMaps myLookup
+
+exportGlobalMaps() {
+    [[ -v _rayvnGlobalMaps ]] || declare -gx _rayvnGlobalMaps=''
+
+    while (( $# )); do
+        local declaration="${ declare -p "$1"; }"
+        # Normalize to 'declare -gA varname=(...)' — strips extra flags (-r, -x, -i, etc.)
+        # so that _restoreGlobalMaps can use a simple fixed-format regex and eval.
+        [[ "${declaration}" =~ ^declare[[:space:]]+-[a-zA-Z]*A[a-zA-Z]*([[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*)=(.*) ]] \
+            || fail "'$1' is not a map (associative array)"
+        _rayvnGlobalMaps+="declare -gA${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"$'\n'
+        shift
+    done
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ASSERTIONS
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Fail with an error if not running interactively.
+
+assertIsInteractive() {
+    (( isInteractive )) || fail "must be run interactively"
+}
+
+# ◇ Fails if the given path does not exist.
+
+assertFileExists() {
+    [[ -e ${1} ]] || fail "${1} not found"
+}
+
+# ◇ Fail if the given path does not exist or is not a regular file.
+#
+# · ARGS
+#
+#   file (string)         Path that must exist and be a regular file.
+#   description (string)  Label used in the error message (default: "file").
+
+assertFile() {
+    local file="${1}"
+    local description="${2:-file}"
+    assertFileExists "${file}"
+    [[ -f ${1} ]] || fail "${1} is not an ${description}"
+}
+
+# ◇ Fail if the given path does not exist or is not a directory.
+
+assertDirectory() {
+    assertFileExists "${1}"
+    [[ -d ${1} ]] || fail "${1} is not a directory"
+}
+
+# ◇ Fail if the given path already exists.
+
+assertFileDoesNotExist() {
+    [[ -e "${1}" ]] && fail "${1} already exists"
+}
+
+# ◇ Fails if filePath is not located within dirPath, resolving symlinks before checking.
+#
+# · ARGS
+#
+#   filePath (string)    Path to verify.
+#   dirPath (string)     Directory that must contain filePath.
+
+assertPathWithinDirectory() {
+    local filePath=${1}
+    local dirPath=${2}
+    local absoluteFile absoluteDir
+    absoluteFile=${ realpath "${filePath}" 2>/dev/null;} || fail
+    absoluteDir=${ realpath "${dirPath}" 2>/dev/null;} || fail
+    [[ "${absoluteFile}" == ${absoluteDir}/* ]] || fail "${filePath} is not within ${dirPath}"
+}
+
+# ◇ Fail if name is not a valid cross-platform filename component.
+#
+# · ARGS
+#
+#   name (string)  Filename component to validate (not a full path).
+#
+# · NOTES
+#
+#   Rejects: empty string, . .. / control characters <>:"\|?*
+
+assertValidFileName() {
+    local name="${1}"
+
+    # Reject empty, ".", or ".."
+    [[ -z ${name} || ${name} == "." || ${name} == ".." ]] &&
+        fail "Invalid filename: '${name}' is reserved or empty"
+
+    # Reject slash
+    [[ ${name} == *"/"* ]] &&
+        fail "Invalid filename: '${name}' contains forbidden character '/'"
+
+    # Reject control characters
+    [[ ${name} =~ [[:cntrl:]] ]] &&
+        fail "Invalid filename: '${name}' contains control characters"
+
+    # Reject reserved characters (Windows-unsafe or problematic cross-platform)
+    [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] &&
+        fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
+
+    return 0
+}
+
+# ◇ Fail if the given directory (or PWD) is not within a git repository.
+#
+# · ARGS
+#
+#   dir (string)  Directory to check (default: ${PWD}).
+
+assertGitRepo() {
+    local dir="${1:-${PWD}}"
+    git -C "${dir}" rev-parse --git-dir &> /dev/null || fail "${dir} is not a git repository"
+}
+
+# ◇ Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
+#
+# · ARGS
+#
+#   --strip-brackets  Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
+#   --quiet           Suppress stderr content from the failure message.
+#   --stderr          Also fail if the command produces any stderr output.
+#   --error MSG       Custom failure message (default: stderr output or generic exit code message).
+#   command (string)  The command and arguments to execute.
+#
+# · EXAMPLE
+#
+#   assertCommand git commit -m "message"
+#
+# · EXAMPLE
+#
+#   session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
+#
+# · EXAMPLE
+#
+#   # For pipelines, wrap in eval:
+#   assertCommand --stderr --error "Failed to encrypt" \
+#       eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
+
+assertCommand() {
+    local stripBrackets=0 quiet=0 noStderr=0 message=""
+
+    while [[ "${1}" == --* ]]; do
+        case "${1}" in
+            --strip-brackets) stripBrackets=1; shift ;;
+            --quiet) quiet=1; shift ;;
+            --stderr) noStderr=1; shift ;;
+            --error) message="${2}"; shift 2 ;;
+            *) break ;;
+        esac
+    done
+
+    local stderrFile="${ makeTempFile 'stderr-XXXXXX'; }"
+    "${@}" 2> "${stderrFile}"
+    local result=$?
+
+    local stderr=""
+    if [[ -s "${stderrFile}" ]]; then
+        stderr="${ cat "${stderrFile}"; }"
+        if (( stripBrackets )); then
+            # Remove bracket-only lines and trailing blank lines
+            stderr="${ echo "${stderr}" | grep -v '^\[.*\]$' | gsed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
+        fi
+    fi
+
+    # Fail if command failed, or if --stderr and stderr has content
+    local shouldFail=0
+    if (( result != 0 )); then
+        shouldFail=1
+    elif (( noStderr )) && [[ -n "${stderr}" ]]; then
+        shouldFail=1
+    fi
+
+    if (( shouldFail )); then
+        if [[ -n "${message}" ]]; then
+            if (( quiet )) || [[ -z "${stderr}" ]]; then
+                fail "${message}"
+            else
+                fail "${message}: ${stderr}"
+            fi
+        elif [[ -n "${stderr}" ]]; then
+            fail "${stderr}"
+        else
+            fail "command failed with exit code ${result}"
+        fi
+    fi
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STRINGS, ARRAYS & MAPS
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Outputs a string with leading and trailing whitespace removed.
+
+trim() {
+    local value="${1}"
+    value="${value#"${value%%[![:space:]]*}"}" # remove leading whitespace
+    value="${value%"${value##*[![:space:]]}"}" # remove trailing whitespace
+    echo "${value}"
+}
+
+# ◇ Outputs a string repeated N times, without a trailing newline.
+#
+# · ARGS
+#
+#   str (string)  String to repeat.
+#   count (int)   Number of repetitions.
+
+repeat() {
+    local str=${1}
+    local count=${2}
+    local result
+    printf -v result "%*s" "${count}" ""
+    result=${result// /${str}}
+    echo -n "${result}"
+}
+
+# ◇ Outputs a string padded to a given width, measuring visible length by stripping ANSI codes.
+#
+# · ARGS
+#
+#   string (string)    Target string.
+#   width (int)        Minimum visible character width.
+#   position (string)  Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
+
+padString() {
+    local string="${1}"
+    local width="${2}"
+    local position="${3:-after}"
+
+    local strippedString="${ stripAnsi "${string}"; }"
+    local currentLength=${#strippedString}
+    local paddingNeeded=$((width - currentLength))
+
+    (( paddingNeeded <= 0 )) && echo -n "${string}" && return 0
+
+    case "${position}" in
+    before|right) printf '%*s' "${width}" "${string}" ;;
+    after|left)   printf '%-*s' "${width}" "${string}" ;;
+    center)
+        local leftPad=$((paddingNeeded / 2))
+        local rightPad=$((paddingNeeded - leftPad))
+        printf '%*s%s%*s' "${leftPad}" '' "${string}" "${rightPad}" ''
+        ;;
+    *) fail "Invalid position: ${position}" ;;
+    esac
+}
+
+# ◇ Find the index of a matching element in an array, storing the result in resultRef (-1 if not found).
+#
+# · ARGS
+#
+#   match (string)         Match value; prefix with -p for prefix match, -s for suffix match, -r for regex.
+#   arrayRef (arrayRef)    Name of the indexed array to search.
+#   resultRef (stringRef)  Name of the variable to store the found index.
+#
+# · RETURNS
+#
+#   0  match found
+#   1  no match found
+
+indexOf() {
+    local regex=0 _p _s _i
+    case $1 in
+        -p) shift; match="$1"; _s='*' ;;
+        -s) shift; match="$1"; _p='*' ;;
+        -r) shift; match="$1"; regex=1 ;;
+        *) match="$1"
+    esac
+    local -n arrayRef=$2
+    local -n resultRef=$3
+    local max="${#arrayRef[@]}"
+    for (( _i=0; _i < max; _i++ )); do
+        if (( regex )); then
+            if [[ ${arrayRef[_i]} =~ ${match} ]]; then
+                resultRef=${_i}; return 0
+            fi
+        else
+            if [[ ${arrayRef[_i]} == $_p"${match}"$_s ]]; then
+                resultRef=${_i}; return 0
+            fi
+        fi
+    done
+    resultRef=-1; return 1
+}
+
+# ◇ Return 0 if item is a member of an array, 1 otherwise.
+#
+# · ARGS
+#
+#   item (string)        Value to search for.
+#   arrayRef (arrayRef)  Name of the indexed array to search.
+
+memberOf() {
+    local index
+    indexOf "${1}" "${2}" index
+}
+
+# ◇ Outputs the length of the longest element in an array.
+#
+# · ARGS
+#
+#   arrayRef (arrayRef)  Name of the indexed array to measure.
+
+maxArrayElementLength() {
+    local -n arrayRef="${1}"
+    local max=0 len element
+    for element in "${arrayRef[@]}"; do
+        len="${#element}"
+        (( len > max )) && max=${len}
+    done
+    echo -n "${max}"
+}
+
+# ◇ Copy all key-value pairs from one associative array to another.
+#
+# · ARGS
+#
+#   src (mapRef)   Name of the source map.
+#   dest (mapRef)  Name of the destination map (must already be declared with -A).
+
+copyMap() {
+    local -n src="${1}"
+    local -n dest="${2}"
+    for key in "${!src[@]}"; do
+        dest[${key}]="${src[${key}]}"
+    done
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# NUMBERS & RANDOM
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Outputs the number of decimal digits needed to represent integers up to maxValue.
+#
+# · ARGS
+#
+#   maxValue (int)  Largest value to represent; must be a positive integer.
+#   startValue (int)  Index base: 0 (zero-indexed, default) or 1 (one-indexed).
+
+numericPlaces() {
+    local maxValue="${1}"
+    local startValue="${2:-0}"
+
+    [[ -z "${maxValue}" ]] && fail "numericPlaces: max value required"
+    (( maxValue == 0 )) && fail "numericPlaces: max value must be at least 1"
+    [[ ! "${maxValue}" =~ ^[0-9]+$ ]] && fail "numericPlaces: max value must be a positive integer"
+    [[ ! "${startValue}" =~ ^[0-1]$ ]] && fail "numericPlaces: start value must be 0 or 1"
+    local maxValue=$(( maxValue + (startValue - 1) )) # adjust count by -1 if startValue == 0 and by 0 if startValue == 1
+    echo "${#maxValue}" # return count of digits
+}
+
+# ◇ Outputs a number right-aligned within a fixed-width field.
+#
+# · ARGS
+#
+#   number (int)  Number to output.
+#   places (int)  Minimum field width; defaults to 1.
+
+printNumber() {
+    local number="${1}"
+    local places=${2-:1}
+    printf '%*s' "${places}" "${number}"
+}
+
+# ◇ Set a variable to a random integer, optionally capped at maxValue (inclusive).
+#
+# · ARGS
+#
+#   intResult (stringRef)  Variable to receive the result.
+#   maxValue (int)  Optional inclusive upper bound; omits for full SRANDOM range.
+
+randomInteger() {
+    local -n _intResult="${1}"
+    local maxValue="${2:-}"
+
+    if (( maxValue )); then
+        _intResult=$(( SRANDOM % (maxValue + 1) ))
+    else
+        _intResult="${SRANDOM}"
+    fi
+}
+
+# ◇ Set a random hex character (0–9, a–f) via nameref.
+#
+# · ARGS
+#
+#   _hexResultRef (stringRef)  Name of the variable to receive the result.
+
+randomHexChar() {
+    local -n _hexResultRef="${1}"
+    local _hexIndex
+    randomInteger _hexIndex 15
+    _hexResultRef=${_hexChars[_hexIndex]}
+}
+
+# ◇ Generate a random hex string of count characters, stored via name-ref.
+#
+# · ARGS
+#
+#   count (int)  Number of hex characters to generate.
+#   _resultRef (stringRef)  Name of the variable to receive the result.
+
+randomHexString() {
+    local count=$1
+    local -n _resultRef=$2
+    local _hexChar _hexString _i
+    for (( _i=0; _i < ${count}; _i++)); do
+        randomHexChar _hexChar
+        _hexString+="${_hexChar}"
+    done
+    _resultRef=${_hexString}
+}
+
+# ◇ Replace every occurrence of a placeholder character in a string with random hex chars, in-place.
+#
+# · ARGS
+#
+#   replaceChar (string)    The placeholder character to replace.
+#   replaceRef (stringRef)  Name of the variable to modify in-place.
+#
+# · EXAMPLE
+#
+#   myStr="XXXX-XXXX"
+#   replaceRandomHex "X" myStr  # myStr becomes e.g. "3a7f-c209"
+
+replaceRandomHex() {
+    local replaceChar="${1}"
+    local -n replaceRef="${2}"
+    local hex
+    while [[ ${replaceRef} == *${replaceChar}* ]]; do
+        randomHexChar hex
+        replaceRef="${replaceRef/${replaceChar}/${hex}}"
+    done
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# TIME
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
+
+timeStamp() {
+    date "+%Y-%m-%d_%H.%M.%S_%Z"
+}
+
+# ◇ Outputs the current epoch time with microsecond precision via EPOCHREALTIME.
+
+epochSeconds() {
+    echo "${EPOCHREALTIME}"
+}
+
+# ◇ Outputs elapsed seconds since a previously captured EPOCHREALTIME value (6 decimal places).
+#
+# · ARGS
+#
+#   startTime (string)  Value previously captured from EPOCHREALTIME.
+
+elapsedEpochSeconds() {
+    local startTime="${1}"
+    echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FILE SYSTEM
+# ──────────────────────────────────────────────────────────────────────────────
+
 # ◇ Execute a command with umask 0022 (files readable by all, writable only by owner).
 
 withDefaultUmask() {
@@ -170,18 +966,6 @@ makeDir() {
     echo "${dir}"
 }
 
-# ◇ Fail with an error if not running interactively.
-
-assertIsInteractive() {
-    (( isInteractive )) || fail "must be run interactively"
-}
-
-# ◇ Register a shell command to be executed at exit, in registration order.
-
-addExitHandler() {
-    _rayvnExitTasks+=("${1}")
-}
-
 # ◇ Outputs the directory component of a path, equivalent to dirname.
 
 dirName() {
@@ -196,45 +980,61 @@ baseName() {
     echo "${path##*/}"
 }
 
-# ◇ Outputs a string with leading and trailing whitespace removed.
-
-trim() {
-    local value="${1}"
-    value="${value#"${value%%[![:space:]]*}"}" # remove leading whitespace
-    value="${value%"${value##*[![:space:]]}"}" # remove trailing whitespace
-    echo "${value}"
-}
-
-# ◇ Outputs the number of decimal digits needed to represent integers up to maxValue.
+# ◇ Read the entire contents of a file into a variable, without forking a subprocess.
+#   Trailing newlines are stripped, matching command substitution behavior.
 #
 # · ARGS
 #
-#   maxValue (int)  Largest value to represent; must be a positive integer.
-#   startValue (int)  Index base: 0 (zero-indexed, default) or 1 (one-indexed).
+#   -p                     Preserve trailing newlines instead of stripping them.
+#   file (string)          Path to the file to read.
+#   resultVar (stringRef)  Name of variable to receive the file contents.
 
-numericPlaces() {
-    local maxValue="${1}"
-    local startValue="${2:-0}"
-
-    [[ -z "${maxValue}" ]] && fail "numericPlaces: max value required"
-    (( maxValue == 0 )) && fail "numericPlaces: max value must be at least 1"
-    [[ ! "${maxValue}" =~ ^[0-9]+$ ]] && fail "numericPlaces: max value must be a positive integer"
-    [[ ! "${startValue}" =~ ^[0-1]$ ]] && fail "numericPlaces: start value must be 0 or 1"
-    local maxValue=$(( maxValue + (startValue - 1) )) # adjust count by -1 if startValue == 0 and by 0 if startValue == 1
-    echo "${#maxValue}" # return count of digits
+readFile() {
+    local _readFilePreserve=0
+    [[ $1 == -p ]] && { _readFilePreserve=1; shift; }
+    local _readFilePath="$1"
+    local -n _readFileRef=$2
+    assertFile "${_readFilePath}"
+    IFS= read -r -d '' _readFileRef < "${_readFilePath}" || true
+    if (( ! _readFilePreserve )); then
+        while [[ "${_readFileRef}" == *$'\n' ]]; do
+            _readFileRef="${_readFileRef%$'\n'}"
+        done
+    fi
 }
 
-# ◇ Outputs a number right-aligned within a fixed-width field.
+# ◇ Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
 #
 # · ARGS
 #
-#   number (int)  Number to output.
-#   places (int)  Minimum field width; defaults to 1.
+#   resultVar (stringRef)  Name of variable to receive the resolved file path.
+#   filePath (string)      Path to the file (must exist and be a regular file).
+#   description (string)   Label used in error messages.
 
-printNumber() {
-    local number="${1}"
-    local places=${2-:1}
-    printf '%*s' "${places}" "${number}"
+setFileVar() {
+    _setFileSystemVar "${1}" "${2}" "${3}" false
+}
+
+# ◇ Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
+#
+# · ARGS
+#
+#   resultVar (stringRef)  Name of variable to receive the resolved directory path.
+#   dirPath (string)       Path to the directory (must exist and be a directory).
+#   description (string)   Label used in error messages.
+
+setDirVar() {
+    _setFileSystemVar "${1}" "${2}" "${3}" true
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PROCESS & ENVIRONMENT
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Register a shell command to be executed at exit, in registration order.
+
+addExitHandler() {
+    _rayvnExitTasks+=("${1}")
 }
 
 # ◇ Outputs the version string for a rayvn project, reading its rayvn.pkg file.
@@ -260,301 +1060,6 @@ projectVersion() {
         fi
         echo "${projectName} ${projectVersion}${description}"
     )
-}
-
-# ◇ Check if an argument matches an expected value, setting a result var via nameref.
-#
-# · ARGS
-#
-#   argMatch (string)         Expected argument value to match against (e.g. -n).
-#   argValue (string)         Actual argument value to test.
-#   argResultRef (stringRef)  Name of var to set to argResultValue on match, or '' if not.
-#   argResultValue (string)   Value to assign on match; defaults to ${argMatch}.
-#
-# · RETURNS
-#
-#   0  matched
-#   1  not matched
-
-parseOptionalArg() {
-    local _argMatch=$1
-    local _argValue=$2
-    local -n _argResultRef=$3
-    local _argResultValue="${4:-${_argMatch}}"
-    if [[ ${_argValue} == "${_argMatch}" ]]; then
-        _argResultRef=${_argResultValue}
-        return 0
-    else
-        _argResultRef=''
-        return 1
-    fi
-}
-
-# ◇ Return 0 if a variable with the given name is defined, including empty or null-value vars.
-
-varDefined() {
-    declare -p "${1}" &> /dev/null
-}
-
-# ◇ Fail if a variable with the given name is not defined.
-
-assertVarDefined() {
-    varDefined "${1}" || fail "var ${1} not defined"
-}
-
-# ◇ Fails if the given path does not exist.
-
-assertFileExists() {
-    [[ -e ${1} ]] || fail "${1} not found"
-}
-
-# ◇ Fail if the given path does not exist or is not a regular file.
-#
-# · ARGS
-#
-#   file (string)         Path that must exist and be a regular file.
-#   description (string)  Label used in the error message (default: "file").
-
-assertFile() {
-    local file="${1}"
-    local description="${2:-file}"
-    assertFileExists "${file}"
-    [[ -f ${1} ]] || fail "${1} is not an ${description}"
-}
-
-# ◇ Fail if the given path does not exist or is not a directory.
-
-assertDirectory() {
-    assertFileExists "${1}"
-    [[ -d ${1} ]] || fail "${1} is not a directory"
-}
-
-# ◇ Fail if the given path already exists.
-
-assertFileDoesNotExist() {
-    [[ -e "${1}" ]] && fail "${1} already exists"
-}
-
-# ◇ Read the entire contents of a file into a variable, without forking a subprocess.
-#   Trailing newlines are stripped, matching command substitution behavior.
-#
-# · ARGS
-#
-#   -p (flag)  Preserve trailing newlines instead of stripping them.
-#   file (string)  Path to the file to read.
-#   resultVar (stringRef)  Name of variable to receive the file contents.
-
-readFile() {
-    local _readFilePreserve=0
-    [[ $1 == -p ]] && { _readFilePreserve=1; shift; }
-    local _readFilePath="$1"
-    local -n _readFileRef=$2
-    assertFile "${_readFilePath}"
-    IFS= read -r -d '' _readFileRef < "${_readFilePath}" || true
-    if (( ! _readFilePreserve )); then
-        while [[ "${_readFileRef}" == *$'\n' ]]; do
-            _readFileRef="${_readFileRef%$'\n'}"
-        done
-    fi
-}
-
-# ◇ Fails if filePath is not located within dirPath, resolving symlinks before checking.
-#
-# · ARGS
-#
-#   filePath (string)    Path to verify.
-#   dirPath (string)     Directory that must contain filePath.
-
-assertPathWithinDirectory() {
-    local filePath=${1}
-    local dirPath=${2}
-    local absoluteFile absoluteDir
-    absoluteFile=${ realpath "${filePath}" 2>/dev/null;} || fail
-    absoluteDir=${ realpath "${dirPath}" 2>/dev/null;} || fail
-    [[ "${absoluteFile}" == ${absoluteDir}/* ]] || fail "${filePath} is not within ${dirPath}"
-}
-
-# ◇ Fail if name is not a valid cross-platform filename component.
-#
-# · ARGS
-#
-#   name (string)  Filename component to validate (not a full path).
-#
-# · NOTES
-#
-#   Rejects: empty string, . .. / control characters <>:"\|?*
-
-assertValidFileName() {
-    local name="${1}"
-
-    # Reject empty, ".", or ".."
-    [[ -z ${name} || ${name} == "." || ${name} == ".." ]] &&
-        fail "Invalid filename: '${name}' is reserved or empty"
-
-    # Reject slash
-    [[ ${name} == *"/"* ]] &&
-        fail "Invalid filename: '${name}' contains forbidden character '/'"
-
-    # Reject control characters
-    [[ ${name} =~ [[:cntrl:]] ]] &&
-        fail "Invalid filename: '${name}' contains control characters"
-
-    # Reject reserved characters (Windows-unsafe or problematic cross-platform)
-    [[ ${name} =~ [\<\>\:\"\\\|\?\*] ]] &&
-        fail "Invalid filename: '${name}' contains reserved characters like <>:\"\\|?*"
-
-    return 0
-}
-
-# ◇ Fail if the given directory (or PWD) is not within a git repository.
-#
-# · ARGS
-#
-#   dir (string)  Directory to check (default: ${PWD}).
-
-assertGitRepo() {
-    local dir="${1:-${PWD}}"
-    git -C "${dir}" rev-parse --git-dir &> /dev/null || fail "${dir} is not a git repository"
-}
-
-# ◇ Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
-#
-# · ARGS
-#
-#   --strip-brackets  Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
-#   --quiet           Suppress stderr content from the failure message.
-#   --stderr          Also fail if the command produces any stderr output.
-#   --error MSG       Custom failure message (default: stderr output or generic exit code message).
-#   command (string)  The command and arguments to execute.
-#
-# · EXAMPLE
-#
-#   assertCommand git commit -m "message"
-#
-# · EXAMPLE
-#
-#   session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
-#
-# · EXAMPLE
-#
-#   # For pipelines, wrap in eval:
-#   assertCommand --stderr --error "Failed to encrypt" \
-#       eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
-
-assertCommand() {
-    local stripBrackets=0 quiet=0 noStderr=0 message=""
-
-    while [[ "${1}" == --* ]]; do
-        case "${1}" in
-            --strip-brackets) stripBrackets=1; shift ;;
-            --quiet) quiet=1; shift ;;
-            --stderr) noStderr=1; shift ;;
-            --error) message="${2}"; shift 2 ;;
-            *) break ;;
-        esac
-    done
-
-    local stderrFile="${ makeTempFile 'stderr-XXXXXX'; }"
-    "${@}" 2> "${stderrFile}"
-    local result=$?
-
-    local stderr=""
-    if [[ -s "${stderrFile}" ]]; then
-        stderr="${ cat "${stderrFile}"; }"
-        if (( stripBrackets )); then
-            # Remove bracket-only lines and trailing blank lines
-            stderr="${ echo "${stderr}" | grep -v '^\[.*\]$' | gsed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
-        fi
-    fi
-
-    # Fail if command failed, or if --stderr and stderr has content
-    local shouldFail=0
-    if (( result != 0 )); then
-        shouldFail=1
-    elif (( noStderr )) && [[ -n "${stderr}" ]]; then
-        shouldFail=1
-    fi
-
-    if (( shouldFail )); then
-        if [[ -n "${message}" ]]; then
-            if (( quiet )) || [[ -z "${stderr}" ]]; then
-                fail "${message}"
-            else
-                fail "${message}: ${stderr}"
-            fi
-        elif [[ -n "${stderr}" ]]; then
-            fail "${stderr}"
-        else
-            fail "command failed with exit code ${result}"
-        fi
-    fi
-}
-
-# ◇ Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
-#
-# · ARGS
-#
-#   resultVar (stringRef)  Name of variable to receive the resolved file path.
-#   filePath (string)        Path to the file (must exist and be a regular file).
-#   description (string)     Label used in error messages.
-
-setFileVar() {
-    _setFileSystemVar "${1}" "${2}" "${3}" false
-}
-
-# ◇ Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
-#
-# · ARGS
-#
-#   resultVar (stringRef)  Name of variable to receive the resolved directory path.
-#   dirPath (string)       Path to the directory (must exist and be a directory).
-#   description (string)   Label used in error messages.
-
-setDirVar() {
-    _setFileSystemVar "${1}" "${2}" "${3}" true
-}
-
-# ◇ Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
-
-timeStamp() {
-    date "+%Y-%m-%d_%H.%M.%S_%Z"
-}
-
-# ◇ Outputs the current epoch time with microsecond precision via EPOCHREALTIME.
-
-epochSeconds() {
-    echo "${EPOCHREALTIME}"
-}
-
-# ◇ Outputs elapsed seconds since a previously captured EPOCHREALTIME value (6 decimal places).
-#
-# · ARGS
-#
-#   startTime (string)  Value previously captured from EPOCHREALTIME.
-
-elapsedEpochSeconds() {
-    local startTime="${1}"
-    echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
-}
-
-# ◇ Overwrite one or more security sensitive variables with spaces then unset.
-#
-# · ARGS
-#
-#   varName (stringRef)  Name of a variable to erase; may be repeated, silently ignored if unset.
-
-eraseVars() {
-    local varName value length
-    while (( $# > 0 )); do
-        varName="${1}"
-        if [[ -n ${!varName+x} ]]; then
-            value="${!varName}"
-            length="${#value}"
-            printf -v "${varName}" '%*s' "${length}" ''
-            unset "${varName}"
-        fi
-        shift
-    done
 }
 
 # ◇ Open a URL in the default browser (macOS: open, Linux: xdg-open).
@@ -589,447 +1094,6 @@ executeWithCleanVars() {
     env "${_unsetChildVars[@]}" "${@}"
 }
 
-# ◇ Enhanced echo with text colors, styles, and standard echo options.
-#   FORMAT tokens appear at any position and affect all subsequent TEXT args until the next
-#   format. Styles accumulate (bold persists); colors replace. Resets to off after the
-#   last text to prevent color bleed.
-#
-# · USAGE
-#
-#   show [-n] [-e|-E] [FORMAT|TEXT]...
-#
-#   -n      No trailing newline.
-#   -e      Enable backslash escape interpretation.
-#   -E      Suppress backslash escape interpretation.
-#   FORMAT  A format token (see NOTES); affects all subsequent text.
-#   TEXT    A string to print with the current format applied.
-#
-# · NOTES
-#
-#   Available formats:
-#
-#     Theme:      success, error, warning, info, accent, muted
-#     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
-#     16-color:   black, red, green, yellow, blue, magenta, cyan, white (+ bright-* variants)
-#     256-color:  IDX <0-255>
-#     true-color: RGB <R:G:B>
-#     Special:    nl (insert newline), glue (suppress space before next arg)
-#     Reset:      off
-#
-#   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert to 16-color if
-#   true-color is not available. Some terminals may not support strikethrough.
-#
-#   Formats accumulate until off — use off any time you want a clean slate:
-#
-#     show cyan "colored" off dim "dimmed, no color"  ← off drops the color
-#     show cyan "colored" dim "dimmed"                ← wrong: dim inherits cyan
-#     show bold "bold" off cyan "cyan, not bold"      ← off drops the style
-#     show bold "bold" cyan "bold cyan"               ← wrong if bold not wanted
-#
-# · EXAMPLE
-#
-#   show blue "blue text"
-#   show bold red "bold red"
-#   show -n yellow "no trailing newline"
-#   show success "done"
-#   show warning "check this"
-#   show error "failed"
-#   show italic underline green "italic underline green"
-#   show bold blue "heading" off "body text"                  # reset color, keep no style
-#   show cyan "colored" off dim "dim, no color"               # transition to style-only
-#   show "Line 1" nl "Line 2"                                 # newline between args
-#   show IDX 42 "256-color #42" off RGB 52:208:88 "truecolor"
-#   show "(default:" blue "${configDir}" off glue ")."        # suppress space before closing paren
-#   result="${ show bold green "ok"; }"                       # in command substitution
-
-show() {
-    if (( ! $# )); then
-        echo
-        return
-    fi
-
-    local options=()
-    if [[ ${1} == -* ]]; then
-        options+=("${1}"); shift
-        while (( $# )) && [[ ${1} == -* ]]; do
-            options+=("${1}"); shift
-        done
-    fi
-
-    local output='' currentFormat='' addSpace=0
-    while (( $# )); do
-        if [[ -n ${1} ]]; then
-            if [[ -v _textFormats[${1}] ]]; then
-                currentFormat+=${_textFormats[${1}]}
-            elif [[ ${1} == IDX ]] && (( $# >= 2 )) && (( terminalColorBits >= 8 )); then
-                shift
-                if [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )); then
-                    currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
-                else
-                    # Invalid color value, treat IDX and value as text
-                    (( addSpace )) && output+=' '
-                    output+=${currentFormat}"IDX ${1}"
-                    currentFormat=''
-                    addSpace=1
-                fi
-            elif [[ ${1} == RGB ]] && (( $# >= 2 )) && (( terminalColorBits >= 24 )); then
-                shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
-            elif [[ ${1} == 'glue' ]]; then
-                addSpace=0
-            else
-                (( addSpace )) && output+=' '
-                output+=${currentFormat}${1}
-                currentFormat=''
-                addSpace=1
-            fi
-        fi
-        shift
-    done
-    [[ -n $currentFormat ]] && output+=$currentFormat
-    echo "${options[@]}" "${output}"$'\e[0m'
-}
-
-# ◇ Print a styled section header with optional subtitle lines.
-#
-# · ARGS
-#
-#   [-u] (flag)              Flag to convert header text to uppercase.
-#   [colorIndex] (int)       Index into _headerColors (clamped to max).
-#   header (string)          Title text printed in bold.
-#   [...] (string)           Optional subtitle lines printed below the title.
-
-header() {
-    local toUpper=0 colorIndex=0
-    local maxIndex=$(( ${#_headerColors[@]} - 1))
-    parseOptionalArg '-u' "$1" toUpper 1 && shift
-
-    if [[ -z "${1//[0-9]/}" ]]; then
-        colorIndex="$1"
-        (( colorIndex > maxIndex )) && colorIndex=${maxIndex}
-        shift
-    fi
-    local header="${1}"
-    (( toUpper )) && header="${header^^}"
-    local color="${_headerColors[${colorIndex}]}"
-    echo
-    show bold primary "┃┃" off "${color}" "${header[@]}"
-    if (( $# > 1 )); then
-        shift
-        show primary "┃┃" off "${color}" "${@}"
-    fi
-    echo
-}
-
-# ◇ Set a variable to a random integer, optionally capped at maxValue (inclusive).
-#
-# · ARGS
-#
-#   intResult (stringRef)  Variable to receive the result.
-#   maxValue (int)  Optional inclusive upper bound; omits for full SRANDOM range.
-
-randomInteger() {
-    local -n _intResult="${1}"
-    local maxValue="${2:-}"
-
-    if (( maxValue )); then
-        _intResult=$(( SRANDOM % (maxValue + 1) ))
-    else
-        _intResult="${SRANDOM}"
-    fi
-}
-
-# ◇ Set a random hex character (0–9, a–f) via nameref.
-#
-# · ARGS
-#
-#   _hexResultRef (stringRef)  Name of the variable to receive the result.
-
-randomHexChar() {
-    local -n _hexResultRef="${1}"
-    local _hexIndex
-    randomInteger _hexIndex 15
-    _hexResultRef=${_hexChars[_hexIndex]}
-}
-
-# ◇ Generate a random hex string of count characters, stored via name-ref.
-#
-# · ARGS
-#
-#   count (int)  Number of hex characters to generate.
-#   _resultRef (stringRef)  Name of the variable to receive the result.
-
-randomHexString() {
-    local count=$1
-    local -n _resultRef=$2
-    local _hexChar _hexString _i
-    for (( _i=0; _i < ${count}; _i++)); do
-        randomHexChar _hexChar
-        _hexString+="${_hexChar}"
-    done
-    _resultRef=${_hexString}
-}
-
-# ◇ Replace every occurrence of a placeholder character in a string with random hex chars, in-place.
-#
-# · ARGS
-#
-#   replaceChar (string)    The placeholder character to replace.
-#   replaceRef (stringRef)  Name of the variable to modify in-place.
-#
-# · EXAMPLE
-#
-#   myStr="XXXX-XXXX"
-#   replaceRandomHex "X" myStr  # myStr becomes e.g. "3a7f-c209"
-
-replaceRandomHex() {
-    local replaceChar="${1}"
-    local -n replaceRef="${2}"
-    local hex
-    while [[ ${replaceRef} == *${replaceChar}* ]]; do
-        randomHexChar hex
-        replaceRef="${replaceRef/${replaceChar}/${hex}}"
-    done
-}
-
-# ◇ Copy all key-value pairs from one associative array to another.
-#
-# · ARGS
-#
-#   src (mapRef)   Name of the source map.
-#   dest (mapRef)  Name of the destination map (must already be declared with -A).
-
-copyMap() {
-    local -n src="${1}"
-    local -n dest="${2}"
-    for key in "${!src[@]}"; do
-        dest[${key}]="${src[${key}]}"
-    done
-}
-
-# ◇ Outputs a string with all ANSI escape sequences removed.
-
-stripAnsi() {
-    echo -n "${1}" | gsed 's/\x1b\[[0-9;]*m//g'
-}
-
-# ◇ Return 0 if a string contains ANSI escape sequences, 1 otherwise.
-
-containsAnsi() {
-    [[ "${1}" =~ $'\e[' ]]
-}
-
-# ◇ Outputs a string repeated N times, without a trailing newline.
-#
-# · ARGS
-#
-#   str (string)  String to repeat.
-#   count (int)   Number of repetitions.
-
-repeat() {
-    local str=${1}
-    local count=${2}
-    local result
-    printf -v result "%*s" "${count}" ""
-    result=${result// /${str}}
-    echo -n "${result}"
-}
-
-# ◇ Find the index of a matching element in an array, storing the result in resultRef (-1 if not found).
-#
-# · ARGS
-#
-#   match (string)         Match value; prefix with -p for prefix match, -s for suffix match, -r for regex.
-#   arrayRef (arrayRef)    Name of the indexed array to search.
-#   resultRef (stringRef)  Name of the variable to store the found index.
-#
-# · RETURNS
-#
-#   0  match found
-#   1  no match found
-
-indexOf() {
-    local regex=0 _p _s _i
-    case $1 in
-        -p) shift; match="$1"; _s='*' ;;
-        -s) shift; match="$1"; _p='*' ;;
-        -r) shift; match="$1"; regex=1 ;;
-        *) match="$1"
-    esac
-    local -n arrayRef=$2
-    local -n resultRef=$3
-    local max="${#arrayRef[@]}"
-    for (( _i=0; _i < max; _i++ )); do
-        if (( regex )); then
-            if [[ ${arrayRef[_i]} =~ ${match} ]]; then
-                resultRef=${_i}; return 0
-            fi
-        else
-            if [[ ${arrayRef[_i]} == $_p"${match}"$_s ]]; then
-                resultRef=${_i}; return 0
-            fi
-        fi
-    done
-    resultRef=-1; return 1
-}
-
-# ◇ Return 0 if item is a member of an array, 1 otherwise.
-#
-# · ARGS
-#
-#   item (string)        Value to search for.
-#   arrayRef (arrayRef)  Name of the indexed array to search.
-
-memberOf() {
-    local index
-    indexOf "${1}" "${2}" index
-}
-
-# ◇ Outputs the length of the longest element in an array.
-#
-# · ARGS
-#
-#   arrayRef (arrayRef)  Name of the indexed array to measure.
-
-maxArrayElementLength() {
-    local -n arrayRef="${1}"
-    local max=0 len element
-    for element in "${arrayRef[@]}"; do
-        len="${#element}"
-        (( len > max )) && max=${len}
-    done
-    echo -n "${max}"
-}
-
-# ◇ Outputs a string padded to a given width, measuring visible length by stripping ANSI codes.
-#
-# · ARGS
-#
-#   string (string)    Target string.
-#   width (int)        Minimum visible character width.
-#   position (string)  Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
-
-padString() {
-    local string="${1}"
-    local width="${2}"
-    local position="${3:-after}"
-
-    local strippedString="${ stripAnsi "${string}"; }"
-    local currentLength=${#strippedString}
-    local paddingNeeded=$((width - currentLength))
-
-    (( paddingNeeded <= 0 )) && echo -n "${string}" && return 0
-
-    case "${position}" in
-        before|right) printf '%*s' "${width}" "${string}" ;;
-        after|left)   printf '%-*s' "${width}" "${string}" ;;
-        center)
-            local leftPad=$((paddingNeeded / 2))
-            local rightPad=$((paddingNeeded - leftPad))
-            printf '%*s%s%*s' "${leftPad}" '' "${string}" "${rightPad}" ''
-            ;;
-        *) fail "Invalid position: ${position}" ;;
-    esac
-}
-
-# ◇ Print a warning message to stderr with a ⚠️ prefix.
-
-warn() {
-    show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
-}
-
-# ◇ Print an error message to stderr with a 🔺 prefix.
-
-error() {
-    show error "🔺 ${1}" "${@:2}" > ${terminalErr}
-}
-
-# ◇ Fails with a stack trace; shorthand for fail --trace on invalid arguments.
-
-invalidArgs() {
-    fail --trace "${@}"
-}
-
-# ◇ Print an error and exit 1, optionally with a stack trace.
-#
-# · ARGS
-#
-#   --trace  Force a stack trace regardless of debug mode.
-#   message (string)  Error message passed to error or stackTrace.
-
-fail() {
-
-    # Determine if we should generate a stack trace
-
-    local trace=0
-    if [[ $1 == '--trace' ]]; then
-        trace=1; shift
-    elif (( _debug || rayvnTest_TraceFail )); then
-        trace=1
-    fi
-
-    # If spinner is running, stop it
-
-    if varDefined _spinnerServerPid; then
-        local inRayvnFail=1
-        _spinnerExit
-    fi
-
-    # Write trace and/or error
-
-    (( trace )) && stackTrace "${@}" > "${terminalErr}" || error "${@}"
-
-    # See ya
-
-    exit 1
-}
-
-# ◇ Print each line of a piped stream in red to terminalErr.
-#
-# · EXAMPLE
-#
-#   someCommand 2> >( redStream )
-
-redStream() {
-    {
-        local error
-        while read error; do
-            show red "${error}"
-        done
-    } > "${terminalErr}"
-}
-
-# ◇ Print an optional message in red, show stack if in debug mode, and exit 0.
-
-bye() {
-    (( $# )) && show red "${1}" off "${@:2}"
-    debugStack
-    exit 0
-}
-
-# ◇ Print a formatted call stack, optionally preceded by a message.
-
-stackTrace() {
-    local message=("${@}")
-    local caller=${FUNCNAME[1]}
-    declare -i start=1
-    declare -i depth=${#FUNCNAME[@]}
-
-    (( ${#message[@]} )) && error "${@}"
-    if ((depth > 2)); then
-        [[ ${caller} == "fail" || ${caller} == "bye" ]] && start=2
-    fi
-
-    for ((i = start; i < depth; i++)); do
-        local function="${FUNCNAME[${i}]}"
-        local line="${ show bold blue "${BASH_LINENO[${i} - 1]}" ;}"
-        local arrow="${ show cyan "->" ;}"
-        local called=${FUNCNAME[${i} - 1]}
-        local script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
-        ((i == start)) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
-        echo "   ${function} ${script}:${line} ${arrow} ${called}()"
-    done
-}
-
 # ◇ Enable debug mode.
 #
 # · ARGS
@@ -1044,39 +1108,6 @@ setDebug() {
     require 'rayvn/debug'
     _setDebug "${@}"
 }
-
-# ◇ Register one or more associative arrays (passed by name) for export to child processes.
-#   Bash cannot export associative arrays directly; this serializes them into an internal
-#   exported variable. When a child process sources rayvn.up, the map(s) will be restored.
-#   Needed when a script spawns a child process (e.g. via bash or exec) that sources rayvn.up
-#   and calls functions that depend on the map. Not needed for subshells (${ } and $( )),
-#   which inherit variables automatically. Call from a library _init function.
-#
-# · ARGS
-#
-#   varName (stringRef)  Name of an associative array to register; may be repeated.
-#
-# · EXAMPLE
-#
-#   # In 'myproject/mylib' _init_myproject_mylib(),  build a lookup table, then register it so that
-#   # child processes launched by the user's script (e.g. bash myOtherScript) see the populated map.
-#   declare -gA myLookup=([foo]=1 [bar]=2)
-#   exportGlobalMaps myLookup
-
-exportGlobalMaps() {
-    [[ -v _rayvnGlobalMaps ]] || declare -gx _rayvnGlobalMaps=''
-
-    while (( $# )); do
-        local declaration="${ declare -p "$1"; }"
-        # Normalize to 'declare -gA varname=(...)' — strips extra flags (-r, -x, -i, etc.)
-        # so that _restoreGlobalMaps can use a simple fixed-format regex and eval.
-        [[ "${declaration}" =~ ^declare[[:space:]]+-[a-zA-Z]*A[a-zA-Z]*([[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*)=(.*) ]] \
-            || fail "'$1' is not a map (associative array)"
-        _rayvnGlobalMaps+="declare -gA${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"$'\n'
-        shift
-    done
-}
-
 
 # Placeholder debug functions; replaced by rayvn/debug when debug mode is enabled.
 debug() { :; }
