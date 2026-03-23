@@ -60,12 +60,12 @@ testServiceKeysArray() {
     assertEqual "${actualCount}" "${expectedCount}" "service keys array should have ${expectedCount} entries"
 
     # Verify all expected keys are present
-    isMemberOf "providerName" _oAuthServiceKeys || fail "'providerName' not in _oAuthServiceKeys"
-    isMemberOf "scope" _oAuthServiceKeys || fail "'scope' not in _oAuthServiceKeys"
-    isMemberOf "clientId" _oAuthServiceKeys || fail "'clientId' not in _oAuthServiceKeys"
-    isMemberOf "clientSecret" _oAuthServiceKeys || fail "'clientSecret' not in _oAuthServiceKeys"
-    isMemberOf "authUrl" _oAuthServiceKeys || fail "'authUrl' not in _oAuthServiceKeys"
-    isMemberOf "tokenUrl" _oAuthServiceKeys || fail "'tokenUrl' not in _oAuthServiceKeys"
+    memberOf "providerName" _oAuthServiceKeys || fail "'providerName' not in _oAuthServiceKeys"
+    memberOf "scope" _oAuthServiceKeys || fail "'scope' not in _oAuthServiceKeys"
+    memberOf "clientId" _oAuthServiceKeys || fail "'clientId' not in _oAuthServiceKeys"
+    memberOf "clientSecret" _oAuthServiceKeys || fail "'clientSecret' not in _oAuthServiceKeys"
+    memberOf "authUrl" _oAuthServiceKeys || fail "'authUrl' not in _oAuthServiceKeys"
+    memberOf "tokenUrl" _oAuthServiceKeys || fail "'tokenUrl' not in _oAuthServiceKeys"
 }
 
 # --- Google provider URLs ---

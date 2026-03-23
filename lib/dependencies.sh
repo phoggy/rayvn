@@ -35,7 +35,7 @@ checkProjectDependencies() {
         case "${type}" in
             pkg)
                 nixN="${name}"
-                isMemberOf "${nixN}" nixBrewExclude && continue
+                memberOf "${nixN}" nixBrewExclude && continue
                 binN="${nixBinaryMap[${nixN}]:-${nixN}}"
                 command -v "${binN}" &> /dev/null || missing+=("${nixN}:${binN}")
                 ;;
@@ -94,7 +94,7 @@ getBrewDependencies() {
         case "${type}" in
             pkg)
                 local nixName="${name}"
-                isMemberOf "${nixName}" nixBrewExclude && continue
+                memberOf "${nixName}" nixBrewExclude && continue
                 local formula="${nixBrewMap[${nixName}]:-${nixName}}"
                 echo "  depends_on \"${formula}\""
                 ;;

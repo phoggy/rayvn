@@ -375,11 +375,14 @@ assertPathWithinDirectory() {
 }
 
 # ◇ Fail if name is not a valid cross-platform filename component.
-#   Rejects empty strings, '.', '..', slashes, control characters, and '<>:"\|?*'.
 #
 # · ARGS
 #
-#   name (string)    Filename component to validate (not a full path).
+#   name (string)  Filename component to validate (not a full path).
+#
+# · NOTES
+#
+#   Rejects: empty string, . .. / control characters <>:"\|?*
 
 assertValidFileName() {
     local name="${1}"
@@ -527,22 +530,22 @@ epochSeconds() {
 #
 # · ARGS
 #
-#   startTime (string)    Value previously captured from EPOCHREALTIME.
+#   startTime (string)  Value previously captured from EPOCHREALTIME.
 
 elapsedEpochSeconds() {
     local startTime="${1}"
     echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
-# ◇ Overwrite with spaces then unset one or more variables containing sensitive data.
+# ◇ Overwrite one or more security sensitive variables with spaces then unset.
 #
 # · ARGS
 #
-#   varName (stringRef)    Name of a variable to erase; may be repeated, silently ignored if unset.
+#   varName (stringRef)  Name of a variable to erase; may be repeated, silently ignored if unset.
 
-secureEraseVars() {
+eraseVars() {
     local varName value length
-    while ((${#} > 0)); do
+    while (( $# > 0 )); do
         varName="${1}"
         if [[ -n ${!varName+x} ]]; then
             value="${!varName}"
@@ -558,7 +561,7 @@ secureEraseVars() {
 #
 # · ARGS
 #
-#   url (string)    The URL to open.
+#   url (string)  The URL to open.
 
 openUrl() {
     local url="${1}"
@@ -628,7 +631,9 @@ executeWithCleanVars() {
 #   show blue "blue text"
 #   show bold red "bold red"
 #   show -n yellow "no trailing newline"
-#   show success "done" / show warning "check this" / show error "failed"
+#   show success "done"
+#   show warning "check this"
+#   show error "failed"
 #   show italic underline green "italic underline green"
 #   show bold blue "heading" off "body text"                  # reset color, keep no style
 #   show cyan "colored" off dim "dim, no color"               # transition to style-only
@@ -874,7 +879,7 @@ indexOf() {
 #   item (string)        Value to search for.
 #   arrayRef (arrayRef)  Name of the indexed array to search.
 
-isMemberOf() {
+memberOf() {
     local index
     indexOf "${1}" "${2}" index
 }
@@ -1040,17 +1045,23 @@ setDebug() {
     _setDebug "${@}"
 }
 
-# ◇ Test if a string is a valid rayvn shared library name.
-
-isSharedLibraryName() {
-    case "$1" in
-        *//*|/*|*/) return 1 ;; # double slash, leading or trailing
-        */*) return 0 ;;        # exactly one slash, not at edges
-        *) return 1 ;;          # no slash
-    esac
-}
-
-# ◇ Export one or more maps (associative arrays) by var name.
+# ◇ Register one or more associative arrays (passed by name) for export to child processes.
+#   Bash cannot export associative arrays directly; this serializes them into an internal
+#   exported variable. When a child process sources rayvn.up, the map(s) will be restored.
+#   Needed when a script spawns a child process (e.g. via bash or exec) that sources rayvn.up
+#   and calls functions that depend on the map. Not needed for subshells (${ } and $( )),
+#   which inherit variables automatically. Call from a library _init function.
+#
+# · ARGS
+#
+#   varName (stringRef)  Name of an associative array to register; may be repeated.
+#
+# · EXAMPLE
+#
+#   # In 'myproject/mylib' _init_myproject_mylib(),  build a lookup table, then register it so that
+#   # child processes launched by the user's script (e.g. bash myOtherScript) see the populated map.
+#   declare -gA myLookup=([foo]=1 [bar]=2)
+#   exportGlobalMaps myLookup
 
 exportGlobalMaps() {
     [[ -v _rayvnGlobalMaps ]] || declare -gx _rayvnGlobalMaps=''
