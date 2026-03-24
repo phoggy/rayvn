@@ -70,9 +70,9 @@ folding that information into the description rather than adding a full section 
 
 ## USAGE
 
-Use when the calling convention itself is the key information — variadic functions,
-interleaved argument patterns, or any signature where a synopsis is clearer than a flat
-ARGS list alone.
+Use when the calling convention itself is the key information — functions with flags,
+variadic functions, interleaved argument patterns, or any signature where a synopsis is
+clearer than a flat ARGS list alone.
 
 ```
 # · USAGE
@@ -81,20 +81,22 @@ ARGS list alone.
 ```
 
 - One synopsis line showing the full call shape; use `[...]` for optional parts, `...` for variadic
-- May include inline per-item descriptions below the synopsis when ARGS would be redundant:
+- Include inline per-item descriptions below the synopsis
+- **Types are required** on all data parameters and flag+value entries; pure flags (no value) are exempt
+- Optional entry names use `[name]` to signal optionality, matching the synopsis:
 
 ```
 # · USAGE
 #
-#   funcName [-n] [-e|-E] [FORMAT TEXT]...
+#   funcName [-n] [-e|-E] [FORMAT|TEXT]...
 #
-#   -n      No trailing newline.
-#   FORMAT  A format token.
-#   TEXT    Text to print.
+#   -n                 No trailing newline.
+#   [FORMAT] (string)  A format token.
+#   [TEXT] (string)    Text to print.
 ```
 
-- When USAGE is present, omit ARGS unless the individual argument detail adds genuine value
-  beyond what the synopsis and inline descriptions already convey
+- Alignment: same rule as ARGS — description column at `maxEntryLen + 2`
+- When USAGE is present, omit ARGS — USAGE inline descriptions replace it entirely
 
 ---
 
@@ -113,7 +115,9 @@ ARGS list alone.
   - Pass-by-ref args: suffix matches type — `myArrayRef`, `myMapRef`, `myStrRef`, `myFnRef`
   - Required variadic: use `...` as the name — `... (string)`
   - Optional variadic: use `[...]` as the name — `[...] (string)`
-- Flag args (e.g. `-p`): use type `flag` — it is recognised but not shown in rendered output
+  - Optional named args (USAGE): wrap name in brackets — `[message] (string)`, `[subtitle] (string)`
+- Flag args (e.g. `-p`, `--verbose`): document in USAGE with inline descriptions, not in ARGS.
+  ARGS is for data parameters only.
 
 ### Types
 
@@ -126,6 +130,8 @@ ARGS list alone.
 | `arrayRef`  | Name of array var (only way to pass)   |
 | `mapRef`    | Name of map var (only way to pass)     |
 | `fnRef`     | Name of a callback function            |
+
+Flags (`-p`, `--verbose`, etc.) are self-evident and do not use a type.
 
 ---
 

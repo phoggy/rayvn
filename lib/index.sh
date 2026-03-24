@@ -9,11 +9,11 @@
 #
 #   runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]
 #
-#   -o, --output FILE   Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
-#   -c, --compact FILE  Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
-#   --no-compact        Skip generating the compact index.
-#   --no-hash           Skip function hash tracking.
-#   --hash-file FILE    Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
+#   -o, --output FILE (string)    Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
+#   -c, --compact FILE (string)   Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
+#   --no-compact                  Skip generating the compact index.
+#   --no-hash                     Skip function hash tracking.
+#   --hash-file FILE (string)     Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
 
 runIndex() {
     _initIndex "${@}"
@@ -51,10 +51,10 @@ runIndex() {
 #
 #   runPages PROJECT [--dir DIR] [--publish | --view]
 #
-#   PROJECT      The project to generate pages for (e.g. rayvn, valt, wardn).
-#   --dir DIR    Output directory (default: project's configured worktree).
-#   --publish    Commit and push changes to gh-pages after generating.
-#   --view       Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
+#   PROJECT (string)       The project to generate pages for (e.g. rayvn, valt, wardn).
+#   --dir DIR (string)     Output directory (default: project's configured worktree).
+#   --publish              Commit and push changes to gh-pages after generating.
+#   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
 
 runPages() {
     local projectName="${1}"
@@ -1060,7 +1060,13 @@ _generateLibraryPage() {
             printf '%s\n\n' "${libDescription}"
         fi
 
-        printf '## Functions\n\n'
+        local _hasCategories=0 _scanLine
+        while IFS= read -r _scanLine; do
+            [[ "${_scanLine}" == '# ◇'* ]] && break
+            [[ "${_scanLine}" =~ ^#[[:space:]]([A-Z][A-Z\&\ ]+)$ ]] && { _hasCategories=1; break; }
+        done < "${libFile}"
+        (( _hasCategories )) || printf '## Functions\n\n'
+
         _extractFunctions "${libFile}" "${projectName}" "${libraryName}"
 
         if [[ -n "${notesBlock}" ]]; then

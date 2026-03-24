@@ -5,7 +5,7 @@
 # Use via: require 'rayvn/core'
 
 # ──────────────────────────────────────────────────────────────────────────────
-# OUTPUT & ERRORS
+# OUTPUT & ERROR FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Enhanced echo with text colors, styles, and standard echo options.
@@ -16,11 +16,11 @@
 #
 #   show [-n] [-e|-E] [FORMAT|TEXT]...
 #
-#   -n      No trailing newline.
-#   -e      Enable backslash escape interpretation.
-#   -E      Suppress backslash escape interpretation.
-#   FORMAT  A format token (see NOTES); applies to the next TEXT arg.
-#   TEXT    A string to print with accumulated formats applied, then reset.
+#   -n                 No trailing newline.
+#   -e                 Enable backslash escape interpretation.
+#   -E                 Suppress backslash escape interpretation.
+#   [FORMAT] (string)  A format token (see NOTES); applies to the next [TEXT] arg.
+#   [TEXT] (string)    A string to print with accumulated formats applied, then reset.
 #
 # · NOTES
 #
@@ -35,8 +35,10 @@
 #     true-color: RGB <R:G:B>
 #     Special:    nl (insert newline), glue (suppress space before next arg)
 #
-#   Not all systems/terminals can display 256-color or true-color (24 bit). Theme colors revert
-#   to 16-color if true-color is not available. Some terminals may not support strikethrough.
+#   While most modern terminals can display 256-color or true-color (24 bit), be aware that some
+#   may not. If this is a concern, stick to theme colors as they automatically revert to 16-color
+#   if true-color is not available. Apparently some terminals may not support strikethrough, so
+#   use with caution.
 #
 # · EXAMPLE
 #
@@ -106,12 +108,16 @@ show() {
 
 # ◇ Print a styled section header with optional subtitle lines.
 #
-# · ARGS
+# · USAGE
 #
-#   [-u] (flag)              Flag to convert header text to uppercase.
-#   [colorIndex] (int)       Index into _headerColors (clamped to max).
-#   header (string)          Title text printed in bold.
-#   [...] (string)           Optional subtitle lines printed below the title.
+#   header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]
+#
+#   -u                   Convert title to uppercase.
+#   colorIndex (int)     Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted).
+#   title (string)       Title text printed in bold.
+#   [subtitle] (string)  First subtitle arg, printed in the header color.
+#   [FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)      Text to print with the preceding format applied.
 
 header() {
     local toUpper=0 colorIndex=0
@@ -130,36 +136,48 @@ header() {
     show bold primary "┃┃" "${color}" "${header[@]}"
     if (( $# > 1 )); then
         shift
-        show primary "┃┃" "${color}" "${@}"
+        show primary "┃┃" "${color}" "$1" "${@:2}"
     fi
     echo
 }
 
-# ◇ Outputs a string with all ANSI escape sequences removed.
-
-stripAnsi() {
-    echo -n "${1}" | gsed 's/\x1b\[[0-9;]*m//g'
-}
-
-# ◇ Return 0 if a string contains ANSI escape sequences, 1 otherwise.
-
-containsAnsi() {
-    [[ "${1}" =~ $'\e[' ]]
-}
-
 # ◇ Print a warning message to stderr with a ⚠️ prefix.
+#
+# · USAGE
+#
+#   warn message [FORMAT|TEXT]...
+#
+#   message (string)   Warning message text.
+#   [FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)    Text to print with the preceding format applied.
 
 warn() {
-    show warning "⚠️ ${*}" > ${terminalErr}
+    show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
 }
 
 # ◇ Print an error message to stderr with a 🔺 prefix.
+#
+# · USAGE
+#
+#   error message [FORMAT|TEXT]...
+#
+#   message (string)   Error message text.
+#   [FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)    Text to print with the preceding format applied.
 
 error() {
-    show error "🔺 ${*}" > ${terminalErr}
+    show error "🔺 ${1}" "${@:2}" > ${terminalErr}
 }
 
-# ◇ Fails with a stack trace; shorthand for fail --trace on invalid arguments.
+# ◇ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
+#
+# · USAGE
+#
+#   invalidArgs message [FORMAT|TEXT]...
+#
+#   message (string)   Error message text.
+#   [FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)    Text to print with the preceding format applied.
 
 invalidArgs() {
     fail --trace "${@}"
@@ -167,10 +185,14 @@ invalidArgs() {
 
 # ◇ Print an error and exit 1, optionally with a stack trace.
 #
-# · ARGS
+# · USAGE
 #
-#   --trace  Force a stack trace regardless of debug mode.
-#   message (string)  Error message passed to error or stackTrace.
+#   fail [--trace] message [FORMAT|TEXT]...
+#
+#   --trace            Force a stack trace regardless of debug mode.
+#   message (string)   Error message text.
+#   [FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)    Text to print with the preceding format applied.
 
 fail() {
 
@@ -199,30 +221,31 @@ fail() {
     exit 1
 }
 
-# ◇ Print each line of a piped stream in red to terminalErr.
+# ◇ Print an optional exit message, show stack if in debug mode, and exit 0.
 #
-# · EXAMPLE
+# · USAGE
 #
-#   someCommand 2> >( redStream )
-
-redStream() {
-    {
-        local error
-        while read error; do
-            show red "${error}"
-        done
-    } > "${terminalErr}"
-}
-
-# ◇ Print an optional message in red, show stack if in debug mode, and exit 0.
+#   bye [message [FORMAT|TEXT]...]
+#
+#   [message] (string)   Exit message text.
+#   [FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)      Text to print with the preceding format applied.
 
 bye() {
-    (( $# )) && show red "${1}" "${@:2}"
+    (( $# )) && show error "${1}" "${@:2}"
     debugStack
     exit 0
 }
 
 # ◇ Print a formatted call stack, optionally preceded by a message.
+#
+# · USAGE
+#
+#   stackTrace [message [FORMAT|TEXT]...]
+#
+#   [message] (string)   Message text.
+#   [FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)      Text to print with the preceding format applied.
 
 stackTrace() {
     local message=("${@}")
@@ -246,8 +269,22 @@ stackTrace() {
     done
 }
 
+# ◇ Print each line of a piped stream in error color to terminalErr.
+#
+# · EXAMPLE
+#
+#   someCommand 2> >( errorStream )
+
+errorStream() {
+    local error
+    while read error; do
+        show red "${error}"
+    done
+} > "${terminalErr}"
+
+
 # ──────────────────────────────────────────────────────────────────────────────
-# ARGUMENTS & VARIABLES
+# ARGUMENT & VARIABLE FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Check if an argument matches an expected value, setting a result var via nameref.
@@ -342,8 +379,9 @@ exportGlobalMaps() {
     done
 }
 
+
 # ──────────────────────────────────────────────────────────────────────────────
-# ASSERTIONS
+# ASSERTION FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Fail with an error if not running interactively.
@@ -446,13 +484,15 @@ assertGitRepo() {
 
 # ◇ Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
 #
-# · ARGS
+# · USAGE
 #
-#   --strip-brackets  Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
-#   --quiet           Suppress stderr content from the failure message.
-#   --stderr          Also fail if the command produces any stderr output.
-#   --error MSG       Custom failure message (default: stderr output or generic exit code message).
-#   command (string)  The command and arguments to execute.
+#   assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...
+#
+#   --strip-brackets       Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
+#   --quiet                Suppress stderr content from the failure message.
+#   --stderr               Also fail if the command produces any stderr output.
+#   --error MSG (string)   Custom failure message (default: stderr output or generic exit code message).
+#   ... (string)           The command and arguments to execute.
 #
 # · EXAMPLE
 #
@@ -517,8 +557,9 @@ assertCommand() {
     fi
 }
 
+
 # ──────────────────────────────────────────────────────────────────────────────
-# STRINGS, ARRAYS & MAPS
+# STRING, ARRAY & MAP FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Outputs a string with leading and trailing whitespace removed.
@@ -575,6 +616,18 @@ padString() {
         ;;
     *) fail "Invalid position: ${position}" ;;
     esac
+}
+
+# ◇ Outputs a string with any ANSI escape sequences removed.
+
+stripAnsi() {
+    [[ "$1" =~ $'\e[' ]] && echo -n "$1" | gsed 's/\x1b\[[0-9;]*m//g' || echo -n "$1"
+}
+
+# ◇ Return 0 if a string contains ANSI escape sequences, 1 otherwise.
+
+containsAnsi() {
+    [[ "$1" =~ $'\e[' ]]
 }
 
 # ◇ Find the index of a matching element in an array, storing the result in resultRef (-1 if not found).
@@ -658,8 +711,9 @@ copyMap() {
     done
 }
 
+
 # ──────────────────────────────────────────────────────────────────────────────
-# NUMBERS & RANDOM
+# NUMBER & RANDOM VALUE FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Outputs the number of decimal digits needed to represent integers up to maxValue.
@@ -765,8 +819,9 @@ replaceRandomHex() {
     done
 }
 
+
 # ──────────────────────────────────────────────────────────────────────────────
-# TIME
+# TIME FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
@@ -792,8 +847,9 @@ elapsedEpochSeconds() {
     echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
+
 # ──────────────────────────────────────────────────────────────────────────────
-# FILE SYSTEM
+# FILE SYSTEM FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Execute a command with umask 0022 (files readable by all, writable only by owner).
@@ -844,11 +900,14 @@ binaryPath() {
 
 # ◇ Outputs the session temp directory path, optionally appended with a file name. Does not create the file or dir.
 #
-# · ARGS
+# · USAGE
 #
-#   -r        Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if fileName is omitted.
-#             Ensures that no name collisions occur, regenerating name up to 16 times if required.
-#   fileName (string)  Optional file name to append to the temp dir path.
+#   tempDirPath [-r] [fileName]
+#
+#   -r                   Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if
+#                        fileName is omitted. Ensures that no name collisions occur, regenerating name up to 16
+#                        times if required.
+#   fileName (string)    Optional file name to append to the temp dir path.
 
 tempDirPath() {
     _ensureRayvnTempDir
@@ -979,7 +1038,9 @@ baseName() {
 # ◇ Read the entire contents of a file into a variable, without forking a subprocess.
 #   Trailing newlines are stripped, matching command substitution behavior.
 #
-# · ARGS
+# · USAGE
+#
+#   readFile [-p] file resultVar
 #
 #   -p                     Preserve trailing newlines instead of stripping them.
 #   file (string)          Path to the file to read.
@@ -1023,9 +1084,42 @@ setDirVar() {
     _setFileSystemVar "${1}" "${2}" "${3}" true
 }
 
+
 # ──────────────────────────────────────────────────────────────────────────────
-# PROCESS & ENVIRONMENT
+# PROCESS & ENVIRONMENT FUNCTIONS
 # ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Push a new value onto the IFS stack and set IFS to that value.
+#   Use popIFS to restore the previous value.
+#
+# · ARGS
+#
+#   newIFS (string)  The new IFS value.
+#
+# · EXAMPLE
+#
+#   pushIFS $'\n'
+#   for item in ${list}; do ...
+#   popIFS
+
+pushIFS() {
+    [[ -v IFS ]] && _ifsStack+=("${IFS}") || _ifsStack+=("${_ifsUnset}")
+    IFS="${1}"
+}
+
+# ◇ Pop a previously pushed IFS value, restoring IFS to its prior state.
+#
+# · EXAMPLE
+#
+#   pushIFS $'\n'
+#   popIFS
+
+popIFS() {
+    (( ${#_ifsStack[@]} )) || invalidArgs "IFS stack underflow"
+    local saved="${_ifsStack[-1]}"
+    unset '_ifsStack[-1]'
+    [[ "${saved}" == "${_ifsUnset}" ]] && unset IFS || IFS="${saved}"
+}
 
 # ◇ Register a shell command to be executed at exit, in registration order.
 
@@ -1086,19 +1180,21 @@ openUrl() {
 
 # ◇ Execute a command with rayvn internal variables unset, simulating a clean environment.
 
-execute() {
+executeClean() {
     env "${_unsetVars[@]}" "${@}"
 }
 
 # ◇ Enable debug mode.
 #
-# · ARGS
+# · USAGE
 #
-#   --tty TTY        Log debug messages to the TTY instead of the log file.
-#   --tty .          Log debug messages to the TTY read from "${HOME}/.debug.tty".
-#   --noStatus       Suppress debug status line display.
-#   --clearLog       Clear the log file if not tty mode.
-#   --showLogOnExit  Show the log file on exit if not tty mode.
+#   setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]
+#
+#   --tty TTY (string)    Log debug messages to the TTY instead of the log file.
+#   --tty .               Log debug messages to the TTY read from "${HOME}/.debug.tty".
+#   --noStatus            Suppress debug status line display.
+#   --clearLog            Clear the log file if not tty mode.
+#   --showLogOnExit       Show the log file on exit if not tty mode.
 
 setDebug() {
     require 'rayvn/debug'
@@ -1136,6 +1232,11 @@ _init_rayvn_core() {
     # Restrict file creation permissions to owner only
 
     umask 0077
+
+    # IFS stack for pushIFS/popIFS
+
+    declare -ga _ifsStack=()
+    declare -gr _ifsUnset=$'\x01'
 
     # Setup exit handling
 
@@ -1203,7 +1304,6 @@ _init_rayvn_core() {
     # Misc global vars and constants
 
     declare -gi _debug=0
-    declare -gr rayvnRootDir="${ realpath "${BASH_SOURCE%/*}/.."; }"
     declare -gr _checkMark='✔' # U+2714 Check mark
     declare -gr _crossMark='✘' # U+2718 Heavy ballot X
     declare -gr _hexChars=( '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'a' 'b' 'c' 'd' 'e' 'f' )
@@ -1270,11 +1370,10 @@ _init_rayvn_core() {
     # run as if started from the command line. Manually add vars that are created lazily after init.
 
     local var unsetVars=('-u' '_rayvnCoreInitialized' '-u' '_rayvnTempDir' '-u' 'rayvnIsUp' '-u' '_rayvnGlobalMaps' '-u' '_unsetChildVars')
-    IFS=$'\n'
-    for var in ${ compgen -v | grep -E '^([a-z]|_[^_])'; }; do
+    while IFS= read -r var; do
         unsetVars+=("-u")
         unsetVars+=("${var}")
-    done
+    done < <(compgen -v | grep -E '^([a-z]|_[^_])')
     declare -ga _unsetVars=("${unsetVars[@]}")
 
     # Remove our init helper functions. The current function will be removed by rayvn.up

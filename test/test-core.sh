@@ -25,12 +25,15 @@ main() {
     testMaxArrayElementLength
     testVarDefined
     testAppendVar
+    testPushPopIFS
     testNumericPlaces
     testRandomInteger
     testTempDirPath
     testMakeTempFile
     testMakeTempDir
     testAssertValidFileName
+    testOutputFunctions
+    testHeader
 
     # show() function tests
     testShowBasicUsage
@@ -223,6 +226,45 @@ testVarDefined() {
     assertTrue "varDefined finds empty var" varDefined emptyVar
 }
 
+testPushPopIFS() {
+    local savedIFS="${IFS}" words
+
+    # Basic push/pop restores IFS
+    pushIFS $'\n'
+    assertEqual $'\n' "${IFS}" "pushIFS sets IFS to newline"
+    popIFS
+    assertEqual "${savedIFS}" "${IFS}" "popIFS restores prior IFS"
+
+    # Nested push/pop
+    pushIFS ':'
+    pushIFS $'\n'
+    assertEqual $'\n' "${IFS}" "nested pushIFS sets innermost IFS"
+    popIFS
+    assertEqual ':' "${IFS}" "first popIFS restores colon IFS"
+    popIFS
+    assertEqual "${savedIFS}" "${IFS}" "second popIFS restores original IFS"
+
+    # Word splitting works correctly with pushed IFS
+    pushIFS ':'
+    read -ra words <<< "a:b:c"
+    popIFS
+    assertEqual 3 "${#words[@]}" "read -ra splits on pushed colon IFS"
+    assertEqual "a" "${words[0]}" "first word correct"
+    assertEqual "c" "${words[2]}" "third word correct"
+
+    # Push when IFS is unset, then pop restores unset state
+    local origIFS="${IFS}"
+    unset IFS
+    pushIFS ' '
+    assertEqual ' ' "${IFS}" "pushIFS sets IFS when previously unset"
+    popIFS
+    assertFalse "popIFS restores unset IFS" test -v IFS
+    IFS="${origIFS}"
+
+    # Stack underflow
+    assertFalse "popIFS fails on empty stack" \
+        eval '( popIFS ) 2>/dev/null'
+}
 
 # ============================================================================
 # Numeric utilities
@@ -294,6 +336,89 @@ testAssertValidFileName() {
 
     assertFalse "assertValidFileName rejects ':'" \
         eval '( assertValidFileName "file:name" ) 2>/dev/null'
+}
+
+# ============================================================================
+# Output functions
+# ============================================================================
+
+testOutputFunctions() {
+    local result
+
+    # warn: ⚠️ prefix, message, and show format args in remaining args
+    result=$( warn "something wrong" 2>&1 )
+    assertContains "⚠️" "${ stripAnsi "${result}"; }" "warn includes ⚠️ prefix"
+    assertContains "something wrong" "${ stripAnsi "${result}"; }" "warn includes message"
+    result=$( warn "first" bold "second" 2>&1 )
+    assertContains "second" "${ stripAnsi "${result}"; }" "warn passes remaining args to show"
+
+    # error: 🔺 prefix, message, and show format args
+    result=$( error "bad thing" 2>&1 )
+    assertContains "🔺" "${ stripAnsi "${result}"; }" "error includes 🔺 prefix"
+    assertContains "bad thing" "${ stripAnsi "${result}"; }" "error includes message"
+    result=$( error "msg" bold "detail" 2>&1 )
+    assertContains "detail" "${ stripAnsi "${result}"; }" "error passes remaining args to show"
+
+    # invalidArgs: exits 1, message in output, show format args
+    assertFalse "invalidArgs exits 1" eval '( invalidArgs "bad input" ) 2>/dev/null'
+    result=$( ( invalidArgs "bad input" ) 2>&1 )
+    assertContains "bad input" "${ stripAnsi "${result}"; }" "invalidArgs includes message"
+    result=$( ( invalidArgs "msg" bold "detail" ) 2>&1 )
+    assertContains "detail" "${ stripAnsi "${result}"; }" "invalidArgs passes remaining args to show"
+
+    # fail: exits 1, message, --trace adds stack, show format args
+    assertFalse "fail exits 1" eval '( fail "broken" ) 2>/dev/null'
+    result=$( ( fail "broken" ) 2>&1 )
+    assertContains "broken" "${ stripAnsi "${result}"; }" "fail includes message"
+    result=$( ( fail "msg" bold "detail" ) 2>&1 )
+    assertContains "detail" "${ stripAnsi "${result}"; }" "fail passes remaining args to show"
+    result=$( ( fail --trace "traced" ) 2>&1 )
+    assertContains "traced" "${ stripAnsi "${result}"; }" "fail --trace includes message"
+    assertContains "->" "${ stripAnsi "${result}"; }" "fail --trace includes stack"
+
+    # bye: exits 0, optional message, show format args
+    assertTrue "bye exits 0" eval '( bye ) 2>/dev/null'
+    assertTrue "bye with message exits 0" eval '( bye "goodbye" ) 2>/dev/null'
+    result=$( ( bye "farewell" ) 2>&1 )
+    assertContains "farewell" "${ stripAnsi "${result}"; }" "bye includes message"
+    result=$( ( bye "msg" bold "detail" ) 2>&1 )
+    assertContains "detail" "${ stripAnsi "${result}"; }" "bye passes remaining args to show"
+
+    # stackTrace: stack in output with and without message, show format args
+    result=$( ( stackTrace ) 2>&1 )
+    assertContains "->" "${ stripAnsi "${result}"; }" "stackTrace outputs stack"
+    result=$( ( stackTrace "trace message" ) 2>&1 )
+    assertContains "trace message" "${ stripAnsi "${result}"; }" "stackTrace includes message"
+    assertContains "->" "${ stripAnsi "${result}"; }" "stackTrace with message still shows stack"
+    result=$( ( stackTrace "msg" bold "detail" ) 2>&1 )
+    assertContains "detail" "${ stripAnsi "${result}"; }" "stackTrace passes remaining args to show"
+}
+
+testHeader() {
+    local result
+
+    # Basic header contains title
+    result=${ header "My Title"; }
+    assertContains "My Title" "${ stripAnsi "${result}"; }" "header includes title"
+
+    # -u flag uppercases title
+    result=${ header -u "lowercase title"; }
+    assertContains "LOWERCASE TITLE" "${ stripAnsi "${result}"; }" "header -u uppercases title"
+
+    # Subtitle appears below title
+    result=${ header "Title" "Subtitle line"; }
+    assertContains "Subtitle line" "${ stripAnsi "${result}"; }" "header includes subtitle"
+
+    # Subtitle show format args: additional text args after first subtitle are passed to show
+    result=${ header "Title" "plain" bold "styled"; }
+    assertContains "plain" "${ stripAnsi "${result}"; }" "header subtitle first arg present"
+    assertContains "styled" "${ stripAnsi "${result}"; }" "header subtitle passes remaining args to show"
+
+    # colorIndex selects from available colors (clamped)
+    result=${ header 0 "colored header"; }
+    assertContains "colored header" "${ stripAnsi "${result}"; }" "header with colorIndex 0"
+    result=${ header 99 "clamped header"; }
+    assertContains "clamped header" "${ stripAnsi "${result}"; }" "header with out-of-range colorIndex is clamped"
 }
 
 # ============================================================================

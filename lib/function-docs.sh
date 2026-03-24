@@ -9,8 +9,8 @@
 #
 #   auditDocs [--release] [PROJECT]...
 #
-#   --release    Exit 1 if any public functions are missing ◇ doc comments.
-#   PROJECT      One or more project names to audit (default: all loaded projects).
+#   --release           Exit 1 if any public functions are missing ◇ doc comments.
+#   PROJECT (string)    One or more project names to audit (default: all loaded projects).
 
 auditDocs() {
     local doRelease=0
@@ -61,14 +61,14 @@ auditDocs() {
 #
 #   updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
 #
-#   --dry-run         Print proposed docs without writing any changes.
-#   --regen           Regenerate docs for all public functions, not just missing/stale.
-#   --missing-only    Only process functions missing a ◇ doc comment.
-#   --stale-only      Only process functions with potentially stale docs.
-#   --lib NAME        Limit to a single library by name.
-#   --since DURATION  Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set.
-#   --delay SECS      Seconds to sleep between API calls to avoid rate limits (default: 5).
-#   PROJECT           One or more project names (default: all loaded projects).
+#   --dry-run                   Print proposed docs without writing any changes.
+#   --regen                     Regenerate docs for all public functions, not just missing/stale.
+#   --missing-only              Only process functions missing a ◇ doc comment.
+#   --stale-only                Only process functions with potentially stale docs.
+#   --lib NAME (string)         Limit to a single library by name.
+#   --since DURATION (string)   Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set.
+#   --delay SECS (int)          Seconds to sleep between API calls to avoid rate limits (default: 5).
+#   PROJECT (string)            One or more project names (default: all loaded projects).
 
 updateDocs() {
     local doDryRun=0
@@ -423,7 +423,7 @@ _callClaudeApi() {
     local prompt="${1}"
     local spec="${2}"
     local apiKey="${3}"
-    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (4b) ARGS variadic naming: required variadic args use "..." as the name; optional variadic args use "[...]" as the name — e.g. "... (string)" or "[...] (string)". (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst)). When the default is a shell variable, wrap it in ${}: e.g. (default: ${PWD}) not (default: PWD).'
+    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (4b) ARGS variadic naming: required variadic args use "..." as the name; optional variadic args use "[...]" as the name — e.g. "... (string)" or "[...] (string)". (4c) Flags go in USAGE with inline descriptions, never in ARGS. When USAGE is present, omit ARGS entirely — USAGE inline descriptions replace it. Types are required on all data parameters and flag+value entries (e.g. "--output FILE (string)"); pure flags with no value are exempt. (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst)). When the default is a shell variable, wrap it in ${}: e.g. (default: ${PWD}) not (default: PWD).'
 
     local payload
     payload=${ jq -n \
