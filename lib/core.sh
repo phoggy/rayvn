@@ -28,7 +28,9 @@
 #
 #     Theme:      success, error, warning, info, accent, muted
 #     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
-#     16-color:   black, red, green, yellow, blue, magenta, cyan, white (and bright-* variants)
+#     Foreground: black, red, green, yellow, blue, magenta, cyan, white (and bright-* variants)
+#     Background: bg-black, bg-red, bg-green, bg-yellow, bg-blue, bg-magenta, bg-cyan, bg-white
+#                 (and bg-bright-* variants)
 #     256-color:  IDX <0-255>
 #     true-color: RGB <R:G:B>
 #     Special:    nl (insert newline), glue (suppress space before next arg)
@@ -48,6 +50,7 @@
 #   show bold blue "heading" "body text"                      # heading resets; body is plain
 #   show cyan "colored" dim "dim, no color"                   # each arg gets its own format
 #   show "Line 1" nl "Line 2"                                 # newline between args
+#   show bg-blue white "white on blue"
 #   show IDX 42 "256-color #42" RGB 52:208:88 "truecolor"
 #   show "(default:" blue "${configDir}" glue ")."            # suppress space before closing paren
 #   result="${ show bold green "ok"; }"                       # in command substitution
