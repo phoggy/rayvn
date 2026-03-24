@@ -53,7 +53,7 @@ requireNodeModules() {
 #
 #   projectName (string)  Name of the project (default: currentProjectName).
 #   script (string)       Script filename relative to projectHome/node/.
-#   args...               Additional arguments passed to the script.
+#   ... (string)          Additional arguments passed to the script.
 #
 # · EXAMPLE
 #

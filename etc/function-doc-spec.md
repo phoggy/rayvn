@@ -109,8 +109,10 @@ ARGS list alone.
 - Alignment: align description column across all args in the section (`maxArgTypeLen + 2` spaces)
 - Multiline descriptions: continuation indented to description column, no dot
 - Default values: use `(default: value)` at the end of the description, not prose `Defaults to value.`
-- Arg name suffix convention:
+- Arg name conventions:
   - Pass-by-ref args: suffix matches type — `myArrayRef`, `myMapRef`, `myStrRef`, `myFnRef`
+  - Required variadic: use `...` as the name — `... (string)`
+  - Optional variadic: use `[...]` as the name — `[...] (string)`
 - Flag args (e.g. `-p`): use type `flag` — it is recognised but not shown in rendered output
 
 ### Types

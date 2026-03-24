@@ -611,6 +611,7 @@ _extractFunctions() {
 
     local functionDoc=''
     local prevFunctionName='' prevFunctionDoc=''
+    local pendingSection=''
     local inPreamble=1  # 1 until first # ◇ line or function is seen
 
     while IFS= read -r line; do
@@ -632,6 +633,15 @@ _extractFunctions() {
             if [[ -n "${prevFunctionName}" ]]; then
                 _outputFunction "${prevFunctionName}" "${prevFunctionDoc}" "${projectName}" "${libraryName}"
             fi
+            if [[ -n "${pendingSection}" ]]; then
+                local -a _sectionWords; read -ra _sectionWords <<< "${pendingSection,,}"
+                local _sectionTitle='' _sectionWord
+                for _sectionWord in "${_sectionWords[@]}"; do
+                    _sectionTitle+="${_sectionTitle:+ }${_sectionWord^}"
+                done
+                printf '## %s\n\n' "${_sectionTitle}"
+                pendingSection=''
+            fi
             prevFunctionName="${newFunctionName}"
             prevFunctionDoc="${functionDoc}"
             functionDoc=''
@@ -645,8 +655,19 @@ _extractFunctions() {
                 functionDoc="${functionDoc}"$'\n'"${comment}"
             fi
         elif [[ "${line}" =~ ^[[:space:]]*$ ]]; then
-            # Blank line before any ◇ doc or function: reset accumulated preamble
-            (( inPreamble )) && [[ -z "${prevFunctionName}" ]] && functionDoc=''
+            # Reset any content that hasn't started a real doc (◇) yet — handles both
+            # preamble blank lines and section-separator comments between functions.
+            if [[ "${functionDoc}" != *'◇'* ]]; then
+                # Extract ALL-CAPS section name from separator block if present
+                local _sepLine
+                while IFS= read -r _sepLine; do
+                    if [[ "${_sepLine}" =~ ^[A-Z][A-Z\&\ ]+$ ]]; then
+                        pendingSection="${_sepLine}"
+                        break
+                    fi
+                done <<< "${functionDoc}"
+                functionDoc=''
+            fi
         elif [[ ! "${line}" =~ ^# ]]; then
             if [[ -z "${prevFunctionName}" ]]; then
                 functionDoc=''

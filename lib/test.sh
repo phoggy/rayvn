@@ -527,7 +527,7 @@ requireAndAssertFailureContains() {
 #   functionName (string)  Name of the function to benchmark.
 #   iterations (int)       Number of times to call the function.
 #   testCase (string)      Label printed in the results line.
-#   args... (string)       Optional arguments passed to the function on each invocation.
+#   [...] (string)         Optional arguments passed to the function on each invocation.
 
 benchmark() {
     local functionName=${1}
