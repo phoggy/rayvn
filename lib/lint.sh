@@ -18,18 +18,26 @@ runLint() {
     [[ $1 == --fix || $1 == --ask ]] && { fixMode="${1#--}"; shift; }
     local -a lintProjects=("$@")
     local -i totalIssues=0
+    local -i totalFixable=0
     local project
 
     for project in "${lintProjects[@]}"; do
-        _lintProject "${project}" totalIssues "${fixMode}"
+        _lintProject "${project}" totalIssues totalFixable "${fixMode}"
     done
 
     echo
     if (( totalIssues > 0 )); then
-        show red bold "${totalIssues} issue(s) found"
+        show error "${totalIssues} issue(s) found"
+        if [[ -z "${fixMode}" ]]; then
+            if (( totalFixable > 0 )); then
+                show primary "Run with --fix to automatically correct fixable issues"
+            else
+                show primary "All issues require hand editing: old-style \$() substitutions must be converted to \${ cmd; } syntax"
+            fi
+        fi
         return 1
     else
-        show green bold "No issues found"
+        show success bold "No issues found"
     fi
 }
 
@@ -42,7 +50,8 @@ _init_rayvn_lint() {
 _lintProject() {
     local project=$1
     local -n _lintProjectTotalRef=$2
-    local fixMode="${3:-}"
+    local -n _lintProjectFixableRef=$3
+    local fixMode="${4:-}"
     local projectRoot="${_rayvnProjects[${project}::project]}"
 
     [[ -n "${projectRoot}" ]] || fail "project not registered: ${project}"
@@ -60,12 +69,14 @@ _lintProject() {
 
     local file
     local -i projectIssues=0
+    local -i projectFixable=0
 
     for file in "${sourceFiles[@]}"; do
-        _lintFile "${file}" "${projectRoot}" projectIssues "${fixMode}"
+        _lintFile "${file}" "${projectRoot}" projectIssues projectFixable "${fixMode}"
     done
 
     (( _lintProjectTotalRef += projectIssues ))
+    (( _lintProjectFixableRef += projectFixable ))
 }
 
 _collectLintFiles() {
@@ -90,11 +101,20 @@ _lintFile() {
     local file=$1
     local projectRoot=$2
     local -n _lintFileIssuesRef=$3
-    local fixMode="${4:-}"
+    local -n _lintFileFixableRef=$4
+    local fixMode="${5:-}"
     local relPath="${file#${projectRoot}/}"
     local -a findings=()
+    local -a fixes=()
 
-    _lintRunChecks "${file}" findings
+    if ! bash -n "${file}" 2> /dev/null; then
+        (( _lintFileIssuesRef += 1 ))
+        show bold "  ${relPath}" "${errorCrossMark}" error " syntax error (skipping lint)" nl
+        echo
+        return 0
+    fi
+
+    _lintRunChecks "${file}" findings fixes
 
     if (( ${#findings[@]} == 0 )); then
         show bold "  ${relPath}" "${successCheckMark}"
@@ -110,27 +130,43 @@ _lintFile() {
             echo "${finding}"
         done
         echo
+        if (( ${#fixes[@]} == 0 )); then
+            (( _lintFileIssuesRef += count ))
+            return 0
+        fi
+
         require 'rayvn/prompt'
         local choice=1
         confirm "  Fix ${count} issue(s) in ${relPath}?" "Fix" "Skip" choice || choice=1
         echo
         if (( choice == 0 )); then
-            _fixFile "${file}"
-            findings=()
-            _lintRunChecks "${file}" findings
-            count=${#findings[@]}
+            if _fixFile "${file}" fixes; then
+                findings=()
+                fixes=()
+                _lintRunChecks "${file}" findings fixes
+                count=${#findings[@]}
+            else
+                show warning "  Fix reverted: bash syntax check failed"
+                echo
+            fi
         fi
     elif [[ "${fixMode}" == fix ]]; then
-        _fixFile "${file}"
-        findings=()
-        _lintRunChecks "${file}" findings
-        count=${#findings[@]}
+        if _fixFile "${file}" fixes; then
+            findings=()
+            fixes=()
+            _lintRunChecks "${file}" findings fixes
+            count=${#findings[@]}
+        else
+            show warning "  Fix reverted: bash syntax check failed"
+            echo
+        fi
     fi
 
     if (( count == 0 )); then
         show bold "  ${relPath}" "${successCheckMark}" success " (fixed)"
     else
         (( _lintFileIssuesRef += count ))
+        (( _lintFileFixableRef += ${#fixes[@]} ))
         if [[ "${fixMode}" == fix || "${fixMode}" == ask ]]; then
             show bold "  ${relPath}" "${errorCrossMark}" error "${count} remaining" nl
         else
@@ -147,47 +183,90 @@ _lintFile() {
 _lintRunChecks() {
     local _lintRunChecksFile=$1
     local -n _lintRunChecksRef=$2
+    local -n _lintRunChecksFixRef=$3
 
-    _lintCheck '\$\{[1-9]\}'                        "${_lintRunChecksFile}" '${N} positional param with braces — use $N'           _lintRunChecksRef
-    _lintCheck '\$\{[#@?!*]\}'                      "${_lintRunChecksFile}" '${special} param with braces — use $# $@ $* $? $!'    _lintRunChecksRef
+    _lintCheck '\$\{[1-9]\}'                        "${_lintRunChecksFile}" '${N} positional param with braces — use $N'         BRACED_POSITIONAL     _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\$\{[#@?!*]\}'                      "${_lintRunChecksFile}" '${special} param with braces — use $# $@ $* $? $!'  BRACED_SPECIAL        _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '^\s*set\s+(-[a-zA-Z]*[eu]|-o\s+pipefail)' \
-                                                    "${_lintRunChecksFile}" 'strict mode not allowed in rayvn scripts'              _lintRunChecksRef
-    _lintCheck '\$\([^(]'                           "${_lintRunChecksFile}" 'old-style command substitution — use ${ cmd; }'        _lintRunChecksRef
-    _lintCheck '\(\([^ ]'                           "${_lintRunChecksFile}" 'missing space after (( operator'                       _lintRunChecksRef
-    _lintCheck '[^ ]\)\)'                           "${_lintRunChecksFile}" 'missing space before )) operator'                      _lintRunChecksRef
-    _lintCheck '(?:^|[ \t])\[\[[^ ]'               "${_lintRunChecksFile}" 'missing space after [[ operator'                       _lintRunChecksRef
-    _lintCheck '[^ \t:\]]\]\]'                      "${_lintRunChecksFile}" 'missing space before ]] operator'                      _lintRunChecksRef # lint-ok
+                                                    "${_lintRunChecksFile}" 'strict mode not allowed in rayvn scripts'            STRICT_MODE           _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\$\([^(]'                           "${_lintRunChecksFile}" 'old-style command substitution — use ${ cmd; }'      NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\(\([^ ]'                           "${_lintRunChecksFile}" 'missing space after (( operator'                     SPACE_AFTER_DPARENS   _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '[^ ]\)\)'                           "${_lintRunChecksFile}" 'missing space before )) operator'                    SPACE_BEFORE_DPARENS  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?:^|[ \t])\[\[[^ :]'              "${_lintRunChecksFile}" 'missing space after [[ operator'                     SPACE_AFTER_DBRACKET  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '[^ \t:\]]\]\]'                      "${_lintRunChecksFile}" 'missing space before ]] operator'                    SPACE_BEFORE_DBRACKET _lintRunChecksRef _lintRunChecksFixRef # lint-ok
 }
 
+# Apply fixes only to the specific lines flagged by _lintRunChecks.
+# Non-deletion fixes are applied first; line deletions are applied last in
+# descending order so that earlier line numbers remain valid.
 _fixFile() {
     local file="$1"
+    local -n _fixFileActionsRef=$2
+    local backup="${file}.lint-bak"
 
-    # Fix braced positional params: ${1} → $1, etc.
-    gsed -i -E '/^[[:space:]]*#/b; /lint-ok/b; s/\$\{([1-9])\}/\$\1/g' "${file}"
+    cp "${file}" "${backup}" || fail "could not create backup of ${file}"
 
-    # Fix braced special params: ${@} → $@, ${#} → $#, ${*} → $*, ${?} → $?, ${!} → $!
-    gsed -i -E '/^[[:space:]]*#/b; /lint-ok/b
-        s/\$\{@\}/\$@/g
-        s/\$\{#\}/\$#/g
-        s/\$\{\*\}/\$*/g
-        s/\$\{[?]\}/\$?/g
-        s/\$\{!\}/\$!/g' "${file}"
+    local action lineNum fixType
+    local -a toDelete=()
 
-    # Remove strict mode lines (note: old-style $() substitution is not auto-fixed)
-    gsed -i -E '/lint-ok/b; /^[[:space:]]*set[[:space:]]+(-[a-zA-Z]*[eu]|-o[[:space:]]+pipefail)/d' "${file}"
+    for action in "${_fixFileActionsRef[@]}"; do
+        lineNum="${action%%:*}"
+        fixType="${action#*:}"
+        if [[ "${fixType}" == STRICT_MODE ]]; then
+            toDelete+=("${lineNum}")
+        else
+            _fixLine "${file}" "${lineNum}" "${fixType}"
+        fi
+    done
 
-    # Fix missing space after (( and before ))
-    gsed -i -E '/^[[:space:]]*#/b; /lint-ok/b; s/\(\(([^ ])/\(\( \1/g; s/([^ ])\)\)/\1 \)\)/g' "${file}" # lint-ok
+    if (( ${#toDelete[@]} > 0 )); then
+        local -a sortedDeletes=()
+        while IFS= read -r lineNum; do
+            sortedDeletes+=("${lineNum}")
+        done < <(printf '%s\n' "${toDelete[@]}" | sort -rn)
+        for lineNum in "${sortedDeletes[@]}"; do
+            gsed -i "${lineNum}d" "${file}"
+        done
+    fi
 
-    # Fix missing space after [[ (preceded by whitespace) and before ]]
-    gsed -i -E '/^[[:space:]]*#/b; /lint-ok/b; s/([[:blank:]])\[\[([^ ])/\1[[ \2/g; s/([^ [:blank:]:\]])\]\]/\1 \]\]/g' "${file}" # lint-ok
+    if ! bash -n "${file}" 2> /dev/null; then
+        cp "${backup}" "${file}"
+        rm -f "${backup}"
+        return 1
+    fi
+
+    rm -f "${backup}"
+    return 0
+}
+
+_fixLine() {
+    local file=$1
+    local lineNum=$2
+    local fixType=$3
+
+    case ${fixType} in
+        BRACED_POSITIONAL)
+            gsed -i -E "${lineNum}"'s/\$\{([1-9])\}/\$\1/g' "${file}" ;;
+        BRACED_SPECIAL)
+            gsed -i -E "${lineNum}"'{s/\$\{@\}/\$@/g; s/\$\{#\}/\$#/g; s/\$\{\*\}/\$*/g; s/\$\{[?]\}/\$?/g; s/\$\{!\}/\$!/g}' "${file}" ;;
+        SPACE_AFTER_DPARENS)
+            gsed -i -E "${lineNum}"'s/\(\(( [^ ])/\(\( \1/g' "${file}" ;;
+        SPACE_BEFORE_DPARENS)
+            gsed -i -E "${lineNum}"'s/([^ ])\)\)/\1 \)\)/g' "${file}" ;; # lint-ok
+        SPACE_AFTER_DBRACKET)
+            gsed -i -E "${lineNum}"'s/([[:blank:]])\[\[([^ :])/\1[[ \2/g' "${file}" ;;
+        SPACE_BEFORE_DBRACKET)
+            gsed -i -E "${lineNum}"'s/([^] [:blank:]:])\]\]/\1 \]\]/g' "${file}" ;; # lint-ok
+    esac
 }
 
 _lintCheck() {
     local pattern=$1
     local file=$2
     local message=$3
-    local -n _lintCheckFindingsRef=$4
+    local fixType=$4
+    local -n _lintCheckFindingsRef=$5
+    local -n _lintCheckFixesRef=$6
     local match lineNum lineContent
 
     while IFS= read -r match; do
@@ -196,6 +275,7 @@ _lintCheck() {
         [[ "${lineContent}" =~ ^[[:space:]]*\# ]] && continue
         [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
         _lintCheckFindingsRef+=("    line ${lineNum}  ${message}")
+        [[ "${fixType}" != NONE ]] && _lintCheckFixesRef+=("${lineNum}:${fixType}")
     done < <(_lintGrep "${pattern}" "${file}")
 }
 

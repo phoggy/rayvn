@@ -118,7 +118,7 @@ _printStack() {
     local start=1
     [[ ${caller} == "_failed" ]] && start=2
 
-    for ((i = ${start}; i < ${#FUNCNAME[@]} - 1; i++)); do
+    for (( i = ${start}; i < ${#FUNCNAME[@]} - 1; i++ )); do
         local function="${FUNCNAME[${i}]}"
         local line=${BASH_LINENO[${i} - 1]}
         local called=${FUNCNAME[${i} - 1]}
@@ -143,7 +143,7 @@ _printPath() {
         length=${#paths[@]}
         width=${#length}
         for (( i = 0; i < length; i++ )); do
-            printf "%*d. %s\n" "${width}" "$((i + 1))" "${paths[i]}"
+            printf "%*d. %s\n" "${width}" "$(( i + 1 ))" "${paths[i]}"
         done
         echo
     else

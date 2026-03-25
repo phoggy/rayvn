@@ -40,11 +40,11 @@ usage() {
     echo "    --debug-out       Enable debug, write output to the current terminal."
     echo "    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
     echo "    --debug-tty .     Enable debug, write output to the TTY path read from the '${HOME}/.debug.tty' file."
-    bye "${@}"
+    bye "$@"
 }
 
 main() {
-    init "${@}"
+    init "$@"
     local result=0
     ${command} "${args[@]}" || result=$?
     return ${result}
@@ -62,7 +62,7 @@ init() {
     # process arguments
 
     while (( $# )) && [[ -z ${command} ]]; do
-        case "${1}" in
+        case "$1" in
             test) parseArgs true runTests "${@:2}" ;;
             build) parseArgs true nixBuild "${@:2}" ;;
             theme) parseArgs false theme "${@:2}" ;;
@@ -80,12 +80,12 @@ init() {
             --debug) debugOptions=('--showLogOnExit') ;;
             --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
             --debug-out) debugOptions=('--tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('--tty' "${1}") ;;
+            --debug-tty) shift; debugOptions=('--tty' "$1") ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -h | --help | help) command='usage' ;;
-            -*) command='usage'; args=("Unknown option:" "${1}") ;;
-            *) command='usage'; [[ -n ${1} ]] && args=("Unknown command:" "${1}");;
+            -*) command='usage'; args=("Unknown option:" "$1") ;;
+            *) command='usage'; [[ -n $1 ]] && args=("Unknown command:" "$1");;
         esac
         shift
     done
@@ -100,11 +100,11 @@ init() {
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
 
 parseArgs() {
-    local add="${1}"
-    command="${2}"
+    local add="$1"
+    command="$2"
     shift 2
-    while (( ${#} > 0 )); do
-        case "${1}" in
+    while (( $# > 0 )); do
+        case "$1" in
             -h | --help) flags+=(['help']=1) ;;
             -q | --quiet) flags+=(['quiet']=1) ;;
             --assert) flags+=(['assert']=1) ;;
@@ -116,13 +116,13 @@ parseArgs() {
             --debug) debugOptions=('--showLogOnExit') ;;
             --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
             --debug-out) debugOptions=('--tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('--tty' "${1}") ;;
-            --repo) shift; gitHubRepo="${1}";;
-            -*) args+=("${1}") ;;
+            --debug-tty) shift; debugOptions=('--tty' "$1") ;;
+            --repo) shift; gitHubRepo="$1";;
+            -*) args+=("$1") ;;
             *)  if [[ ${add} == true ]]; then
-                addIfRayvnExecutable "${1}" || args+=("${1}")
+                addIfRayvnExecutable "$1" || args+=("$1")
             else
-                args+=("${1}")
+                args+=("$1")
             fi ;;
         esac
         shift
@@ -151,7 +151,7 @@ theme() {
 
 addIfRayvnExecutable() {
     [[ ${command} == 'create' ]] && return 1
-    local name="${1}"
+    local name="$1"
     local path root rayvnPkgFile
     path="${ type -p "${name}"; }"
     if [[ -n "${path}" ]]; then
@@ -177,7 +177,7 @@ addIfRayvnExecutable() {
 
 addProject() {
     local projectName="${1%%=*}"
-    local project="${1}"
+    local project="$1"
     [[ " ${projects[*]} " =~ " ${projectName} " ]] && return 0
     projects+=("${projectName}")
     [[ ${projectName} == rayvn ]] && return 0
@@ -287,8 +287,8 @@ listProjects() {
 }
 
 _printProject() {
-    local projectName="${1}"
-    local projectRoot="${2}"
+    local projectName="$1"
+    local projectRoot="$2"
     echo "project '${projectName}' -> ${projectRoot}"
 }
 
@@ -296,12 +296,12 @@ listLibraries() {
     if (( flags['help'] )); then
         echo "rayvn libraries [PROJECT...]"
     else
-        forEachProject _printLibraries "${1}"
+        forEachProject _printLibraries "$1"
     fi
 }
 
 _printLibraries() {
-    local project="${1}"
+    local project="$1"
     show bold "project ${project}" nl
     forEachLibrary "${project}" _printProjectLibrary
 }
@@ -316,12 +316,12 @@ listFunctions() {
     if (( flags['help'] )); then
         echo "rayvn functions [PROJECT...] [--all]"
     else
-        forEachProject _listProjectLibraries "${1}"
+        forEachProject _listProjectLibraries "$1"
     fi
 }
 
 _listProjectLibraries() {
-    local project="${1}"
+    local project="$1"
     forEachLibrary "${project}" _listFunctions
 }
 
@@ -362,7 +362,7 @@ _getFunctions() {
 }
 
 forEachProject() {              # TODO: this pattern is a pain. Replace with getProjects()
-    local command="${1}"
+    local command="$1"
     local arguments=("${@:2}")
     local projectRoot
     for project in "${!_rayvnProjects[@]}"; do
@@ -375,8 +375,8 @@ forEachProject() {              # TODO: this pattern is a pain. Replace with get
 }
 
 forEachLibrary() {              # TODO: this pattern is a pain. Replace with getLibraries() with optional project filter.
-    local project="${1}"
-    local command="${2}"
+    local project="$1"
+    local command="$2"
     local arguments=("${@:3}")
     local libraryRoot="${_rayvnProjects[${project}::library]}"
     [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
@@ -397,9 +397,9 @@ printVersion() {
 }
 
 _printLibrary() {
-    local projectName="${1}"
-    local libraryName="${2}"
-    local libraryRoot="${3}"
+    local projectName="$1"
+    local libraryName="$2"
+    local libraryRoot="$3"
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
@@ -603,7 +603,7 @@ createProject() {
 }
 
 remindIfNotInPath() {
-    local binDir="${1}"
+    local binDir="$1"
     if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
         show "Remember to add" blue "${binDir}" "to your PATH."
     fi
@@ -672,8 +672,8 @@ createTest() {
 }
 
 getProjectRoot() {
-    local -n projectRootRef="${1}"
-    local -n projectNameRef="${2}"
+    local -n projectRootRef="$1"
+    local -n projectNameRef="$2"
 
     [[ -n ${gitRoot} ]] || bye "${PWD} is not within a project/git repo"
     local _projectRoot="${gitRoot}"
@@ -685,8 +685,8 @@ getProjectRoot() {
 }
 
 copyFileAndSubstituteVars() {
-    local inputFile=${1}
-    local outputFile=${2}
+    local inputFile=$1
+    local outputFile=$2
     local varList=("${@:3}")
 
     [[ -z ${inputFile} || -z ${outputFile} || ${#varList[@]} -eq 0 ]] &&
@@ -705,4 +705,4 @@ copyFileAndSubstituteVars() {
     gsed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
 
-main "${@}"
+main "$@"

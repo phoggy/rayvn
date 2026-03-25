@@ -470,7 +470,7 @@ _executePrompt() {
 
             case "${key}" in
                 '' | $'\n' | $'\r') # Enter
-                    if ((_promptCancelOnEmpty)) && [[ -z "${_promptInput// /}" ]]; then
+                    if (( _promptCancelOnEmpty )) && [[ -z "${_promptInput// /}" ]]; then
                         _finalizePrompt _promptCanceledMsgEmpty italic warning
                         return "${_promptCanceledOnEmptyError}"
                     else
@@ -497,7 +497,7 @@ _executePrompt() {
                 ;;
 
             $'\177' | $'\b') # Backspace
-                if ((_promptCollectInput)) && [[ -n "${_promptInput}" ]]; then
+                if (( _promptCollectInput )) && [[ -n "${_promptInput}" ]]; then
                     _promptInput="${_promptInput%?}"
                     (( _promptEcho )) && printf '\b \b'
                     SECONDS=0 # Reset timer
@@ -505,7 +505,7 @@ _executePrompt() {
                 ;;
 
             *)
-                if ((_promptCollectInput)) && [[ "${key}" =~ [[:print:]] ]]; then
+                if (( _promptCollectInput )) && [[ "${key}" =~ [[:print:]] ]]; then
                     _promptInput+="${key}"
                     (( _promptEcho )) && echo -n "${key}" > ${terminal}
                     SECONDS=0 # Reset timer
@@ -574,7 +574,7 @@ _clearHint() {
 
 _hasPromptTimerExpired() {
     if (( ++_promptTimeoutCheckCount >= 10 )); then
-        if (( SECONDS >= _promptTimeoutSeconds)); then
+        if (( SECONDS >= _promptTimeoutSeconds )); then
             _finalizePrompt _promptCanceledMsgTimeout italic warning
             return 0
         fi
@@ -735,7 +735,7 @@ _choosePaint() {
             (( row++ ))
 
             # Add separator line if needed
-            if [[ ${addSeparator} == true && ${offset} -lt $((totalVisibleItems - 1)) ]]; then
+            if [[ ${addSeparator} == true && ${offset} -lt $(( totalVisibleItems - 1 )) ]]; then
                 cursorTo ${row} 0
                 eraseToEndOfLine
                 echo -n ""
@@ -783,7 +783,7 @@ _chooseUp() {
         if (( _promptChoiceIndex < 0 )); then
             _promptChoiceIndex=${_promptMaxChoicesIndex}
         fi
-        windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
+        windowStart=$(( (_promptChoiceIndex + (_promptMaxChoicesIndex + 1 )) % (_promptMaxChoicesIndex + 1) ))
     fi
     _choosePaint
 }
@@ -796,10 +796,10 @@ _chooseDown() {
     else
         # Cursor at bottom, scroll window down
         (( _promptChoiceIndex++ ))
-        if (( _promptChoiceIndex > _promptMaxChoicesIndex)); then
+        if (( _promptChoiceIndex > _promptMaxChoicesIndex )); then
             _promptChoiceIndex=0
         fi
-        windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1)) % (_promptMaxChoicesIndex + 1) ))
+        windowStart=$(( (_promptChoiceIndex - cursorRow + (_promptMaxChoicesIndex + 1 )) % (_promptMaxChoicesIndex + 1) ))
     fi
     _choosePaint
 }

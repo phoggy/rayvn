@@ -7,7 +7,7 @@
 
 require() {
     while (( $# > 0 )); do
-        local qualifiedName="${1}"
+        local qualifiedName="$1"
         local projectName="${qualifiedName%/*}"
         local libraryName="${qualifiedName#*/}"
         local libraryKey="${projectName}_${libraryName}"
@@ -137,12 +137,12 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
             unset -f "${initFunction}" || fail
         fi
 
-        ((_loadLibraryDepth--))
+        (( _loadLibraryDepth-- ))
     fi
 }
 
 _collectUnknownRayvnFunctions() {
-    local -n mapRef="${1}"
+    local -n mapRef="$1"
     local value="${2:-1}"
 
     for functionName in ${ compgen -A function; }; do
@@ -159,7 +159,7 @@ _collectUnknownRayvnFunctions() {
 }
 
 _addRayvnProject() {
-    local projectName="${1}"
+    local projectName="$1"
     local projectRoot="${2:-}"
 
     # Add project root
@@ -190,9 +190,9 @@ _addRayvnProject() {
 }
 
 _addRayvnProjectRoot() {
-    local projectName="${1}"
-    local keySuffix="${2}"
-    local projectRoot="${3}"
+    local projectName="$1"
+    local keySuffix="$2"
+    local projectRoot="$3"
     local key="${projectName}${keySuffix}"
 
     if  [[ ! -v _rayvnProjects[${key}] ]]; then
@@ -203,7 +203,7 @@ _addRayvnProjectRoot() {
 }
 
 _addRayvnProjectFromExecutable() {
-    local projectName="${1}"
+    local projectName="$1"
     local executable="${2:-${projectName}}"
     local path projectRoot
     if path="${ type -p "${executable}"; }"; then
@@ -259,7 +259,7 @@ _rayvnChildInit() {
     # Child process: restore parent's project paths to skip re-discovery, then configure normally.
     _restoreGlobalMaps
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
-    configure "${@}"
+    configure "$@"
 }
 
 TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTIONS ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -267,21 +267,21 @@ TEMPORARY_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN TEMPORARY FUNCTION
 # --- These functions will be REPLACED when rayvn/core is loaded -----------------------------------
 
 fail() {
-    stackTrace "${*}"
+    stackTrace "$*"
     exit 1
 }
 
 # And so will this one
 
 stackTrace() {
-    [[ -n ${1} ]] && echo -e "${*}\n"
+    [[ -n $1 ]] && echo -e "$*\n"
     local caller=${FUNCNAME[1]}
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
     local indent='    '
     (( depth - start == 1 )) && indent=''
-    [[ ${1} ]] && { echo "${*}"; echo; }
-    for ((i = start; i < depth; i++)); do
+    [[ $1 ]] && { echo "$*"; echo; }
+    for (( i = start; i < depth; i++ )); do
         echo "${indent}${FUNCNAME[${i}]} ${BASH_SOURCE[${i}]}:${BASH_LINENO[${i} - 1]} -> ${FUNCNAME[${i} - 1]}()"
     done
 }
@@ -289,20 +289,20 @@ stackTrace() {
 # --- These will be kept IFF the traceOut var is set, e.g. to another terminal or a file ----------
 
 traceUp() {
-    (( _tracing )) && echo -e "[trace] ${*}" > "${traceOut}"
+    (( _tracing )) && echo -e "[trace] $*" > "${traceOut}"
 }
 
 traceUpVar() {
     if (( _tracing )) ; then
         echo > "${traceOut}"
         echo -n "[trace] " > "${traceOut}"
-        declare -p "${@}" > "${traceOut}" 2> /dev/null;
+        declare -p "$@" > "${traceOut}" 2> /dev/null;
         echo > "${traceOut}"
     fi
 }
 
 traceUpStack() {
-    (( _tracing )) && stackTrace "[trace] ${*}" > "${traceOut}"
+    (( _tracing )) && stackTrace "[trace] $*" > "${traceOut}"
 }
 
 traceUpInit() {
@@ -312,7 +312,7 @@ traceUpInit() {
             _tracing=1
             _rayvnFunctionSources+=(['traceUp']='rayvn.up' ['traceUpVar']='rayvn.up' ['traceUpStack']='rayvn.up'
                                     ['traceUpInit']='rayvn.up')
-            traceUpStack "${1}"
+            traceUpStack "$1"
         else
             _tracing=0
             traceUp() { :; }
@@ -346,7 +346,7 @@ configure() {
 
     # Init tracing if traceOut is set
 
-    traceUpInit "Configuring rayvn.up for project '${currentProjectName}', args: ${*}"
+    traceUpInit "Configuring rayvn.up for project '${currentProjectName}', args: $*"
 
     # Disable and warn if any 'Unofficial Strict Mode' options are set
 
@@ -371,10 +371,10 @@ configure() {
 
     # Parse args
 
-    while (( ${#} > 0 )); do
-        case "${1}" in
-            -a | --add) shift; IFS=',' read -r -a split <<< "${1}"; projects+=("${split[@]}") ;;
-            *) { [[ "${1}" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("${1}") ;;
+    while (( $# > 0 )); do
+        case "$1" in
+            -a | --add) shift; IFS=',' read -r -a split <<< "$1"; projects+=("${split[@]}") ;;
+            *) { [[ "$1" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("$1") ;;
         esac
         shift
     done
@@ -471,7 +471,7 @@ if (( ! rayvnIsUp )); then
 
     # No, so configure, require specified libraries, then remove all temp functions and vars.
 
-    configure "${@}"
+    configure "$@"
 
     # Export key maps so child processes can restore them via _restoreGlobalMaps.
 
@@ -485,7 +485,7 @@ elif [[ -z "${_rayvnShellPid:-}" ]]; then
     # Child process: rayvnIsUp was exported by parent but _rayvnShellPid was not.
     # Restore project paths from parent, then configure and load libraries normally.
 
-    _rayvnChildInit "${@}"
+    _rayvnChildInit "$@"
     (( rayvnTest_DeferCore )) || exportGlobalMaps _rayvnProjects _rayvnRequireCounts _rayvnFunctionSources _ignoreRayvnUpFunctions
     unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
     return 0

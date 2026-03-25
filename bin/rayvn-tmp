@@ -39,12 +39,12 @@ init() {
     declare -g command='status'
 
     while (( $# )); do
-        case "${1}" in
-            status | install | uninstall) command="${1}" ;;
+        case "$1" in
+            status | install | uninstall) command="$1" ;;
             -h | --help) usage ;;
             -v) projectVersion 'rayvn'; exit 0 ;;
             --version) projectVersion 'rayvn' true; exit 0 ;;
-            *) usage "Unknown option: ${1}" ;;
+            *) usage "Unknown option: $1" ;;
         esac
         shift
     done

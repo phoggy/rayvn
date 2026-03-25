@@ -161,7 +161,7 @@ _extractFlakeDeps() {
 
             # Extract pkgs.X references (excluding utility namespaces)
             remaining = line
-            while (match(remaining, /pkgs\.([a-zA-Z][a-zA-Z0-9_-]*)/, m)) {
+            while (match(remaining, /pkgs\.([a-zA-Z][a-zA-Z0-9_-]*)/, m)) { # lint-ok
                 pkg = m[1]
                 if (pkg != "lib" && pkg != "stdenv") {
                     print "pkg:" pkg
@@ -171,7 +171,7 @@ _extractFlakeDeps() {
 
             # Extract local XxxPkg variable references (e.g. rayvnPkg, mrldPkg)
             remaining = line
-            while (match(remaining, /([a-zA-Z][a-zA-Z0-9_]*)Pkg/, m)) {
+            while (match(remaining, /([a-zA-Z][a-zA-Z0-9_]*)Pkg/, m)) { # lint-ok
                 print "local:" m[1] "Pkg"
                 remaining = substr(remaining, RSTART + RLENGTH)
             }

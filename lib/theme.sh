@@ -180,9 +180,9 @@ _queryBackgroundColor() {
         [[ ${#gHex} -eq 1 ]] && gHex="${gHex}${gHex}"
         [[ ${#bHex} -eq 1 ]] && bHex="${bHex}${bHex}"
 
-        local r=$((0x${rHex}))
-        local g=$((0x${gHex}))
-        local b=$((0x${bHex}))
+        local r=$(( 0x${rHex} ))
+        local g=$(( 0x${gHex} ))
+        local b=$(( 0x${bHex} ))
 
         # Calculate perceived brightness using ITU-R BT.709 coefficients
         local brightness=$(( (r * 299 + g * 587 + b * 114) / 1000 ))

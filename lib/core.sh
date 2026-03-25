@@ -121,7 +121,7 @@ show() {
 
 header() {
     local toUpper=0 colorIndex=0
-    local maxIndex=$(( ${#_headerColors[@]} - 1))
+    local maxIndex=$(( ${#_headerColors[@]} - 1 ))
     parseOptionalArg '-u' "$1" toUpper 1 && shift
 
     if [[ -z "${1//[0-9]/}" ]]; then
@@ -254,17 +254,17 @@ stackTrace() {
     declare -i depth=${#FUNCNAME[@]}
 
     (( ${#message[@]} )) && error "$@"
-    if ((depth > 2)); then
+    if (( depth > 2 )); then
         [[ ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
 
-    for ((i = start; i < depth; i++)); do
+    for (( i = start; i < depth; i++ )); do
         local function="${FUNCNAME[${i}]}"
         local line="${ show bold blue "${BASH_LINENO[${i} - 1]}" ;}"
         local arrow="${ show cyan "->" ;}"
         local called=${FUNCNAME[${i} - 1]}
         local script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
-        ((i == start)) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
+        (( i == start )) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
         echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
 }
@@ -602,7 +602,7 @@ padString() {
 
     local strippedString="${ stripAnsi "${string}"; }"
     local currentLength=${#strippedString}
-    local paddingNeeded=$((width - currentLength))
+    local paddingNeeded=$(( width - currentLength ))
 
     (( paddingNeeded <= 0 )) && echo -n "${string}" && return 0
 
@@ -610,8 +610,8 @@ padString() {
     before|right) printf '%*s' "${width}" "${string}" ;;
     after|left)   printf '%-*s' "${width}" "${string}" ;;
     center)
-        local leftPad=$((paddingNeeded / 2))
-        local rightPad=$((paddingNeeded - leftPad))
+        local leftPad=$(( paddingNeeded / 2 ))
+        local rightPad=$(( paddingNeeded - leftPad ))
         printf '%*s%s%*s' "${leftPad}" '' "${string}" "${rightPad}" ''
         ;;
     *) fail "Invalid position: ${position}" ;;
@@ -790,7 +790,7 @@ randomHexString() {
     local count=$1
     local -n _resultRef=$2
     local _hexChar _hexString _i
-    for (( _i=0; _i < ${count}; _i++)); do
+    for (( _i=0; _i < ${count}; _i++ )); do
         randomHexChar _hexChar
         _hexString+="${_hexChar}"
     done

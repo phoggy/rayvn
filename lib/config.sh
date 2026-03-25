@@ -80,7 +80,7 @@ _extractSafeStaticVarsOnly() {
 
         # Detect function definitions
         if [[ "${clean_line}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\([[:space:]]*\)[[:space:]]*\{ ]] ||
-           [[ "${clean_line}" =~ ^[[:space:]]*function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(\([[:space:]]*\))?[[:space:]]*\{ ]]; then
+           [[ "${clean_line}" =~ ^[[:space:]]*function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(\([[:space:]]*\))?[[:space:]]*\{ ]]; then # lint-ok
             in_function=1
             continue
         fi
@@ -231,7 +231,7 @@ _globalizeDeclarations() {
         :end
 
         /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\(/ {
-            s/^([[:space:]]*)([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=\((.*)\)$/\1declare -g -a \2=(\3)/
+            s/^([[:space:]]*)([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=\(( .*)\)$/\1declare -g -a \2=(\3)/
         }
     '
 }
@@ -280,7 +280,7 @@ _filterStaticVarsByPrefix() {
                     break
                 }
             }
-            if (var ~ ("^" prefix)) {
+            if (var ~ ("^" prefix )) {
                 collecting = 1
                 buffer = line
                 if (line ~ /=\([ \t]*$/ || line ~ /\([ \t]*$/) {

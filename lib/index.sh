@@ -823,7 +823,7 @@ _flushDocSection() {
                 IFS=' ' read -r argName rest <<< "${l}"
                 [[ -z "${argName}" ]] && continue
                 local typeWord remaining
-                local parenTypePattern='^\(([^)]+)\)[[:space:]]+(.*)'
+                local parenTypePattern='^\(( [^)]+)\)[[:space:]]+(.*)'
                 if [[ "${rest}" =~ ${parenTypePattern} ]]; then
                     # New format: argName (type) description
                     typeWord="${BASH_REMATCH[1]}"
@@ -905,8 +905,8 @@ _wrapCodeInBackticks() {
     local text="$1"
     if [[ "${text}" =~ \$\{|\$\(|[a-zA-Z_][a-zA-Z0-9_]*\(\)|[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
         text=${ echo "${text}" | gsed -E 's/(\$\{[^}]+\})/`\1`/g'; }
-        text=${ echo "${text}" | gsed -E 's/(\$\([^)]+\))/`\1`/g'; }
-        text=${ echo "${text}" | gsed -E 's/([a-zA-Z_][a-zA-Z0-9_]*\(\))/`\1`/g'; }
+        text=${ echo "${text}" | gsed -E 's/(\$\([^)]+\))/`\1`/g'; } # lint-ok
+        text=${ echo "${text}" | gsed -E 's/([a-zA-Z_][a-zA-Z0-9_]*\(\))/`\1`/g'; } # lint-ok
     fi
     echo "${text}"
 }
@@ -919,7 +919,7 @@ _loadHomePageDescriptions() {
     [[ -f "${indexFile}" ]] || return 0
 
     local line libKey description
-    local tableRowPattern='^\|[[:space:]]*\[([^/]+)/([^]]+)\]\([^)]*\)[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\|'
+    local tableRowPattern='^\|[[:space:]]*\[([^/]+)/([^]]+)\]\([^)]*\)[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\|' # lint-ok
     while IFS= read -r line; do
         if [[ "${line}" =~ ${tableRowPattern} ]]; then
             libKey="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
@@ -1437,7 +1437,7 @@ _findDepsExtractCommands() {
         BEGIN {
             inSingleQuote = 0
             n = split("if then else elif fi for while until do done case esac in select function return exit break continue declare local typeset readonly export unset eval exec source read readarray mapfile test bg fg jobs wait trap kill disown cd pwd pushd popd alias unalias type command which builtin true false shift set shopt time coproc getopts hash umask ulimit enable help history printf echo", arr, " ")
-            for (i=1; i<=n; i++) skip[arr[i]] = 1
+            for (i=1; i<=n; i++) skip[arr[i]] = 1 # lint-ok
         }
         BEGINFILE { inSingleQuote = 0 }
         /^[[:space:]]*#/ { next }
@@ -1457,7 +1457,7 @@ _findDepsExtractCommands() {
                 }
             }
             # Strip complete inline single-quoted strings (e.g. '"'"'pattern'"'"', '"'"'literal'"'"')
-            while (match(line, /\x27[^\x27]*\x27/)) {
+            while (match(line, /\x27[^\x27]*\x27/)) { # lint-ok
                 line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
             }
             # If an unclosed single quote remains, it opens a multi-line embedded script
@@ -1487,9 +1487,9 @@ _findDepsExtractCommands() {
                         sub(/^[A-Za-z_][A-Za-z0-9_]*[+]?=[^ \t]*[ \t]*/, "", seg)
                     }
                 }
-                if (match(seg, /^([A-Za-z][A-Za-z0-9_.-]*)/, m)) {
+                if (match(seg, /^([A-Za-z][A-Za-z0-9_.-]*)/, m)) { # lint-ok
                     word = m[1]
-                    if (!(word in skip)) print word
+                    if (!(word in skip)) print word # lint-ok
                 }
             }
         }
@@ -1654,7 +1654,7 @@ _findNpmDependencies() {
             [[ ${existingPkg} ]] && existingDeps["${existingPkg}"]="${ver}"
         done < <( node -e "
             const p = require('${packageJsonFile}');
-            Object.entries(p.dependencies||{}).forEach(([k,v])=>console.log(k+'='+v));
+            Object.entries(p.dependencies||{}).forEach(([k,v])=>console.log(k+'='+v)); # lint-ok
         " 2>/dev/null )
     fi
 
@@ -1684,13 +1684,13 @@ _findNpmExtractPackages() {
     gawk '
         BEGIN {
             split("assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib", a, " ")
-            for (i in a) builtin[a[i]] = 1
+            for (i in a) builtin[a[i]] = 1 # lint-ok
         }
         function extract(line,    full, pkg, lookup, p, n) {
-            while (match(line, /(require|from)[ \t(]*[\x22\x27][^\x22\x27]+[\x22\x27]/)) {
+            while (match(line, /(require|from)[ \t(]*[\x22\x27][^\x22\x27]+[\x22\x27]/)) { # lint-ok
                 full = substr(line, RSTART, RLENGTH)
                 line = substr(line, RSTART + RLENGTH)
-                if (!match(full, /[\x22\x27][^\x22\x27]+[\x22\x27]/)) continue
+                if (!match(full, /[\x22\x27][^\x22\x27]+[\x22\x27]/)) continue # lint-ok
                 pkg = substr(full, RSTART + 1, RLENGTH - 2)
                 if (pkg ~ /^[.\/]/) continue
                 lookup = pkg; sub(/^node:/, "", lookup)

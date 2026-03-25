@@ -318,7 +318,7 @@ _setDebug() {
 
     if [[ -n ${_debugOut} ]]; then
         exec {_debugFd}>> "${_debugOut}"
-        if ((isInteractive)); then
+        if (( isInteractive )); then
             _debugPrefix="${ show accent 'debug: ';}"
         else
             _debugPrefix="debug: "
