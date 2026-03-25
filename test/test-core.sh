@@ -346,51 +346,51 @@ testOutputFunctions() {
     local result
 
     # warn: ⚠️ prefix, message, and show format args in remaining args
-    result=$( warn "something wrong" 2>&1 )
+    result=${ warn "something wrong" 2>&1; }
     assertContains "⚠️" "${ stripAnsi "${result}"; }" "warn includes ⚠️ prefix"
     assertContains "something wrong" "${ stripAnsi "${result}"; }" "warn includes message"
-    result=$( warn "first" bold "second" 2>&1 )
+    result=${ warn "first" bold "second" 2>&1; }
     assertContains "second" "${ stripAnsi "${result}"; }" "warn passes remaining args to show"
 
     # error: 🔺 prefix, message, and show format args
-    result=$( error "bad thing" 2>&1 )
+    result=${ error "bad thing" 2>&1; }
     assertContains "🔺" "${ stripAnsi "${result}"; }" "error includes 🔺 prefix"
     assertContains "bad thing" "${ stripAnsi "${result}"; }" "error includes message"
-    result=$( error "msg" bold "detail" 2>&1 )
+    result=${ error "msg" bold "detail" 2>&1; }
     assertContains "detail" "${ stripAnsi "${result}"; }" "error passes remaining args to show"
 
     # invalidArgs: exits 1, message in output, show format args
     assertFalse "invalidArgs exits 1" eval '( invalidArgs "bad input" ) 2>/dev/null'
-    result=$( ( invalidArgs "bad input" ) 2>&1 )
+    result=${ ( invalidArgs "bad input" ) 2>&1; }
     assertContains "bad input" "${ stripAnsi "${result}"; }" "invalidArgs includes message"
-    result=$( ( invalidArgs "msg" bold "detail" ) 2>&1 )
+    result=${ ( invalidArgs "msg" bold "detail" ) 2>&1; }
     assertContains "detail" "${ stripAnsi "${result}"; }" "invalidArgs passes remaining args to show"
 
     # fail: exits 1, message, --trace adds stack, show format args
     assertFalse "fail exits 1" eval '( fail "broken" ) 2>/dev/null'
-    result=$( ( fail "broken" ) 2>&1 )
+    result=${ ( fail "broken" ) 2>&1; }
     assertContains "broken" "${ stripAnsi "${result}"; }" "fail includes message"
-    result=$( ( fail "msg" bold "detail" ) 2>&1 )
+    result=${ ( fail "msg" bold "detail" ) 2>&1; }
     assertContains "detail" "${ stripAnsi "${result}"; }" "fail passes remaining args to show"
-    result=$( ( fail --trace "traced" ) 2>&1 )
+    result=${ ( fail --trace "traced" ) 2>&1; }
     assertContains "traced" "${ stripAnsi "${result}"; }" "fail --trace includes message"
     assertContains "->" "${ stripAnsi "${result}"; }" "fail --trace includes stack"
 
     # bye: exits 0, optional message, show format args
     assertTrue "bye exits 0" eval '( bye ) 2>/dev/null'
     assertTrue "bye with message exits 0" eval '( bye "goodbye" ) 2>/dev/null'
-    result=$( ( bye "farewell" ) 2>&1 )
+    result=${ ( bye "farewell" ) 2>&1; }
     assertContains "farewell" "${ stripAnsi "${result}"; }" "bye includes message"
-    result=$( ( bye "msg" bold "detail" ) 2>&1 )
+    result=${ ( bye "msg" bold "detail" ) 2>&1; }
     assertContains "detail" "${ stripAnsi "${result}"; }" "bye passes remaining args to show"
 
     # stackTrace: stack in output with and without message, show format args
-    result=$( ( stackTrace ) 2>&1 )
+    result=${ ( stackTrace ) 2>&1; }
     assertContains "->" "${ stripAnsi "${result}"; }" "stackTrace outputs stack"
-    result=$( ( stackTrace "trace message" ) 2>&1 )
+    result=${ ( stackTrace "trace message" ) 2>&1; }
     assertContains "trace message" "${ stripAnsi "${result}"; }" "stackTrace includes message"
     assertContains "->" "${ stripAnsi "${result}"; }" "stackTrace with message still shows stack"
-    result=$( ( stackTrace "msg" bold "detail" ) 2>&1 )
+    result=${ ( stackTrace "msg" bold "detail" ) 2>&1; }
     assertContains "detail" "${ stripAnsi "${result}"; }" "stackTrace passes remaining args to show"
 }
 

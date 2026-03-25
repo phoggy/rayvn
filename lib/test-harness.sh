@@ -541,7 +541,9 @@ _startNixTask() {
             nixTestFile=${ makeTempFile; }
             {
                 printf '#!/usr/bin/env bash\n'
-                printf 'rayvnInstallHome="$(dirname "$(dirname "$(command -v rayvn.up)")")"\n'
+                printf '_rayvnUp=${ command -v rayvn.up; }\n'
+                printf '_rayvnBinDir=${ dirname "${_rayvnUp}"; }\n'
+                printf 'rayvnInstallHome=${ dirname "${_rayvnBinDir}"; }\n'
                 printf 'export rayvnInstallHome\n'
                 printf 'export rayvnInstallBinary="${rayvnInstallHome}/bin/rayvn"\n'
                 printf "export testFunctionNames='%s'\n" "${testFunctionNames}"

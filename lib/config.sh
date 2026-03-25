@@ -124,7 +124,7 @@ _extractSafeStaticVarsOnly() {
             buffer+=$'\n'"${cleanLine}"
 
             # Check for unsafe content
-            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                 skipMultiline=1
                 buffer=""
                 continue
@@ -144,7 +144,7 @@ _extractSafeStaticVarsOnly() {
             buffer+=$'\n'"${cleanLine}"
 
             # Check for unsafe content
-            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                 inMultilineString=0
                 buffer=""
                 continue
@@ -169,14 +169,14 @@ _extractSafeStaticVarsOnly() {
 
             if [[ ${#openCount} -eq ${#closeCount} ]]; then
                 # Single line array
-                if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+                if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                     continue
                 fi
                 echo "${cleanLine}"
             else
                 # Multi-line array
                 buffer="${cleanLine}"
-                if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+                if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                     skipMultiline=1
                 fi
                 inMultilineVar=1
@@ -189,7 +189,7 @@ _extractSafeStaticVarsOnly() {
            ([[ "${cleanLine}" != *\" ]] || [[ "${cleanLine}" == *\\\" ]]); then
 
             buffer="${cleanLine}"
-            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                 buffer=""
                 continue
             fi
@@ -202,7 +202,7 @@ _extractSafeStaticVarsOnly() {
            [[ "${cleanLine}" =~ ^[[:space:]]*declare[[:space:]]+[^=]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*$ ]]; then
 
             # Check for command substitutions
-            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                 continue
             fi
 

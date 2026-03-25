@@ -117,7 +117,7 @@ testNewProject() {
         # Verify git repo has at least one commit
 
         local commitCount
-        commitCount=$( git -C "${projectDir}" rev-list --count HEAD 2>/dev/null )
+        commitCount=${ git -C "${projectDir}" rev-list --count HEAD 2>/dev/null; }
         [[ ${commitCount} -ge 1 ]] || fail "project should have at least one git commit"
 
     ) || exit 1
@@ -147,7 +147,7 @@ testNewScript() {
         # Verify git tracked
 
         local tracked
-        tracked=$( git ls-files "bin/myscript" )
+        tracked=${ git ls-files "bin/myscript"; }
         [[ -n "${tracked}" ]] || fail "myscript should be git tracked"
 
     ) || exit 1
@@ -176,7 +176,7 @@ testNewLibrary() {
         # Verify git tracked
 
         local tracked
-        tracked=$( git ls-files "lib/mylib.sh" )
+        tracked=${ git ls-files "lib/mylib.sh"; }
         [[ -n "${tracked}" ]] || fail "mylib.sh should be git tracked"
 
     ) || exit 1

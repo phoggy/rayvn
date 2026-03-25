@@ -189,7 +189,7 @@ choose() {
 
         # Calculate based on terminal height and item count
 
-        local availableRows=$(tput lines)
+        local availableRows=${ tput lines; }
         local visibleRows=$(( availableRows - 6 ))
         totalVisibleItems=$(( visibleRows / rowsPerItem ))
         (( totalVisibleItems > itemCount )) && totalVisibleItems=${itemCount}

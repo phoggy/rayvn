@@ -356,7 +356,7 @@ _getFunctions() {
     local -n arrayRef="$2"
     local _functions
     assertFile "${sourcePath}"
-    _functions=$( bash --norc --noprofile -c "source '${sourcePath}' 2>/dev/null; compgen -A function;" ) || return 1
+    _functions=${ bash --norc --noprofile -c "source '${sourcePath}' 2>/dev/null; compgen -A function;"; } || return 1
     _functions=(${ printf '%s\n' "${_functions[@]}" | sort; })
     arrayRef=("${_functions[@]}")
 }
@@ -458,7 +458,7 @@ lintCommand() {
         echo "  --fix  Auto-fix all violations that can be corrected automatically."
         echo "  --ask  Interactively prompt whether to fix each file with violations."
         echo
-        echo "Note: old-style command substitution \$() is detected but not auto-fixed."
+        echo "Note: old-style command substitution \$() is detected but not auto-fixed." # lint-ok
     else
         assertProjectsSpecified
         (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"

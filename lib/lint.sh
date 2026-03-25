@@ -58,7 +58,7 @@ _lintProject() {
     [[ -n "${projectRoot}" ]] || fail "project not registered: ${project}"
 
     echo
-    header "${project}"
+    header "project ${project}" primary "linting bash source files"
 
     local -a sourceFiles=()
     _collectLintFiles "${projectRoot}" sourceFiles

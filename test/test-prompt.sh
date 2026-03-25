@@ -323,7 +323,7 @@ _calculateLayout() {
     local availableRows="$4"
 
     [[ ${addSeparator} == true ]] && _rowsPerItem=2 || _rowsPerItem=1
-    _extraLines=$( (( _rowsPerItem == 1 )) && echo 2 || echo 1 )
+    _extraLines=${ (( _rowsPerItem == 1 )) && echo 2 || echo 1; }
 
     if (( maxVisibleItems > 0 )); then
         if (( maxVisibleItems > itemCount )); then
