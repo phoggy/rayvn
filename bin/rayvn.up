@@ -221,13 +221,6 @@ _addRayvnProjectFromExecutable() {
 _restoreGlobalMaps() {
     [[ -v _rayvnGlobalMaps ]] || return 0
 
-    # Guard against environment variable injection. Every ';'-delimited token must:
-    #   1. match the exact format produced by declare -p for an associative array, and
-    #   2. contain no execution constructs: $(...), `...`, ${ ; }, or <(...).
-    # Together these cover all injection vectors: structural injection, ${ cmd; } (the
-    # required ';' already splits the token, but the construct check adds defense-in-depth),
-    # $(...), backticks, and process substitutions.
-
     # Guard against environment variable injection. Each newline-delimited token must:
     #   1. match the exact format produced by exportGlobalMaps for an associative array, and
     #   2. contain no execution constructs: $(...), `...`, or <(...).
@@ -238,8 +231,9 @@ _restoreGlobalMaps() {
         [[ -z "${token}" ]] && continue
         [[ "${token}" =~ ^declare[[:space:]]+-gA[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*=\( ]] \
           || fail "restoreGlobalMaps: unexpected format — possible injection"
-        [[ "${token}" == *'$('* || "${token}" == *'`'* || "${token}" == *'<('* || "${token}" == *'>('* ]] && \ # lint-ok
-          fail "restoreGlobalMaps: execution construct — possible injection"
+        if [[ "${token}" == *'$('* || "${token}" == *'`'* || "${token}" == *'<('* || "${token}" == *'>('* ]]; then # lint-ok
+            fail "restoreGlobalMaps: execution construct — possible injection"
+        fi
     done <<< "${_rayvnGlobalMaps}"
 
     # bash bug: 'declare -gA var=(...)' inside a function declares the global but loses the
