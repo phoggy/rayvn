@@ -6,7 +6,7 @@
 # and process substitution to inject keystrokes via stdin.
 
 main() {
-    init "${@}"
+    init "$@"
 
     # request tests
     testRequestBasicInput

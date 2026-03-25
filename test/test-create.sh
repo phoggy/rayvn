@@ -4,7 +4,7 @@
 # Tests for 'rayvn new project', 'rayvn new script', and 'rayvn new library'.
 
 main() {
-    init "${@}"
+    init "$@"
 
     testNewProject
     testNewScript
@@ -183,4 +183,4 @@ testNewLibrary() {
 }
 
 source rayvn.up 'rayvn/test'
-main "${@}"
+main "$@"

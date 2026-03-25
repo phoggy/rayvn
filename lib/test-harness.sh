@@ -720,7 +720,7 @@ _setPadding() {
 _executeTestFile() {
     local testFile="$1"
     shift
-    executeClean rayvnTest_NonInteractive=1 "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
+    executeClean rayvnTest_NonInteractive=1 "$@" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
     testResult=$?
     return ${testResult}
 }

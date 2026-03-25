@@ -6,7 +6,7 @@
 
 
 require() {
-    while (( ${#} > 0 )); do
+    while (( $# > 0 )); do
         local qualifiedName="${1}"
         local projectName="${qualifiedName%/*}"
         local libraryName="${qualifiedName#*/}"

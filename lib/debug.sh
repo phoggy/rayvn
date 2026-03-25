@@ -21,7 +21,7 @@ isDebugEnabled() {
 # ◇ Log args. No-op if debug is not enabled.
 
 debug() {
-    (( _debug )) && _debugEcho "${@}" >&${_debugFd}; return 0
+    (( _debug )) && _debugEcho "$@" >&${_debugFd}; return 0
 }
 
 # ◇ Log the debug output directory path to debug output. No-op if debug is not enabled.
@@ -52,7 +52,7 @@ debugBinary() {
 # ◇ Log variable declaration(s). Convenience alias for debugVars. No-op if debug is not enabled.
 
 debugVar() {
-    debugVars "${@}"
+    debugVars "$@"
 }
 
 # ◇ Log declarations of one or more variables. No-op if debug is not enabled.
@@ -163,14 +163,14 @@ debugJson() {
 debugStack() {
     if (( _debug )); then
         _debugEcho
-        stackTrace "${@}" >&${_debugFd}
+        stackTrace "$@" >&${_debugFd}
     fi
 }
 
 # ◇ Enable bash xtrace (set -x), directing output to the debug stream, with an optional message to log first.
 
 debugTraceOn() {
-    (( $# )) && debug "${@}"
+    (( $# )) && debug "$@"
     debug "${ show secondary "BEGIN CODE TRACE ----------------------------------"; }"
     exec {_debugTraceFd}>> "${_debugOut}"
     export BASH_XTRACEFD=${_debugTraceFd}
@@ -186,13 +186,13 @@ debugTraceOff() {
     exec {_debugTraceFd}>&-
     unset _debugTraceFd
     debug "${ show secondary "END CODE TRACE ------------------------------------"; }"
-    (( $# )) && debug "${@}"
+    (( $# )) && debug "$@"
 }
 
 # ◇ Log each argument shell-quoted via 'printf %q'. No-op if debug is not enabled.
 
 debugEscapes() {
-    (( _debug )) && printf '%q ' "${@}"
+    (( _debug )) && printf '%q ' "$@"
 }
 
 # ◇ Log the full process environment (variables and functions) to '<name>.env' in the debug directory.
@@ -276,14 +276,14 @@ _init_rayvn_debug() {
 
 _debugEcho() {
     if (( _debugRemote )); then
-        printf '%s\r\n' "${_debugPrefix}${*}" >&${_debugFd}
+        printf '%s\r\n' "${_debugPrefix}$*" >&${_debugFd}
     else
-        echo "${_debugPrefix}${*}" >&${_debugFd}
+        echo "${_debugPrefix}$*" >&${_debugFd}
     fi
 }
 
 _debugEchoNoNewline() {
-    echo -n "${_debugPrefix}${*}" >&${_debugFd}
+    echo -n "${_debugPrefix}$*" >&${_debugFd}
 }
 
 _setDebug() {
@@ -298,7 +298,7 @@ _setDebug() {
 
     _debug=1
 
-    while (( ${#} > 0 )); do
+    while (( $# > 0 )); do
         case "$1" in
             --tty) shift; _debugOut="$1";;
             --showLogOnExit) _debugShowLogOnExit=1 ;;

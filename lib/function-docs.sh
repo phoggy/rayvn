@@ -238,7 +238,7 @@ _collectLibFilesByName() {
     local -n _clbnRef="$1"
     local libName="$2"
     shift 2
-    local -a searchProjects=("${@}")
+    local -a searchProjects=("$@")
 
     local project projectRoot libraryRoot file
     if (( ${#searchProjects[@]} == 0 )); then
@@ -275,7 +275,7 @@ _collectProjectLibFiles() {
     local -n _cplfRef="$1"
     shift
     local targetProject projectRoot libraryRoot file
-    for targetProject in "${@}"; do
+    for targetProject in "$@"; do
         projectRoot="${_rayvnProjects[${targetProject}::project]:-}"
         [[ -n "${projectRoot}" ]] || { warn "Unknown project: ${targetProject}"; continue; }
         libraryRoot="${_rayvnProjects[${targetProject}::library]:-}"

@@ -76,7 +76,7 @@ executeNodeScript() {
     [[ -n "${nodeHome}" ]] || fail "'${nodeHomeVar}' not set; call 'requireNodeModules ${projectName}' in your library's _init function"
     local projectHomeVar="${projectName//-/_}Home"
     local projectHome="${!projectHomeVar}"
-    NODE_PATH="${nodeHome}/node_modules" node "${projectHome}/node/${script}" "${@}"
+    NODE_PATH="${nodeHome}/node_modules" node "${projectHome}/node/${script}" "$@"
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/node' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"

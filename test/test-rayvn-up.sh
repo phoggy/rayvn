@@ -2,7 +2,7 @@
 # shellcheck disable=SC2155,SC2120
 
 main() {
-    init "${@}"
+    init "$@"
     testSourceRayvnUp # MUST be first test
     testLibraryFunctionCollision
     testLibrarySyntaxError
@@ -313,4 +313,4 @@ assertLibraryLoadError() {
     requireAndAssertFailureContains "${project}/${libraryName}" "${expectedError}"
 }
 
-main "${@}"
+main "$@"

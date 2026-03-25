@@ -89,7 +89,7 @@ assertEqualEscapeCodes() {
 assertTrue() {
     local msg="$1"
     shift
-    "${@}" || fail "${msg}"
+    "$@" || fail "${msg}"
 }
 
 # ◇ Fail with msg if a command exits zero.
@@ -102,7 +102,7 @@ assertTrue() {
 assertFalse() {
     local msg="$1"
     shift
-    "${@}" && fail "${msg}"
+    "$@" && fail "${msg}"
     return 0
 }
 
@@ -534,7 +534,7 @@ benchmark() {
     local iterations=$2
     local testCase=$3
     shift 3
-    local args=("${@}")
+    local args=("$@")
 
     local startTime=${EPOCHREALTIME}
 

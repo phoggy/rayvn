@@ -5,7 +5,7 @@
 # Tests constants, service key arrays, service map construction, validation, port finding, and HTML output
 
 main() {
-    init "${@}"
+    init "$@"
 
     testServiceKeyConstants
     testServiceKeysArray

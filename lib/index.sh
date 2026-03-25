@@ -16,7 +16,7 @@
 #   --hash-file FILE (string)     Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
 
 runIndex() {
-    _initIndex "${@}"
+    _initIndex "$@"
 
     header "Generating rayvn function index"
 

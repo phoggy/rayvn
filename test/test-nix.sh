@@ -4,7 +4,7 @@
 # Tests for nix build output structure and nix profile install
 
 main() {
-    init "${@}"
+    init "$@"
 
     testNixBuild
     testNixProfileInstall
@@ -63,4 +63,4 @@ testNixProfileInstall() {
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/test'
-main "${@}"
+main "$@"

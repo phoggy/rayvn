@@ -180,7 +180,7 @@ error() {
 #   [TEXT] (string)    Text to print with the preceding format applied.
 
 invalidArgs() {
-    fail --trace "${@}"
+    fail --trace "$@"
 }
 
 # ◇ Print an error and exit 1, optionally with a stack trace.
@@ -214,7 +214,7 @@ fail() {
 
     # Write trace and/or error
 
-    (( trace )) && stackTrace "${@}" > "${terminalErr}" || error "${@}"
+    (( trace )) && stackTrace "$@" > "${terminalErr}" || error "$@"
 
     # See ya
 
@@ -248,12 +248,12 @@ bye() {
 #   [TEXT] (string)      Text to print with the preceding format applied.
 
 stackTrace() {
-    local message=("${@}")
+    local message=("$@")
     local caller=${FUNCNAME[1]}
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
 
-    (( ${#message[@]} )) && error "${@}"
+    (( ${#message[@]} )) && error "$@"
     if ((depth > 2)); then
         [[ ${caller} == "fail" || ${caller} == "bye" ]] && start=2
     fi
@@ -522,7 +522,7 @@ assertCommand() {
     done
 
     local stderrFile="${ makeTempFile 'stderr-XXXXXX'; }"
-    "${@}" 2> "${stderrFile}"
+    "$@" 2> "${stderrFile}"
     local result=$?
 
     local stderr=""
@@ -855,7 +855,7 @@ elapsedEpochSeconds() {
 # ◇ Execute a command with umask 0022 (files readable by all, writable only by owner).
 
 withDefaultUmask() {
-    withUmask 0022 "${@}"
+    withUmask 0022 "$@"
 }
 
 # ◇ Execute a command with a temporary umask, restoring the original afterward.
@@ -877,8 +877,8 @@ withUmask() {
 
     # execute the command and save the status
 
-    "${@}"
-    status=${?}
+    "$@"
+    status=$?
 
     # Restore the original umask and return command status
     umask "${oldUmask}"
@@ -1181,7 +1181,7 @@ openUrl() {
 # ◇ Execute a command with rayvn internal variables unset, simulating a clean environment.
 
 executeClean() {
-    env "${_unsetVars[@]}" "${@}"
+    env "${_unsetVars[@]}" "$@"
 }
 
 # ◇ Enable debug mode.
@@ -1198,7 +1198,7 @@ executeClean() {
 
 setDebug() {
     require 'rayvn/debug'
-    _setDebug "${@}"
+    _setDebug "$@"
 }
 
 # Placeholder debug functions; replaced by rayvn/debug when debug mode is enabled.

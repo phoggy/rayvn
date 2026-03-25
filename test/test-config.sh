@@ -2,7 +2,7 @@
 # shellcheck disable=SC2155,SC2120
 
 main() {
-    init "${@}"
+    init "$@"
 
     testFileAndStringInputResultsMatch
     testSourceSafeStaticVarsWithoutFilter
@@ -210,4 +210,4 @@ assertNonProjectValues() {
 
 source rayvn.up 'rayvn/core' 'rayvn/test' 'rayvn/debug' 'rayvn/config'
 
-main "${@}"
+main "$@"

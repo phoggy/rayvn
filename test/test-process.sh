@@ -5,7 +5,7 @@
 # Tests waitForProcessExit with various process states, signals, and argument validation
 
 main() {
-    init "${@}"
+    init "$@"
 
     testAlreadyExitedProcess
     testNonExistentPid
@@ -36,7 +36,7 @@ init() {
 testAlreadyExitedProcess() {
     # Start a process and wait for it to finish naturally
     sleep 0 &
-    local pid=${!}
+    local pid=$!
     wait "${pid}" 2> /dev/null
 
     # Process has already exited, should return 0 immediately
@@ -58,7 +58,7 @@ testNonExistentPid() {
 testProcessExitsOnTerm() {
     # Start a long-running process that will respond to TERM
     sleep 60 &
-    local pid=${!}
+    local pid=$!
 
     # Verify it's running
     kill -0 ${pid} 2> /dev/null || fail "test process should be running"
@@ -76,7 +76,7 @@ testProcessExitsOnTerm() {
 testProcessRequiresKill() {
     # Start a process that ignores TERM
     bash -c 'trap "" TERM; sleep 60' &
-    local pid=${!}
+    local pid=$!
     disown ${pid} 2> /dev/null  # Suppress "Killed" message from bash
 
     # Verify it's running
@@ -111,7 +111,7 @@ testMissingTimeoutFails() {
 testCustomCheckInterval() {
     # Start and immediately stop a process
     sleep 0 &
-    local pid=${!}
+    local pid=$!
     wait "${pid}" 2> /dev/null
 
     # Use a large check interval; should still return quickly since process is already gone
@@ -121,7 +121,7 @@ testCustomCheckInterval() {
 testCustomTermWait() {
     # Start a process that ignores TERM
     bash -c 'trap "" TERM; sleep 60' &
-    local pid=${!}
+    local pid=$!
     disown ${pid} 2> /dev/null  # Suppress "Killed" message from bash
 
     # Use a short termWait so KILL is sent quickly
