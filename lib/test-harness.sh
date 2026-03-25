@@ -63,7 +63,7 @@ _init_rayvn_test-harness() {
 }
 
 _assertPrerequisites() {
-    local helpMsg="${1}"
+    local helpMsg="$1"
     _assertArrayIsDefined projects
     _assertArrayIsDefined args
     _assertHashTableIsDefined flags
@@ -80,19 +80,19 @@ _assertPrerequisites() {
 }
 
 _assertArrayIsDefined() {
-    local varName=${1}
+    local varName=$1
     _assertVarIsDefined ${varName}
     [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -a" ]] || fail "${varName} is not an array"
 }
 
 _assertHashTableIsDefined() {
-    local varName=${1}
+    local varName=$1
     _assertVarIsDefined ${varName}
     [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
 }
 
 _assertVarIsDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -p "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
 }
 
@@ -178,7 +178,7 @@ _collectLocalTasks() {
 }
 
 _collectBuildTasks() {
-    local -n _buildTaskIdxRef="${1}"
+    local -n _buildTaskIdxRef="$1"
     local project projectRoot
     for project in "${projects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
@@ -198,7 +198,7 @@ _collectBuildTasks() {
 }
 
 _collectNixTasks() {
-    local -n _nixBuildTaskIdxRef="${1}"
+    local -n _nixBuildTaskIdxRef="$1"
     local project projectRoot buildIdx
     for project in "${projects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
@@ -212,10 +212,10 @@ _collectNixTasks() {
 }
 
 _collectProjectTestTasks() {
-    local project="${1}"
-    local projectRoot="${2}"
-    local taskType="${3}"
-    local blocker="${4}"
+    local project="$1"
+    local projectRoot="$2"
+    local taskType="$3"
+    local blocker="$4"
     local testDir="${projectRoot}/test"
 
     # Parse include/exclude patterns
@@ -436,7 +436,7 @@ _runAllTasksParallel() {
 }
 
 _startTask() {
-    local i="${1}"
+    local i="$1"
     case "${_taskTypes[${i}]}" in
         local) _startLocalTask ${i} ;;
         build) _startBuildTask ${i} ;;
@@ -445,7 +445,7 @@ _startTask() {
 }
 
 _startLocalTask() {
-    local i="${1}"
+    local i="$1"
     local testFile="${_taskFiles[${i}]}"
     local testName="${_taskNames[${i}]}"
     local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
@@ -473,7 +473,7 @@ _startLocalTask() {
 }
 
 _promptFailedLogs() {
-    local taskCount="${1}"
+    local taskCount="$1"
     local failedLogNames=() result i
     for (( i=0; i < taskCount; i++ )); do
         [[ -z ${_taskLogFileNames[${i}]} ]] && continue
@@ -502,7 +502,7 @@ _promptFailedLogs() {
 }
 
 _startBuildTask() {
-    local i="${1}"
+    local i="$1"
     local project="${_taskProjects[${i}]}"
     local projectRoot="${_rayvnProjects[${project}::project]}"
     local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
@@ -517,7 +517,7 @@ _startBuildTask() {
 }
 
 _startNixTask() {
-    local i="${1}"
+    local i="$1"
     local testFile="${_taskFiles[${i}]}"
     local testName="${_taskNames[${i}]}"
     local project="${_taskProjects[${i}]}"
@@ -579,8 +579,8 @@ _cancelAllTasks() {
 }
 
 _readTaskResult() {
-    local idx="${1}"
-    local -n _resultRef="${2}"
+    local idx="$1"
+    local -n _resultRef="$2"
     local resultFile="${_testResultDir}/result-${idx}.txt"
     if [[ -f "${resultFile}" ]]; then
         read -r _resultRef < "${resultFile}"
@@ -590,7 +590,7 @@ _readTaskResult() {
 }
 
 _displayAllTasks() {
-    local callback="${1}" i prevType=''
+    local callback="$1" i prevType=''
     for (( i=0; i < ${#_taskTypes[@]}; i++ )); do
         local currentType="${_taskTypes[${i}]}"
         if [[ -n ${prevType} && ${currentType} != "${prevType}" ]]; then
@@ -610,7 +610,7 @@ _displayAllTasks() {
 }
 
 _displayPendingTask() {
-    local i="${1}"
+    local i="$1"
     local taskType="${_taskTypes[${i}]}"
     local taskName="${_taskNames[${i}]}"
     local project="${_taskProjects[${i}]}"
@@ -641,7 +641,7 @@ _displayPendingTask() {
 }
 
 _displayTaskResult() {
-    local i="${1}"
+    local i="$1"
     local taskType="${_taskTypes[${i}]}"
     local taskName="${_taskNames[${i}]}"
     local project="${_taskProjects[${i}]}"
@@ -686,7 +686,7 @@ _displayTaskResult() {
 }
 
 _displaySkippedTask() {
-    local i="${1}"
+    local i="$1"
     local taskType="${_taskTypes[${i}]}"
     local taskName="${_taskNames[${i}]}"
     local project="${_taskProjects[${i}]}"
@@ -704,21 +704,21 @@ _displaySkippedTask() {
 }
 
 _displayNoTestsTask() {
-    local i="${1}"
+    local i="$1"
     local project="${_taskProjects[${i}]}"
     _setPadding _testResultColumn 0
     show bold "${project}" "${_testPadding}" secondary '⨯' dim "no tests"
 }
 
 _setPadding() {
-    local -n column="${1}"
+    local -n column="$1"
     local adjust="${2:-0}"
     local count=$(( ${column} - ${#project} + ${adjust} - 1 ))
     (( count >= 0 )) && printf -v _testPadding '\e[0m%*s' "${count}" '' || _testPadding=$'\e[0m'
 }
 
 _executeTestFile() {
-    local testFile="${1}"
+    local testFile="$1"
     shift
     executeClean rayvnTest_NonInteractive=1 "${@}" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
     testResult=$?

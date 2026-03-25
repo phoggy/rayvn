@@ -17,10 +17,10 @@ auditDocs() {
     local -a targetProjects=()
 
     while (( $# > 0 )); do
-        case "${1}" in
+        case "$1" in
             --release) doRelease=1 ;;
-            -*) error "Unknown option: ${1}" ;;
-            *) targetProjects+=("${1}") ;;
+            -*) error "Unknown option: $1" ;;
+            *) targetProjects+=("$1") ;;
         esac
         shift
     done
@@ -81,16 +81,16 @@ updateDocs() {
     local -a targetProjects=()
 
     while (( $# > 0 )); do
-        case "${1}" in
+        case "$1" in
             --dry-run)       doDryRun=1 ;;
             --regen)         doRegen=1 ;;
             --missing-only)  doMissingOnly=1 ;;
             --stale-only)    doStaleOnly=1 ;;
-            --lib)           shift; libFilter="${1}" ;;
-            --delay)         shift; callDelay="${1}" ;;
-            --since)         shift; since="${1}" ;;
-            -*) error "Unknown option: ${1}" ;;
-            *) targetProjects+=("${1}") ;;
+            --lib)           shift; libFilter="$1" ;;
+            --delay)         shift; callDelay="$1" ;;
+            --since)         shift; since="$1" ;;
+            -*) error "Unknown option: $1" ;;
+            *) targetProjects+=("$1") ;;
         esac
         shift
     done
@@ -235,8 +235,8 @@ _init_rayvn_function-docs() {
 # Collect a single named library file from one or more projects into a nameref array.
 # Args: libFilesRef libName [PROJECT...]
 _collectLibFilesByName() {
-    local -n _clbnRef="${1}"
-    local libName="${2}"
+    local -n _clbnRef="$1"
+    local libName="$2"
     shift 2
     local -a searchProjects=("${@}")
 
@@ -272,7 +272,7 @@ _collectLibFilesByName() {
 #   libFilesRef (arrayRef)  Name of array to receive discovered library file paths.
 #   PROJECT (string)        One or more project names to collect libraries from.
 _collectProjectLibFiles() {
-    local -n _cplfRef="${1}"
+    local -n _cplfRef="$1"
     shift
     local targetProject projectRoot libraryRoot file
     for targetProject in "${@}"; do
@@ -291,8 +291,8 @@ _collectProjectLibFiles() {
 # Echo the ◇ doc comment block immediately preceding a function, or empty if none.
 # Args: libFile funcName
 _extractFunctionDoc() {
-    local libFile="${1}"
-    local funcName="${2}"
+    local libFile="$1"
+    local funcName="$2"
 
     local -a fileLines=()
     while IFS= read -r line; do
@@ -322,8 +322,8 @@ _extractFunctionDoc() {
 # Echo the body of a function (from declaration line to closing }).
 # Args: libFile funcName
 _extractFunctionBody() {
-    local libFile="${1}"
-    local funcName="${2}"
+    local libFile="$1"
+    local funcName="$2"
 
     local -a fileLines=()
     while IFS= read -r line; do
@@ -348,9 +348,9 @@ _extractFunctionBody() {
 # a trailing blank line; one is added automatically before the function declaration.
 # Args: libFile funcName newDoc
 _replaceDocComment() {
-    local libFile="${1}"
-    local funcName="${2}"
-    local newDoc="${3}"
+    local libFile="$1"
+    local funcName="$2"
+    local newDoc="$3"
     local tmpFile="${libFile}.doctmp"
     local docFile="${libFile}.docnew"
 
@@ -420,9 +420,9 @@ _replaceDocComment() {
 #   spec (string)    Contents of function-doc-spec.md (cached server-side).
 #   apiKey (string)  Anthropic API key.
 _callClaudeApi() {
-    local prompt="${1}"
-    local spec="${2}"
-    local apiKey="${3}"
+    local prompt="$1"
+    local spec="$2"
+    local apiKey="$3"
     local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (4b) ARGS variadic naming: required variadic args use "..." as the name; optional variadic args use "[...]" as the name — e.g. "... (string)" or "[...] (string)". (4c) Flags go in USAGE with inline descriptions, never in ARGS. When USAGE is present, omit ARGS entirely — USAGE inline descriptions replace it. Types are required on all data parameters and flag+value entries (e.g. "--output FILE (string)"); pure flags with no value are exempt. (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst)). When the default is a shell variable, wrap it in ${}: e.g. (default: ${PWD}) not (default: PWD).'
 
     local payload
@@ -465,7 +465,7 @@ _callClaudeApi() {
 #   currentDoc (string)  The existing doc comment (may be empty).
 #   constants (string)   Optional resolved private constant values referenced in the body.
 _buildDocPrompt() {
-    local body="${1}"
+    local body="$1"
     local currentDoc="${2:-}"
     local constants="${3:-}"
 
@@ -480,8 +480,8 @@ _buildDocPrompt() {
 # scalar values in the file (from declare statements), and output "name=value" lines.
 # Args: body libFile
 _extractReferencedConstants() {
-    local body="${1}"
-    local libFile="${2}"
+    local body="$1"
+    local libFile="$2"
 
     # Collect unique _varName references from the body
     local -A refs=()
@@ -515,7 +515,7 @@ _extractReferencedConstants() {
 # Scans each unique library file once and re-emits matching function keys in declaration order.
 # Args: targetsRef arrayRef
 _sortTargetsByFileOrder() {
-    local -n _stbfoRef="${1}"
+    local -n _stbfoRef="$1"
 
     # Build a set for O(1) membership lookup
     local -A targetSet=()
@@ -557,7 +557,7 @@ _sortTargetsByFileOrder() {
 # Parse a duration string (Nm, Nh, or Nd) and echo the equivalent number of seconds.
 # Args: duration
 _parseDuration() {
-    local duration="${1}"
+    local duration="$1"
     if [[ "${duration}" =~ ^([0-9]+)([mhd])$ ]]; then
         local num="${BASH_REMATCH[1]}"
         case "${BASH_REMATCH[2]}" in

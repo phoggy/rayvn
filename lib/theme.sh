@@ -6,7 +6,7 @@
 # ◇ Display the currently active theme, optionally preceded by a prefix string.
 
 showCurrentTheme() {
-    [[ -n ${1} ]] && echo -n "${1}"
+    [[ -n $1 ]] && echo -n "$1"
     _displayTheme "${_currentThemeIndex}"
 }
 
@@ -88,7 +88,7 @@ _displayThemes() {
 }
 
 _displayTheme() {
-    local themeIndex="${1}"
+    local themeIndex="$1"
     local indent="${2:-${_themeDefaultIndent}}"
     local position="${3:-after}"
     local displayName boldDisplayName paddedDisplayName
@@ -108,7 +108,7 @@ _displayTheme() {
 
 # Takes effect on next startup
 _setTheme() {
-    local themeIndex="${1}"
+    local themeIndex="$1"
     local displayName
     local -n themeRef="${_themeVarNames[${themeIndex}]}"
     displayName="${_themeNames[${themeIndex}]}"

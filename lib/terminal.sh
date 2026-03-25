@@ -30,8 +30,8 @@ cursorShow() {
 #   echo "Cursor is at row $row, col $col"
 
 cursorPosition() {
-    local -n rowVarRef="${1}"
-    local -n colVarRef="${2}"
+    local -n rowVarRef="$1"
+    local -n colVarRef="$2"
     local response=''
     local c
 
@@ -90,7 +90,7 @@ cursorUpToLineStart() {
 #   col (int)   1-based column to move to.
 
 cursorUpToColumn() {
-    printf '\e[%dA\e[%dG' "${1}" "${2}" > /dev/tty
+    printf '\e[%dA\e[%dG' "$1" "$2" > /dev/tty
 }
 
 # ◇ Move the cursor down by the given number of rows (default: 1).
@@ -113,7 +113,7 @@ cursorDownToLineStart() {
 #   col (int)   1-based column to place the cursor at.
 
 cursorDownToColumn() {
-    printf '\e[%dB\e[%dG' "${1}" "${2}" > /dev/tty
+    printf '\e[%dB\e[%dG' "$1" "$2" > /dev/tty
 }
 
 # ◇ Move the cursor to an absolute terminal position, writing to /dev/tty.
@@ -124,13 +124,13 @@ cursorDownToColumn() {
 #   col (int)  1-based column to move to (default: 0).
 
 cursorTo() {
-    printf '\e[%i;%iH' ${1} ${2:-0} > /dev/tty
+    printf '\e[%i;%iH' $1 ${2:-0} > /dev/tty
 }
 
 # ◇ Move the cursor to an absolute 1-based column on the current row.
 
 cursorToColumn() {
-    printf '\e[%dG' "${1}" > /dev/tty
+    printf '\e[%dG' "$1" > /dev/tty
 }
 
 # ◇ Move the cursor to column 1 of the current row.
@@ -142,7 +142,7 @@ cursorToLineStart() {
 # ◇ Move cursor to column N (1-based) and erase to end of line.
 
 cursorToColumnAndEraseToEndOfLine() {
-    printf '\e[%dG\e[K' "${1}" > /dev/tty
+    printf '\e[%dG\e[K' "$1" > /dev/tty
 }
 
 # ◇ Move the cursor up one row and erase the entire line.

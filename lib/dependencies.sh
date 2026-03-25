@@ -17,7 +17,7 @@
 #   nixBrewExclude  Array of nix pkg names to skip brew checks for. [R/W]
 
 checkProjectDependencies() {
-    local projectName="${1}"
+    local projectName="$1"
 
     # Find the project root (silently skip if flake.nix not accessible)
     local projectRoot=''
@@ -76,7 +76,7 @@ checkProjectDependencies() {
 #   projectRoot (string)  Root path of the project; defaults to ${projectName}Home or PWD.
 
 getBrewDependencies() {
-    local projectName="${1}"
+    local projectName="$1"
     local projectRoot="${2:-}"
 
     if [[ -z ${projectRoot} ]]; then
@@ -123,8 +123,8 @@ _init_rayvn_dependencies() {
 # Returns 1 (silently skip) if flake.nix is not accessible.
 # Args: projectName projectRootRef
 _depsProjectRoot() {
-    local projectName="${1}"
-    local -n _rootRef="${2}"
+    local projectName="$1"
+    local -n _rootRef="$2"
 
     local homeVar="${projectName//-/_}Home"
     local candidateRoot="${!homeVar}"
@@ -142,7 +142,7 @@ _depsProjectRoot() {
 # Each line of output is either "pkg:name" (for pkgs.X) or "local:XxxPkg" (for local XxxPkg vars).
 # Args: projectRoot
 _extractFlakeDeps() {
-    local projectRoot="${1}"
+    local projectRoot="$1"
     local flakeFile="${projectRoot}/flake.nix"
 
     [[ -f "${flakeFile}" ]] || fail "flake.nix not found at ${flakeFile}"

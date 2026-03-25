@@ -12,9 +12,9 @@
 #   secret (string)   Secret value to store.
 
 secretStore() {
-    local service="${1}"
-    local account="${2}"
-    local secret="${3}"
+    local service="$1"
+    local account="$2"
+    local secret="$3"
 
     if (( onMacOS )); then
         _secretStoreMacOS "${service}" "${account}" "${secret}"
@@ -33,8 +33,8 @@ secretStore() {
 #   account (string)  The account name (key) within the service.
 
 secretRetrieve() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     if (( onMacOS )); then
         _secretRetrieveMacOS "${service}" "${account}"
@@ -53,8 +53,8 @@ secretRetrieve() {
 #   account (string)  Account name (key) within the service.
 
 secretDelete() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     if (( onMacOS )); then
         _secretDeleteMacOS "${service}" "${account}"
@@ -73,8 +73,8 @@ secretDelete() {
 #   account (string)  Account name (key) within the service.
 
 secretExists() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     local secret
     secret=${ secretRetrieve "${service}" "${account}"; }
@@ -90,9 +90,9 @@ _init_rayvn_secrets() {
 # macOS keychain operations using security command
 
 _secretStoreMacOS() {
-    local service="${1}"
-    local account="${2}"
-    local secret="${3}"
+    local service="$1"
+    local account="$2"
+    local secret="$3"
 
     # Delete existing entry if present (security add-generic-password fails if exists)
     _secretDeleteMacOS "${service}" "${account}" 2> /dev/null
@@ -106,8 +106,8 @@ _secretStoreMacOS() {
 }
 
 _secretRetrieveMacOS() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     local secret
     secret=${ security find-generic-password \
@@ -119,8 +119,8 @@ _secretRetrieveMacOS() {
 }
 
 _secretDeleteMacOS() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     security delete-generic-password \
         -a "${account}" \
@@ -131,9 +131,9 @@ _secretDeleteMacOS() {
 # Linux secret-tool operations using libsecret
 
 _secretStoreLinux() {
-    local service="${1}"
-    local account="${2}"
-    local secret="${3}"
+    local service="$1"
+    local account="$2"
+    local secret="$3"
 
     # Check if secret-tool is available
     if ! command -v secret-tool > /dev/null 2>&1; then
@@ -148,8 +148,8 @@ _secretStoreLinux() {
 }
 
 _secretRetrieveLinux() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     # Check if secret-tool is available
     if ! command -v secret-tool > /dev/null 2>&1; then
@@ -165,8 +165,8 @@ _secretRetrieveLinux() {
 }
 
 _secretDeleteLinux() {
-    local service="${1}"
-    local account="${2}"
+    local service="$1"
+    local account="$2"
 
     # Check if secret-tool is available
     if ! command -v secret-tool > /dev/null 2>&1; then

@@ -26,8 +26,8 @@ require 'rayvn/core'
 #   1  timeout expired
 
 waitForProcessExit() {
-    local pid=${1}
-    declare -i timeoutMs=${2}
+    local pid=$1
+    declare -i timeoutMs=$2
     declare -i checkIntervalMs=${3:-10}
     declare -i termWaitMs=${4:-1000}
     declare -i elapsed=0

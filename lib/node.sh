@@ -62,13 +62,13 @@ requireNodeModules() {
 
 executeNodeScript() {
     local projectName script
-    if [[ "${1}" == *.js ]]; then
+    if [[ "$1" == *.js ]]; then
         projectName="${currentProjectName}"
-        script="${1}"
+        script="$1"
         shift
     else
-        projectName="${1}"
-        script="${2}"
+        projectName="$1"
+        script="$2"
         shift 2
     fi
     local nodeHomeVar="${projectName//-/_}NodeHome"

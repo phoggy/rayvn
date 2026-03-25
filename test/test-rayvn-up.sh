@@ -65,50 +65,50 @@ assertEnvPreconditions() {
 # similar functions in 'rayvn/test'
 
 _assertFunctionIsNotDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -f "${name}" 2> /dev/null; } ]] && _failed "${name} is set: ${ declare -f ${name}; }"
 }
 
 _assertFunctionIsDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ! ${ declare -f "${name}" 2> /dev/null; } ]] && _failed "${name} not set"
 }
 
 _assertVarIsDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ! ${ declare -p "${name}" 2> /dev/null; } ]] && _failed "${name} not set"
 }
 
 _assertVarIsNotDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -p "${name}" 2> /dev/null; } ]] && _failed "${name} is set"
 }
 
 _assertFileDoesNotExist() {
-  local file="${1}"
+  local file="$1"
   [[ -e "${file}" ]] && _failed "${file} does not exist"
 }
 
 _assertFileExists() {
-  local file="${1}"
+  local file="$1"
   [[ -e "${file}" ]] || _failed "${file} does not exist"
 }
 
 _assertIsFile() {
-  local file="${1}"
+  local file="$1"
   _assertFileExists "${file}"
   [[ -f "${file}" ]] || _failed "${file} is not a file"
 }
 
 _assertIsDirectory() {
-  local dir="${1}"
+  local dir="$1"
   _assertFileExists "${dir}"
   [[ -d "${dir}" ]] || _failed "${dir} is not a directory"
 }
 
 _assertInFile() {
-    local match="${1}"
-    local file="${2}"
+    local match="$1"
+    local file="$2"
     grep -e "${match}" "${file}" > /dev/null 2>&1  || _failed "'${match}' not found in file ${file}."
 }
 
@@ -128,7 +128,7 @@ _printStack() {
 }
 
 _failed() {
-    echo "${errorPrefix}${1}"
+    echo "${errorPrefix}$1"
     _printStack
     exit 1
 }
@@ -152,14 +152,14 @@ _printPath() {
 }
 
 _prependPath () {
-    local path="${1}"
+    local path="$1"
     local pathVariable=${2:-PATH}
     _removePath "${path}" ${pathVariable}
     declare -gx ${pathVariable}="${path}${!pathVariable:+:${!pathVariable}}"
 }
 
 _removePath () {
-    local removePath="${1}"
+    local removePath="$1"
     local pathVariable=${2:-PATH}
     local dir newPath paths
     IFS=':' read -ra paths <<< "${!pathVariable}"
@@ -295,9 +295,9 @@ testLibrarySyntaxError() {
 }
 
 assertLibraryLoadError() {
-    local projectHomeDir="${1}"
-    local libraryName="${2}"
-    local expectedError="${3}"
+    local projectHomeDir="$1"
+    local libraryName="$2"
+    local expectedError="$3"
     local project="rayvn_up"
     local testProjectsDir="${projectHomeDir}/test/files/projects"
 

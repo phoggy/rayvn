@@ -57,7 +57,7 @@ runIndex() {
 #   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
 
 runPages() {
-    local projectName="${1}"
+    local projectName="$1"
     [[ -n "${projectName}" ]] || fail "project name required"
     shift
 
@@ -68,12 +68,12 @@ runPages() {
     local _userSpecifiedDir=0
 
     while (( $# )); do
-        case ${1} in
-            --dir)     shift; dir="${1}"; _userSpecifiedDir=1 ;;
+        case $1 in
+            --dir)     shift; dir="$1"; _userSpecifiedDir=1 ;;
             --publish) publish=1 ;;
             --setup)   setup=1 ;;
             --view)    view=1 ;;
-            *)         fail "Unknown option: ${1}" ;;
+            *)         fail "Unknown option: $1" ;;
         esac
         shift
     done
@@ -137,9 +137,9 @@ runPages() {
 }
 
 _setupPages() {
-    local projectName="${1}"
-    local projectRoot="${2}"
-    local worktreePath="${3}"
+    local projectName="$1"
+    local projectRoot="$2"
+    local worktreePath="$3"
 
     header "Setting up ${projectName} pages"
 
@@ -150,9 +150,9 @@ _setupPages() {
 }
 
 _ensurePagesWorktree() {
-    local projectName="${1}"
-    local projectRoot="${2}"
-    local worktreePath="${3}"
+    local projectName="$1"
+    local projectRoot="$2"
+    local worktreePath="$3"
 
     if [[ -d "${worktreePath}" ]]; then
         show success "Worktree already exists: ${worktreePath}"
@@ -175,9 +175,9 @@ _ensurePagesWorktree() {
 }
 
 _ensurePagesFiles() {
-    local projectName="${1}"
-    local projectRoot="${2}"
-    local worktreePath="${3}"
+    local projectName="$1"
+    local projectRoot="$2"
+    local worktreePath="$3"
 
     local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
     local githubUser; githubUser=${ echo "${remoteUrl}" | gsed -E 's|.*github\.com[:/]([^/]+)/.*|\1|'; }
@@ -277,8 +277,8 @@ EOF
 }
 
 _ensurePagesWorkflow() {
-    local projectName="${1}"
-    local projectRoot="${2}"
+    local projectName="$1"
+    local projectRoot="$2"
     local workflowDir="${projectRoot}/.github/workflows"
     local workflowFile="${workflowDir}/deploy-pages.yml"
 
@@ -357,8 +357,8 @@ EOF
 }
 
 _showPagesSetupInstructions() {
-    local projectName="${1}"
-    local projectRoot="${2}"
+    local projectName="$1"
+    local projectRoot="$2"
     local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
     local repoUrl="${remoteUrl%.git}"
 
@@ -381,7 +381,7 @@ _showPagesSetupInstructions() {
 #   projectName (string)  Name of the rayvn project to scan (e.g. 'valt', 'rayvn').
 
 findDependencies() {
-    local projectName="${1}"
+    local projectName="$1"
     [[ ${projectName} ]] || fail "projectName required"
     require 'rayvn/dependencies'
 
@@ -501,13 +501,13 @@ _initIndex() {
     declare -gi _idxDoHash=1
 
     while (( $# )); do
-        case ${1} in
-            -o|--output)    shift; _idxOutputFile="${1}" ;;
-            -c|--compact)   shift; _idxCompactFile="${1}" ;;
+        case $1 in
+            -o|--output)    shift; _idxOutputFile="$1" ;;
+            -c|--compact)   shift; _idxCompactFile="$1" ;;
             --no-compact)   _idxGenerateCompact=0 ;;
             --no-hash)      _idxDoHash=0 ;;
-            --hash-file)    shift; _idxHashFile="${1}" ;;
-            *)              error "Unknown option: ${1}" ;;
+            --hash-file)    shift; _idxHashFile="$1" ;;
+            *)              error "Unknown option: $1" ;;
         esac
         shift
     done
@@ -518,7 +518,7 @@ _initIndex() {
 #
 #   libFilesRef - nameref to an array that will receive the discovered library file paths
 _collectLibFiles() {
-    local -n _libFilesRef="${1}"
+    local -n _libFilesRef="$1"
     local project projectRoot libraryRoot file
 
     for project in "${!_rayvnProjects[@]}"; do
@@ -540,8 +540,8 @@ _collectLibFiles() {
 # Falls back to ../projectName-pages relative to the project root.
 # Args: projectName projectRoot
 _getDocsWorktree() {
-    local projectName="${1}"
-    local projectRoot="${2}"
+    local projectName="$1"
+    local projectRoot="$2"
     local pkgFile="${projectRoot}/rayvn.pkg"
     local docsWorktree=''
 
@@ -605,9 +605,9 @@ _generateCompactIndex() {
 
 # Extract functions from a single library file in verbose markdown format
 _extractFunctions() {
-    local libFile="${1}"
-    local projectName="${2}"
-    local libraryName="${3}"
+    local libFile="$1"
+    local projectName="$2"
+    local libraryName="$3"
 
     local functionDoc=''
     local prevFunctionName='' prevFunctionDoc=''
@@ -682,9 +682,9 @@ _extractFunctions() {
 
 # Extract functions in compact format (one line per function)
 _extractFunctionsCompact() {
-    local libFile="${1}"
-    local projectName="${2}"
-    local libraryName="${3}"
+    local libFile="$1"
+    local projectName="$2"
+    local libraryName="$3"
 
     local functionDoc=''
     local prevFunctionName='' prevFunctionDoc=''
@@ -725,10 +725,10 @@ _extractFunctionsCompact() {
 
 # Output a single function entry in verbose markdown format
 _outputFunction() {
-    local name="${1}"
-    local doc="${2}"
-    local project="${3}"
-    local library="${4}"
+    local name="$1"
+    local doc="$2"
+    local project="$3"
+    local library="$4"
 
     echo "### ${name}()"
     echo ""
@@ -742,7 +742,7 @@ _outputFunction() {
 # Render a raw function doc string (from source comment lines) as formatted markdown.
 # Removes ◇ prefix, formats · SECTION headers and their content.
 _renderDocMarkdown() {
-    local doc="${1}"
+    local doc="$1"
     local -a output=()
     local currentSection=''
     local -a sectionLines=()
@@ -782,9 +782,9 @@ _renderDocMarkdown() {
 # Flush a collected doc section into the output array with proper markdown formatting.
 # Args: section sectionLinesRef outputRef
 _flushDocSection() {
-    local section="${1}"
-    local -n _fds_lines="${2}"
-    local -n _fds_out="${3}"
+    local section="$1"
+    local -n _fds_lines="$2"
+    local -n _fds_out="$3"
     local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
     local sectionTitle="${section,,}"; sectionTitle="${sectionTitle^}"
 
@@ -853,8 +853,8 @@ _flushDocSection() {
 
 # Extract a meaningful one-line description from a function's doc comment
 _extractMeaningfulDescription() {
-    local doc="${1}"
-    local functionName="${2}"
+    local doc="$1"
+    local functionName="$2"
     local briefDesc=''
 
     if [[ -n "${doc}" ]]; then
@@ -881,7 +881,7 @@ _extractMeaningfulDescription() {
 
 # Generate a generic description from a function name using common naming patterns
 _generateDescriptionFromName() {
-    local name="${1}"
+    local name="$1"
     if [[ "${name}" =~ ^assert ]]; then echo "assertion/validation function"
     elif [[ "${name}" =~ ^ensure ]]; then echo "ensure/create resource if needed"
     elif [[ "${name}" =~ ^get ]]; then echo "retrieve/fetch data or resource"
@@ -902,7 +902,7 @@ _generateDescriptionFromName() {
 
 # Wrap bash code patterns in backticks to avoid markdown rendering issues
 _wrapCodeInBackticks() {
-    local text="${1}"
+    local text="$1"
     if [[ "${text}" =~ \$\{|\$\(|[a-zA-Z_][a-zA-Z0-9_]*\(\)|[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
         text=${ echo "${text}" | gsed -E 's/(\$\{[^}]+\})/`\1`/g'; }
         text=${ echo "${text}" | gsed -E 's/(\$\([^)]+\))/`\1`/g'; }
@@ -933,7 +933,7 @@ _loadHomePageDescriptions() {
 # Update the library table in index.md, appending rows for any libraries not yet listed.
 # New rows use the first line of the preamble description from the source file as a placeholder.
 _updateHomePageLibraryTable() {
-    local filterProject="${1}"
+    local filterProject="$1"
     shift
     local libFiles=("$@")
 
@@ -1001,8 +1001,8 @@ _updateHomePageLibraryTable() {
 #   --project NAME - only generate pages for libraries belonging to this project
 _generateDocs() {
     local filterProject=''
-    if [[ "${1}" == '--project' ]]; then
-        filterProject="${2}"
+    if [[ "$1" == '--project' ]]; then
+        filterProject="$2"
         shift 2
     fi
     local libFiles=("$@")
@@ -1031,10 +1031,10 @@ _generateDocs() {
 
 # Generate a single per-library Jekyll documentation page
 _generateLibraryPage() {
-    local libFile="${1}"
-    local projectName="${2}"
-    local libraryName="${3}"
-    local navOrder="${4}"
+    local libFile="$1"
+    local projectName="$2"
+    local libraryName="$3"
+    local navOrder="$4"
     local outFile="${_idxDocsDir}/api/${projectName}-${libraryName}.md"
 
     local libDescription notesBlock homePageDesc
@@ -1081,7 +1081,7 @@ _generateLibraryPage() {
 # Filters out shellcheck directives. Returns the last contiguous comment block before the first
 # function doc marker or declaration.
 _extractLibraryDescription() {
-    local libFile="${1}"
+    local libFile="$1"
     local description='' currentBlock='' line
 
     while IFS= read -r line; do
@@ -1106,8 +1106,8 @@ _extractLibraryDescription() {
 
 # Extract a #@doc or #@notes block from a source file
 _extractDocBlock() {
-    local libFile="${1}"
-    local marker="${2}"
+    local libFile="$1"
+    local marker="$2"
     local inBlock=false
     local content=''
 
@@ -1162,7 +1162,7 @@ _generateCliPage() {
 
 # Write the initial CLI page with frontmatter, overview, and a section per command.
 _initCliPage() {
-    local outFile="${1}"
+    local outFile="$1"
     local helpText; helpText=${ rayvn --help 2>&1; }
     helpText=${ stripAnsi "${helpText}"; }
     {
@@ -1192,7 +1192,7 @@ _initCliPage() {
 
 # Write a documentation section for a single CLI command to stdout.
 _writeCliCommandSection() {
-    local cmd="${1}"
+    local cmd="$1"
 
     printf '### %s\n\n' "${cmd}"
     if [[ "${cmd}" == 'theme' ]]; then
@@ -1225,7 +1225,7 @@ _parseCliCommands() {
 
 # Add sections to cli/index.md for any commands not yet documented there.
 _updateCliPageCommands() {
-    local outFile="${1}"
+    local outFile="$1"
 
     # Find commands already documented
     local -A existingCmds=()
@@ -1256,7 +1256,7 @@ _updateCliPageCommands() {
 
 # Compute a short hash of a string using shasum
 _hashString() {
-    echo -n "${1}" | shasum -a 256 | cut -c1-16
+    echo -n "$1" | shasum -a 256 | cut -c1-16
 }
 
 # Load stored function hashes from the hash file into _idxStoredHashes.
@@ -1289,9 +1289,9 @@ _saveHashes() {
 # _idxCurrentHashes with :body and :doc hashes, and appends to _idxChangedFunctions,
 # _idxMissingDocs, and _idxStaleDocs as appropriate.
 _hashLibFile() {
-    local libFile="${1}"
-    local projectName="${2}"
-    local libraryName="${3}"
+    local libFile="$1"
+    local projectName="$2"
+    local libraryName="$3"
 
     local -a fileLines=()
     while IFS= read -r line; do
@@ -1500,8 +1500,8 @@ _findDepsExtractCommands() {
 # into a nameref associative array.
 # Args: projectRoot knownFunctionsRef
 _findDepsLoadFunctions() {
-    local projectRoot="${1}"
-    local -n _fdFnRef="${2}"
+    local projectRoot="$1"
+    local -n _fdFnRef="$2"
 
     # From rayvn compact function index
     local compactFile="${HOME}/.config/rayvn/rayvn-functions-compact.txt"
@@ -1540,9 +1540,9 @@ _findDepsLoadFunctions() {
 # Return 0 if a word is a likely external command (not a builtin, system tool, or known function).
 # Args: word knownFunctionsRef projectName
 _findDepsIsExternal() {
-    local word="${1}"
-    local -n _fdFnsRef="${2}"
-    local projectName="${3}"
+    local word="$1"
+    local -n _fdFnsRef="$2"
+    local projectName="$3"
 
     # Skip non-command patterns (paths, flags, numbers, brackets)
     [[ "${word}" =~ [/] ]] && return 1
@@ -1588,8 +1588,8 @@ _findDepsIsExternal() {
 # Inserts before the first closing ] of the runtimeDeps array.
 # Args: flakeFile pkgName
 _findDepsAddToFlake() {
-    local flakeFile="${1}"
-    local pkgName="${2}"
+    local flakeFile="$1"
+    local pkgName="$2"
     local tmpFile="${flakeFile}.fdtmp"
 
     gawk -v pkg="${pkgName}" '
@@ -1621,7 +1621,7 @@ _findDepsAddToFlake() {
 # versions of new packages, and writes/updates node/package.json.
 # Args: projectName projectRoot
 _findNpmDependencies() {
-    local projectName="${1}" projectRoot="${2}"
+    local projectName="$1" projectRoot="$2"
     local nodeDir="${projectRoot}/node"
 
     [[ -d "${nodeDir}" ]] || return 0
@@ -1706,9 +1706,9 @@ _findNpmExtractPackages() {
 # Write node/package.json with merged existing and new dependencies.
 # Args: packageJsonFile projectName existingDepsVar newDepsVar
 _findNpmWritePackageJson() {
-    local packageJsonFile="${1}" projectName="${2}"
-    local -n _fNpwExisting="${3}"
-    local -n _fNpwNew="${4}"
+    local packageJsonFile="$1" projectName="$2"
+    local -n _fNpwExisting="$3"
+    local -n _fNpwNew="$4"
 
     # Merge deps
     local -A allDeps=()

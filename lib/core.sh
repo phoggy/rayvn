@@ -64,37 +64,37 @@ show() {
     fi
 
     local options=()
-    if [[ ${1} == -* ]]; then
-        options+=("${1}"); shift
-        while (( $# )) && [[ ${1} == -* ]]; do
-            options+=("${1}"); shift
+    if [[ $1 == -* ]]; then
+        options+=("$1"); shift
+        while (( $# )) && [[ $1 == -* ]]; do
+            options+=("$1"); shift
         done
     fi
 
     local output='' currentFormat='' addSpace=0
     while (( $# )); do
-        if [[ -n ${1} ]]; then
-            if [[ -v _textFormats[${1}] ]]; then
-                currentFormat+=${_textFormats[${1}]}
-            elif [[ ${1} == IDX ]] && (( $# >= 2 )) && (( terminalColorBits >= 8 )); then
+        if [[ -n $1 ]]; then
+            if [[ -v _textFormats[$1] ]]; then
+                currentFormat+=${_textFormats[$1]}
+            elif [[ $1 == IDX ]] && (( $# >= 2 )) && (( terminalColorBits >= 8 )); then
                 shift
-                if [[ -z "${1//[0-9]/}" ]] && (( ${1} <= 255 )); then
-                    currentFormat+=$'\033[38;5;'"${1}m"    # 256 color
+                if [[ -z "${1//[0-9]/}" ]] && (( $1 <= 255 )); then
+                    currentFormat+=$'\033[38;5;'"$1m"    # 256 color
                 else
                     # Invalid color value, treat IDX and value as text
                     (( addSpace )) && output+=' '
-                    output+=${currentFormat}"IDX ${1}"
+                    output+=${currentFormat}"IDX $1"
                     [[ -n $currentFormat ]] && output+=$'\e[0m'
                     currentFormat=''
                     addSpace=1
                 fi
-            elif [[ ${1} == RGB ]] && (( $# >= 2 )) && (( terminalColorBits >= 24 )); then
+            elif [[ $1 == RGB ]] && (( $# >= 2 )) && (( terminalColorBits >= 24 )); then
                 shift; currentFormat+=$'\e[38;2;'"${1//:/;}m" # truecolor
-            elif [[ ${1} == 'glue' ]]; then
+            elif [[ $1 == 'glue' ]]; then
                 addSpace=0
             else
                 (( addSpace )) && output+=' '
-                output+=${currentFormat}${1}
+                output+=${currentFormat}$1
                 [[ -n $currentFormat ]] && output+=$'\e[0m'
                 currentFormat=''
                 addSpace=1
@@ -129,7 +129,7 @@ header() {
         (( colorIndex > maxIndex )) && colorIndex=${maxIndex}
         shift
     fi
-    local header="${1}"
+    local header="$1"
     (( toUpper )) && header="${header^^}"
     local color="${_headerColors[${colorIndex}]}"
     echo
@@ -152,7 +152,7 @@ header() {
 #   [TEXT] (string)    Text to print with the preceding format applied.
 
 warn() {
-    show warning "⚠️ ${1}" "${@:2}" > ${terminalErr}
+    show warning "⚠️ $1" "${@:2}" > ${terminalErr}
 }
 
 # ◇ Print an error message to stderr with a 🔺 prefix.
@@ -166,7 +166,7 @@ warn() {
 #   [TEXT] (string)    Text to print with the preceding format applied.
 
 error() {
-    show error "🔺 ${1}" "${@:2}" > ${terminalErr}
+    show error "🔺 $1" "${@:2}" > ${terminalErr}
 }
 
 # ◇ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
@@ -232,7 +232,7 @@ fail() {
 #   [TEXT] (string)      Text to print with the preceding format applied.
 
 bye() {
-    (( $# )) && show error "${1}" "${@:2}"
+    (( $# )) && show error "$1" "${@:2}"
     debugStack
     exit 0
 }
@@ -318,13 +318,13 @@ parseOptionalArg() {
 # ◇ Return 0 if a variable with the given name is defined, including empty or null-value vars.
 
 varDefined() {
-    declare -p "${1}" &> /dev/null
+    declare -p "$1" &> /dev/null
 }
 
 # ◇ Fail if a variable with the given name is not defined.
 
 assertVarDefined() {
-    varDefined "${1}" || fail "var ${1} not defined"
+    varDefined "$1" || fail "var $1 not defined"
 }
 
 # ◇ Overwrite one or more security sensitive variables with spaces then unset.
@@ -336,7 +336,7 @@ assertVarDefined() {
 eraseVars() {
     local varName value length
     while (( $# > 0 )); do
-        varName="${1}"
+        varName="$1"
         if [[ -n ${!varName+x} ]]; then
             value="${!varName}"
             length="${#value}"
@@ -393,7 +393,7 @@ assertIsInteractive() {
 # ◇ Fails if the given path does not exist.
 
 assertFileExists() {
-    [[ -e ${1} ]] || fail "${1} not found"
+    [[ -e $1 ]] || fail "$1 not found"
 }
 
 # ◇ Fail if the given path does not exist or is not a regular file.
@@ -404,23 +404,23 @@ assertFileExists() {
 #   description (string)  Label used in the error message (default: "file").
 
 assertFile() {
-    local file="${1}"
+    local file="$1"
     local description="${2:-file}"
     assertFileExists "${file}"
-    [[ -f ${1} ]] || fail "${1} is not an ${description}"
+    [[ -f $1 ]] || fail "$1 is not an ${description}"
 }
 
 # ◇ Fail if the given path does not exist or is not a directory.
 
 assertDirectory() {
-    assertFileExists "${1}"
-    [[ -d ${1} ]] || fail "${1} is not a directory"
+    assertFileExists "$1"
+    [[ -d $1 ]] || fail "$1 is not a directory"
 }
 
 # ◇ Fail if the given path already exists.
 
 assertFileDoesNotExist() {
-    [[ -e "${1}" ]] && fail "${1} already exists"
+    [[ -e "$1" ]] && fail "$1 already exists"
 }
 
 # ◇ Fails if filePath is not located within dirPath, resolving symlinks before checking.
@@ -431,8 +431,8 @@ assertFileDoesNotExist() {
 #   dirPath (string)     Directory that must contain filePath.
 
 assertPathWithinDirectory() {
-    local filePath=${1}
-    local dirPath=${2}
+    local filePath=$1
+    local dirPath=$2
     local absoluteFile absoluteDir
     absoluteFile=${ realpath "${filePath}" 2>/dev/null;} || fail
     absoluteDir=${ realpath "${dirPath}" 2>/dev/null;} || fail
@@ -450,7 +450,7 @@ assertPathWithinDirectory() {
 #   Rejects: empty string, . .. / control characters <>:"\|?*
 
 assertValidFileName() {
-    local name="${1}"
+    local name="$1"
 
     # Reject empty, ".", or ".."
     [[ -z ${name} || ${name} == "." || ${name} == ".." ]] &&
@@ -511,12 +511,12 @@ assertGitRepo() {
 assertCommand() {
     local stripBrackets=0 quiet=0 noStderr=0 message=""
 
-    while [[ "${1}" == --* ]]; do
-        case "${1}" in
+    while [[ "$1" == --* ]]; do
+        case "$1" in
             --strip-brackets) stripBrackets=1; shift ;;
             --quiet) quiet=1; shift ;;
             --stderr) noStderr=1; shift ;;
-            --error) message="${2}"; shift 2 ;;
+            --error) message="$2"; shift 2 ;;
             *) break ;;
         esac
     done
@@ -565,7 +565,7 @@ assertCommand() {
 # ◇ Outputs a string with leading and trailing whitespace removed.
 
 trim() {
-    local value="${1}"
+    local value="$1"
     value="${value#"${value%%[![:space:]]*}"}" # remove leading whitespace
     value="${value%"${value##*[![:space:]]}"}" # remove trailing whitespace
     echo "${value}"
@@ -579,8 +579,8 @@ trim() {
 #   count (int)   Number of repetitions.
 
 repeat() {
-    local str=${1}
-    local count=${2}
+    local str=$1
+    local count=$2
     local result
     printf -v result "%*s" "${count}" ""
     result=${result// /${str}}
@@ -596,8 +596,8 @@ repeat() {
 #   position (string)  Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
 
 padString() {
-    local string="${1}"
-    local width="${2}"
+    local string="$1"
+    local width="$2"
     local position="${3:-after}"
 
     local strippedString="${ stripAnsi "${string}"; }"
@@ -677,7 +677,7 @@ indexOf() {
 
 memberOf() {
     local index
-    indexOf "${1}" "${2}" index
+    indexOf "$1" "$2" index
 }
 
 # ◇ Outputs the length of the longest element in an array.
@@ -687,7 +687,7 @@ memberOf() {
 #   arrayRef (arrayRef)  Name of the indexed array to measure.
 
 maxArrayElementLength() {
-    local -n arrayRef="${1}"
+    local -n arrayRef="$1"
     local max=0 len element
     for element in "${arrayRef[@]}"; do
         len="${#element}"
@@ -704,8 +704,8 @@ maxArrayElementLength() {
 #   dest (mapRef)  Name of the destination map (must already be declared with -A).
 
 copyMap() {
-    local -n src="${1}"
-    local -n dest="${2}"
+    local -n src="$1"
+    local -n dest="$2"
     for key in "${!src[@]}"; do
         dest[${key}]="${src[${key}]}"
     done
@@ -724,7 +724,7 @@ copyMap() {
 #   startValue (int)  Index base: 0 (zero-indexed, default) or 1 (one-indexed).
 
 numericPlaces() {
-    local maxValue="${1}"
+    local maxValue="$1"
     local startValue="${2:-0}"
 
     [[ -z "${maxValue}" ]] && fail "numericPlaces: max value required"
@@ -743,7 +743,7 @@ numericPlaces() {
 #   places (int)  Minimum field width; defaults to 1.
 
 printNumber() {
-    local number="${1}"
+    local number="$1"
     local places=${2-:1}
     printf '%*s' "${places}" "${number}"
 }
@@ -756,7 +756,7 @@ printNumber() {
 #   maxValue (int)  Optional inclusive upper bound; omits for full SRANDOM range.
 
 randomInteger() {
-    local -n _intResult="${1}"
+    local -n _intResult="$1"
     local maxValue="${2:-}"
 
     if (( maxValue )); then
@@ -773,7 +773,7 @@ randomInteger() {
 #   _hexResultRef (stringRef)  Name of the variable to receive the result.
 
 randomHexChar() {
-    local -n _hexResultRef="${1}"
+    local -n _hexResultRef="$1"
     local _hexIndex
     randomInteger _hexIndex 15
     _hexResultRef=${_hexChars[_hexIndex]}
@@ -810,8 +810,8 @@ randomHexString() {
 #   replaceRandomHex "X" myStr  # myStr becomes e.g. "3a7f-c209"
 
 replaceRandomHex() {
-    local replaceChar="${1}"
-    local -n replaceRef="${2}"
+    local replaceChar="$1"
+    local -n replaceRef="$2"
     local hex
     while [[ ${replaceRef} == *${replaceChar}* ]]; do
         randomHexChar hex
@@ -843,7 +843,7 @@ epochSeconds() {
 #   startTime (string)  Value previously captured from EPOCHREALTIME.
 
 elapsedEpochSeconds() {
-    local startTime="${1}"
+    local startTime="$1"
     echo "${ gawk "BEGIN {printf \"%.6f\", ${EPOCHREALTIME} - ${startTime}}"; }"
 }
 
@@ -866,7 +866,7 @@ withDefaultUmask() {
 #   command (string)   Command and arguments to execute.
 
 withUmask() {
-    local newUmask="${1}"
+    local newUmask="$1"
     local oldUmask status
     shift
 
@@ -893,7 +893,7 @@ withUmask() {
 #   errMsg (string)  Error message if not found; defaults to "'${name}' not found".
 
 binaryPath() {
-    local name="${1}"
+    local name="$1"
     local errMsg="${2:-"'${name}' not found"}"
     type -p "${name}" || fail "${errMsg}"
 }
@@ -1000,7 +1000,7 @@ configDirPath() {
 # ◇ Create directory if it does not already exist.
 
 ensureDir() {
-    local dir="${1}"
+    local dir="$1"
     if [[ ! -d ${dir} ]]; then
         makeDir "${dir}" >/dev/null
     fi
@@ -1014,7 +1014,7 @@ ensureDir() {
 #   subDir (string)  Optional subdirectory to append before creating.
 
 makeDir() {
-    local dir="${1}"
+    local dir="$1"
     local subDir="${2:-}"
     [[ -z ${subDir} ]] || dir="${dir}/${subDir}"
     mkdir -p "${dir}" || fail "could not create directory ${dir}"
@@ -1069,7 +1069,7 @@ readFile() {
 #   description (string)   Label used in error messages.
 
 setFileVar() {
-    _setFileSystemVar "${1}" "${2}" "${3}" false
+    _setFileSystemVar "$1" "$2" "$3" false
 }
 
 # ◇ Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
@@ -1081,7 +1081,7 @@ setFileVar() {
 #   description (string)   Label used in error messages.
 
 setDirVar() {
-    _setFileSystemVar "${1}" "${2}" "${3}" true
+    _setFileSystemVar "$1" "$2" "$3" true
 }
 
 
@@ -1104,7 +1104,7 @@ setDirVar() {
 
 pushIFS() {
     [[ -v IFS ]] && _ifsStack+=("${IFS}") || _ifsStack+=("${_ifsUnset}")
-    IFS="${1}"
+    IFS="$1"
 }
 
 # ◇ Pop a previously pushed IFS value, restoring IFS to its prior state.
@@ -1124,7 +1124,7 @@ popIFS() {
 # ◇ Register a shell command to be executed at exit, in registration order.
 
 addExitHandler() {
-    _rayvnExitTasks+=("${1}")
+    _rayvnExitTasks+=("$1")
 }
 
 # ◇ Outputs the version string for a rayvn project, reading its rayvn.pkg file.
@@ -1135,7 +1135,7 @@ addExitHandler() {
 #   verbose (string)      If non-empty, appends release date or "(development)" to output.
 
 projectVersion() {
-    local projectName="${1}"
+    local projectName="$1"
     local verbose="${2:-}"
     local -n projectHome="${projectName//-/_}Home"
     local pkgFile="${projectHome}/rayvn.pkg"
@@ -1159,7 +1159,7 @@ projectVersion() {
 #   url (string)  The URL to open.
 
 openUrl() {
-    local url="${1}"
+    local url="$1"
 
     case "${OSTYPE}" in
         darwin*)
@@ -1558,10 +1558,10 @@ _init_noColors() {
 }
 
 _setFileSystemVar() {
-    local -n resultVar="${1}"
-    local file="${2}"
-    local description="${3}"
-    local isDir="${4}"
+    local -n resultVar="$1"
+    local file="$2"
+    local description="$3"
+    local isDir="$4"
 
     [[ ${file} ]] || fail "${description} path is required"
     [[ -e ${file} ]] || fail "${file} not found"

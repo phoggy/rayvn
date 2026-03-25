@@ -20,7 +20,7 @@
 
 registerProjectOnRayvnCentral() {
     local registryFile entryFile projectUrl registeredDate title issueUrl
-    local projectName="${1}"
+    local projectName="$1"
     [[ -n ${projectName} ]] || fail "project name required"
     registryFile="${ getProjectRegistryPath ${projectName}; }"
     if [[ -f "${registryFile}" ]]; then
@@ -76,7 +76,7 @@ registerProjectOnRayvnCentral() {
 # ◇ Returns the path to a project's registry file in the rayvn-central registry repo (may not exist).
 
 getProjectRegistryPath() {
-    local projectName="${1}"
+    local projectName="$1"
     echo "${_rayvnCentralRegistryRepoDir}/${projectName}"
 }
 

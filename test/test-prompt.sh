@@ -54,11 +54,11 @@ init() {
 
     # process any debug args
     while (( $# )); do
-        case "${1}" in
+        case "$1" in
             --debug) setDebug showLogOnExit ;;
             --debug-new) setDebug clearLog showLogOnExit ;;
             --debug-out) setDebug tty "${ tty; }" ;;
-            --debug-tty) shift; setDebug tty "${1}" ;;
+            --debug-tty) shift; setDebug tty "$1" ;;
         esac
         shift
     done
@@ -71,8 +71,8 @@ _installMocks() {
 
     # Return fixed cursor position via nameref params
     cursorPosition() {
-        local -n _cpRowRef="${1}"
-        local -n _cpColRef="${2}"
+        local -n _cpRowRef="$1"
+        local -n _cpColRef="$2"
         _cpRowRef=10
         _cpColRef=1
     }
@@ -317,10 +317,10 @@ testChooseTimeout() {
 
 # Replicate the choose() calculation to test it
 _calculateLayout() {
-    local itemCount="${1}"
-    local addSeparator="${2}"
-    local maxVisibleItems="${3}"
-    local availableRows="${4}"
+    local itemCount="$1"
+    local addSeparator="$2"
+    local maxVisibleItems="$3"
+    local availableRows="$4"
 
     [[ ${addSeparator} == true ]] && _rowsPerItem=2 || _rowsPerItem=1
     _extraLines=$( (( _rowsPerItem == 1 )) && echo 2 || echo 1 )

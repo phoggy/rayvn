@@ -39,8 +39,8 @@ debugDir() {
 
 debugBinary() {
     if (( _debug )); then
-        local label="${1}"
-        local binary="${2}"
+        local label="$1"
+        local binary="$2"
         _debugEchoNoNewline "${label}"
         for (( i=0; i < ${#binary}; i++ )); do
             printf '%02X ' "'${binary:i:1}" >&${_debugFd}
@@ -65,8 +65,8 @@ debugVars() {
     if (( _debug )); then
         local line
         while (( $# )); do
-            line="${ declare -p "${1}" 2> /dev/null; }"
-            [[ -n "${line}" ]] && _debugEcho "${line}" || _debugEcho "${1} not defined"
+            line="${ declare -p "$1" 2> /dev/null; }"
+            [[ -n "${line}" ]] && _debugEcho "${line}" || _debugEcho "$1 not defined"
             shift
         done
     fi
@@ -82,8 +82,8 @@ debugVars() {
 
 debugVarIsSet() {
     if (( _debug )); then
-        local var="${1}"
-        local prefix="${2}"
+        local var="$1"
+        local prefix="$2"
         [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is set ->" ;} "
@@ -107,11 +107,11 @@ debugVarIsSet() {
 
 debugVarIsNotSet() {
     if (( _debug )); then
-        local var="${1}"
-        local prefix="${2}"
+        local var="$1"
+        local prefix="$2"
         [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
-            local var="${1}"
+            local var="$1"
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is not set ->" ;} "
             if varDefined ${var}; then
                 show red "=${!var}"
@@ -133,7 +133,7 @@ debugVarIsNotSet() {
 
 debugFile() {
     if (( _debug )); then
-        local sourceFile="${1}"
+        local sourceFile="$1"
         local fileName="${2:-${ baseName ${sourceFile}; }}"
         local destFile="${_debugDir}/${fileName}"
         cp "${sourceFile}" "${destFile}"
@@ -150,8 +150,8 @@ debugFile() {
 
 debugJson() {
     if (( _debug )); then
-        local -n json="${1}"
-        local fileName="${2}"
+        local -n json="$1"
+        local fileName="$2"
         local destFile="${_debugDir}/${fileName}.json"
         debug "created ${destFile}"
         echo "${json}" | jq > "${destFile}"
@@ -204,7 +204,7 @@ debugEscapes() {
 
 debugEnvironment() {  # TODO: replace with full snapshot
     if (( _debug )); then
-        local fileName="${1}.env"
+        local fileName="$1.env"
         local destFile="${_debugDir}/${fileName}"
         (
             printf "%s\n\n" '--- VARIABLES --------------'
@@ -299,12 +299,12 @@ _setDebug() {
     _debug=1
 
     while (( ${#} > 0 )); do
-        case "${1}" in
-            --tty) shift; _debugOut="${1}";;
+        case "$1" in
+            --tty) shift; _debugOut="$1";;
             --showLogOnExit) _debugShowLogOnExit=1 ;;
             --clearLog) clearLog=1 ;;
             --noStatus) status=0 ;;
-            *) fail "Unknown setDebug() option: ${1}" ;;
+            *) fail "Unknown setDebug() option: $1" ;;
         esac
         shift
     done
@@ -355,7 +355,7 @@ _debugStatus() {
 }
 
 _prepareLogFile() {
-    local clearLog=${1}
+    local clearLog=$1
     declare -grx _debugDir="${_rayvnConfigDir}/debug"
     declare -grx _debugLogFile="${_debugDir}/debug.log"
     declare -gxi _debugStartLine

@@ -16,8 +16,8 @@
 
 getOAuthService() {
     local providerName="${1,,}" # e.g. 'google'
-    local resultMapVarName="${2}"
-    local serviceScope="${3}"
+    local resultMapVarName="$2"
+    local serviceScope="$3"
     local clientId="${4:-}" # optional: client ID from caller
     local clientSecret="${5:-}" # optional: client secret from caller
 
@@ -66,7 +66,7 @@ getOAuthService() {
 #   serviceVarName (mapRef)  Name of an OAuth service map populated by getOAuthService.
 
 setupOAuthService() {
-    local serviceVarName="${1}"
+    local serviceVarName="$1"
     _assertValidOAuthService "${serviceVarName}"
     _setupOAuthService "${serviceVarName}"
 }
@@ -78,7 +78,7 @@ setupOAuthService() {
 #   serviceVarName (mapRef)  Name of an OAuth service map populated by getOAuthService.
 
 getOAuthAccessToken() {
-    local serviceVarName="${1}"
+    local serviceVarName="$1"
     _assertValidOAuthService "${serviceVarName}"
     _getOAuthAccessToken "${serviceVarName}"
 }
@@ -109,9 +109,9 @@ _init_rayvn_oauth() {
 }
 
 _ensureClientIdAndSecret() {
-    local providerName="${1}"
-    local clientIdVarName="${2}"
-    local clientSecretVarName="${3}"
+    local providerName="$1"
+    local clientIdVarName="$2"
+    local clientSecretVarName="$3"
     local -n clientIdRef="${clientIdVarName}"
     local -n clientSecretRef="${clientSecretVarName}"
 
@@ -154,7 +154,7 @@ _ensureClientIdAndSecret() {
 }
 
 _assertValidOAuthService() {
-    local serviceVarName="${1}"
+    local serviceVarName="$1"
     local -n serviceRef="${serviceVarName}"
     local key
     for key in "${_oAuthServiceKeys[@]}"; do
@@ -165,25 +165,25 @@ _assertValidOAuthService() {
 }
 
 _storeSecret() {
-    local key="${1}"
-    local -n valueRef="${2}"
+    local key="$1"
+    local -n valueRef="$2"
     secretStore "oauth_${providerName}" "${key}" "${valueRef}"
 }
 
 _retrieveSecret() {
-    local key="${1}"
+    local key="$1"
     secretRetrieve "oauth_${providerName}" "${key}"
 }
 
 _deleteSecret() {
-    local key="${1}"
+    local key="$1"
     secretDelete "oauth_${providerName}" "${key}"
 }
 
 # Capture OAuth authorization code via local HTTP server
 _captureOAuthCode() {
-    local port="${1}"
-    local -n authCodeRef="${2}"
+    local port="$1"
+    local -n authCodeRef="$2"
 
     # Create a fifo for communication
     local fifoPath
@@ -227,7 +227,7 @@ _captureOAuthCode() {
 # Perform OAuth setup
 _setupOAuthService() {
 
-    local serviceVarName="${1}"
+    local serviceVarName="$1"
     local -n serviceRef="${serviceVarName}"
     local authUrl="${serviceRef[${_oAuthUrlKey}]}"
     local tokenUrl="${serviceRef[${_oAuthTokenKey}]}"
@@ -301,7 +301,7 @@ _setupOAuthService() {
 
 # Get valid access token (refresh if needed)
 _getOAuthAccessToken() {
-    local serviceVarName="${1}"
+    local serviceVarName="$1"
     local -n serviceRef="${serviceVarName}"
     local providerName="${serviceRef[${_oAuthProviderKey}]}"
     local clientId="${serviceRef[${_oAuthIdKey}]}"

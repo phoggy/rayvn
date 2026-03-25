@@ -12,8 +12,8 @@
 
 sourceConfigFile() {
     local safeEnv
-    local input="${1}"
-    local prefixFilter="${2}"
+    local input="$1"
+    local prefixFilter="$2"
     safeEnv="${ extractSafeStaticVars "${input}" "${prefixFilter}" | _globalizeDeclarations; }" || fail
     source <(echo "${safeEnv}")
 }
@@ -27,8 +27,8 @@ sourceConfigFile() {
 #   prefixFilter (string)  Only include variables matching this prefix (optional).
 
 extractSafeStaticVars() {
-    local input="${1}"
-    local prefixFilter="${2}"
+    local input="$1"
+    local prefixFilter="$2"
     local result
     [[ "${input}" ]] || fail "missing required input"
 
@@ -49,7 +49,7 @@ _init_rayvn_config() {
 
 # Written by Claude Sonnet 4
 _extractSafeStaticVarsOnly() {
-    local input="${1}"
+    local input="$1"
     local buffer=""
     declare -i in_function=0
     declare -i brace_depth=0
@@ -238,8 +238,8 @@ _globalizeDeclarations() {
 
 # Written by ChatGPT 4o
 _filterStaticVarsByPrefix() {
-    local input="${1}"
-    local prefix="${2}"
+    local input="$1"
+    local prefix="$2"
 
     [[ -f "${input}" ]] && input="${ <"${input}"; }"
 

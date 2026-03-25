@@ -12,7 +12,7 @@ main() {
 }
 
 init() {
-    if [[ ${1} == --debug ]]; then
+    if [[ $1 == --debug ]]; then
         setDebug showLogOnExit
         declare -grx tempDir="${ debugDir; }"
     else

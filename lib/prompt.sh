@@ -27,8 +27,8 @@
 
 request() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
-    local prompt="${1}"
-    local resultVarName="${2}"
+    local prompt="$1"
+    local resultVarName="$2"
     local cancelOnEmpty="${3:-true}"
     local timeout="${4:-${_defaultPromptTimeout}}"
     local hide=${5:-false}
@@ -72,7 +72,7 @@ request() {
 
 secureRequest() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
-    request "${1}" "${2}" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
+    request "$1" "$2" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
 }
 
 # ◇ Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
@@ -101,9 +101,9 @@ secureRequest() {
 
 confirm() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
-    local prompt="${1}"
-    local promptChoices=("${2}" "${3}")
-    local resultVarName="${4}"
+    local prompt="$1"
+    local promptChoices=("$2" "$3")
+    local resultVarName="$4"
     local defaultAnswerTwo="${5:-false}"
     local timeout="${6:-${_defaultPromptTimeout}}"
     local startIndex=0
@@ -148,9 +148,9 @@ confirm() {
 
 choose() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
-    local prompt="${1}"
-    local choicesVarName="${2}"
-    local resultVarName="${3}"
+    local prompt="$1"
+    local choicesVarName="$2"
+    local resultVarName="$3"
     local addSeparator="${4:-false}"
     local startIndex="${5:-0}"
     local numberChoices="${6:-0}"
@@ -519,7 +519,7 @@ _executePrompt() {
 }
 
 _readPromptEscapeSequence() {
-    local -n resultVar="${1}"
+    local -n resultVar="$1"
     local c
 
     # Is there more input?
@@ -584,7 +584,7 @@ _hasPromptTimerExpired() {
 }
 
 _promptSuccess() {
-    local _promptSuccessValue="${1}"
+    local _promptSuccessValue="$1"
     local -n resultVarRef="${_promptResultVarName}"
     resultVarRef="${_promptSuccessValue}"
     _finalizePrompt _promptInput "${_promptSuccessColor}"
@@ -592,7 +592,7 @@ _promptSuccess() {
 }
 
 _finalizePrompt() {
-    local messageVarName="${1}"
+    local messageVarName="$1"
     local formats=("${@:2}")
     local -n resultMessageRef="${messageVarName}"
     local isError isSecure

@@ -14,8 +14,8 @@
 #   file (string)   Path to the file to search.
 
 assertNotInFile() {
-    local match="${1}"
-    local file="${2}"
+    local match="$1"
+    local file="$2"
     grep -e "${match}" "${file}" > /dev/null && fail "'${match}' found in file ${file}."
 }
 
@@ -27,8 +27,8 @@ assertNotInFile() {
 #   file (string)   Path to the file to search.
 
 assertInFile() {
-    local match="${1}"
-    local file="${2}"
+    local match="$1"
+    local file="$2"
     grep -e "${match}" "${file}" > /dev/null 2>&1  || fail "'${match}' not found in file ${file}."
 }
 
@@ -41,8 +41,8 @@ assertInFile() {
 #   message (string)   Optional custom failure message.
 
 assertEqual() {
-    local msg="${3:-"assert '${1}' == '${2}' failed"}"
-    [[ ${1} == "${2}" ]] || fail "${msg}"
+    local msg="${3:-"assert '$1' == '$2' failed"}"
+    [[ $1 == "$2" ]] || fail "${msg}"
 }
 
 # ◇ Fail if expected does not equal actual after stripping ANSI escape codes from actual.
@@ -54,8 +54,8 @@ assertEqual() {
 #   msg (string)       Optional failure message.
 
 assertEqualStripped() {
-    local expected="${1}"
-    local actual="${2}"
+    local expected="$1"
+    local actual="$2"
     local msg="${3:-"assertEqualStripped failed"}"
     assertEqual "${expected}" "${ stripAnsi "${actual}"; }" "${msg}"
 }
@@ -69,8 +69,8 @@ assertEqualStripped() {
 #   msg (string)       Failure message; defaults to "assertEqualEscapeCodes failed".
 
 assertEqualEscapeCodes() {
-    local expected="${1}"
-    local actual="${2}"
+    local expected="$1"
+    local actual="$2"
     local msg="${3:-"assertEqualEscapeCodes failed"}"
     if [[ ${actual} != "${expected}" ]]; then
         echo "    Expected (visible): ${ echo -n "${expected}" | cat -v; }"
@@ -87,7 +87,7 @@ assertEqualEscapeCodes() {
 #   @             Command and arguments to execute.
 
 assertTrue() {
-    local msg="${1}"
+    local msg="$1"
     shift
     "${@}" || fail "${msg}"
 }
@@ -100,7 +100,7 @@ assertTrue() {
 #   cmd (string)  Command and arguments to execute.
 
 assertFalse() {
-    local msg="${1}"
+    local msg="$1"
     shift
     "${@}" && fail "${msg}"
     return 0
@@ -115,8 +115,8 @@ assertFalse() {
 #   msg (string)       Optional custom failure message.
 
 assertContains() {
-    local expected="${1}"
-    local actual="${2}"
+    local expected="$1"
+    local actual="$2"
     local msg="${3:-"assertContains: '${expected}' not in '${actual}'"}"
     [[ ${actual} == *"${expected}"* ]] || fail "${msg}"
 }
@@ -131,9 +131,9 @@ assertContains() {
 #   msg (string)  Custom failure message.
 
 assertInRange() {
-    local value="${1}"
-    local min="${2}"
-    local max="${3}"
+    local value="$1"
+    local min="$2"
+    local max="$3"
     local msg="${4:-"assertInRange: ${value} not in ${min}..${max}"}"
     (( value >= min && value <= max )) || fail "${msg}"
 }
@@ -141,13 +141,13 @@ assertInRange() {
 # ◇ Fail if two strings are not equal, ignoring case.
 
 assertEqualIgnoreCase() {
-    assertEqual "${1,,}" "${2,,}" "${3:-"assert ${1} == ${2} ignore case failed"}"
+    assertEqual "${1,,}" "${2,,}" "${3:-"assert $1 == $2 ignore case failed"}"
 }
 
 # ◇ Fails if an executable is found in PATH.
 
 assertNotInPath() {
-    local executable="${1}"
+    local executable="$1"
     local path="${ command -v ${executable}; }"
     [[ ${path} == '' ]] || fail "${executable} was found in PATH at ${path}"
 }
@@ -161,8 +161,8 @@ assertNotInPath() {
 #                          realpath to account for symlinks.
 
 assertInPath() {
-    local executable="${1}"
-    local expectedPath="${2}"
+    local executable="$1"
+    local expectedPath="$2"
     local foundPath="${ command -v ${executable}; }"
     [[ ${foundPath} ]] || fail "${executable} was not found in PATH"
     assertFile "${foundPath}"
@@ -186,7 +186,7 @@ assertInPath() {
 #   name (string)  Name of the function that must not be defined.
 
 assertFunctionIsNotDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -f "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }"
 }
 
@@ -197,7 +197,7 @@ assertFunctionIsNotDefined() {
 #   name (string)  Variable name that must not be defined.
 
 assertVarIsNotDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -p "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }"
 }
 
@@ -208,7 +208,7 @@ assertVarIsNotDefined() {
 #   name (string)  Name of the function that must be defined.
 
 assertFunctionIsDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -f "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
 }
 
@@ -219,7 +219,7 @@ assertFunctionIsDefined() {
 #   name (string)  Name of the variable to check.
 
 assertVarIsDefined() {
-    local name="${1}"
+    local name="$1"
     [[ ${ declare -p "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
 }
 
@@ -232,8 +232,8 @@ assertVarIsDefined() {
 #   expectedFlags (string)  Expected declare flags as a string (e.g. "ir", "r", "arx", "A").
 
 assertVarType() {
-    local varName="${1}"
-    local expectedFlags="${2}"  # e.g. "ir", "r", "arx", "A"
+    local varName="$1"
+    local expectedFlags="$2"  # e.g. "ir", "r", "arx", "A"
 
     local declaration
     if ! declaration="${ declare -p "${varName}" 2> /dev/null; }"; then
@@ -260,8 +260,8 @@ assertVarType() {
 #   expected (string)    The expected string value.
 
 assertVarEquals() {
-    local varName="${1}"
-    local expected="${2}"
+    local varName="$1"
+    local expected="$2"
     local -n varRef="${varName}"
     assertVarIsDefined "${varName}"
     if [[ ${varRef} != "${expected}" ]]; then
@@ -277,8 +277,8 @@ assertVarEquals() {
 #   expected (string)    Substring that must be present in the variable's value.
 
 assertVarContains() {
-    local varName="${1}"
-    local expected="${2}"
+    local varName="$1"
+    local expected="$2"
     local -n varRef="${varName}"
     assertVarIsDefined "${varName}"
     if [[ ${varRef} != *"${expected}"* ]]; then
@@ -294,7 +294,7 @@ assertVarContains() {
 #   expected (string)   Remaining args are the expected element values in order.
 
 assertArrayEquals() {
-    local varName="${1}"
+    local varName="$1"
     local expected=("${@:2}")
     local -n arrayRef="${varName}"
     assertVarIsDefined "${varName}"
@@ -318,7 +318,7 @@ assertArrayEquals() {
 #   varName (mapRef)  Name of the variable that must be a defined associative array.
 
 assertHashTableIsDefined() {
-    local varName=${1}
+    local varName=$1
     assertVarIsDefined ${varName}
     [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
 }
@@ -330,7 +330,7 @@ assertHashTableIsDefined() {
 #   varName (mapRef)  Name of the variable that must not be defined.
 
 assertHashTableIsNotDefined() {
-    local varName=${1}
+    local varName=$1
     assertVarIsNotDefined ${varName}
 }
 
@@ -342,8 +342,8 @@ assertHashTableIsNotDefined() {
 #   keyName (string)  Key that must be defined in the array.
 
 assertHashKeyIsDefined() {
-    local varName="${1}"
-    local keyName="${2}"
+    local varName="$1"
+    local keyName="$2"
 
     assertHashTableIsDefined "${varName}"
     [[ -v ${varName}[${keyName}] ]] || fail "${varName}[${keyName}] is NOT defined"
@@ -357,8 +357,8 @@ assertHashKeyIsDefined() {
 #   keyName (string)  Key that must NOT be defined in the array.
 
 assertHashKeyIsNotDefined() {
-    local varName="${1}"
-    local keyName="${2}"
+    local varName="$1"
+    local keyName="$2"
     [[ -v ${varName}[${keyName}] ]] && fail "${varName}[${keyName}] is defined"
 }
 
@@ -371,9 +371,9 @@ assertHashKeyIsNotDefined() {
 #   expectedValue (string)  Expected value at that key.
 
 assertHashValue() {
-    local varName="${1}"
-    local keyName="${2}"
-    local expectedValue="${3}"
+    local varName="$1"
+    local keyName="$2"
+    local expectedValue="$3"
     assertHashKeyIsDefined "${varName}" "${keyName}"
 
     local actualValue="${ eval echo \$"{${varName}[${keyName}]}"; }" # complexity required to use variables for var and key
@@ -390,7 +390,7 @@ assertHashValue() {
 #   pathVariable (string)  Name of the colon-separated path variable (default: PATH).
 
 prependPath () {
-    local path="${1}"
+    local path="$1"
     local pathVariable=${2:-PATH}
     removePath "${path}" ${pathVariable}
     declare -gx ${pathVariable}="${path}${!pathVariable:+:${!pathVariable}}"
@@ -404,7 +404,7 @@ prependPath () {
 #   pathVariable (string)  Name of the colon-separated path variable (default: PATH).
 
 appendPath () {
-    local path="${1}"
+    local path="$1"
     local pathVariable=${2:-PATH}
     removePath "${path}" ${pathVariable}
     declare -gx  ${pathVariable}="${!pathVariable:+${!pathVariable}:}${path}"
@@ -418,7 +418,7 @@ appendPath () {
 #   pathVariable (string)  Name of the path variable to modify (default: PATH). [R/W]
 
 removePath () {
-    local removePath="${1}"
+    local removePath="$1"
     local pathVariable=${2:-PATH}
     local dir newPath paths
     IFS=':' read -ra paths <<< "${!pathVariable}"
@@ -465,8 +465,8 @@ printPath() {
 #   1  project already registered with the same root (no-op)
 
 addRayvnProject() {
-    local projectName="${1}"
-    local projectRoot="${2}"
+    local projectName="$1"
+    local projectRoot="$2"
     assertDirectory "${projectRoot}"
     projectRoot="${ realpath "${projectRoot}"; }" || fail "Could not resolve real path of: ${projectRoot}"
     local existing="${_rayvnProjects["${projectName}::project"]}"
@@ -499,7 +499,7 @@ addRayvnProject() {
 #   projectName (string)  Name of the project to remove.
 
 removeRayvnProject() {
-    local projectName="${1}"
+    local projectName="$1"
     unset "_rayvnProjects[${projectName}${_projectRootSuffix}]"
     unset "_rayvnProjects[${projectName}${_libraryRootSuffix}]"
 }
@@ -512,8 +512,8 @@ removeRayvnProject() {
 #   expected (string)  Substring that must appear in the captured failure message.
 
 requireAndAssertFailureContains() {
-    local library="${1}"
-    local expected="${2}"
+    local library="$1"
+    local expected="$2"
     unset _requireFailure 2> /dev/null
     declare -g _rayvnRequireFailHandler='_captureRequireFailure'
     require "${library}"
@@ -530,9 +530,9 @@ requireAndAssertFailureContains() {
 #   [...] (string)         Optional arguments passed to the function on each invocation.
 
 benchmark() {
-    local functionName=${1}
-    local iterations=${2}
-    local testCase=${3}
+    local functionName=$1
+    local iterations=$2
+    local testCase=$3
     shift 3
     local args=("${@}")
 
@@ -557,7 +557,7 @@ _init_rayvn_test() {
 }
 
 _captureRequireFailure() {
-    declare -g _requireFailure="${1}"
+    declare -g _requireFailure="$1"
     unset _rayvnRequireFailHandler
 }
 
