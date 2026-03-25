@@ -25,6 +25,7 @@ release () {
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _runTests "${project}" || fail
+    _runLint "${project}" || fail
     _auditDocs "${project}" || fail
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
@@ -51,6 +52,13 @@ _init_rayvn_release() {
     require 'rayvn/index'
     require 'rayvn/function-docs'
     require 'rayvn/test-harness'
+    require 'rayvn/lint'
+}
+
+_runLint() {
+    local project="$1"
+    header 2 "Linting ${project}"
+    runLint --ask "${project}" || fail "Lint violations found — fix before releasing"
 }
 
 _auditDocs() {

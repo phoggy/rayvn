@@ -18,6 +18,7 @@ usage() {
     echo "    functions         List public functions."
     echo "    register NAME     Stake a claim on the project name, if available."
     echo "    release           Create a new release."
+    echo "    lint              Scan source files for requirement violations."
     echo "    deps              Scan source files and ensure dependency tracking is up to date."
     echo "    index             Generate function indexes for AI agent use."
     echo "    pages             Generate and preview project gh-pages site."
@@ -74,6 +75,7 @@ init() {
             index) parseArgs true indexDocs "${@:2}" ;;
             pages) parseArgs true pagesCommand "${@:2}" ;;
             docs) parseArgs true docsCommand "${@:2}" ;;
+            lint) parseArgs true lintCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
             --debug) debugOptions=('--showLogOnExit') ;;
             --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
@@ -109,6 +111,8 @@ parseArgs() {
             --local) flags+=(['local']=1) ;;
             --nix) flags+=(['nix']=1) ;;
             --all) flags+=(['all']=1) ;;
+            --fix) flags+=(['fix']=1) ;;
+            --ask) flags+=(['ask']=1) ;;
             --debug) debugOptions=('--showLogOnExit') ;;
             --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
             --debug-out) debugOptions=('--tty' "${ tty; }") ;;
@@ -128,7 +132,7 @@ parseArgs() {
 
 _detectCurrentProject() {
     local dir="${PWD}"
-    while [[ "${dir}" != '/' ]]; do
+    while [[ -n "${dir}" && "${dir}" != '/' ]]; do
         if [[ -f "${dir}/rayvn.pkg" ]]; then
             local pkgName
             pkgName=${ bash -c "source '${dir}/rayvn.pkg' 2>/dev/null && printf '%s' \"\${projectName}\""; }
@@ -182,6 +186,16 @@ addProject() {
 
 assertSingleProject() {
     (( ${#projects[@]} > 1 )) && fail "only one project name is supported"
+}
+
+assertProjectsSpecified() {
+    (( ${#projects[@]} > 0 )) && return 0
+    local candidate="${args[0]}"
+    if [[ -n "${candidate}" && "${candidate}" != -* ]]; then
+        fail "Unknown project:" blue "${candidate}" "— is its bin directory in PATH?"
+    else
+        fail "A project name is required (e.g. rayvn, valt, wardn)"
+    fi
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
@@ -427,17 +441,32 @@ pagesCommand() {
         echo "  --publish   Generate pages, then commit and push to gh-pages."
         echo "  --view      Generate pages, then serve locally with Jekyll."
     else
-        if (( ${#projects[@]} == 0 )); then
-            local candidate="${args[0]}"
-            if [[ -n "${candidate}" && "${candidate}" != -* ]]; then
-                fail "Unknown project:" blue "${candidate}" off "— is its bin directory in PATH?"
-            else
-                fail "A project name is required (e.g. rayvn, valt, wardn)"
-            fi
-        fi
+        assertProjectsSpecified
         (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
         require 'rayvn/index'
         runPages "${projects[0]}" "${args[@]}"
+    fi
+}
+
+lintCommand() {
+    if (( flags['help'] )); then
+        echo "rayvn lint [PROJECT...] [--fix] [--ask]"
+        echo "  PROJECT defaults to the current directory's project; only one may be specified."
+        echo
+        echo "Scan project source files for violations of rayvn's bash requirements."
+        echo
+        echo "  --fix  Auto-fix all violations that can be corrected automatically."
+        echo "  --ask  Interactively prompt whether to fix each file with violations."
+        echo
+        echo "Note: old-style command substitution \$() is detected but not auto-fixed."
+    else
+        assertProjectsSpecified
+        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+        local fixMode=
+        (( flags['fix'] )) && fixMode='--fix'
+        (( flags['ask'] )) && fixMode='--ask'
+        require 'rayvn/lint'
+        runLint ${fixMode} "${projects[@]}"
     fi
 }
 
