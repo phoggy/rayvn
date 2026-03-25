@@ -27,12 +27,13 @@ runLint() {
 
     echo
     if (( totalIssues > 0 )); then
-        show error "${totalIssues} issue(s) found"
+        local pluralize=''; (( totalIssues> 1 )) && pluralize='s'
+        show error "${totalIssues} issue${pluralize} found"
         if [[ -z "${fixMode}" ]]; then
             if (( totalFixable > 0 )); then
-                show primary "Run with --fix to automatically correct fixable issues"
+                show primary "Run with --fix to automatically correct fixable issues."
             else
-                show primary "All issues require hand editing: old-style \$() substitutions must be converted to \${ cmd; } syntax"
+                show primary "All remaining issues require hand editing."
             fi
         fi
         return 1
@@ -106,6 +107,8 @@ _lintFile() {
     local relPath="${file#${projectRoot}/}"
     local -a findings=()
     local -a fixes=()
+    local shebang; read -r shebang < "${file}"
+    [[ "${shebang}" == '#!'* && "${shebang}" != *bash* ]] && { show bold "  ${relPath}" dim " (skipped: not bash)"; return 0; }
 
     if ! bash -n "${file}" 2> /dev/null; then
         (( _lintFileIssuesRef += 1 ))
@@ -122,9 +125,9 @@ _lintFile() {
     fi
 
     local -i count=${#findings[@]}
-
+    local pluralize=''; (( count > 1 )) && pluralize='s'
     if [[ "${fixMode}" == ask ]]; then
-        show bold "  ${relPath}" "${errorCrossMark}" error "${count} errors" nl
+        show bold "  ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
         local finding
         for finding in "${findings[@]}"; do
             echo "${finding}"
@@ -137,7 +140,7 @@ _lintFile() {
 
         require 'rayvn/prompt'
         local choice=1
-        confirm "  Fix ${count} issue(s) in ${relPath}?" "Fix" "Skip" choice || choice=1
+        confirm "  Fix ${count} issue${pluralize} in ${relPath}?" "Fix" "Skip" choice || choice=1
         echo
         if (( choice == 0 )); then
             if _fixFile "${file}" fixes; then
@@ -170,7 +173,7 @@ _lintFile() {
         if [[ "${fixMode}" == fix || "${fixMode}" == ask ]]; then
             show bold "  ${relPath}" "${errorCrossMark}" error "${count} remaining" nl
         else
-            show bold "  ${relPath}" "${errorCrossMark}" error "${count} errors" nl
+            show bold "  ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
         fi
         local finding
         for finding in "${findings[@]}"; do
@@ -194,6 +197,18 @@ _lintRunChecks() {
     _lintCheck '[^ ]\)\)'                           "${_lintRunChecksFile}" 'missing space before )) operator'                    SPACE_BEFORE_DPARENS  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '(?:^|[ \t])\[\[[^ :]'              "${_lintRunChecksFile}" 'missing space after [[ operator'                     SPACE_AFTER_DBRACKET  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '[^ \t:\]]\]\]'                      "${_lintRunChecksFile}" 'missing space before ]] operator'                    SPACE_BEFORE_DBRACKET _lintRunChecksRef _lintRunChecksFixRef # lint-ok
+    _lintCheck '^[ \t]*(?!function[ \t])(?!_init_)[a-zA-Z_][a-zA-Z0-9]*(?:_[a-z][a-zA-Z0-9]*)+[ \t]*\(' \
+                                                    "${_lintRunChecksFile}" 'function name not camelCase'                           NONE                  _lintRunChecksRef _lintRunChecksFixRef \
+                                                    '^[ \t]*\K(?!_init_)[a-zA-Z_][a-zA-Z0-9]*(?:_[a-z][a-zA-Z0-9]*)+(?=[ \t]*\()'
+    _lintCheck '^[ \t]*function[ \t]+(?!_init_)[a-zA-Z_][a-zA-Z0-9]*(?:_[a-z][a-zA-Z0-9]*)+' \
+                                                    "${_lintRunChecksFile}" 'function name not camelCase'                           NONE                  _lintRunChecksRef _lintRunChecksFixRef \
+                                                    'function[ \t]+\K(?!_init_)[a-zA-Z_][a-zA-Z0-9]*(?:_[a-z][a-zA-Z0-9]*)+(?=[ \t])'
+    _lintCheck '^[ \t]*(?:local|declare)(?:[ \t]+-[a-zA-Z]+)*[ \t]+[a-zA-Z_][a-zA-Z0-9]*(?:_[a-z][a-zA-Z0-9]*)+' \
+                                                    "${_lintRunChecksFile}" 'variable name not camelCase'                           NONE                  _lintRunChecksRef _lintRunChecksFixRef \
+                                                    '(?:local|declare)(?:[ \t]+-[a-zA-Z]+)*[ \t]+\K[a-zA-Z_][a-zA-Z0-9]*(?:_[a-z][a-zA-Z0-9]*)+(?=[ \t=]|$)'
+    _lintCheck '^[ \t]*(?:local|declare)[ \t]+-n[ \t]+[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)' \
+                                                    "${_lintRunChecksFile}" 'nameref name should end in Ref'                        NONE                  _lintRunChecksRef _lintRunChecksFixRef \
+                                                    '(?:local|declare)[ \t]+-n[ \t]+\K[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)'
 }
 
 # Apply fixes only to the specific lines flagged by _lintRunChecks.
@@ -267,6 +282,7 @@ _lintCheck() {
     local fixType=$4
     local -n _lintCheckFindingsRef=$5
     local -n _lintCheckFixesRef=$6
+    local extractPattern="${7:-}"
     local match lineNum lineContent
 
     while IFS= read -r match; do
@@ -274,18 +290,32 @@ _lintCheck() {
         lineContent="${match#*:}"
         [[ "${lineContent}" =~ ^[[:space:]]*\# ]] && continue
         [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
-        _lintCheckFindingsRef+=("    line ${lineNum}  ${message}")
+        local displayMessage="${message}"
+        if [[ -n "${extractPattern}" ]]; then
+            local extracted
+            extracted=${ _lintGrep "${extractPattern}" <<< "${lineContent}" | head -1; }
+            [[ -n "${extracted}" ]] && displayMessage+=" '${extracted}'"
+        fi
+        _lintCheckFindingsRef+=("    line ${lineNum}  ${displayMessage}")
         [[ "${fixType}" != NONE ]] && _lintCheckFixesRef+=("${lineNum}:${fixType}")
     done < <(_lintGrep "${pattern}" "${file}")
 }
 
 _lintGrep() {
     local pattern=$1
-    local file=$2
+    local file="${2:-}"
     # Use ggrep (GNU grep, required for -P Perl regex) — available via brew on macOS, native on Linux
     if command -v ggrep &> /dev/null; then
-        ggrep -nP "${pattern}" "${file}" 2> /dev/null
+        if [[ -n "${file}" ]]; then
+            ggrep -nP "${pattern}" "${file}" 2> /dev/null
+        else
+            ggrep -oP "${pattern}" 2> /dev/null
+        fi
     else
-        grep -nP "${pattern}" "${file}" 2> /dev/null
+        if [[ -n "${file}" ]]; then
+            grep -nP "${pattern}" "${file}" 2> /dev/null
+        else
+            grep -oP "${pattern}" 2> /dev/null
+        fi
     fi
 }

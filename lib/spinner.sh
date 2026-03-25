@@ -23,8 +23,8 @@
 spinnerTypes() {
     (( isInteractive )) || return 0  # No-op when not interactive
 
-    local -n resultArray=$1
-    resultArray=("${_spinnerNameList[@]}")
+    local -n resultArrayRef=$1
+    resultArrayRef=("${_spinnerNameList[@]}")
 }
 
 # ◇ Start a spinner at the current cursor position, storing its assigned ID via nameref.
@@ -446,9 +446,9 @@ _renderSpinners() {
     for (( i=0; i < ${#_spinnerActive[@]}; i++ )); do
         if (( _spinnerActive[i] )); then
             cursorTo "${_spinnerRows[i]}" "${_spinnerCols[i]}"
-            local -n spinner="_${_spinnerTypes[i]}Spinner"
-            spinnerIndex=$(( _spinnerTick % ${#spinner[@]} ))
-            show -n "${_spinnerColors[i]}" "${spinner[spinnerIndex]}" > /dev/tty
+            local -n spinnerRef="_${_spinnerTypes[i]}Spinner"
+            spinnerIndex=$(( _spinnerTick % ${#spinnerRef[@]} ))
+            show -n "${_spinnerColors[i]}" "${spinnerRef[spinnerIndex]}" > /dev/tty
         fi
     done
 

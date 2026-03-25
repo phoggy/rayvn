@@ -31,18 +31,18 @@ getOAuthService() {
 
     # If not provided by caller, try environment variables
     if [[ -z "${clientId}" ]]; then
-        local -n clientIdEnvVar="${providerName^^}_CLIENT_ID"
-        clientId="${clientIdEnvVar:-}"
+        local -n clientIdEnvVarRef="${providerName^^}_CLIENT_ID"
+        clientId="${clientIdEnvVarRef:-}"
     fi
     if [[ -z "${clientSecret}" ]]; then
-        local -n clientSecretEnvVar="${providerName^^}_CLIENT_SECRET"
-        clientSecret="${clientSecretEnvVar:-}"
+        local -n clientSecretEnvVarRef="${providerName^^}_CLIENT_SECRET"
+        clientSecret="${clientSecretEnvVarRef:-}"
     fi
 
     # Ensure we have credentials (checks provided → env → keychain → prompt)
     _ensureClientIdAndSecret "${providerName}" clientId clientSecret
-    local -n authUrl=${authUrlVarName}
-    local -n tokenUrl=${tokenUrlVarName}
+    local -n authUrlRef=${authUrlVarName}
+    local -n tokenUrlRef=${tokenUrlVarName}
 
     # Build the service map
 
@@ -51,8 +51,8 @@ getOAuthService() {
     _oAuthServiceMap+=([${_oAuthScopeKey}]="${serviceScope}")
     _oAuthServiceMap+=([${_oAuthIdKey}]="${clientId}")
     _oAuthServiceMap+=([${_oAuthSecretKey}]="${clientSecret}")
-    _oAuthServiceMap+=([${_oAuthUrlKey}]="${authUrl}")
-    _oAuthServiceMap+=([${_oAuthTokenKey}]="${tokenUrl}")
+    _oAuthServiceMap+=([${_oAuthUrlKey}]="${authUrlRef}")
+    _oAuthServiceMap+=([${_oAuthTokenKey}]="${tokenUrlRef}")
 
     # Copy to the callers map variable
 

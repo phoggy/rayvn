@@ -711,9 +711,9 @@ _displayNoTestsTask() {
 }
 
 _setPadding() {
-    local -n column="$1"
+    local -n columnRef="$1"
     local adjust="${2:-0}"
-    local count=$(( ${column} - ${#project} + ${adjust} - 1 ))
+    local count=$(( ${columnRef} - ${#project} + ${adjust} - 1 ))
     (( count >= 0 )) && printf -v _testPadding '\e[0m%*s' "${count}" '' || _testPadding=$'\e[0m'
 }
 

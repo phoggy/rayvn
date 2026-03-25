@@ -169,8 +169,8 @@ choose() {
     # Before calling _prompt, we need to know the correct # of rows to
     # reserve. First, get the itemCount, rowsPerItem and extraLines
 
-    local -n choicesArray="${choicesVarName}"
-    local itemCount="${#choicesArray[@]}"
+    local -n choicesArrayRef="${choicesVarName}"
+    local itemCount="${#choicesArrayRef[@]}"
     [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
     local extraLines=${ (( rowsPerItem == 1 )) && echo 2 || echo 1; }
 
@@ -519,7 +519,7 @@ _executePrompt() {
 }
 
 _readPromptEscapeSequence() {
-    local -n resultVar="$1"
+    local -n resultVarRef="$1"
     local c
 
     # Is there more input?
@@ -538,11 +538,11 @@ _readPromptEscapeSequence() {
                     fi
 
                     case "${c}" in
-                        'A') resultVar='u'; break ;;  # Up
-                        'B') resultVar='d'; break ;;  # Down
-                        'C') resultVar='r'; break ;;  # Right
-                        'D') resultVar='l'; break ;;  # Left
-                        *)   resultVar='?'; break ;;  # Unknown/don't care
+                        'A') resultVarRef='u'; break ;;  # Up
+                        'B') resultVarRef='d'; break ;;  # Down
+                        'C') resultVarRef='r'; break ;;  # Right
+                        'D') resultVarRef='l'; break ;;  # Left
+                        *)   resultVarRef='?'; break ;;  # Unknown/don't care
                     esac
                 done
                 ;;
@@ -558,7 +558,7 @@ _readPromptEscapeSequence() {
                     debugBuffer+="${c}"
                 done
                 debugBinary "Unknown keyboard ESC sequence: " "${debugBuffer}"
-                resultVar='?'
+                resultVarRef='?'
                 ;;
             esac
         return 0

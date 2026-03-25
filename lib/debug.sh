@@ -150,11 +150,11 @@ debugFile() {
 
 debugJson() {
     if (( _debug )); then
-        local -n json="$1"
+        local -n jsonRef="$1"
         local fileName="$2"
         local destFile="${_debugDir}/${fileName}.json"
         debug "created ${destFile}"
-        echo "${json}" | jq > "${destFile}"
+        echo "${jsonRef}" | jq > "${destFile}"
     fi
 }
 
@@ -230,8 +230,8 @@ debugFileDescriptors() {
             fd=$1
             description="fd ${fd} (pid ${BASHPID})"
         else
-            local -n fileDescriptor="$1"
-            fd=${fileDescriptor}
+            local -n fileDescriptorRef="$1"
+            fd=${fileDescriptorRef}
             description="fd ${fd} in $1 (pid ${BASHPID})"
         fi
 

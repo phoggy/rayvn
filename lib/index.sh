@@ -783,39 +783,39 @@ _renderDocMarkdown() {
 # Args: section sectionLinesRef outputRef
 _flushDocSection() {
     local section="$1"
-    local -n _fds_lines="$2"
-    local -n _fds_out="$3"
+    local -n _fdsLinesRef="$2"
+    local -n _fdsOutRef="$3"
     local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
     local sectionTitle="${section,,}"; sectionTitle="${sectionTitle^}"
 
-    _fds_out+=("" "*${sectionTitle}*" "")
+    _fdsOutRef+=("" "*${sectionTitle}*" "")
 
     case "${section}" in
         USAGE|EXAMPLE|NOTES)
             local fenceOpen='```bash'
             [[ "${section}" == 'NOTES' ]] && fenceOpen='```'
-            _fds_out+=("${fenceOpen}")
+            _fdsOutRef+=("${fenceOpen}")
             local l hasContent=0
             local -a pendingBlanks=()
-            for l in "${_fds_lines[@]}"; do
+            for l in "${_fdsLinesRef[@]}"; do
                 l="${l#  }"
                 if [[ -z "${l}" ]]; then
                     (( hasContent )) && pendingBlanks+=("")
                 else
                     if (( ${#pendingBlanks[@]} )); then
-                        _fds_out+=("${pendingBlanks[@]}")
+                        _fdsOutRef+=("${pendingBlanks[@]}")
                         pendingBlanks=()
                     fi
                     hasContent=1
-                    _fds_out+=("${l}")
+                    _fdsOutRef+=("${l}")
                 fi
             done
-            _fds_out+=('```')
+            _fdsOutRef+=('```')
             ;;
         ARGS|RETURNS)
-            _fds_out+=('| | |' '|---|---|')
+            _fdsOutRef+=('| | |' '|---|---|')
             local l
-            for l in "${_fds_lines[@]}"; do
+            for l in "${_fdsLinesRef[@]}"; do
                 [[ -z "${l}" ]] && continue
                 l="${l#  }"
                 [[ "${l}" == ' '* ]] && continue  # skip wrapped continuation lines
@@ -832,20 +832,20 @@ _flushDocSection() {
                     IFS=' ' read -r typeWord remaining <<< "${rest}"
                 fi
                 if [[ "${typeWord}" == 'flag' ]] && [[ -n "${remaining}" ]]; then
-                    _fds_out+=("| \`${argName}\` | ${remaining} |")
+                    _fdsOutRef+=("| \`${argName}\` | ${remaining} |")
                 elif [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
-                    _fds_out+=("| \`${argName}\` *(${typeWord})* | ${remaining} |")
+                    _fdsOutRef+=("| \`${argName}\` *(${typeWord})* | ${remaining} |")
                 else
-                    _fds_out+=("| \`${argName}\` | ${rest# } |")
+                    _fdsOutRef+=("| \`${argName}\` | ${rest# } |")
                 fi
             done
-            _fds_out+=('{: .args-table}')
+            _fdsOutRef+=('{: .args-table}')
             ;;
         *)
             local l
-            for l in "${_fds_lines[@]}"; do
+            for l in "${_fdsLinesRef[@]}"; do
                 [[ -z "${l}" ]] && continue
-                _fds_out+=("${ _wrapCodeInBackticks "${l#  }"; }")
+                _fdsOutRef+=("${ _wrapCodeInBackticks "${l#  }"; }")
             done
             ;;
     esac
@@ -1209,7 +1209,7 @@ _writeCliCommandSection() {
 
 # Parse command names from rayvn --help into the named array.
 _parseCliCommands() {
-    local -n _pcc_result=$1
+    local -n _pccResultRef=$1
     local helpText; helpText=${ rayvn --help 2>&1; }
     helpText=${ stripAnsi "${helpText}"; }
 
@@ -1218,7 +1218,7 @@ _parseCliCommands() {
         [[ "${line}" =~ ^Commands ]] && { inCommands=1; continue; }
         [[ "${line}" =~ ^Options ]] && inCommands=0
         if (( inCommands )) && [[ "${line}" =~ ^[[:space:]]+([a-z][a-z-]*) ]]; then
-            _pcc_result+=("${BASH_REMATCH[1]}")
+            _pccResultRef+=("${BASH_REMATCH[1]}")
         fi
     done <<< "${helpText}"
 }
@@ -1707,14 +1707,14 @@ _findNpmExtractPackages() {
 # Args: packageJsonFile projectName existingDepsVar newDepsVar
 _findNpmWritePackageJson() {
     local packageJsonFile="$1" projectName="$2"
-    local -n _fNpwExisting="$3"
-    local -n _fNpwNew="$4"
+    local -n _fNpwExistingRef="$3"
+    local -n _fNpwNewRef="$4"
 
     # Merge deps
     local -A allDeps=()
     local k
-    for k in "${!_fNpwExisting[@]}"; do allDeps["${k}"]="${_fNpwExisting[${k}]}"; done
-    for k in "${!_fNpwNew[@]}"; do allDeps["${k}"]="${_fNpwNew[${k}]}"; done
+    for k in "${!_fNpwExistingRef[@]}"; do allDeps["${k}"]="${_fNpwExistingRef[${k}]}"; done
+    for k in "${!_fNpwNewRef[@]}"; do allDeps["${k}"]="${_fNpwNewRef[${k}]}"; done
 
     # Sort keys
     local -a sortedKeys=()

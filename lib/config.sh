@@ -51,11 +51,11 @@ _init_rayvn_config() {
 _extractSafeStaticVarsOnly() {
     local input="$1"
     local buffer=""
-    declare -i in_function=0
-    declare -i brace_depth=0
-    declare -i in_multiline_var=0
-    declare -i skip_multiline=0
-    declare -i in_multiline_string=0
+    declare -i inFunction=0
+    declare -i braceDepth=0
+    declare -i inMultilineVar=0
+    declare -i skipMultiline=0
+    declare -i inMultilineString=0
 
     printf "\n%s\n\n" "# ---- begin safe static variables"
 
@@ -65,44 +65,44 @@ _extractSafeStaticVarsOnly() {
         [[ "${line}" =~ ^[[:space:]]*# ]] && continue
 
         # Remove inline comments
-        local clean_line="${line%%#*}"
-        clean_line="${clean_line%"${clean_line##*[![:space:]]}"}"
+        local cleanLine="${line%%#*}"
+        cleanLine="${cleanLine%"${cleanLine##*[![:space:]]}"}"
 
         # Skip if line becomes empty after comment removal
-        [[ -z "${clean_line}" ]] && continue
+        [[ -z "${cleanLine}" ]] && continue
 
         # Count braces for tracking depth
-        local temp="${clean_line//[^\{]}"
-        local open_braces=${#temp}
-        temp="${clean_line//[^\}]}"
-        local close_braces=${#temp}
-        (( brace_depth += open_braces - close_braces ))
+        local temp="${cleanLine//[^\{]}"
+        local openBraces=${#temp}
+        temp="${cleanLine//[^\}]}"
+        local closeBraces=${#temp}
+        (( braceDepth += openBraces - closeBraces ))
 
         # Detect function definitions
-        if [[ "${clean_line}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\([[:space:]]*\)[[:space:]]*\{ ]] ||
-           [[ "${clean_line}" =~ ^[[:space:]]*function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(\([[:space:]]*\))?[[:space:]]*\{ ]]; then # lint-ok
-            in_function=1
+        if [[ "${cleanLine}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\([[:space:]]*\)[[:space:]]*\{ ]] ||
+           [[ "${cleanLine}" =~ ^[[:space:]]*function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(\([[:space:]]*\))?[[:space:]]*\{ ]]; then # lint-ok
+            inFunction=1
             continue
         fi
 
         # Check if we're exiting a function
-        if (( in_function )); then
-            if (( brace_depth <= 0 )); then
-                in_function=0
-                brace_depth=0
+        if (( inFunction )); then
+            if (( braceDepth <= 0 )); then
+                inFunction=0
+                braceDepth=0
             fi
             continue
         fi
 
         # Skip function calls (simple heuristic)
-        if [[ "${clean_line}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*$ ]]; then
+        if [[ "${cleanLine}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*$ ]]; then
             continue
         fi
 
         # Skip if we're inside a block that's not a variable declaration
-        if (( brace_depth > 0 )); then
-            if [[ "${clean_line}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*= ]] ||
-               [[ "${clean_line}" =~ ^[[:space:]]*declare[[:space:]] ]]; then
+        if (( braceDepth > 0 )); then
+            if [[ "${cleanLine}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*= ]] ||
+               [[ "${cleanLine}" =~ ^[[:space:]]*declare[[:space:]] ]]; then
                 # Variable inside a block, process it
                 :
             else
@@ -111,102 +111,102 @@ _extractSafeStaticVarsOnly() {
         fi
 
         # Handle multiline variable continuation
-        if (( in_multiline_var )); then
-            if (( skip_multiline )); then
-                if [[ "${clean_line}" == *\)* ]]; then
-                    in_multiline_var=0
-                    skip_multiline=0
+        if (( inMultilineVar )); then
+            if (( skipMultiline )); then
+                if [[ "${cleanLine}" == *\)* ]]; then
+                    inMultilineVar=0
+                    skipMultiline=0
                     buffer=""
                 fi
                 continue
             fi
 
-            buffer+=$'\n'"${clean_line}"
+            buffer+=$'\n'"${cleanLine}"
 
             # Check for unsafe content
-            if [[ "${clean_line}" == *'$('* ]] || [[ "${clean_line}" == *'`'* ]]; then
-                skip_multiline=1
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+                skipMultiline=1
                 buffer=""
                 continue
             fi
 
             # Check if this ends the multiline variable
-            if [[ "${clean_line}" == *\)* ]]; then
+            if [[ "${cleanLine}" == *\)* ]]; then
                 echo "${buffer}"
-                in_multiline_var=0
+                inMultilineVar=0
                 buffer=""
             fi
             continue
         fi
 
         # Handle multiline string continuation
-        if (( in_multiline_string )); then
-            buffer+=$'\n'"${clean_line}"
+        if (( inMultilineString )); then
+            buffer+=$'\n'"${cleanLine}"
 
             # Check for unsafe content
-            if [[ "${clean_line}" == *'$('* ]] || [[ "${clean_line}" == *'`'* ]]; then
-                in_multiline_string=0
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+                inMultilineString=0
                 buffer=""
                 continue
             fi
 
             # Check if string ends (unescaped quote)
-            if [[ "${clean_line}" == *\" ]] && [[ "${clean_line}" != *\\\" ]]; then
+            if [[ "${cleanLine}" == *\" ]] && [[ "${cleanLine}" != *\\\" ]]; then
                 echo "${buffer}"
-                in_multiline_string=0
+                inMultilineString=0
                 buffer=""
             fi
             continue
         fi
 
         # Check for start of multiline array
-        if [[ "${clean_line}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\( ]] ||
-           [[ "${clean_line}" =~ ^[[:space:]]*declare[[:space:]]+[^=]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\( ]]; then
+        if [[ "${cleanLine}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\( ]] ||
+           [[ "${cleanLine}" =~ ^[[:space:]]*declare[[:space:]]+[^=]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\( ]]; then
 
             # Count parentheses to check if it's complete on one line
-            local open_count="${clean_line//[^\(]}"
-            local close_count="${clean_line//[^\)]}"
+            local openCount="${cleanLine//[^\(]}"
+            local closeCount="${cleanLine//[^\)]}"
 
-            if [[ ${#open_count} -eq ${#close_count} ]]; then
+            if [[ ${#openCount} -eq ${#closeCount} ]]; then
                 # Single line array
-                if [[ "${clean_line}" == *'$('* ]] || [[ "${clean_line}" == *'`'* ]]; then
+                if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
                     continue
                 fi
-                echo "${clean_line}"
+                echo "${cleanLine}"
             else
                 # Multi-line array
-                buffer="${clean_line}"
-                if [[ "${clean_line}" == *'$('* ]] || [[ "${clean_line}" == *'`'* ]]; then
-                    skip_multiline=1
+                buffer="${cleanLine}"
+                if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
+                    skipMultiline=1
                 fi
-                in_multiline_var=1
+                inMultilineVar=1
             fi
             continue
         fi
 
         # Check for start of multiline string
-        if [[ "${clean_line}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\" ]] &&
-           ([[ "${clean_line}" != *\" ]] || [[ "${clean_line}" == *\\\" ]]); then
+        if [[ "${cleanLine}" =~ ^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=\" ]] &&
+           ([[ "${cleanLine}" != *\" ]] || [[ "${cleanLine}" == *\\\" ]]); then
 
-            buffer="${clean_line}"
-            if [[ "${clean_line}" == *'$('* ]] || [[ "${clean_line}" == *'`'* ]]; then
+            buffer="${cleanLine}"
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
                 buffer=""
                 continue
             fi
-            in_multiline_string=1
+            inMultilineString=1
             continue
         fi
 
         # Check for regular variable declarations
-        if [[ "${clean_line}" =~ ^[[:space:]]*(declare[[:space:]]+[^=]*[[:space:]]+)?[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*= ]] ||
-           [[ "${clean_line}" =~ ^[[:space:]]*declare[[:space:]]+[^=]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*$ ]]; then
+        if [[ "${cleanLine}" =~ ^[[:space:]]*(declare[[:space:]]+[^=]*[[:space:]]+)?[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*= ]] ||
+           [[ "${cleanLine}" =~ ^[[:space:]]*declare[[:space:]]+[^=]*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*$ ]]; then
 
             # Check for command substitutions
-            if [[ "${clean_line}" == *'$('* ]] || [[ "${clean_line}" == *'`'* ]]; then
+            if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]]; then
                 continue
             fi
 
-            echo "${clean_line}"
+            echo "${cleanLine}"
         fi
 
     done < <(

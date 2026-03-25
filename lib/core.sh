@@ -704,10 +704,10 @@ maxArrayElementLength() {
 #   dest (mapRef)  Name of the destination map (must already be declared with -A).
 
 copyMap() {
-    local -n src="$1"
-    local -n dest="$2"
-    for key in "${!src[@]}"; do
-        dest[${key}]="${src[${key}]}"
+    local -n srcRef="$1"
+    local -n destRef="$2"
+    for key in "${!srcRef[@]}"; do
+        destRef[${key}]="${srcRef[${key}]}"
     done
 }
 
@@ -756,13 +756,13 @@ printNumber() {
 #   maxValue (int)  Optional inclusive upper bound; omits for full SRANDOM range.
 
 randomInteger() {
-    local -n _intResult="$1"
+    local -n _intResultRef="$1"
     local maxValue="${2:-}"
 
     if (( maxValue )); then
-        _intResult=$(( SRANDOM % (maxValue + 1) ))
+        _intResultRef=$(( SRANDOM % (maxValue + 1) ))
     else
-        _intResult="${SRANDOM}"
+        _intResultRef="${SRANDOM}"
     fi
 }
 
@@ -1137,8 +1137,8 @@ addExitHandler() {
 projectVersion() {
     local projectName="$1"
     local verbose="${2:-}"
-    local -n projectHome="${projectName//-/_}Home"
-    local pkgFile="${projectHome}/rayvn.pkg"
+    local -n projectHomeRef="${projectName//-/_}Home"
+    local pkgFile="${projectHomeRef}/rayvn.pkg"
     assertFileExists "${pkgFile}"
     (
         require 'rayvn/config'
@@ -1558,7 +1558,7 @@ _init_noColors() {
 }
 
 _setFileSystemVar() {
-    local -n resultVar="$1"
+    local -n resultVarRef="$1"
     local file="$2"
     local description="$3"
     local isDir="$4"
@@ -1571,7 +1571,7 @@ _setFileSystemVar() {
         [[ -f ${file} ]] || fail "${file} is not a file"
     fi
     local realFile="${ realpath "${file}" 2>/dev/null; }"
-    resultVar="${realFile}"
+    resultVarRef="${realFile}"
 }
 
 _ensureRayvnTempDir() {
