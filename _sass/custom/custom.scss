@@ -31,8 +31,18 @@ td:first-child, th:first-child {
   white-space: nowrap;
 }
 
-// Hide header row on args/returns tables (header cells are empty placeholders)
-.args-table thead {
+// Hide header row on args/returns/usage tables (header cells are empty placeholders)
+.args-table thead, .usage-table thead {
+  display: none;
+}
+
+// Style the signature row in usage tables: full-width code cell, no second column
+.usage-table tbody tr:first-child td:first-child {
+  font-weight: bold;
+  padding-bottom: 0.4rem;
+  white-space: nowrap;
+}
+.usage-table tbody tr:first-child td:last-child {
   display: none;
 }
 

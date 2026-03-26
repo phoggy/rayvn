@@ -20,7 +20,7 @@ Audit function doc comment coverage for registered projects, reporting missing o
 
 *Usage*
 
-```bash
+```shell
 auditDocs [--release] [PROJECT]...
 
 --release           Exit 1 if any public functions are missing ◇ doc comments.
@@ -34,7 +34,7 @@ Generate or update doc comments for public functions using the Claude API; appli
 
 *Usage*
 
-```bash
+```shell
 updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
 
 --dry-run                   Print proposed docs without writing any changes.

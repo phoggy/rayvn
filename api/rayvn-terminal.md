@@ -34,7 +34,7 @@ Read the current cursor position.
 
 *Example*
 
-```bash
+```shell
 cursorPosition row col
 echo "Cursor is at row $row, col $col"
 ```

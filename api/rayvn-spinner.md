@@ -25,7 +25,7 @@ Populates an array with the names of all available spinner types.
 
 *Example*
 
-```bash
+```shell
 local types
 spinnerTypes types
 echo "Available: ${types[*]}"
@@ -48,7 +48,7 @@ Start a spinner at the current cursor position, storing its assigned ID via name
 
 *Example*
 
-```bash
+```shell
 local spinnerId
 startSpinner spinnerId "Loading" dots primary
 doWork
@@ -76,7 +76,7 @@ The -n flag suppresses the trailing newline, as in echo -n.
 
 *Example*
 
-```bash
+```shell
 stopSpinner spinnerId "Done"
 stopSpinner -n spinnerId
 ```

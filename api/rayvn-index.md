@@ -18,7 +18,7 @@ Generate verbose and optional compact function indexes for rayvn libraries.
 
 *Usage*
 
-```bash
+```shell
 runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]
 
 -o, --output FILE (string)    Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
@@ -35,7 +35,7 @@ Generate Jekyll pages for a single project's gh-pages site.
 
 *Usage*
 
-```bash
+```shell
 runPages PROJECT [--dir DIR] [--publish | --view]
 
 PROJECT (string)       The project to generate pages for (e.g. rayvn, valt, wardn).

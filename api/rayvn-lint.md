@@ -18,7 +18,7 @@ Scan one or more registered projects for bash requirement violations, optionally
 
 *Usage*
 
-```bash
+```shell
 runLint [--fix | --ask] [PROJECT...]
 
 --fix            Automatically apply all auto-fixable corrections.
