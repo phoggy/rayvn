@@ -7640,7 +7640,8 @@ td, th {
 }
 
 .highlight, .highlight .w {
-  color: #383838;
+  color: #d8d8d8;
+  background-color: #181818;
 }
 
 .highlight .err {
