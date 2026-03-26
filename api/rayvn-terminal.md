@@ -28,8 +28,8 @@ Read the current cursor position.
 
 | | |
 |---|---|
-| `rowVarRef` | (stringRef)  Receives the 1-based row number. |
-| `colVarRef` | (stringRef)  Receives the 1-based column number. |
+| `rowVarRef` *(stringRef)* | Receives the 1-based row number. |
+| `colVarRef` *(stringRef)* | Receives the 1-based column number. |
 {: .args-table}
 
 *Example*
@@ -65,8 +65,8 @@ Move the cursor up N rows and place it at a 1-based column.
 
 | | |
 |---|---|
-| `rows` | (int)  Number of rows to move up. |
-| `col` | (int)   1-based column to move to. |
+| `rows` *(int)* | Number of rows to move up. |
+| `col` *(int)* | 1-based column to move to. |
 {: .args-table}
 
 ### cursorDown()
@@ -86,8 +86,8 @@ Move the cursor down N rows then to a 1-based column position.
 
 | | |
 |---|---|
-| `rows` | (int)  Number of rows to move down. |
-| `col` | (int)   1-based column to place the cursor at. |
+| `rows` *(int)* | Number of rows to move down. |
+| `col` *(int)* | 1-based column to place the cursor at. |
 {: .args-table}
 
 ### cursorTo()
@@ -99,8 +99,8 @@ Move the cursor to an absolute terminal position, writing to /dev/tty.
 
 | | |
 |---|---|
-| `row` | (int)  1-based row to move to. |
-| `col` | (int)  1-based column to move to (default: 0). |
+| `row` *(int)* | 1-based row to move to. |
+| `col` *(int)* | 1-based column to move to (default: 0). |
 {: .args-table}
 
 ### cursorToColumn()
@@ -145,6 +145,6 @@ adjusting the cursor position to account for any scrolling that occurred.
 
 | | |
 |---|---|
-| `requiredRows` | (int)  Rows needed below the cursor (default: 2). |
+| `requiredRows` *(int)* | Rows needed below the cursor (default: 2). |
 {: .args-table}
 

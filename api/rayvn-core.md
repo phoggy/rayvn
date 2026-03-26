@@ -28,8 +28,8 @@ Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 | `-n` | No trailing newline. |
 | `-e` | Enable backslash escape interpretation. |
 | `-E` | Suppress backslash escape interpretation. |
-| `[FORMAT]` | (string)  A format token (see NOTES); applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)    A string to print with accumulated formats applied, then reset. |
+| `[FORMAT]` *(string)* | A format token (see NOTES); applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | A string to print with accumulated formats applied, then reset. |
 {: .usage-table}
 
 *Notes*
@@ -84,11 +84,11 @@ Print a styled section header with optional subtitle lines.
 | | |
 |---|---|
 | `-u` | Convert title to uppercase. |
-| `colorIndex` | (int)     Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted). |
-| `title` | (string)       Title text printed in bold. |
-| `[subtitle]` | (string)  First subtitle arg, printed in the header color. |
-| `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)      Text to print with the preceding format applied. |
+| `colorIndex` *(int)* | Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted). |
+| `title` *(string)* | Title text printed in bold. |
+| `[subtitle]` *(string)* | First subtitle arg, printed in the header color. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### warn()
@@ -103,9 +103,9 @@ Print a warning message to stderr with a ⚠️ prefix.
 
 | | |
 |---|---|
-| `message` | (string)   Warning message text. |
-| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+| `message` *(string)* | Warning message text. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### error()
@@ -120,9 +120,9 @@ Print an error message to stderr with a 🔺 prefix.
 
 | | |
 |---|---|
-| `message` | (string)   Error message text. |
-| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+| `message` *(string)* | Error message text. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### invalidArgs()
@@ -137,9 +137,9 @@ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 
 | | |
 |---|---|
-| `message` | (string)   Error message text. |
-| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+| `message` *(string)* | Error message text. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### fail()
@@ -155,9 +155,9 @@ Print an error and exit 1, optionally with a stack trace.
 | | |
 |---|---|
 | `--trace` | Force a stack trace regardless of debug mode. |
-| `message` | (string)   Error message text. |
-| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+| `message` *(string)* | Error message text. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### bye()
@@ -172,9 +172,9 @@ Print an optional exit message, show stack if in debug mode, and exit 0.
 
 | | |
 |---|---|
-| `[message]` | (string)   Exit message text. |
-| `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)      Text to print with the preceding format applied. |
+| `[message]` *(string)* | Exit message text. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### stackTrace()
@@ -189,9 +189,9 @@ Print a formatted call stack, optionally preceded by a message.
 
 | | |
 |---|---|
-| `[message]` | (string)   Message text. |
-| `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` | (string)      Text to print with the preceding format applied. |
+| `[message]` *(string)* | Message text. |
+| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
 ### errorStream()
@@ -216,10 +216,10 @@ Check if an argument matches an expected value, setting a result var via nameref
 
 | | |
 |---|---|
-| `argMatch` | (string)         Expected argument value to match against (e.g. -n). |
-| `argValue` | (string)         Actual argument value to test. |
-| `argResultRef` | (stringRef)  Name of var to set to argResultValue on match, or '' if not. |
-| `argResultValue` | (string)   Value to assign on match; defaults to ${argMatch}. |
+| `argMatch` *(string)* | Expected argument value to match against (e.g. -n). |
+| `argValue` *(string)* | Actual argument value to test. |
+| `argResultRef` *(stringRef)* | Name of var to set to argResultValue on match, or '' if not. |
+| `argResultValue` *(string)* | Value to assign on match; defaults to ${argMatch}. |
 {: .args-table}
 
 *Returns*
@@ -247,7 +247,7 @@ Overwrite one or more security sensitive variables with spaces then unset.
 
 | | |
 |---|---|
-| `varName` | (stringRef)  Name of a variable to erase; may be repeated, silently ignored if unset. |
+| `varName` *(stringRef)* | Name of a variable to erase; may be repeated, silently ignored if unset. |
 {: .args-table}
 
 ### exportGlobalMaps()
@@ -264,7 +264,7 @@ which inherit variables automatically. Call from a library _init function.
 
 | | |
 |---|---|
-| `varName` | (stringRef)  Name of an associative array to register; may be repeated. |
+| `varName` *(stringRef)* | Name of an associative array to register; may be repeated. |
 {: .args-table}
 
 *Example*
@@ -295,8 +295,8 @@ Fail if the given path does not exist or is not a regular file.
 
 | | |
 |---|---|
-| `file` | (string)         Path that must exist and be a regular file. |
-| `description` | (string)  Label used in the error message (default: "file"). |
+| `file` *(string)* | Path that must exist and be a regular file. |
+| `description` *(string)* | Label used in the error message (default: "file"). |
 {: .args-table}
 
 ### assertDirectory()
@@ -316,8 +316,8 @@ Fails if filePath is not located within dirPath, resolving symlinks before check
 
 | | |
 |---|---|
-| `filePath` | (string)    Path to verify. |
-| `dirPath` | (string)     Directory that must contain filePath. |
+| `filePath` *(string)* | Path to verify. |
+| `dirPath` *(string)* | Directory that must contain filePath. |
 {: .args-table}
 
 ### assertValidFileName()
@@ -329,7 +329,7 @@ Fail if name is not a valid cross-platform filename component.
 
 | | |
 |---|---|
-| `name` | (string)  Filename component to validate (not a full path). |
+| `name` *(string)* | Filename component to validate (not a full path). |
 {: .args-table}
 
 *Notes*
@@ -347,7 +347,7 @@ Fail if the given directory (or PWD) is not within a git repository.
 
 | | |
 |---|---|
-| `dir` | (string)  Directory to check (default: ${PWD}). |
+| `dir` *(string)* | Directory to check (default: ${PWD}). |
 {: .args-table}
 
 ### assertCommand()
@@ -366,7 +366,7 @@ Run a command and fail if it exits non-zero, or if it produces stderr with --std
 | `--quiet` | Suppress stderr content from the failure message. |
 | `--stderr` | Also fail if the command produces any stderr output. |
 | `--error` | MSG (string)   Custom failure message (default: stderr output or generic exit code message). |
-| `...` | (string)           The command and arguments to execute. |
+| `...` *(string)* | The command and arguments to execute. |
 {: .usage-table}
 
 *Example*
@@ -402,8 +402,8 @@ Outputs a string repeated N times, without a trailing newline.
 
 | | |
 |---|---|
-| `str` | (string)  String to repeat. |
-| `count` | (int)   Number of repetitions. |
+| `str` *(string)* | String to repeat. |
+| `count` *(int)* | Number of repetitions. |
 {: .args-table}
 
 ### padString()
@@ -415,9 +415,9 @@ Outputs a string padded to a given width, measuring visible length by stripping 
 
 | | |
 |---|---|
-| `string` | (string)    Target string. |
-| `width` | (int)        Minimum visible character width. |
-| `position` | (string)  Padding side: 'after'/'left' (default), 'before'/'right', or 'center'. |
+| `string` *(string)* | Target string. |
+| `width` *(int)* | Minimum visible character width. |
+| `position` *(string)* | Padding side: 'after'/'left' (default), 'before'/'right', or 'center'. |
 {: .args-table}
 
 ### stripAnsi()
@@ -437,9 +437,9 @@ Find the index of a matching element in an array, storing the result in resultRe
 
 | | |
 |---|---|
-| `match` | (string)         Match value; prefix with -p for prefix match, -s for suffix match, -r for regex. |
-| `arrayRef` | (arrayRef)    Name of the indexed array to search. |
-| `resultRef` | (stringRef)  Name of the variable to store the found index. |
+| `match` *(string)* | Match value; prefix with -p for prefix match, -s for suffix match, -r for regex. |
+| `arrayRef` *(arrayRef)* | Name of the indexed array to search. |
+| `resultRef` *(stringRef)* | Name of the variable to store the found index. |
 {: .args-table}
 
 *Returns*
@@ -459,8 +459,8 @@ Return 0 if item is a member of an array, 1 otherwise.
 
 | | |
 |---|---|
-| `item` | (string)        Value to search for. |
-| `arrayRef` | (arrayRef)  Name of the indexed array to search. |
+| `item` *(string)* | Value to search for. |
+| `arrayRef` *(arrayRef)* | Name of the indexed array to search. |
 {: .args-table}
 
 ### maxArrayElementLength()
@@ -472,7 +472,7 @@ Outputs the length of the longest element in an array.
 
 | | |
 |---|---|
-| `arrayRef` | (arrayRef)  Name of the indexed array to measure. |
+| `arrayRef` *(arrayRef)* | Name of the indexed array to measure. |
 {: .args-table}
 
 ### copyMap()
@@ -499,8 +499,8 @@ Outputs the number of decimal digits needed to represent integers up to maxValue
 
 | | |
 |---|---|
-| `maxValue` | (int)  Largest value to represent; must be a positive integer. |
-| `startValue` | (int)  Index base: 0 (zero-indexed, default) or 1 (one-indexed). |
+| `maxValue` *(int)* | Largest value to represent; must be a positive integer. |
+| `startValue` *(int)* | Index base: 0 (zero-indexed, default) or 1 (one-indexed). |
 {: .args-table}
 
 ### printNumber()
@@ -512,8 +512,8 @@ Outputs a number right-aligned within a fixed-width field.
 
 | | |
 |---|---|
-| `number` | (int)  Number to output. |
-| `places` | (int)  Minimum field width; defaults to 1. |
+| `number` *(int)* | Number to output. |
+| `places` *(int)* | Minimum field width; defaults to 1. |
 {: .args-table}
 
 ### randomInteger()
@@ -525,8 +525,8 @@ Set a variable to a random integer, optionally capped at maxValue (inclusive).
 
 | | |
 |---|---|
-| `intResult` | (stringRef)  Variable to receive the result. |
-| `maxValue` | (int)  Optional inclusive upper bound; omits for full SRANDOM range. |
+| `intResult` *(stringRef)* | Variable to receive the result. |
+| `maxValue` *(int)* | Optional inclusive upper bound; omits for full SRANDOM range. |
 {: .args-table}
 
 ### randomHexChar()
@@ -538,7 +538,7 @@ Set a random hex character (0–9, a–f) via nameref.
 
 | | |
 |---|---|
-| `_hexResultRef` | (stringRef)  Name of the variable to receive the result. |
+| `_hexResultRef` *(stringRef)* | Name of the variable to receive the result. |
 {: .args-table}
 
 ### randomHexString()
@@ -550,8 +550,8 @@ Generate a random hex string of count characters, stored via name-ref.
 
 | | |
 |---|---|
-| `count` | (int)  Number of hex characters to generate. |
-| `_resultRef` | (stringRef)  Name of the variable to receive the result. |
+| `count` *(int)* | Number of hex characters to generate. |
+| `_resultRef` *(stringRef)* | Name of the variable to receive the result. |
 {: .args-table}
 
 ### replaceRandomHex()
@@ -563,8 +563,8 @@ Replace every occurrence of a placeholder character in a string with random hex 
 
 | | |
 |---|---|
-| `replaceChar` | (string)    The placeholder character to replace. |
-| `replaceRef` | (stringRef)  Name of the variable to modify in-place. |
+| `replaceChar` *(string)* | The placeholder character to replace. |
+| `replaceRef` *(stringRef)* | Name of the variable to modify in-place. |
 {: .args-table}
 
 *Example*
@@ -593,7 +593,7 @@ Outputs elapsed seconds since a previously captured EPOCHREALTIME value (6 decim
 
 | | |
 |---|---|
-| `startTime` | (string)  Value previously captured from EPOCHREALTIME. |
+| `startTime` *(string)* | Value previously captured from EPOCHREALTIME. |
 {: .args-table}
 
 ## File System Functions
@@ -611,8 +611,8 @@ Execute a command with a temporary umask, restoring the original afterward.
 
 | | |
 |---|---|
-| `newUmask` | (string)  Umask to set for the duration (e.g. 0022, 0077). |
-| `command` | (string)   Command and arguments to execute. |
+| `newUmask` *(string)* | Umask to set for the duration (e.g. 0022, 0077). |
+| `command` *(string)* | Command and arguments to execute. |
 {: .args-table}
 
 ### binaryPath()
@@ -624,8 +624,8 @@ Outputs the path to a binary, or fails with an optional custom error message if 
 
 | | |
 |---|---|
-| `name` | (string)    Name of the binary to locate in PATH. |
-| `errMsg` | (string)  Error message if not found; defaults to "'${name}' not found". |
+| `name` *(string)* | Name of the binary to locate in PATH. |
+| `errMsg` *(string)* | Error message if not found; defaults to "'${name}' not found". |
 {: .args-table}
 
 ### tempDirPath()
@@ -641,7 +641,7 @@ Outputs the session temp directory path, optionally appended with a file name. D
 | | |
 |---|---|
 | `-r` | Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if |
-| `fileName` | (string)    Optional file name to append to the temp dir path. |
+| `fileName` *(string)* | Optional file name to append to the temp dir path. |
 {: .usage-table}
 
 ### makeTempFile()
@@ -653,7 +653,7 @@ Creates a unique temp file in the session temp dir, outputting its path.
 
 | | |
 |---|---|
-| `fileName` | (string)  Optional; see tempDirPath -r. |
+| `fileName` *(string)* | Optional; see tempDirPath -r. |
 {: .args-table}
 
 ### makeTempFifo()
@@ -665,7 +665,7 @@ Creates a unique named pipe (FIFO) in the session temp dir, outputting its path.
 
 | | |
 |---|---|
-| `fileName` | (string)  Optional; see tempDirPath -r. |
+| `fileName` *(string)* | Optional; see tempDirPath -r. |
 {: .args-table}
 
 ### makeTempDir()
@@ -677,7 +677,7 @@ Create a unique temp directory in the session temp directory, outputting its pat
 
 | | |
 |---|---|
-| `dirName` | (string)  Optional; see tempDirPath -r. |
+| `dirName` *(string)* | Optional; see tempDirPath -r. |
 {: .args-table}
 
 ### configDirPath()
@@ -690,7 +690,7 @@ optionally joined with fileName.
 
 | | |
 |---|---|
-| `fileName` | (string)    Optional name of a file to append to the config dir path. |
+| `fileName` *(string)* | Optional name of a file to append to the config dir path. |
 {: .args-table}
 
 ### ensureDir()
@@ -706,8 +706,8 @@ Create a directory (and any missing parents), outputting the final path.
 
 | | |
 |---|---|
-| `dir` | (string)     Base directory path. |
-| `subDir` | (string)  Optional subdirectory to append before creating. |
+| `dir` *(string)* | Base directory path. |
+| `subDir` *(string)* | Optional subdirectory to append before creating. |
 {: .args-table}
 
 ### dirName()
@@ -732,8 +732,8 @@ Trailing newlines are stripped, matching command substitution behavior.
 | | |
 |---|---|
 | `-p` | Preserve trailing newlines instead of stripping them. |
-| `file` | (string)          Path to the file to read. |
-| `resultVar` | (stringRef)  Name of variable to receive the file contents. |
+| `file` *(string)* | Path to the file to read. |
+| `resultVar` *(stringRef)* | Name of variable to receive the file contents. |
 {: .usage-table}
 
 ### setFileVar()
@@ -745,9 +745,9 @@ Set a nameref variable to the realpath of a file, failing if the path is not a r
 
 | | |
 |---|---|
-| `resultVar` | (stringRef)  Name of variable to receive the resolved file path. |
-| `filePath` | (string)      Path to the file (must exist and be a regular file). |
-| `description` | (string)   Label used in error messages. |
+| `resultVar` *(stringRef)* | Name of variable to receive the resolved file path. |
+| `filePath` *(string)* | Path to the file (must exist and be a regular file). |
+| `description` *(string)* | Label used in error messages. |
 {: .args-table}
 
 ### setDirVar()
@@ -759,9 +759,9 @@ Set a nameref variable to the realpath of a directory, failing if the path is no
 
 | | |
 |---|---|
-| `resultVar` | (stringRef)  Name of variable to receive the resolved directory path. |
-| `dirPath` | (string)       Path to the directory (must exist and be a directory). |
-| `description` | (string)   Label used in error messages. |
+| `resultVar` *(stringRef)* | Name of variable to receive the resolved directory path. |
+| `dirPath` *(string)* | Path to the directory (must exist and be a directory). |
+| `description` *(string)* | Label used in error messages. |
 {: .args-table}
 
 ## Process & Environment Functions
@@ -776,7 +776,7 @@ Use popIFS to restore the previous value.
 
 | | |
 |---|---|
-| `newIFS` | (string)  The new IFS value. |
+| `newIFS` *(string)* | The new IFS value. |
 {: .args-table}
 
 *Example*
@@ -812,8 +812,8 @@ Outputs the version string for a rayvn project, reading its rayvn.pkg file.
 
 | | |
 |---|---|
-| `projectName` | (string)  Name of the project (e.g. 'rayvn', 'valt'). |
-| `verbose` | (string)      If non-empty, appends release date or "(development)" to output. |
+| `projectName` *(string)* | Name of the project (e.g. 'rayvn', 'valt'). |
+| `verbose` *(string)* | If non-empty, appends release date or "(development)" to output. |
 {: .args-table}
 
 ### openUrl()
@@ -825,7 +825,7 @@ Open a URL in the default browser (macOS: open, Linux: xdg-open).
 
 | | |
 |---|---|
-| `url` | (string)  The URL to open. |
+| `url` *(string)* | The URL to open. |
 {: .args-table}
 
 ### executeClean()

@@ -20,7 +20,7 @@ Populates an array with the names of all available spinner types.
 
 | | |
 |---|---|
-| `resultArray` | (arrayRef)  Array to populate with spinner type names. |
+| `resultArray` *(arrayRef)* | Array to populate with spinner type names. |
 {: .args-table}
 
 *Example*
@@ -40,10 +40,10 @@ Start a spinner at the current cursor position, storing its assigned ID via name
 
 | | |
 |---|---|
-| `idVarName` | (stringRef)  Name of var holding the spinner ID (from startSpinner). |
-| `label` | (string)         Optional text displayed before the spinner. |
-| `type` | (string)          Spinner type (default: 'star'). |
-| `color` | (string)         Color name (default: 'secondary'). |
+| `idVarName` *(stringRef)* | Name of var holding the spinner ID (from startSpinner). |
+| `label` *(string)* | Optional text displayed before the spinner. |
+| `type` *(string)* | Spinner type (default: 'star'). |
+| `color` *(string)* | Color name (default: 'secondary'). |
 {: .args-table}
 
 *Example*
@@ -64,8 +64,8 @@ Stop a spinner, optionally replacing it with the given text.
 
 | | |
 |---|---|
-| `idVarName` | (stringRef)  Name of var holding the spinner ID (from startSpinner). |
-| `replacement` | (string)   Text to display in place of the spinner (default: space). |
+| `idVarName` *(stringRef)* | Name of var holding the spinner ID (from startSpinner). |
+| `replacement` *(string)* | Text to display in place of the spinner (default: space). |
 {: .args-table}
 
 *Notes*
@@ -90,11 +90,11 @@ Add a spinner at a specific terminal position, storing its assigned id via namer
 
 | | |
 |---|---|
-| `idRef` | (stringRef)  Name of var to receive the spinner id. |
-| `type` | (string)      Spinner type. |
-| `row` | (int)          Terminal row (1-based). |
-| `col` | (int)          Terminal column (1-based). |
-| `color` | (string)     Color name for the spinner (default: 'secondary'). |
+| `idRef` *(stringRef)* | Name of var to receive the spinner id. |
+| `type` *(string)* | Spinner type. |
+| `row` *(int)* | Terminal row (1-based). |
+| `col` *(int)* | Terminal column (1-based). |
+| `color` *(string)* | Color name for the spinner (default: 'secondary'). |
 {: .args-table}
 
 ### removeSpinner()
@@ -106,10 +106,10 @@ Remove a spinner by id; prefer stopSpinner for typical use.
 
 | | |
 |---|---|
-| `idVarName` | (stringRef)  Name of var holding the spinner id (from addSpinner). |
-| `replacement` | (string)   Text to display in place of the spinner (default: space). |
-| `newline` | (bool)         Emit a newline after replacement (default: true). |
-| `backup` | (int)           Characters to back up before writing replacement (default: 0). |
+| `idVarName` *(stringRef)* | Name of var holding the spinner id (from addSpinner). |
+| `replacement` *(string)* | Text to display in place of the spinner (default: space). |
+| `newline` *(bool)* | Emit a newline after replacement (default: true). |
+| `backup` *(int)* | Characters to back up before writing replacement (default: 0). |
 {: .args-table}
 
 ### spinnerCloseInheritedFds()

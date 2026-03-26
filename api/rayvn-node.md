@@ -20,8 +20,8 @@ Ensure node_modules are installed for a project, setting `${projectName}`NodeHom
 
 | | |
 |---|---|
-| `projectName` | (string)  Name of the project (default: currentProjectName). |
-| `envVar` | (string)       If set and non-empty in the environment, use its value as nodeHome directly. |
+| `projectName` *(string)* | Name of the project (default: currentProjectName). |
+| `envVar` *(string)* | If set and non-empty in the environment, use its value as nodeHome directly. |
 {: .args-table}
 
 *Example*
@@ -41,9 +41,9 @@ node_modules. If script ends in .js, projectName defaults to $currentProjectName
 
 | | |
 |---|---|
-| `projectName` | (string)  Name of the project (default: currentProjectName). |
-| `script` | (string)       Script filename relative to projectHome/node/. |
-| `...` | (string)          Additional arguments passed to the script. |
+| `projectName` *(string)* | Name of the project (default: currentProjectName). |
+| `script` *(string)* | Script filename relative to projectHome/node/. |
+| `...` *(string)* | Additional arguments passed to the script. |
 {: .args-table}
 
 *Example*

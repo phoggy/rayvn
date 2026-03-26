@@ -21,11 +21,11 @@ Credentials resolve in order: caller args → env vars → keychain → interact
 
 | | |
 |---|---|
-| `providerName` | (string)  Name of the OAuth provider (e.g. 'google'). |
+| `providerName` *(string)* | Name of the OAuth provider (e.g. 'google'). |
 | `resultMapRef` | (mapRef)  Associative array to populate with service config. |
-| `serviceScope` | (string)  OAuth scope string. |
-| `clientId` | (string)      Optional client ID; if empty, resolved automatically. |
-| `clientSecret` | (string)  Optional client secret; if empty, resolved automatically. |
+| `serviceScope` *(string)* | OAuth scope string. |
+| `clientId` *(string)* | Optional client ID; if empty, resolved automatically. |
+| `clientSecret` *(string)* | Optional client secret; if empty, resolved automatically. |
 {: .args-table}
 
 ### setupOAuthService()

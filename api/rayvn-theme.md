@@ -28,6 +28,6 @@ Interactively prompt the user to select and apply a new theme.
 
 | | |
 |---|---|
-| `maxVisible` | (int)  Max themes to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0). |
+| `maxVisible` *(int)* | Max themes to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0). |
 {: .args-table}
 

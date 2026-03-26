@@ -26,7 +26,7 @@ Audit function doc comment coverage for registered projects, reporting missing o
 | | |
 |---|---|
 | `--release` | Exit 1 if any public functions are missing ◇ doc comments. |
-| `PROJECT` | (string)    One or more project names to audit (default: all loaded projects). |
+| `PROJECT` *(string)* | One or more project names to audit (default: all loaded projects). |
 {: .usage-table}
 
 ### updateDocs()
@@ -48,6 +48,6 @@ Generate or update doc comments for public functions using the Claude API; appli
 | `--lib` | NAME (string)         Limit to a single library by name. |
 | `--since` | DURATION (string)   Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set. |
 | `--delay` | SECS (int)          Seconds to sleep between API calls to avoid rate limits (default: 5). |
-| `PROJECT` | (string)            One or more project names (default: all loaded projects). |
+| `PROJECT` *(string)* | One or more project names (default: all loaded projects). |
 {: .usage-table}
 

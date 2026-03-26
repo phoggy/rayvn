@@ -20,8 +20,8 @@ Source only safe, static variable declarations from a config file or string into
 
 | | |
 |---|---|
-| `input` | (string)         Path to a config file or a raw bash string to parse. |
-| `prefixFilter` | (string)  Optional variable name prefix to restrict which vars are sourced. |
+| `input` *(string)* | Path to a config file or a raw bash string to parse. |
+| `prefixFilter` *(string)* | Optional variable name prefix to restrict which vars are sourced. |
 {: .args-table}
 
 ### extractSafeStaticVars()
@@ -34,7 +34,7 @@ Filters out function definitions, function calls, command substitutions, and com
 
 | | |
 |---|---|
-| `input` | (string)         String or file path containing bash variable declarations to parse. |
-| `prefixFilter` | (string)  Only include variables matching this prefix (optional). |
+| `input` *(string)* | String or file path containing bash variable declarations to parse. |
+| `prefixFilter` *(string)* | Only include variables matching this prefix (optional). |
 {: .args-table}
 

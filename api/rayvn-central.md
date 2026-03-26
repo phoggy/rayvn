@@ -20,7 +20,7 @@ Register a rayvn project on rayvn-central by creating a GitHub issue in the regi
 
 | | |
 |---|---|
-| `projectName` | (string)  Name to register; fails if already taken in the central registry. |
+| `projectName` *(string)* | Name to register; fails if already taken in the central registry. |
 {: .args-table}
 
 *Side effects*

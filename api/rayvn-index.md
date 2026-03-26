@@ -42,7 +42,7 @@ Generate Jekyll pages for a single project's gh-pages site.
 
 | | |
 |---|---|
-| `PROJECT` | (string)       The project to generate pages for (e.g. rayvn, valt, wardn). |
+| `PROJECT` *(string)* | The project to generate pages for (e.g. rayvn, valt, wardn). |
 | `--dir` | DIR (string)     Output directory (default: project's configured worktree). |
 | `--publish` | Commit and push changes to gh-pages after generating. |
 | `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with --publish). |
@@ -59,6 +59,6 @@ and adds any missing entries to flake.nix. Also delegates npm dependency updates
 
 | | |
 |---|---|
-| `projectName` | (string)  Name of the rayvn project to scan (e.g. 'valt', 'rayvn'). |
+| `projectName` *(string)* | Name of the rayvn project to scan (e.g. 'valt', 'rayvn'). |
 {: .args-table}
 

@@ -21,7 +21,7 @@ any are missing. Silently skips if the project root or flake.nix is not accessib
 
 | | |
 |---|---|
-| `projectName` | (string)  Name of the rayvn project to check. |
+| `projectName` *(string)* | Name of the rayvn project to check. |
 {: .args-table}
 
 *Env vars (from rayvn.pkg)*
@@ -40,7 +40,7 @@ mappings and exclusions from rayvn.pkg.
 
 | | |
 |---|---|
-| `projectName` | (string)  Name of the rayvn project (e.g. "valt", "wardn"). |
-| `projectRoot` | (string)  Root path of the project; defaults to ${projectName}Home or PWD. |
+| `projectName` *(string)* | Name of the rayvn project (e.g. "valt", "wardn"). |
+| `projectRoot` *(string)* | Root path of the project; defaults to ${projectName}Home or PWD. |
 {: .args-table}
 
