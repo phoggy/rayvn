@@ -106,6 +106,8 @@ runPages() {
         fi
     fi
 
+    _ensurePagesFiles "${projectName}" "${projectRoot}" "${dir}"
+
     local libFiles=()
     _collectLibFiles libFiles
     (( ${#libFiles[@]} )) || fail "no library files found"
@@ -235,10 +237,13 @@ EOF
     fi
 
     local customScss="${worktreePath}/_sass/custom/custom.scss"
-    if [[ ! -f "${customScss}" ]]; then
+    local customSrc="${rayvnHome}/etc/pages-custom.scss"
+    local codeSrc="${rayvnHome}/etc/pages-code.scss"
+    if [[ ! -f "${customScss}" || "${customSrc}" -nt "${customScss}" || "${codeSrc}" -nt "${customScss}" ]]; then
+        local customAction=${ [[ -f "${customScss}" ]] && echo 'Updated' || echo 'Created'; }
         ensureDir "${worktreePath}/_sass/custom"
-        cp "${rayvnHome}/etc/pages-custom.scss" "${customScss}" || fail "could not copy pages-custom.scss"
-        show "Created _sass/custom/custom.scss"
+        cat "${customSrc}" "${codeSrc}" > "${customScss}" || fail "could not write custom.scss"
+        show "${customAction} _sass/custom/custom.scss"
     fi
 
     local pluginFile="${worktreePath}/_plugins/ruby4_compat.rb"
@@ -791,7 +796,45 @@ _flushDocSection() {
     _fdsOutRef+=("" "*${sectionTitle}*" "")
 
     case "${section}" in
-        USAGE|EXAMPLE|NOTES)
+        USAGE)
+            # First non-blank line is the call signature; remaining non-blank lines are options/params
+            local signature='' l
+            local -a optionLines=()
+            for l in "${_fdsLinesRef[@]}"; do
+                l="${l#  }"
+                [[ -z "${l}" ]] && continue
+                if [[ -z "${signature}" ]]; then
+                    signature="${l}"
+                else
+                    optionLines+=("${l}")
+                fi
+            done
+            [[ -n "${signature}" ]] && _fdsOutRef+=("\`${signature}\`" '{: .usage-signature}' "")
+            _fdsOutRef+=('| | |' '|---|---|')
+            local parenTypePattern='^([^(]*)\(([^)]+)\)[[:space:]]+(.*)'
+            for l in "${optionLines[@]}"; do
+                [[ "${l}" == ' '* ]] && continue
+                local argName rest
+                IFS=' ' read -r argName rest <<< "${l}"
+                [[ -z "${argName}" ]] && continue
+                local metavar='' typeWord remaining
+                if [[ "${rest}" =~ ${parenTypePattern} ]]; then
+                    metavar="${BASH_REMATCH[1]% }"
+                    typeWord="${BASH_REMATCH[2]}"
+                    remaining="${BASH_REMATCH[3]}"
+                else
+                    IFS=' ' read -r typeWord remaining <<< "${rest}"
+                fi
+                if [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
+                    local display="${argName}${metavar:+ ${metavar}}"
+                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${remaining} |")
+                else
+                    _fdsOutRef+=("| \`${argName}\` | ${rest# } |")
+                fi
+            done
+            _fdsOutRef+=('{: .usage-table}')
+            ;;
+        EXAMPLE|NOTES)
             local fenceOpen='```bash'
             [[ "${section}" == 'NOTES' ]] && fenceOpen='```'
             _fdsOutRef+=("${fenceOpen}")
@@ -823,18 +866,18 @@ _flushDocSection() {
                 IFS=' ' read -r argName rest <<< "${l}"
                 [[ -z "${argName}" ]] && continue
                 local typeWord remaining
-                local parenTypePattern='^\(( [^)]+)\)[[:space:]]+(.*)'
+                local parenTypePattern='^([^(]*)\(([^)]+)\)[[:space:]]+(.*)'
+                local metavar='' typeWord remaining
                 if [[ "${rest}" =~ ${parenTypePattern} ]]; then
-                    # New format: argName (type) description
-                    typeWord="${BASH_REMATCH[1]}"
-                    remaining="${BASH_REMATCH[2]}"
+                    metavar="${BASH_REMATCH[1]% }"
+                    typeWord="${BASH_REMATCH[2]}"
+                    remaining="${BASH_REMATCH[3]}"
                 else
                     IFS=' ' read -r typeWord remaining <<< "${rest}"
                 fi
-                if [[ "${typeWord}" == 'flag' ]] && [[ -n "${remaining}" ]]; then
-                    _fdsOutRef+=("| \`${argName}\` | ${remaining} |")
-                elif [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
-                    _fdsOutRef+=("| \`${argName}\` *(${typeWord})* | ${remaining} |")
+                if [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
+                    local display="${argName}${metavar:+ ${metavar}}"
+                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${remaining} |")
                 else
                     _fdsOutRef+=("| \`${argName}\` | ${rest# } |")
                 fi

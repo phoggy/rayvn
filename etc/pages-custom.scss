@@ -31,9 +31,15 @@ td:first-child, th:first-child {
   white-space: nowrap;
 }
 
-// Hide header row on args/returns tables (header cells are empty placeholders)
-.args-table thead {
+// Hide header row on args/returns/usage tables (header cells are empty placeholders)
+.args-table thead, .usage-table thead {
   display: none;
+}
+
+// Style the usage signature paragraph (rendered above the usage table)
+.usage-signature {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
 }
 
 // Tighter row height for tables; top-align so wrapped descriptions don't center the arg name
