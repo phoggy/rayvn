@@ -20,9 +20,11 @@ Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 
 *Usage*
 
+`show [-n] [-e|-E] [FORMAT|TEXT]...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `show [-n] [-e|-E] [FORMAT|TEXT]...` | |
 | `-n` | No trailing newline. |
 | `-e` | Enable backslash escape interpretation. |
 | `-E` | Suppress backslash escape interpretation. |
@@ -76,9 +78,11 @@ Print a styled section header with optional subtitle lines.
 
 *Usage*
 
+`header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]` | |
 | `-u` | Convert title to uppercase. |
 | `colorIndex` | (int)     Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted). |
 | `title` | (string)       Title text printed in bold. |
@@ -94,9 +98,11 @@ Print a warning message to stderr with a ⚠️ prefix.
 
 *Usage*
 
+`warn message [FORMAT|TEXT]...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `warn message [FORMAT|TEXT]...` | |
 | `message` | (string)   Warning message text. |
 | `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` | (string)    Text to print with the preceding format applied. |
@@ -109,9 +115,11 @@ Print an error message to stderr with a 🔺 prefix.
 
 *Usage*
 
+`error message [FORMAT|TEXT]...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `error message [FORMAT|TEXT]...` | |
 | `message` | (string)   Error message text. |
 | `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` | (string)    Text to print with the preceding format applied. |
@@ -124,9 +132,11 @@ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 
 *Usage*
 
+`invalidArgs message [FORMAT|TEXT]...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `invalidArgs message [FORMAT|TEXT]...` | |
 | `message` | (string)   Error message text. |
 | `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` | (string)    Text to print with the preceding format applied. |
@@ -139,9 +149,11 @@ Print an error and exit 1, optionally with a stack trace.
 
 *Usage*
 
+`fail [--trace] message [FORMAT|TEXT]...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `fail [--trace] message [FORMAT|TEXT]...` | |
 | `--trace` | Force a stack trace regardless of debug mode. |
 | `message` | (string)   Error message text. |
 | `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
@@ -155,9 +167,11 @@ Print an optional exit message, show stack if in debug mode, and exit 0.
 
 *Usage*
 
+`bye [message [FORMAT|TEXT]...]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `bye [message [FORMAT|TEXT]...]` | |
 | `[message]` | (string)   Exit message text. |
 | `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` | (string)      Text to print with the preceding format applied. |
@@ -170,9 +184,11 @@ Print a formatted call stack, optionally preceded by a message.
 
 *Usage*
 
+`stackTrace [message [FORMAT|TEXT]...]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `stackTrace [message [FORMAT|TEXT]...]` | |
 | `[message]` | (string)   Message text. |
 | `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` | (string)      Text to print with the preceding format applied. |
@@ -341,9 +357,11 @@ Run a command and fail if it exits non-zero, or if it produces stderr with --std
 
 *Usage*
 
+`assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...` | |
 | `--strip-brackets` | Strip lines matching '^\[.*\]$' and trailing blank lines from stderr. |
 | `--quiet` | Suppress stderr content from the failure message. |
 | `--stderr` | Also fail if the command produces any stderr output. |
@@ -617,9 +635,11 @@ Outputs the session temp directory path, optionally appended with a file name. D
 
 *Usage*
 
+`tempDirPath [-r] [fileName]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `tempDirPath [-r] [fileName]` | |
 | `-r` | Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if |
 | `fileName` | (string)    Optional file name to append to the temp dir path. |
 {: .usage-table}
@@ -706,9 +726,11 @@ Trailing newlines are stripped, matching command substitution behavior.
 
 *Usage*
 
+`readFile [-p] file resultVar`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `readFile [-p] file resultVar` | |
 | `-p` | Preserve trailing newlines instead of stripping them. |
 | `file` | (string)          Path to the file to read. |
 | `resultVar` | (stringRef)  Name of variable to receive the file contents. |
@@ -817,9 +839,11 @@ Enable debug mode.
 
 *Usage*
 
+`setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]` | |
 | `--tty` | TTY (string)    Log debug messages to the TTY instead of the log file. |
 | `--tty` | .               Log debug messages to the TTY read from "${HOME}/.debug.tty". |
 | `--noStatus` | Suppress debug status line display. |

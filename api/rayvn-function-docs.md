@@ -20,9 +20,11 @@ Audit function doc comment coverage for registered projects, reporting missing o
 
 *Usage*
 
+`auditDocs [--release] [PROJECT]...`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `auditDocs [--release] [PROJECT]...` | |
 | `--release` | Exit 1 if any public functions are missing ◇ doc comments. |
 | `PROJECT` | (string)    One or more project names to audit (default: all loaded projects). |
 {: .usage-table}
@@ -34,9 +36,11 @@ Generate or update doc comments for public functions using the Claude API; appli
 
 *Usage*
 
+`updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]` | |
 | `--dry-run` | Print proposed docs without writing any changes. |
 | `--regen` | Regenerate docs for all public functions, not just missing/stale. |
 | `--missing-only` | Only process functions missing a ◇ doc comment. |

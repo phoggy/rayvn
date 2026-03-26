@@ -18,9 +18,11 @@ Scan one or more registered projects for bash requirement violations, optionally
 
 *Usage*
 
+`runLint [--fix | --ask] [PROJECT...]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `runLint [--fix | --ask] [PROJECT...]` | |
 | `--fix` | Automatically apply all auto-fixable corrections. |
 | `--ask` | Interactively prompt whether to fix each file with violations. |
 | `[PROJECT...]` | Registered project names to scan. Defaults to current project. |

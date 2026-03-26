@@ -7344,14 +7344,9 @@ td:first-child, th:first-child {
   display: none;
 }
 
-.usage-table tbody tr:first-child td:first-child {
+.usage-signature {
   font-weight: bold;
-  padding-bottom: 0.4rem;
-  white-space: nowrap;
-}
-
-.usage-table tbody tr:first-child td:last-child {
-  display: none;
+  margin-bottom: 0.25rem;
 }
 
 td, th {

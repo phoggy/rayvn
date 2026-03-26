@@ -18,9 +18,11 @@ Generate verbose and optional compact function indexes for rayvn libraries.
 
 *Usage*
 
+`runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]` | |
 | `-o,` | --output FILE (string)    Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md). |
 | `-c,` | --compact FILE (string)   Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt). |
 | `--no-compact` | Skip generating the compact index. |
@@ -35,9 +37,11 @@ Generate Jekyll pages for a single project's gh-pages site.
 
 *Usage*
 
+`runPages PROJECT [--dir DIR] [--publish | --view]`
+{: .usage-signature}
+
 | | |
 |---|---|
-| `runPages PROJECT [--dir DIR] [--publish | --view]` | |
 | `PROJECT` | (string)       The project to generate pages for (e.g. rayvn, valt, wardn). |
 | `--dir` | DIR (string)     Output directory (default: project's configured worktree). |
 | `--publish` | Commit and push changes to gh-pages after generating. |
