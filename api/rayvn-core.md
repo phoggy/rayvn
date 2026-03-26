@@ -365,7 +365,7 @@ Run a command and fail if it exits non-zero, or if it produces stderr with --std
 | `--strip-brackets` | Strip lines matching '^\[.*\]$' and trailing blank lines from stderr. |
 | `--quiet` | Suppress stderr content from the failure message. |
 | `--stderr` | Also fail if the command produces any stderr output. |
-| `--error` | MSG (string)   Custom failure message (default: stderr output or generic exit code message). |
+| `--error MSG` *(string)* | Custom failure message (default: stderr output or generic exit code message). |
 | `...` *(string)* | The command and arguments to execute. |
 {: .usage-table}
 
@@ -844,7 +844,7 @@ Enable debug mode.
 
 | | |
 |---|---|
-| `--tty` | TTY (string)    Log debug messages to the TTY instead of the log file. |
+| `--tty TTY` *(string)* | Log debug messages to the TTY instead of the log file. |
 | `--tty` | .               Log debug messages to the TTY read from "${HOME}/.debug.tty". |
 | `--noStatus` | Suppress debug status line display. |
 | `--clearLog` | Clear the log file if not tty mode. |
