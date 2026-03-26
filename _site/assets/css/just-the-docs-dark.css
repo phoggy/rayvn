@@ -7640,46 +7640,46 @@ td, th {
 }
 
 .highlight, .highlight .w {
-  color: #d8d8d8;
-  background-color: #181818;
+  color: #f8f8f2;
+  background-color: #272822;
 }
 
 .highlight .err {
-  color: #181818;
-  background-color: #ab4642;
+  color: #272822;
+  background-color: #f92672;
 }
 
 .highlight .c, .highlight .ch, .highlight .cd, .highlight .cm, .highlight .cpf, .highlight .c1, .highlight .cs {
-  color: #585858;
+  color: #75715e;
 }
 
 .highlight .cp {
-  color: #f7ca88;
+  color: #f4bf75;
 }
 
 .highlight .nt {
-  color: #f7ca88;
+  color: #f4bf75;
 }
 
 .highlight .o, .highlight .ow {
-  color: #d8d8d8;
+  color: #f8f8f2;
 }
 
 .highlight .p, .highlight .pi {
-  color: #d8d8d8;
+  color: #f8f8f2;
 }
 
 .highlight .gi {
-  color: #a1b56c;
+  color: #a6e22e;
 }
 
 .highlight .gd {
-  color: #ab4642;
+  color: #f92672;
 }
 
 .highlight .gh {
-  color: #7cafc2;
-  background-color: #181818;
+  color: #66d9ef;
+  background-color: #272822;
   font-weight: bold;
 }
 
@@ -7697,63 +7697,63 @@ td, th {
 }
 
 .highlight .k, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kv {
-  color: #ba8baf;
+  color: #ae81ff;
 }
 
 .highlight .kc {
-  color: #dc9656;
+  color: #fd971f;
 }
 
 .highlight .kt {
-  color: #dc9656;
+  color: #fd971f;
 }
 
 .highlight .kd {
-  color: #dc9656;
+  color: #fd971f;
 }
 
 .highlight .s, .highlight .sb, .highlight .sc, .highlight .dl, .highlight .sd, .highlight .s2, .highlight .sh, .highlight .sx, .highlight .s1 {
-  color: #a1b56c;
+  color: #a6e22e;
 }
 
 .highlight .sa {
-  color: #ba8baf;
+  color: #ae81ff;
 }
 
 .highlight .sr {
-  color: #86c1b9;
+  color: #a1efe4;
 }
 
 .highlight .si {
-  color: #a16946;
+  color: #cc6633;
 }
 
 .highlight .se {
-  color: #a16946;
+  color: #cc6633;
 }
 
 .highlight .nn {
-  color: #f7ca88;
+  color: #f4bf75;
 }
 
 .highlight .nc {
-  color: #f7ca88;
+  color: #f4bf75;
 }
 
 .highlight .no {
-  color: #f7ca88;
+  color: #f4bf75;
 }
 
 .highlight .na {
-  color: #7cafc2;
+  color: #66d9ef;
 }
 
 .highlight .m, .highlight .mb, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .il, .highlight .mo, .highlight .mx {
-  color: #a1b56c;
+  color: #a6e22e;
 }
 
 .highlight .ss {
-  color: #a1b56c;
+  color: #a6e22e;
 }
 
 /*# sourceMappingURL=just-the-docs-dark.css.map */
