@@ -20,12 +20,12 @@ Audit function doc comment coverage for registered projects, reporting missing o
 
 *Usage*
 
-```shell
-auditDocs [--release] [PROJECT]...
-
---release           Exit 1 if any public functions are missing ◇ doc comments.
-PROJECT (string)    One or more project names to audit (default: all loaded projects).
-```
+| | |
+|---|---|
+| `auditDocs [--release] [PROJECT]...` | |
+| `--release` | Exit 1 if any public functions are missing ◇ doc comments. |
+| `PROJECT` | (string)    One or more project names to audit (default: all loaded projects). |
+{: .usage-table}
 
 ### updateDocs()
 
@@ -34,16 +34,16 @@ Generate or update doc comments for public functions using the Claude API; appli
 
 *Usage*
 
-```shell
-updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
-
---dry-run                   Print proposed docs without writing any changes.
---regen                     Regenerate docs for all public functions, not just missing/stale.
---missing-only              Only process functions missing a ◇ doc comment.
---stale-only                Only process functions with potentially stale docs.
---lib NAME (string)         Limit to a single library by name.
---since DURATION (string)   Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set.
---delay SECS (int)          Seconds to sleep between API calls to avoid rate limits (default: 5).
-PROJECT (string)            One or more project names (default: all loaded projects).
-```
+| | |
+|---|---|
+| `updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]` | |
+| `--dry-run` | Print proposed docs without writing any changes. |
+| `--regen` | Regenerate docs for all public functions, not just missing/stale. |
+| `--missing-only` | Only process functions missing a ◇ doc comment. |
+| `--stale-only` | Only process functions with potentially stale docs. |
+| `--lib` | NAME (string)         Limit to a single library by name. |
+| `--since` | DURATION (string)   Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set. |
+| `--delay` | SECS (int)          Seconds to sleep between API calls to avoid rate limits (default: 5). |
+| `PROJECT` | (string)            One or more project names (default: all loaded projects). |
+{: .usage-table}
 

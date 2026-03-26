@@ -36,14 +36,10 @@ td:first-child, th:first-child {
   display: none;
 }
 
-// Style the signature row in usage tables: full-width code cell, no second column
-.usage-table tbody tr:first-child td:first-child {
+// Style the usage signature paragraph (rendered above the usage table)
+.usage-signature {
   font-weight: bold;
-  padding-bottom: 0.4rem;
-  white-space: nowrap;
-}
-.usage-table tbody tr:first-child td:last-child {
-  display: none;
+  margin-bottom: 0.25rem;
 }
 
 // Tighter row height for tables; top-align so wrapped descriptions don't center the arg name

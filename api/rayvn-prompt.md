@@ -145,7 +145,7 @@ The -n flag suppresses the trailing newline on completion (same semantics as ech
 
 *Example*
 
-```shell
+```bash
 choices=("Apple" "Banana" "Cherry")
 choose "Pick a fruit:" choices selectedIndex
 echo "You picked index: ${selectedIndex}"

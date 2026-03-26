@@ -26,7 +26,7 @@ Ensure node_modules are installed for a project, setting `${projectName}`NodeHom
 
 *Example*
 
-```shell
+```bash
 requireNodeModules valt VALT_PDF_DEPS_HOME
 # valtNodeHome is now set to the resolved node home path
 ```
@@ -48,7 +48,7 @@ node_modules. If script ends in .js, projectName defaults to $currentProjectName
 
 *Example*
 
-```shell
+```bash
 executeNodeScript valt generate-pdf.js "${htmlFile}" "${outputFile}"
 executeNodeScript generate-pdf.js "${htmlFile}" "${outputFile}"
 ```

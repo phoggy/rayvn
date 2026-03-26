@@ -20,15 +20,15 @@ Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 
 *Usage*
 
-```shell
-show [-n] [-e|-E] [FORMAT|TEXT]...
-
--n                 No trailing newline.
--e                 Enable backslash escape interpretation.
--E                 Suppress backslash escape interpretation.
-[FORMAT] (string)  A format token (see NOTES); applies to the next [TEXT] arg.
-[TEXT] (string)    A string to print with accumulated formats applied, then reset.
-```
+| | |
+|---|---|
+| `show [-n] [-e|-E] [FORMAT|TEXT]...` | |
+| `-n` | No trailing newline. |
+| `-e` | Enable backslash escape interpretation. |
+| `-E` | Suppress backslash escape interpretation. |
+| `[FORMAT]` | (string)  A format token (see NOTES); applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)    A string to print with accumulated formats applied, then reset. |
+{: .usage-table}
 
 *Notes*
 
@@ -52,7 +52,7 @@ use with caution.
 
 *Example*
 
-```shell
+```bash
 show blue "blue text"
 show bold red "bold red"
 show -n yellow "no trailing newline"
@@ -76,16 +76,16 @@ Print a styled section header with optional subtitle lines.
 
 *Usage*
 
-```shell
-header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]
-
--u                   Convert title to uppercase.
-colorIndex (int)     Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted).
-title (string)       Title text printed in bold.
-[subtitle] (string)  First subtitle arg, printed in the header color.
-[FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)      Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]` | |
+| `-u` | Convert title to uppercase. |
+| `colorIndex` | (int)     Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted). |
+| `title` | (string)       Title text printed in bold. |
+| `[subtitle]` | (string)  First subtitle arg, printed in the header color. |
+| `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)      Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### warn()
 
@@ -94,13 +94,13 @@ Print a warning message to stderr with a ⚠️ prefix.
 
 *Usage*
 
-```shell
-warn message [FORMAT|TEXT]...
-
-message (string)   Warning message text.
-[FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)    Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `warn message [FORMAT|TEXT]...` | |
+| `message` | (string)   Warning message text. |
+| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### error()
 
@@ -109,13 +109,13 @@ Print an error message to stderr with a 🔺 prefix.
 
 *Usage*
 
-```shell
-error message [FORMAT|TEXT]...
-
-message (string)   Error message text.
-[FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)    Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `error message [FORMAT|TEXT]...` | |
+| `message` | (string)   Error message text. |
+| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### invalidArgs()
 
@@ -124,13 +124,13 @@ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 
 *Usage*
 
-```shell
-invalidArgs message [FORMAT|TEXT]...
-
-message (string)   Error message text.
-[FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)    Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `invalidArgs message [FORMAT|TEXT]...` | |
+| `message` | (string)   Error message text. |
+| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### fail()
 
@@ -139,14 +139,14 @@ Print an error and exit 1, optionally with a stack trace.
 
 *Usage*
 
-```shell
-fail [--trace] message [FORMAT|TEXT]...
-
---trace            Force a stack trace regardless of debug mode.
-message (string)   Error message text.
-[FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)    Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `fail [--trace] message [FORMAT|TEXT]...` | |
+| `--trace` | Force a stack trace regardless of debug mode. |
+| `message` | (string)   Error message text. |
+| `[FORMAT]` | (string)  A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)    Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### bye()
 
@@ -155,13 +155,13 @@ Print an optional exit message, show stack if in debug mode, and exit 0.
 
 *Usage*
 
-```shell
-bye [message [FORMAT|TEXT]...]
-
-[message] (string)   Exit message text.
-[FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)      Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `bye [message [FORMAT|TEXT]...]` | |
+| `[message]` | (string)   Exit message text. |
+| `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)      Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### stackTrace()
 
@@ -170,13 +170,13 @@ Print a formatted call stack, optionally preceded by a message.
 
 *Usage*
 
-```shell
-stackTrace [message [FORMAT|TEXT]...]
-
-[message] (string)   Message text.
-[FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
-[TEXT] (string)      Text to print with the preceding format applied.
-```
+| | |
+|---|---|
+| `stackTrace [message [FORMAT|TEXT]...]` | |
+| `[message]` | (string)   Message text. |
+| `[FORMAT]` | (string)    A show format token; applies to the next [TEXT] arg. |
+| `[TEXT]` | (string)      Text to print with the preceding format applied. |
+{: .usage-table}
 
 ### errorStream()
 
@@ -185,7 +185,7 @@ Print each line of a piped stream in error color to terminalErr.
 
 *Example*
 
-```shell
+```bash
 someCommand 2> >( errorStream )
 ```
 
@@ -253,7 +253,7 @@ which inherit variables automatically. Call from a library _init function.
 
 *Example*
 
-```shell
+```bash
 # In 'myproject/mylib' _init_myproject_mylib(),  build a lookup table, then register it so that
 # child processes launched by the user's script (e.g. bash myOtherScript) see the populated map.
 declare -gA myLookup=([foo]=1 [bar]=2)
@@ -341,31 +341,31 @@ Run a command and fail if it exits non-zero, or if it produces stderr with --std
 
 *Usage*
 
-```shell
-assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...
-
---strip-brackets       Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
---quiet                Suppress stderr content from the failure message.
---stderr               Also fail if the command produces any stderr output.
---error MSG (string)   Custom failure message (default: stderr output or generic exit code message).
-... (string)           The command and arguments to execute.
-```
+| | |
+|---|---|
+| `assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...` | |
+| `--strip-brackets` | Strip lines matching '^\[.*\]$' and trailing blank lines from stderr. |
+| `--quiet` | Suppress stderr content from the failure message. |
+| `--stderr` | Also fail if the command produces any stderr output. |
+| `--error` | MSG (string)   Custom failure message (default: stderr output or generic exit code message). |
+| `...` | (string)           The command and arguments to execute. |
+{: .usage-table}
 
 *Example*
 
-```shell
+```bash
 assertCommand git commit -m "message"
 ```
 
 *Example*
 
-```shell
+```bash
 session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
 ```
 
 *Example*
 
-```shell
+```bash
 # For pipelines, wrap in eval:
 assertCommand --stderr --error "Failed to encrypt" \
     eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
@@ -551,7 +551,7 @@ Replace every occurrence of a placeholder character in a string with random hex 
 
 *Example*
 
-```shell
+```bash
 myStr="XXXX-XXXX"
 replaceRandomHex "X" myStr  # myStr becomes e.g. "3a7f-c209"
 ```
@@ -617,14 +617,12 @@ Outputs the session temp directory path, optionally appended with a file name. D
 
 *Usage*
 
-```shell
-tempDirPath [-r] [fileName]
-
--r                   Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if
-                     fileName is omitted. Ensures that no name collisions occur, regenerating name up to 16
-                     times if required.
-fileName (string)    Optional file name to append to the temp dir path.
-```
+| | |
+|---|---|
+| `tempDirPath [-r] [fileName]` | |
+| `-r` | Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if |
+| `fileName` | (string)    Optional file name to append to the temp dir path. |
+{: .usage-table}
 
 ### makeTempFile()
 
@@ -708,13 +706,13 @@ Trailing newlines are stripped, matching command substitution behavior.
 
 *Usage*
 
-```shell
-readFile [-p] file resultVar
-
--p                     Preserve trailing newlines instead of stripping them.
-file (string)          Path to the file to read.
-resultVar (stringRef)  Name of variable to receive the file contents.
-```
+| | |
+|---|---|
+| `readFile [-p] file resultVar` | |
+| `-p` | Preserve trailing newlines instead of stripping them. |
+| `file` | (string)          Path to the file to read. |
+| `resultVar` | (stringRef)  Name of variable to receive the file contents. |
+{: .usage-table}
 
 ### setFileVar()
 
@@ -761,7 +759,7 @@ Use popIFS to restore the previous value.
 
 *Example*
 
-```shell
+```bash
 pushIFS $'\n'
 for item in ${list}; do ...
 popIFS
@@ -774,7 +772,7 @@ Pop a previously pushed IFS value, restoring IFS to its prior state.
 
 *Example*
 
-```shell
+```bash
 pushIFS $'\n'
 popIFS
 ```
@@ -819,13 +817,13 @@ Enable debug mode.
 
 *Usage*
 
-```shell
-setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]
-
---tty TTY (string)    Log debug messages to the TTY instead of the log file.
---tty .               Log debug messages to the TTY read from "${HOME}/.debug.tty".
---noStatus            Suppress debug status line display.
---clearLog            Clear the log file if not tty mode.
---showLogOnExit       Show the log file on exit if not tty mode.
-```
+| | |
+|---|---|
+| `setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]` | |
+| `--tty` | TTY (string)    Log debug messages to the TTY instead of the log file. |
+| `--tty` | .               Log debug messages to the TTY read from "${HOME}/.debug.tty". |
+| `--noStatus` | Suppress debug status line display. |
+| `--clearLog` | Clear the log file if not tty mode. |
+| `--showLogOnExit` | Show the log file on exit if not tty mode. |
+{: .usage-table}
 
