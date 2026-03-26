@@ -42,12 +42,13 @@ td, th {
   padding-bottom: 0.15rem;
   vertical-align: top;
 }
-// Rougify Theme 'base16' --------------------------------
+// Rougify Theme 'base16.dark' --------------------------------
 
 .highlight table td { padding: 5px; }
 .highlight table pre { margin: 0; }
 .highlight, .highlight .w {
-  color: #383838;
+  color: #d8d8d8;
+  background-color: #181818;
 }
 .highlight .err {
   color: #181818;
