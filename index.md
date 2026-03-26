@@ -28,6 +28,11 @@ rayvn lets bash programs load shared libraries — both built-in and from third-
 | [rayvn/test](/rayvn/api/rayvn-test) | Test assertions |
 | [rayvn/test-harness](/rayvn/api/rayvn-test-harness) | Test runner |
 | [rayvn/central](/rayvn/api/rayvn-central) | Project registry |
+| [rayvn/dependencies](/rayvn/api/rayvn-dependencies) | Project dependency checking and brew formula generation. |
+| [rayvn/function-docs](/rayvn/api/rayvn-function-docs) | Audit and update function doc comments using the ◇ structured format. |
+| [rayvn/index](/rayvn/api/rayvn-index) | Generate rayvn library function indexes and Jekyll docs. |
+| [rayvn/node](/rayvn/api/rayvn-node) | Node.js / npm utilities. |
+| [rayvn/lint](/rayvn/api/rayvn-lint) | Scan rayvn project source files for bash requirement violations. |
 
 ## Getting Started
 

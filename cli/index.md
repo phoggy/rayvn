@@ -6,8 +6,11 @@ nav_order: 2
 
 # rayvn CLI
 
-```
+rayvn is the command-line tool for managing shared libraries and projects. It handles project scaffolding, testing, documentation, publishing, and more.
 
+## Usage
+
+```
 Manage shared bash libraries and executables.
 
 Usage: rayvn COMMAND [PROJECT] [PROJECT...] <options>
@@ -20,11 +23,15 @@ Commands
     new TYPE NAME     Create a new project/script/library/test with the specified NAME.
     libraries         List libraries.
     functions         List public functions.
-    register          Register a project.
+    register NAME     Stake a claim on the project name, if available.
     release           Create a new release.
-    index             Generate function indexes and Jekyll docs.
+    deps              Scan source files and ensure dependency tracking is up to date.
+    index             Generate function indexes for AI agent use.
+    pages             Generate and preview project gh-pages site.
+    docs              Audit or update function documentation.
 
-Use COMMAND --help for any additional details. PROJECT defaults to 'rayvn' if not specified.
+Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project
+if within one. 'test' falls back to rayvn if not in a project.
 
 Options:
 
@@ -33,19 +40,35 @@ Options:
     --version         Print the version with release date and exit.
 ```
 
+PROJECT defaults to the current directory's project when run from within a rayvn project. Most
+commands accept multiple project names to operate on several at once.
+
 ## Commands
 
 ### test
+
+Run tests for one or more projects. Test files live in each project's `tests/` directory and are
+discovered automatically.
 
 ```
 rayvn test [PROJECT] [PROJECT...] [TEST-NAME] [TEST-NAME...] [--nix] [--all]
 ```
 
+Without arguments, tests the current directory's project (or rayvn itself if not in a project).
+Pass one or more TEST-NAME values to run only matching test cases. Use `--nix` to first build the
+project with Nix before running tests, which is useful for verifying a clean Nix-built environment.
+
 ### build
+
+Build one or more projects using their Nix flake. Useful for verifying the flake is valid and that
+all declared Nix dependencies resolve correctly.
 
 ```
 rayvn build [PROJECT] [PROJECT...]
 ```
+
+Each project must have a `flake.nix`. The build runs `nix build` in the project root. Failure
+here typically means a missing dependency in `flake.nix` — run `rayvn deps` to sync them.
 
 ### theme
 
@@ -55,171 +78,161 @@ Interactive theme selector. Launches an arrow-key navigation prompt to choose be
 
 ### new
 
+Scaffold a new project, script, library, or test file from the built-in templates.
+
 ```
 rayvn new project|script|library|test NAME [--local]
 ```
 
+- **project** — creates a full project directory with `bin/`, `lib/`, `tests/`, a `rayvn.pkg`,
+  `flake.nix`, README, and Homebrew formula. By default also creates a GitHub repo and clones it.
+  Use `--local` to skip GitHub and create only a local git repo.
+- **script** — adds a new executable to the current project's `bin/` directory, pre-populated
+  from the script template.
+- **library** — adds a new `.sh` file to the current project's `lib/` directory, pre-populated
+  from the library template.
+- **test** — adds a new test file to the current project's `tests/` directory, pre-populated
+  from the test template.
+
+All generated files are automatically staged in git.
+
 ### libraries
 
+List the available libraries for one or more projects.
+
 ```
-project 'rayvn'
-    central -> /Users/phoggy/dev/rayvn/lib/central.sh
-    config -> /Users/phoggy/dev/rayvn/lib/config.sh
-    core -> /Users/phoggy/dev/rayvn/lib/core.sh
-    debug -> /Users/phoggy/dev/rayvn/lib/debug.sh
-    deps -> /Users/phoggy/dev/rayvn/lib/deps.sh
-    index -> /Users/phoggy/dev/rayvn/lib/index.sh
-    oauth -> /Users/phoggy/dev/rayvn/lib/oauth.sh
-    process -> /Users/phoggy/dev/rayvn/lib/process.sh
-    prompt -> /Users/phoggy/dev/rayvn/lib/prompt.sh
-    release -> /Users/phoggy/dev/rayvn/lib/release.sh
-    secrets -> /Users/phoggy/dev/rayvn/lib/secrets.sh
-    spinner -> /Users/phoggy/dev/rayvn/lib/spinner.sh
-    terminal -> /Users/phoggy/dev/rayvn/lib/terminal.sh
-    test-harness -> /Users/phoggy/dev/rayvn/lib/test-harness.sh
-    test -> /Users/phoggy/dev/rayvn/lib/test.sh
-    theme -> /Users/phoggy/dev/rayvn/lib/theme.sh
+rayvn libraries [PROJECT] [PROJECT...]
 ```
+
+Prints each library in `project/library` format, grouped by project. Useful for quickly seeing
+what's available to `source rayvn.up` or `require`.
 
 ### functions
 
+List the public functions defined in each library of one or more projects.
+
+```
+rayvn functions [PROJECT] [PROJECT...] [--all]
 ```
 
-rayvn.up functions
-
-    _collectUnknownFunctionNames
-    _loadRayvnLibrary
-    require 
-
-rayvn functions
-
-    _printLibraries
-    _printLibrary
-    _printProject
-    _printProjectLibrary
-    addIfRayvnExecutable 
-    assertSingleProject 
-    copyFileAndSubstituteVars 
-    create 
-    createLibrary 
-    createProject 
-    createScript 
-    createTest 
-    forEachLibrary 
-    forEachProject 
-    getFunctions 
-    getProjectRoot 
-    indexDocs 
-    init 
-    listFunctions 
-    listLibraries 
-    listProjects 
-    main 
-    nixBuild 
-    parseArgs 
-    printUsage 
-    printVersion 
-    registerProject 
-    releaseProject 
-    remindIfNotInPath 
-    runTests 
-    theme 
-    traceUp 
-    traceUpInit 
-    traceUpStack 
-    traceUpVar 
-    usage 
-
-rayvn/core functions
-
-    _ensureRayvnTempDir
-    _init_colors
-    _init_noColors
-    _init_theme
-    _onRayvnExit
-    _onRayvnHup
-    _onRayvnInt
-    _onRayvnTerm
-    _restoreTerminal
-    _setFileSystemVar
-    addExitHandler 
-    allNewFilesUserOnly 
-    appendVar 
-    assertCommand 
-    assertDirectory 
-    assertFile 
-    assertFileDoesNotExist 
-    assertFileExists 
-    assertIsInteractive 
-    assertPathWithinDirectory 
-    assertValidFileName 
-    assertVarDefined 
-    baseName 
-    binaryPath 
-    bye 
-    configDirPath 
-    containsAnsi 
-    copyMap 
-    dirName 
-    elapsedEpochSeconds 
-    ensureDir 
-    epochSeconds 
-    error 
-    executeWithCleanVars 
-    fail 
-    header 
-    indexOf 
-    invalidArgs 
-    isMemberOf 
-    makeDir 
-    makeTempDir 
-    makeTempFifo 
-    makeTempFile 
-    maxArrayElementLength 
-    numericPlaces 
-    openUrl 
-    padString 
-    parseOptionalArg 
-    printNumber 
-    printStack 
-    projectVersion 
-    randomHexChar 
-    randomInteger 
-    redStream 
-    repeat 
-    replaceRandomHex 
-    rootDirPath 
-    secureEraseVars 
-    setDebug 
-    setDirVar 
-    setFileVar 
-    show 
-    stackTrace 
-    stripAnsi 
-    tempDirPath 
-    timeStamp 
-    trim 
-    varIsDefined 
-    warn 
-    withDefaultUmask 
-    withUmask 
-```
+By default shows only public functions (those not prefixed with `_`). Pass `--all` to also show
+private `_functions`. For full documentation including signatures and descriptions, see the
+[API Reference]({{ site.baseurl }}/api) or use `rayvn index` to generate machine-readable indexes.
 
 ### register
 
+Stake a claim on a project name in the rayvn-central registry, making it discoverable by other
+rayvn users and tools.
+
 ```
-rayvn register PROJECT [--remove] 
+rayvn register PROJECT [--remove]
 ```
+
+Must be run from within the project's git repo (the remote URL is read from `git remote`). The
+project name must match the GitHub repo name. Use `--remove` to unregister.
 
 ### release
 
+Create a new GitHub release for a project, tagging the current commit and publishing release notes.
+
 ```
-rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION 
+rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION
 ```
+
+VERSION should follow semver (e.g. `1.2.3`). For the core projects (rayvn, valt, wardn) the GitHub
+repo is inferred from the project name. For other projects, supply `--repo 'account/repo'`
+explicitly. Requires `gh` (GitHub CLI) to be authenticated.
+
+### deps
+
+Scan a project's source files for external command dependencies and sync any missing entries into
+`flake.nix`'s `runtimeDeps`.
+
+```
+rayvn deps [PROJECT...]
+```
+
+rayvn finds commands used in `bin/` and `lib/` files, confirms each is an actual external binary
+(not a shell function), maps it to a Nix package name via `rayvn.pkg`, and adds any missing
+entries to `flake.nix`. Run this after adding new external tool usage to keep the Nix build
+reproducible. Also updates npm dependencies if the project uses Node.
 
 ### index
 
+Generate the function indexes used by AI coding agents (e.g. Claude Code) to discover available
+library functions without loading the libraries at runtime.
+
 ```
-rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE] [--docs DIR] [--publish]
+rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]
+```
+
+Produces two outputs:
+
+- **verbose index** (`~/.config/rayvn/rayvn-functions.md`) — full documentation for every public
+  function across all detected rayvn projects, including signatures, descriptions, and argument docs.
+- **compact index** (`~/.config/rayvn/rayvn-functions-compact.txt`) — one-liner per function, used
+  as quick-reference context in AI sessions.
+
+Run `rayvn index` after adding or modifying library functions to keep the indexes current. The
+`--no-hash` flag skips change tracking; `--hash-file` overrides the default hash storage path.
+
+### pages
+
+Generate, preview, and publish the project's GitHub Pages documentation site.
+
+```
+rayvn pages [PROJECT] [--dir DIR] [--setup | --publish | --view]
+```
+
+Only one project at a time is supported. Subcommands:
+
+- **`--setup`** — first-time setup: creates a `gh-pages` branch and worktree, generates scaffolding
+  files (`_config.yml`, `Gemfile`, `index.md`, CI workflow), and pushes to GitHub. After setup,
+  enable GitHub Pages in the repo settings (Source: GitHub Actions).
+- **`--publish`** — regenerate all docs, then commit and push the gh-pages branch. The GitHub
+  Actions workflow deploys automatically on push.
+- **`--view`** — regenerate docs and serve the site locally with Jekyll at `http://localhost:4000`
+  for live preview before publishing.
+- *(no flag)* — regenerate docs in the worktree without committing or serving.
+
+The `--dir DIR` option overrides the default worktree location.
+
+### docs
+
+Audit or update function documentation comments using the Claude API.
+
+```
+rayvn docs update | audit [PROJECT...] [OPTIONS]
+```
+
+**`audit`** reports on the state of documentation without making changes:
+
+```
+rayvn docs audit [PROJECT...] [--release]
+```
+
+Prints a summary of public functions that are missing doc comments or have stale ones (body changed
+since the doc was written). `--release` exits non-zero if any issues are found, suitable for use
+in CI.
+
+**`update`** calls the Claude API to generate or fix doc comments for public functions:
+
+```
+rayvn docs update [PROJECT...] [--dry-run] [--regen] [--missing-only|--stale-only]
+                  [--lib NAME] [--since DUR] [--delay N]
+```
+
+- `--dry-run` — print proposed changes without writing them
+- `--regen` — regenerate all docs, even ones that appear current
+- `--missing-only` / `--stale-only` — limit to functions that are missing docs or have stale docs
+- `--lib NAME` — process only the named library (e.g. `rayvn/core`)
+- `--since DUR` — only process functions changed within the given duration (e.g. `7d`, `2h`)
+- `--delay N` — wait N milliseconds between API calls to avoid rate limits
+### lint
+
+```
+rayvn lint [PROJECT...]
+
+Scan project source files for violations of rayvn's bash requirements.
 ```
 

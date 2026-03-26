@@ -2,102 +2,119 @@
 layout: default
 title: "rayvn/spinner"
 parent: API Reference
-nav_order: 12
+nav_order: 15
 ---
 
 # rayvn/spinner
 
+Terminal spinners
+
 ## Functions
 
-### spinnerTypes
+### spinnerTypes()
 
-**Library:** `rayvn/spinner`
+Populates an array with the names of all available spinner types.
 
-My library.
-Use via: require 'rayvn/spinner'
-IMPORTANT: While there are active spinners, the cursor is hidden globally. Before any
-foreground terminal interaction (prompts, user input, or other tput commands), you MUST
-stop all spinners. Otherwise, the user will be typing with an invisible cursor or
-terminal state may become inconsistent.
-spinnerTypes resultArrayVar
-Populates resultArrayVar with the names of all available spinner types.
-Available types: star, dots, line, circle, arrow, box, bounce, pulse, grow
-Example:
-  local types
-  spinnerTypes types
-  echo "Available: `${types[*]}`"
+
+*Args*
+
+| | |
+|---|---|
+| `resultArray` | (arrayRef)  Array to populate with spinner type names. |
+{: .args-table}
+
+*Example*
 
 ```bash
-spinnerTypes()
+local types
+spinnerTypes types
+echo "Available: ${types[*]}"
 ```
 
-### startSpinner
+### startSpinner()
 
-**Library:** `rayvn/spinner`
+Start a spinner at the current cursor position, storing its assigned ID via nameref.
 
-startSpinner idVar [label] [type] [color]
-Starts a spinner at the current cursor position, storing its id in idVar.
-Pass idVar to stopSpinner to stop and replace it.
-  idVar   - variable name to receive the spinner id
-  label   - optional text printed immediately before the spinner (default: none)
-  type    - spinner animation style (default: 'star'); see spinnerTypes
-  color   - color name for the spinner (default: 'secondary')
-Example:
-  local spinnerId
-  startSpinner spinnerId "Loading " dots primary
-  doWork
-  stopSpinner spinnerId "Done"
+
+*Args*
+
+| | |
+|---|---|
+| `idVarName` | (stringRef)  Name of var holding the spinner ID (from startSpinner). |
+| `label` | (string)         Optional text displayed before the spinner. |
+| `type` | (string)          Spinner type (default: 'star'). |
+| `color` | (string)         Color name (default: 'secondary'). |
+{: .args-table}
+
+*Example*
 
 ```bash
-startSpinner()
+local spinnerId
+startSpinner spinnerId "Loading" dots primary
+doWork
+stopSpinner spinnerId "Done"
 ```
 
-### stopSpinner
+### stopSpinner()
 
-**Library:** `rayvn/spinner`
+Stop a spinner, optionally replacing it with the given text.
 
-stopSpinner [-n] idVar [replacement]
-Stops the spinner identified by idVar, replacing it with replacement text.
-  -n          - suppress the trailing newline after replacement
-  idVar       - variable name holding the spinner id (from startSpinner)
-  replacement - text to display in place of the spinner (default: space)
-Example:
-  stopSpinner spinnerId "Done"
-  stopSpinner -n spinnerId   # stop without newline
+
+*Args*
+
+| | |
+|---|---|
+| `idVarName` | (stringRef)  Name of var holding the spinner ID (from startSpinner). |
+| `replacement` | (string)   Text to display in place of the spinner (default: space). |
+{: .args-table}
+
+*Notes*
+
+```
+The -n flag suppresses the trailing newline, as in echo -n.
+```
+
+*Example*
 
 ```bash
-stopSpinner()
+stopSpinner spinnerId "Done"
+stopSpinner -n spinnerId
 ```
 
-### addSpinner
+### addSpinner()
 
-**Library:** `rayvn/spinner`
+Add a spinner at a specific terminal position, storing its assigned id via nameref.
 
-addSpinner idVar type row col [color]
-Adds a spinner at the specified terminal position, storing its id in idVar.
-Prefer startSpinner for typical use; use this when you need explicit positioning.
-  idVar  - variable name to receive the spinner id
-  type   - spinner type; see spinnerTypes
-  row    - terminal row (1-based)
-  col    - terminal column (1-based)
-  color  - color name for the spinner (default: 'secondary')
 
-```bash
-addSpinner()
-```
+*Args*
 
-### removeSpinner
+| | |
+|---|---|
+| `idRef` | (stringRef)  Name of var to receive the spinner id. |
+| `type` | (string)      Spinner type. |
+| `row` | (int)          Terminal row (1-based). |
+| `col` | (int)          Terminal column (1-based). |
+| `color` | (string)     Color name for the spinner (default: 'secondary'). |
+{: .args-table}
 
-**Library:** `rayvn/spinner`
+### removeSpinner()
 
-removeSpinner idVar [replacement] [newline] [backup]
-Removes the spinner identified by idVar. Prefer stopSpinner for typical use.
-  idVar       - variable name holding the spinner id (from addSpinner)
-  replacement - text to display in place of the spinner (default: space)
-  newline     - true to emit a newline after replacement, false to suppress (default: true)
-  backup      - number of characters to back up before writing replacement (default: 0)
+Remove a spinner by id; prefer stopSpinner for typical use.
 
-```bash
-removeSpinner()
-```
+
+*Args*
+
+| | |
+|---|---|
+| `idVarName` | (stringRef)  Name of var holding the spinner id (from addSpinner). |
+| `replacement` | (string)   Text to display in place of the spinner (default: space). |
+| `newline` | (bool)         Emit a newline after replacement (default: true). |
+| `backup` | (int)           Characters to back up before writing replacement (default: 0). |
+{: .args-table}
+
+### spinnerCloseInheritedFds()
+
+Close the inherited spinner client fds in a subshell forked from the spinner owner.
+Call this at the start of any ( ) & subshell that inherits these fds, to prevent
+accidental writes that would corrupt the spinner FIFO protocol.
 

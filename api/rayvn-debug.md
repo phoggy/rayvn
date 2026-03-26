@@ -7,216 +7,142 @@ nav_order: 4
 
 # rayvn/debug
 
+Debug logging and tracing
+
 ## Functions
 
-### debug
+### isDebugEnabled()
 
-**Library:** `rayvn/debug`
+Return 0 if debug mode is enabled, non-zero otherwise.
 
-Library supporting debug logging.
-Intended for use via: require 'rayvn/debug'
-IMPORTANT!
-Each of the following public functions MUST have a corresponding NO-OP declaration
-within core. If you add a new function here:
-   1. add it to the list in _init_rayvn_debug below
-   2. add a NO-OP function at the bottom of core.sh
-   3. add it to _rayvnFunctionSources in rayvn.up
-Write a message to debug output if debug mode is enabled. No-op otherwise.
-Args: message [args...]
-  message - text to write; additional args are appended space-separated
+### debug()
 
-```bash
-debug()
-```
+Log args. No-op if debug is not enabled.
 
-### debugEnabled
+### debugDir()
 
-**Library:** `rayvn/debug`
+Log the debug output directory path to debug output. No-op if debug is not enabled.
 
-Return 0 if debug mode is currently enabled, 1 otherwise.
+### debugBinary()
 
-```bash
-debugEnabled()
-```
+Log a binary string as hex bytes. No-op if debug is not enabled.
 
-### debugDir
 
-**Library:** `rayvn/debug`
+*Args*
 
-Write the path to the debug output directory to debug output if debug mode is enabled.
+| | |
+|---|---|
+| `label` | (string)   Label logged before the hex bytes. |
+| `binary` | (string)  Binary string to display as hex. |
+{: .args-table}
 
-```bash
-debugDir()
-```
+### debugVar()
 
-### debugStatus
+Log variable declaration(s). Convenience alias for debugVars. No-op if debug is not enabled.
 
-**Library:** `rayvn/debug`
+### debugVars()
 
-Print the current debug configuration (log file path or output target) if debug is enabled.
+Log declarations of one or more variables. No-op if debug is not enabled.
 
-```bash
-debugStatus()
-```
 
-### debugBinary
+*Args*
 
-**Library:** `rayvn/debug`
+| | |
+|---|---|
+| `varName` | (stringRef)  Name of a variable to inspect; outputs "not defined" if undefined. |
+{: .args-table}
 
-Write a binary string as hex bytes to debug output if debug mode is enabled.
-Args: prompt binary
-  prompt - label printed before the hex bytes
-  binary - the binary string to display as hex
+### debugVarIsSet()
 
-```bash
-debugBinary()
-```
+Assert and log that a variable is set, logging a stack trace if not. No-op if debug is not enabled.
 
-### debugVar
 
-**Library:** `rayvn/debug`
+*Args*
 
-Write the declaration of a single variable to debug output if debug mode is enabled.
-Args: varName
-  varName - name of the variable to inspect
+| | |
+|---|---|
+| `varName` | (stringRef)  Name of the variable expected to be set. |
+| `prefix` | (string)      Optional label prepended to the assertion message. |
+{: .args-table}
 
-```bash
-debugVar()
-```
+### debugVarIsNotSet()
 
-### debugVars
+Assert and log that a variable is not set, logging a stack trace if it is. No-op if debug is not enabled.
 
-**Library:** `rayvn/debug`
 
-Write the declarations of one or more variables to debug output if debug mode is enabled.
-Args: varName [varName...]
-  varName - name of a variable to inspect; reports "not defined" if undefined
+*Args*
 
-```bash
-debugVars()
-```
+| | |
+|---|---|
+| `var` | (stringRef)  Name of the variable expected to be unset. |
+| `prefix` | (string)  Optional label prepended to the assertion message. |
+{: .args-table}
 
-### debugVarIsSet
+### debugFile()
 
-**Library:** `rayvn/debug`
+Copy a file into the debug directory.
 
-Assert and log that a variable is set; prints a stack trace to debug output if it is not.
-Args: varName [prefix]
-  varName - name of the variable expected to be set
-  prefix  - optional label to prepend to the assertion message
 
-```bash
-debugVarIsSet()
-```
+*Args*
 
-### debugVarIsNotSet
+| | |
+|---|---|
+| `sourceFile` | (string)  Path to the source file. |
+| `fileName` | (string)    Optional filename (default: basename of sourceFile). |
+{: .args-table}
 
-**Library:** `rayvn/debug`
+### debugJson()
 
-Assert and log that a variable is NOT set; prints a stack trace to debug output if it is.
-Args: varName [prefix]
-  varName - name of the variable expected to be unset
-  prefix  - optional label to prepend to the assertion message
+Write a variable's JSON content as a file in the debug directory. No-op if debug is not enabled.
 
-```bash
-debugVarIsNotSet()
-```
 
-### debugFile
+*Args*
 
-**Library:** `rayvn/debug`
+| | |
+|---|---|
+| `jsonRef` | (stringRef)  Name of the variable holding the JSON string. |
+| `fileName` | (string)    Base name for the output file. |
+{: .args-table}
 
-Copy a file into the debug directory for inspection, if debug mode is enabled.
-Args: sourceFile [fileName]
-  sourceFile - path to the file to copy
-  fileName   - optional name for the copy in the debug directory (default: basename of sourceFile)
+### debugStack()
 
-```bash
-debugFile()
-```
+Log a stack trace if enabled, with an optional message to log first. No-op if debug is not enabled.
 
-### debugJson
+### debugTraceOn()
 
-**Library:** `rayvn/debug`
+Enable bash xtrace (set -x), directing output to the debug stream, with an optional message to log first.
 
-Write the contents of a variable as a JSON file in the debug directory, if debug is enabled.
-Args: jsonVar fileName
-  jsonVar  - name of the variable holding the JSON content
-  fileName - base name for the output file (written as fileName.json in the debug directory)
+### debugTraceOff()
 
-```bash
-debugJson()
-```
+Disable bash xtrace (set +x) previously enabled by debugTraceOn, optionally logging a message afterward.
+No-op if debug is not enabled.
 
-### debugStack
+### debugEscapes()
 
-**Library:** `rayvn/debug`
+Log each argument shell-quoted via 'printf %q'. No-op if debug is not enabled.
 
-Write a stack trace to debug output if debug mode is enabled.
-Args: [message [args...]]
-  message - optional message to include before the stack trace
+### debugEnvironment()
 
-```bash
-debugStack()
-```
+Log the full process environment (variables and functions) to '<name>.env' in the debug directory.
+No-op if debug is not enabled.
 
-### debugTraceOn
 
-**Library:** `rayvn/debug`
+*Args*
 
-Enable bash xtrace (set -x) with output directed to debug output.
-Args: [message [args...]]
-  message - optional message to log before enabling the trace
+| | |
+|---|---|
+| `name` | (string)  Base name for the output file. |
+{: .args-table}
 
-```bash
-debugTraceOn()
-```
+### debugFileDescriptors()
 
-### debugTraceOff
+Log the open/closed status and mode of one or more file descriptors. No-op if debug is not enabled.
 
-**Library:** `rayvn/debug`
 
-Disable bash xtrace (set +x) previously enabled by debugTraceOn.
-Args: [message [args...]]
-  message - optional message to log after disabling the trace
+*Args*
 
-```bash
-debugTraceOff()
-```
-
-### debugEscapes
-
-**Library:** `rayvn/debug`
-
-Print each argument in its shell-quoted (printf %q) form to debug output if debug is enabled.
-Args: value [value...]
-  value - one or more values to print in quoted form
-
-```bash
-debugEscapes()
-```
-
-### debugEnvironment
-
-**Library:** `rayvn/debug`
-
-Write the complete process environment (variables and functions) to a file in the debug directory.
-Args: fileName
-  fileName - base name for the output file (written as fileName.env in the debug directory)
-
-```bash
-debugEnvironment()
-```
-
-### debugFileDescriptors
-
-**Library:** `rayvn/debug`
-
-Log the open/closed status and mode of one or more file descriptors to debug output.
-Args: fdVar [fdVar...]
-  fdVar - either a numeric fd number, or the name of a variable that holds an fd number
-
-```bash
-debugFileDescriptors()
-```
+| | |
+|---|---|
+| `fd` | | string  Numeric fd or nameref variable holding an fd; repeatable. |
+{: .args-table}
 

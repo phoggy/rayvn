@@ -2,46 +2,32 @@
 layout: default
 title: "rayvn/theme"
 parent: API Reference
-nav_order: 16
+nav_order: 19
 ---
 
 # rayvn/theme
 
+Color themes
+
 ## Functions
 
-### showCurrentTheme
+### showCurrentTheme()
 
-**Library:** `rayvn/theme`
+Display the currently active theme, optionally preceded by a prefix string.
 
-Theme functions.
-Intended for use via: require 'rayvn/theme'
-Display the currently active theme with its color swatches.
-Args: [prefix]
-  prefix - optional text to print before the theme display
+### showThemes()
 
-```bash
-showCurrentTheme()
-```
+Display all available themes with color swatches at the given position, defaulting to 'after'.
 
-### showThemes
-
-**Library:** `rayvn/theme`
-
-Display all available themes with their color swatches.
-Args: [position]
-  position - padding position for theme names: 'after'/'left' (default), 'before'/'right', or 'center'
-
-```bash
-showThemes()
-```
-
-### setTheme
-
-**Library:** `rayvn/theme`
+### setTheme()
 
 Interactively prompt the user to select and apply a new theme.
 
-```bash
-setTheme()
-```
+
+*Args*
+
+| | |
+|---|---|
+| `maxVisible` | (int)  Max themes to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0). |
+{: .args-table}
 

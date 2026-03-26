@@ -2,65 +2,65 @@
 layout: default
 title: "rayvn/secrets"
 parent: API Reference
-nav_order: 11
+nav_order: 14
 ---
 
 # rayvn/secrets
 
+System keychain credential storage
+
 ## Functions
 
-### secretStore
+### secretStore()
 
-**Library:** `rayvn/secrets`
-
-Secure credential storage library using system keychains.
-Intended for use via: require 'rayvn/secrets'
 Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
-Args: service account secret
-  service - service name used to identify the credential group
-  account - account name (key) within the service
-  secret  - secret value to store
 
-```bash
-secretStore()
-```
 
-### secretRetrieve
+*Args*
 
-**Library:** `rayvn/secrets`
+| | |
+|---|---|
+| `service` | (string)  Service name identifying the credential group. |
+| `account` | (string)  Account name (key) within the service. |
+| `secret` | (string)   Secret value to store. |
+{: .args-table}
 
-Retrieve a secret from the system keychain. Prints the value, or empty string if not found.
-Args: service account
-  service - service name used to identify the credential group
-  account - account name (key) within the service
+### secretRetrieve()
 
-```bash
-secretRetrieve()
-```
+Retrieve a secret from the system keychain for the given service and account.
 
-### secretDelete
 
-**Library:** `rayvn/secrets`
+*Args*
+
+| | |
+|---|---|
+| `service` | (string)  Service name identifying the credential group. |
+| `account` | (string)  The account name (key) within the service. |
+{: .args-table}
+
+### secretDelete()
 
 Delete a secret from the system keychain.
-Args: service account
-  service - service name used to identify the credential group
-  account - account name (key) within the service
 
-```bash
-secretDelete()
-```
 
-### secretExists
+*Args*
 
-**Library:** `rayvn/secrets`
+| | |
+|---|---|
+| `service` | (string)  Service name identifying the credential group. |
+| `account` | (string)  Account name (key) within the service. |
+{: .args-table}
 
-Return 0 if a secret exists in the system keychain, 1 if not.
-Args: service account
-  service - service name used to identify the credential group
-  account - account name (key) within the service
+### secretExists()
 
-```bash
-secretExists()
-```
+Return 0 if a secret exists in the system keychain for the given service and account.
+
+
+*Args*
+
+| | |
+|---|---|
+| `service` | (string)  Service name used to identify the credential group. |
+| `account` | (string)  Account name (key) within the service. |
+{: .args-table}
 

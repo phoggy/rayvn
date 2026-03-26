@@ -7,39 +7,34 @@ nav_order: 2
 
 # rayvn/config
 
+Configuration file support
+
 ## Functions
 
-### sourceConfigFile
+### sourceConfigFile()
 
-**Library:** `rayvn/config`
+Source only safe, static variable declarations from a config file or string into the current env.
 
-Library supporting sanitizing and sourcing env style files.
-Intended for use via: require 'rayvn/config'
-Source only safe variable declarations from a bash config file or string, optionally filtered
-by prefix. See extractSafeStaticVars.
-Usage: sourceConfigFile <file_or_string> [prefix_filter]
-Output: variables are defined in current env
 
-```bash
-sourceConfigFile()
-```
+*Args*
 
-### extractSafeStaticVars
+| | |
+|---|---|
+| `input` | (string)         Path to a config file or a raw bash string to parse. |
+| `prefixFilter` | (string)  Optional variable name prefix to restrict which vars are sourced. |
+{: .args-table}
 
-**Library:** `rayvn/config`
+### extractSafeStaticVars()
 
-Parse a bash config file or string and extract only safe variable declarations.
-This function processes bash files to extract variable declarations while ensuring
-no side effects can occur by filtering out:
-- All function definitions
-- All function calls
-- All variable declarations containing command substitutions
-It also filters out comments, but wraps the result with
-begin/end comments.
-Usage: extractSafeStaticVars <file_or_string> [prefix_filter]
-Output: Safe variable declarations that can be sourced
+Parse a bash config file or string, extracting only safe static variable declarations.
+Filters out function definitions, function calls, command substitutions, and comments.
 
-```bash
-extractSafeStaticVars()
-```
+
+*Args*
+
+| | |
+|---|---|
+| `input` | (string)         String or file path containing bash variable declarations to parse. |
+| `prefixFilter` | (string)  Only include variables matching this prefix (optional). |
+{: .args-table}
 

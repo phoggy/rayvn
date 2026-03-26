@@ -1,6 +1,6 @@
 title: rayvn
 description: A bash shared library framework
-remote_theme: just-the-docs/just-the-docs
+theme: just-the-docs
 color_scheme: dark
 url: https://rayvn.ink
 baseurl: /rayvn
@@ -12,6 +12,10 @@ nav_external_links:
     url: /valt
   - title: wardn docs
     url: /wardn
+
+sass:
+  quiet_deps: true
+  silence_deprecations: [import]
 
 aux_links:
   "rayvn.ink": "/"

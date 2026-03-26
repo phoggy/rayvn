@@ -2,82 +2,152 @@
 layout: default
 title: "rayvn/prompt"
 parent: API Reference
-nav_order: 9
+nav_order: 12
 ---
 
 # rayvn/prompt
 
+Interactive user prompts
+
 ## Functions
 
-### request
+### request()
 
-**Library:** `rayvn/prompt`
+Read user input into a variable.
 
-shellcheck disable=SC2155
-Library of user input functions.
-Intended for use via: require 'rayvn/prompt'
-Read user input.
-Usage: request [-n] <prompt> <resultVarName> [true/false cancel-on-empty] [timeout seconds] [true/false hidden]
-The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-the same as in echo: no newline is appended.
-Output: resultVar set to input.
-Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
-```bash
-request()
+*Args*
+
+| | |
+|---|---|
+| `prompt` | (string)            Displayed prompt text. |
+| `resultVarName` | (stringRef)  Name of the variable to store the result in. |
+| `cancelOnEmpty` | (bool)       Cancel on empty input (default: true). |
+| `timeout` | (int)              Inactivity timeout in seconds (default: 30). Resets on each key press. |
+| `hide` | (bool)                Hide input (default: false). |
+{: .args-table}
+
+*Notes*
+
+```
+The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
 ```
 
-### secureRequest
+*Returns*
 
-**Library:** `rayvn/prompt`
+| | |
+|---|---|
+| `0` | success |
+| `1` | empty input and cancelOnEmpty is true |
+| `124` | timeout |
+| `130` | user canceled (ESC) |
+{: .args-table}
+
+### secureRequest()
 
 Read user input without echoing it to the terminal.
-Usage: requestHidden [-n] <prompt> <resultVarName> [true/false cancelOnEmpty] [timeout seconds]
-The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-the same as in echo: no newline is appended.
-Output: resultVar set to input.
-Exit codes: 0 = success, 1 = empty input & cancel-on-empty=true, 124 = timeout, 130 = user canceled (ESC pressed)
 
-```bash
-secureRequest()
+
+*Args*
+
+| | |
+|---|---|
+| `prompt` | (string)            Displayed prompt text. |
+| `resultVarName` | (stringRef)  Name of the variable to store the input. |
+| `cancelOnEmpty` | (bool)       Whether to cancel on empty input (default: true). |
+| `timeout` | (int)              Inactivity timeout in seconds (default: 30). Resets on every key press. |
+{: .args-table}
+
+*Notes*
+
+```
+The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
 ```
 
-### confirm
+*Returns*
 
-**Library:** `rayvn/prompt`
+| | |
+|---|---|
+| `0` | success |
+| `1` | empty input and cancelOnEmpty is true |
+| `124` | timeout |
+| `130` | user canceled (ESC pressed) |
+{: .args-table}
+
+### confirm()
 
 Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
-Usage: confirm [-n] <prompt> <answer1> <answer2> <choiceIndexVarName> [true/false defaultAnswerTwo] [timeout seconds]
-Answer 1 will be selected first by default. For an important action (e.g. deleting / creating something), consider
-making it a *little* harder to select the positive choice so that two key presses (arrow and enter) are required.
-There are two ways to accomplish this:
-   1. Pass the negative answer first, or
-   2. Pass 'true' for defaultAnswerTwo to maintain a consistent answer sequence across invocations
-The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-the same as in echo: no newline is appended.
-Output: choiceIndexVar set to 0 for answer 1 or 1 for answer 2
-Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
 
-```bash
-confirm()
+
+*Args*
+
+| | |
+|---|---|
+| `prompt` | (string)            Displayed prompt text. |
+| `answer1` | (string)           First choice label. |
+| `answer2` | (string)           Second choice label. |
+| `resultVarName` | (stringRef)  Name of var to receive the selected choice label. |
+| `defaultAnswerTwo` | (bool)    When true, answer2 is selected initially (default: false). |
+| `timeout` | (int)              Inactivity timeout in seconds (default: 30). Resets on every key press. |
+{: .args-table}
+
+*Notes*
+
+```
+The -n flag suppresses the trailing newline, as in echo -n.
+
+For destructive actions, consider defaulting to the safer choice: either put the negative answer first, or
+pass true for defaultAnswerTwo.
 ```
 
-### choose
+*Returns*
 
-**Library:** `rayvn/prompt`
+| | |
+|---|---|
+| `0` | success |
+| `124` | timeout |
+| `130` | user canceled (ESC pressed) |
+{: .args-table}
+
+### choose()
 
 Choose from a list of options using the arrow keys.
-Usage: choose [-n] <prompt> <choicesVarName> <resultIndexVarName> [true/false addSeparator] [startIndex] [numberChoices]
-              [maxVisible] [timeout seconds]
-If numberChoices is > 0 choices will be numbered, and if < 0, numbers will be added only if there are non-visible choices.
-If maxVisible is not passed, or is set to 0, uses all lines below the current cursor to display items; if < 0, clears and
-uses entire terminal.
-The seconds counter is reset to 0 on every key press, so timeout applies only to inactivity. The -n option is
-the same as in echo: no newline is appended.
-Output: choiceIndexVar set to index of selected choice.
-Exit codes: 0 = success, 124 = timeout, 130 = user canceled (ESC pressed)
+
+
+*Args*
+
+| | |
+|---|---|
+| `prompt` | (string)            Displayed prompt text. |
+| `choicesVarName` | (arrayRef)  Name of the array var containing choices. |
+| `resultVarName` | (stringRef)  Name of the var to store the selected choice index. |
+| `addSeparator` | (bool)        Add a blank line between items (default: false). |
+| `startIndex` | (int)           Index of the initially selected item (default: 0). |
+| `numberChoices` | (int)        When or if to number the choices: > 0 = always; < 0 = only if 1 or more items are off-screen; |
+| `maxVisibleItems` | (int)      Max items to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0). |
+| `timeout` | (int)              Inactivity timeout in seconds (default: 30). Resets on any keypress. |
+{: .args-table}
+
+*Notes*
+
+```
+The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
+```
+
+*Returns*
+
+| | |
+|---|---|
+| `0` | success |
+| `124` | timeout (inactivity) |
+| `130` | user canceled (ESC pressed) |
+{: .args-table}
+
+*Example*
 
 ```bash
-choose()
+choices=("Apple" "Banana" "Cherry")
+choose "Pick a fruit:" choices selectedIndex
+echo "You picked index: ${selectedIndex}"
 ```
 

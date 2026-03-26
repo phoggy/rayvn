@@ -2,251 +2,149 @@
 layout: default
 title: "rayvn/terminal"
 parent: API Reference
-nav_order: 13
+nav_order: 16
 ---
 
 # rayvn/terminal
 
+Cursor control and terminal output
+
 ## Functions
 
-### cursorHide
+### cursorHide()
 
-**Library:** `rayvn/terminal`
-
-shellcheck disable=SC2120,SC2155
-Library supporting terminal operations
-Intended for use via: require 'rayvn/terminal'
 Hide the terminal cursor.
 
-```bash
-cursorHide()
-```
-
-### cursorShow
-
-**Library:** `rayvn/terminal`
+### cursorShow()
 
 Show the terminal cursor.
 
+### cursorPosition()
+
+Read the current cursor position.
+
+
+*Args*
+
+| | |
+|---|---|
+| `rowVarRef` | (stringRef)  Receives the 1-based row number. |
+| `colVarRef` | (stringRef)  Receives the 1-based column number. |
+{: .args-table}
+
+*Example*
+
 ```bash
-cursorShow()
+cursorPosition row col
+echo "Cursor is at row $row, col $col"
 ```
 
-### cursorPosition
-
-**Library:** `rayvn/terminal`
-
-Read the current cursor position via the terminal's CPR response and store it via namerefs.
-Args: rowVar colVar
-  rowVar - nameref variable to receive the 1-based row number
-  colVar - nameref variable to receive the 1-based column number
-
-```bash
-cursorPosition()
-```
-
-### cursorSave
-
-**Library:** `rayvn/terminal`
+### cursorSave()
 
 Save the current cursor position. Note: save/restore does not work correctly if scrolling
 occurs between the save and restore; use `reserveRows()` first to prevent scrolling.
 
-```bash
-cursorSave()
-```
-
-### cursorRestore
-
-**Library:** `rayvn/terminal`
+### cursorRestore()
 
 Restore the cursor to the position saved by `cursorSave()`.
 
-```bash
-cursorRestore()
-```
+### cursorUp()
 
-### cursorUp
+Move the cursor up N rows (default: 1).
 
-**Library:** `rayvn/terminal`
+### cursorUpToLineStart()
 
-Move the cursor up by a number of rows.
-Args: [rows]
-  rows - number of rows to move up (default: 1)
+Move cursor up N rows and back to line start (default: 1).
 
-```bash
-cursorUp()
-```
+### cursorUpToColumn()
 
-### cursorUpToLineStart
+Move the cursor up N rows and place it at a 1-based column.
 
-**Library:** `rayvn/terminal`
 
-Move the cursor up by a number of rows and place it at the start of the line.
-Args: [rows]
-  rows - number of rows to move up (default: 1)
+*Args*
 
-```bash
-cursorUpToLineStart()
-```
+| | |
+|---|---|
+| `rows` | (int)  Number of rows to move up. |
+| `col` | (int)   1-based column to move to. |
+{: .args-table}
 
-### cursorUpToColumn
+### cursorDown()
 
-**Library:** `rayvn/terminal`
+Move the cursor down by the given number of rows (default: 1).
 
-Move the cursor up by a number of rows and place it at a specific column.
-Args: rows col
-  rows - number of rows to move up
-  col  - 1-based column to move to
+### cursorDownToLineStart()
 
-```bash
-cursorUpToColumn()
-```
+Move the cursor down N rows and to the start of the line (default: 1).
 
-### cursorDown
+### cursorDownToColumn()
 
-**Library:** `rayvn/terminal`
+Move the cursor down N rows then to a 1-based column position.
 
-Move the cursor down by a number of rows.
-Args: [rows]
-  rows - number of rows to move down (default: 1)
 
-```bash
-cursorDown()
-```
+*Args*
 
-### cursorDownToLineStart
+| | |
+|---|---|
+| `rows` | (int)  Number of rows to move down. |
+| `col` | (int)   1-based column to place the cursor at. |
+{: .args-table}
 
-**Library:** `rayvn/terminal`
+### cursorTo()
 
-Move the cursor down by a number of rows and place it at the start of the line.
-Args: [rows]
-  rows - number of rows to move down (default: 1)
+Move the cursor to an absolute terminal position, writing to /dev/tty.
 
-```bash
-cursorDownToLineStart()
-```
 
-### cursorDownToColumn
+*Args*
 
-**Library:** `rayvn/terminal`
+| | |
+|---|---|
+| `row` | (int)  1-based row to move to. |
+| `col` | (int)  1-based column to move to (default: 0). |
+{: .args-table}
 
-Move the cursor down by a number of rows and place it at a specific column.
-Args: rows col
-  rows - number of rows to move down
-  col  - 1-based column to move to
+### cursorToColumn()
 
-```bash
-cursorDownToColumn()
-```
+Move the cursor to an absolute 1-based column on the current row.
 
-### cursorTo
+### cursorToLineStart()
 
-**Library:** `rayvn/terminal`
+Move the cursor to column 1 of the current row.
 
-Move the cursor to an absolute terminal position (row, col).
-Args: row [col]
-  row - 1-based row to move to
-  col - 1-based column to move to (default: 0)
+### cursorToColumnAndEraseToEndOfLine()
 
-```bash
-cursorTo()
-```
+Move cursor to column N (1-based) and erase to end of line.
 
-### cursorToColumn
-
-**Library:** `rayvn/terminal`
-
-Move the cursor to an absolute column on the current row.
-Args: col
-  col - 1-based column to move to
-
-```bash
-cursorToColumn()
-```
-
-### cursorToLineStart
-
-**Library:** `rayvn/terminal`
-
-Move the cursor to column 1 (start) of the current row.
-
-```bash
-cursorToLineStart()
-```
-
-### cursorToColumnAndEraseToEndOfLine
-
-**Library:** `rayvn/terminal`
-
-Move the cursor to a column and erase from that position to the end of the line.
-Args: col
-  col - 1-based column to move to before erasing
-
-```bash
-cursorToColumnAndEraseToEndOfLine()
-```
-
-### cursorUpOneAndEraseLine
-
-**Library:** `rayvn/terminal`
+### cursorUpOneAndEraseLine()
 
 Move the cursor up one row and erase the entire line.
 
-```bash
-cursorUpOneAndEraseLine()
-```
-
-### cursorDownOneAndEraseLine
-
-**Library:** `rayvn/terminal`
+### cursorDownOneAndEraseLine()
 
 Move the cursor down one row and erase the entire line.
 
-```bash
-cursorDownOneAndEraseLine()
-```
-
-### eraseToEndOfLine
-
-**Library:** `rayvn/terminal`
+### eraseToEndOfLine()
 
 Erase from the cursor position to the end of the current line.
 
-```bash
-eraseToEndOfLine()
-```
-
-### eraseCurrentLine
-
-**Library:** `rayvn/terminal`
+### eraseCurrentLine()
 
 Erase the entire current line and move the cursor to column 1.
 
-```bash
-eraseCurrentLine()
-```
-
-### clearTerminal
-
-**Library:** `rayvn/terminal`
+### clearTerminal()
 
 Clear the entire terminal and move the cursor to the top-left.
 
-```bash
-clearTerminal()
-```
+### reserveRows()
 
-### reserveRows
+Scroll the terminal to ensure requiredRows are available below the cursor,
+adjusting the cursor position to account for any scrolling that occurred.
 
-**Library:** `rayvn/terminal`
 
-Scroll the terminal if necessary to ensure a minimum number of rows are available below the cursor.
-Adjusts the current cursor row to account for any scrolling that occurred.
-Args: [requiredRows]
-  requiredRows - number of rows needed below the current cursor position (default: 2)
+*Args*
 
-```bash
-reserveRows()
-```
+| | |
+|---|---|
+| `requiredRows` | (int)  Rows needed below the cursor (default: 2). |
+{: .args-table}
 

@@ -2,31 +2,59 @@
 layout: default
 title: "rayvn/index"
 parent: API Reference
-nav_order: 6
+nav_order: 7
 ---
 
 # rayvn/index
 
+Generate rayvn library function indexes and Jekyll docs.
+
 ## Functions
 
-### runIndex
+### runIndex()
 
-**Library:** `rayvn/index`
+Generate verbose and optional compact function indexes for rayvn libraries.
 
-Library for generating and publishing rayvn library function indexes and Jekyll docs.
-Intended for use via: require 'rayvn/index'
-Generate function indexes and/or Jekyll docs for rayvn project libraries.
-Reads options from args passed in; discovers libraries via _rayvnProjects.
-Args: [OPTIONS]
-  -o, --output FILE        Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)
-  -c, --compact FILE       Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt)
-  --no-compact             Skip generating compact index
-  --no-hash                Skip function hash tracking
-  --hash-file FILE         Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt)
-  --docs DIR               Generate Jekyll docs pages into DIR
-  --publish                Generate and publish docs to each project's gh-pages worktree
+
+*Usage*
 
 ```bash
-runIndex()
+runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]
+
+-o, --output FILE (string)    Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
+-c, --compact FILE (string)   Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
+--no-compact                  Skip generating the compact index.
+--no-hash                     Skip function hash tracking.
+--hash-file FILE (string)     Hash storage file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
 ```
+
+### runPages()
+
+Generate Jekyll pages for a single project's gh-pages site.
+
+
+*Usage*
+
+```bash
+runPages PROJECT [--dir DIR] [--publish | --view]
+
+PROJECT (string)       The project to generate pages for (e.g. rayvn, valt, wardn).
+--dir DIR (string)     Output directory (default: project's configured worktree).
+--publish              Commit and push changes to gh-pages after generating.
+--view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
+```
+
+### findDependencies()
+
+Scan a project's source files for external command dependencies and sync them to flake.nix.
+Confirms external binaries via command -v, maps them to nix package names via rayvn.pkg,
+and adds any missing entries to flake.nix. Also delegates npm dependency updates.
+
+
+*Args*
+
+| | |
+|---|---|
+| `projectName` | (string)  Name of the rayvn project to scan (e.g. 'valt', 'rayvn'). |
+{: .args-table}
 

@@ -2,418 +2,420 @@
 layout: default
 title: "rayvn/test"
 parent: API Reference
-nav_order: 15
+nav_order: 18
 ---
 
 # rayvn/test
 
+Test assertions
+
 ## Functions
 
-### assertNotInFile
+### assertNotInFile()
 
-**Library:** `rayvn/test`
-
-shellcheck disable=SC2155
-Test case support library.
-Intended for use via: require 'rayvn/test'
 Fail if a pattern is found in a file.
-Args: match file
-  match - grep pattern that must NOT be present
-  file  - path to the file to search
 
-```bash
-assertNotInFile()
-```
 
-### assertInFile
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `match` | (string)  Pattern to search for. |
+| `file` | (string)   Path to the file to search. |
+{: .args-table}
 
-Fail if a pattern is not found in a file.
-Args: match file
-  match - grep pattern that must be present
-  file  - path to the file to search
+### assertInFile()
 
-```bash
-assertInFile()
-```
+Fail if a grep pattern is not found in a file.
 
-### assertEqual
 
-**Library:** `rayvn/test`
+*Args*
 
-Fail if two values are not equal (string comparison).
-Args: expected actual [message]
-  expected - expected value
-  actual   - actual value to compare
-  message  - optional custom failure message
+| | |
+|---|---|
+| `match` | (string)  Pattern to search for. |
+| `file` | (string)   Path to the file to search. |
+{: .args-table}
 
-```bash
-assertEqual()
-```
+### assertEqual()
 
-### assertEqualStripped
+Fails with a message if two strings are not equal.
 
-**Library:** `rayvn/test`
+
+*Args*
+
+| | |
+|---|---|
+| `expected` | (string)  Expected value. |
+| `actual` | (string)    Actual value. |
+| `message` | (string)   Optional custom failure message. |
+{: .args-table}
+
+### assertEqualStripped()
 
 Fail if expected does not equal actual after stripping ANSI escape codes from actual.
-Args: expected actual [message]
-  expected - expected plain-text value
-  actual   - actual value (may contain ANSI codes; they are stripped before comparison)
-  message  - optional custom failure message
 
-```bash
-assertEqualStripped()
-```
 
-### assertEqualEscapeCodes
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `expected` | (string)  Expected plain-text value. |
+| `actual` | (string)    Value to compare; ANSI codes are stripped before comparison. |
+| `msg` | (string)       Optional failure message. |
+{: .args-table}
 
-Fail if expected does not equal actual; on failure, shows both values with cat -v escapes visible.
-Args: expected actual [message]
-  expected - expected value (may contain escape codes)
-  actual   - actual value to compare
-  message  - optional custom failure message
+### assertEqualEscapeCodes()
 
-```bash
-assertEqualEscapeCodes()
-```
+Assert two strings are equal, printing both with cat -v (escape codes visible) on failure.
 
-### assertTrue
 
-**Library:** `rayvn/test`
+*Args*
 
-Fail with a message if a command exits non-zero.
-Args: message command [args...]
-  message - failure message to display
-  command - command and arguments to execute
+| | |
+|---|---|
+| `expected` | (string)  Expected value (may contain escape codes). |
+| `actual` | (string)    Actual value to compare. |
+| `msg` | (string)       Failure message; defaults to "assertEqualEscapeCodes failed". |
+{: .args-table}
 
-```bash
-assertTrue()
-```
+### assertTrue()
 
-### assertFalse
+Fail with msg if a command exits non-zero.
 
-**Library:** `rayvn/test`
 
-Fail with a message if a command exits zero.
-Args: message command [args...]
-  message - failure message to display
-  command - command and arguments to execute
+*Args*
 
-```bash
-assertFalse()
-```
+| | |
+|---|---|
+| `msg` | (string)  Failure message to display. |
+| `@` | Command and arguments to execute. |
+{: .args-table}
 
-### assertContains
+### assertFalse()
 
-**Library:** `rayvn/test`
+Fail with msg if a command exits zero.
+
+
+*Args*
+
+| | |
+|---|---|
+| `msg` | (string)  Message to display on failure. |
+| `cmd` | (string)  Command and arguments to execute. |
+{: .args-table}
+
+### assertContains()
 
 Fail if actual does not contain expected as a substring.
-Args: expected actual [message]
-  expected - substring that must be present in actual
-  actual   - value to search within
-  message  - optional custom failure message
 
-```bash
-assertContains()
-```
 
-### assertInRange
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `expected` | (string)  Substring that must be present in actual. |
+| `actual` | (string)    Value to search within. |
+| `msg` | (string)       Optional custom failure message. |
+{: .args-table}
 
-Fail if a numeric value is not within an inclusive range.
-Args: value min max [message]
-  value   - numeric value to check
-  min     - minimum allowed value (inclusive)
-  max     - maximum allowed value (inclusive)
-  message - optional custom failure message
+### assertInRange()
 
-```bash
-assertInRange()
-```
+Fail if a numeric value is not within the inclusive range [min, max].
 
-### assertEqualIgnoreCase
 
-**Library:** `rayvn/test`
+*Args*
 
-Fail if two values are not equal (case-insensitive comparison).
-Args: expected actual [message]
-  expected - expected value (compared case-insensitively)
-  actual   - actual value to compare
-  message  - optional custom failure message
+| | |
+|---|---|
+| `value` | (int)   Value to check. |
+| `min` | (int)     Minimum allowed value (inclusive). |
+| `max` | (int)     Maximum allowed value (inclusive). |
+| `msg` | (string)  Custom failure message. |
+{: .args-table}
 
-```bash
-assertEqualIgnoreCase()
-```
+### assertEqualIgnoreCase()
 
-### assertNotInPath
+Fail if two strings are not equal, ignoring case.
 
-**Library:** `rayvn/test`
+### assertNotInPath()
 
-Fail if an executable is found in PATH.
-Args: executable
-  executable - name of the command that must NOT be in PATH
+Fails if an executable is found in PATH.
 
-```bash
-assertNotInPath()
-```
+### assertInPath()
 
-### assertInPath
+Fail if an executable is not found in PATH, or optionally at an unexpected path.
 
-**Library:** `rayvn/test`
 
-Fail if an executable is not found in PATH, or if found at an unexpected path.
-Args: executable [expectedPath]
-  executable   - name of the command that must be in PATH
-  expectedPath - optional expected resolved path (symlinks followed)
+*Args*
 
-```bash
-assertInPath()
-```
+| | |
+|---|---|
+| `executable` | (string)    Name of the command that must be in PATH. |
+| `expectedPath` | (string)  Expected path; checked against both the found path and its |
+{: .args-table}
 
-### assertFunctionIsNotDefined
-
-**Library:** `rayvn/test`
+### assertFunctionIsNotDefined()
 
 Fail if a function with the given name is currently defined.
-Args: name
-  name - function name that must NOT be defined
 
-```bash
-assertFunctionIsNotDefined()
-```
 
-### assertVarIsNotDefined
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `name` | (string)  Name of the function that must not be defined. |
+{: .args-table}
+
+### assertVarIsNotDefined()
 
 Fail if a variable with the given name is currently defined.
-Args: name
-  name - variable name that must NOT be defined
 
-```bash
-assertVarIsNotDefined()
-```
 
-### assertFunctionIsDefined
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `name` | (string)  Variable name that must not be defined. |
+{: .args-table}
+
+### assertFunctionIsDefined()
 
 Fail if a function with the given name is not currently defined.
-Args: name
-  name - function name that must be defined
 
-```bash
-assertFunctionIsDefined()
-```
 
-### assertVarIsDefined
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `name` | (string)  Name of the function that must be defined. |
+{: .args-table}
+
+### assertVarIsDefined()
 
 Fail if a variable with the given name is not currently defined.
-Args: name
-  name - variable name that must be defined
 
-```bash
-assertVarIsDefined()
-```
 
-### assertVarType
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `name` | (string)  Name of the variable to check. |
+{: .args-table}
+
+### assertVarType()
 
 Fail if a variable's declare flags do not match the expected set (order-independent).
-Args: varName expectedFlags
-  varName       - name of the variable to inspect
-  expectedFlags - expected declare flags as a string (e.g. "ir", "r", "arx", "A")
 
-```bash
-assertVarType()
-```
 
-### assertVarEquals
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `varName` | (stringRef)     Name of the variable to inspect. |
+| `expectedFlags` | (string)  Expected declare flags as a string (e.g. "ir", "r", "arx", "A"). |
+{: .args-table}
 
-Fail if a variable's value does not equal the expected string.
-Args: varName expected
-  varName  - name of the variable to check
-  expected - expected string value
+### assertVarEquals()
 
-```bash
-assertVarEquals()
-```
+Fail if a named variable's value does not equal the expected string.
 
-### assertVarContains
 
-**Library:** `rayvn/test`
+*Args*
 
-Fail if a variable's value does not contain the expected substring.
-Args: varName expected
-  varName  - name of the variable to check
-  expected - substring that must be present in the variable's value
+| | |
+|---|---|
+| `varName` | (stringRef)  The name of the variable to check. |
+| `expected` | (string)    The expected string value. |
+{: .args-table}
 
-```bash
-assertVarContains()
-```
+### assertVarContains()
 
-### assertArrayEquals
+Fail if the variable named varName does not contain expected as a substring.
 
-**Library:** `rayvn/test`
 
-Fail if an indexed array's elements do not exactly match the expected values.
-Args: varName [element...]
-  varName  - name of the indexed array variable to check
-  element  - zero or more expected element values in order
+*Args*
 
-```bash
-assertArrayEquals()
-```
+| | |
+|---|---|
+| `varName` | (stringRef)  Name of the variable to check. |
+| `expected` | (string)    Substring that must be present in the variable's value. |
+{: .args-table}
 
-### assertHashTableIsDefined
+### assertArrayEquals()
 
-**Library:** `rayvn/test`
+Fail if an indexed array's contents do not exactly match the expected values.
+
+
+*Args*
+
+| | |
+|---|---|
+| `varName` | (arrayRef)  Name of the indexed array variable to check. |
+| `expected` | (string)   Remaining args are the expected element values in order. |
+{: .args-table}
+
+### assertHashTableIsDefined()
 
 Fail if a variable is not defined as an associative array (hash table).
-Args: varName
-  varName - name of the variable that must be a defined associative array
 
-```bash
-assertHashTableIsDefined()
-```
 
-### assertHashTableIsNotDefined
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `varName` | (mapRef)  Name of the variable that must be a defined associative array. |
+{: .args-table}
+
+### assertHashTableIsNotDefined()
 
 Fail if an associative array variable is currently defined.
-Args: varName
-  varName - name of the variable that must NOT be defined
 
-```bash
-assertHashTableIsNotDefined()
-```
 
-### assertHashKeyIsDefined
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `varName` | (mapRef)  Name of the variable that must not be defined. |
+{: .args-table}
+
+### assertHashKeyIsDefined()
 
 Fail if a key is not present in an associative array.
-Args: varName keyName
-  varName - name of the associative array variable
-  keyName - key that must be defined in the array
 
-```bash
-assertHashKeyIsDefined()
-```
 
-### assertHashKeyIsNotDefined
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `varName` | (mapRef)  Name of the associative array variable. |
+| `keyName` | (string)  Key that must be defined in the array. |
+{: .args-table}
+
+### assertHashKeyIsNotDefined()
 
 Fail if a key is present in an associative array.
-Args: varName keyName
-  varName - name of the associative array variable
-  keyName - key that must NOT be defined in the array
 
-```bash
-assertHashKeyIsNotDefined()
-```
 
-### assertHashValue
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `varName` | (mapRef)  Name of the associative array variable. |
+| `keyName` | (string)  Key that must NOT be defined in the array. |
+{: .args-table}
+
+### assertHashValue()
 
 Fail if the value at a key in an associative array does not equal the expected value.
-Args: varName keyName expectedValue
-  varName       - name of the associative array variable
-  keyName       - key to look up
-  expectedValue - expected value for that key
 
-```bash
-assertHashValue()
-```
 
-### printPath
+*Args*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `varName` | (mapRef)        Name of the associative array variable. |
+| `keyName` | (string)        Key to look up. |
+| `expectedValue` | (string)  Expected value at that key. |
+{: .args-table}
+
+### printPath()
 
 Prepend a directory to a PATH-style variable, removing any existing occurrence first.
-Args: path [pathVariable]
-  path         - directory to prepend
-  pathVariable - name of the colon-separated path variable (default: PATH)
+
 Append a directory to a PATH-style variable, removing any existing occurrence first.
-Args: path [pathVariable]
-  path         - directory to append
-  pathVariable - name of the colon-separated path variable (default: PATH)
-Remove all occurrences of a directory from a PATH-style variable.
-Args: path [pathVariable]
-  path         - directory to remove
-  pathVariable - name of the colon-separated path variable (default: PATH)
+
+*Args*
+
+| | |
+|---|---|
+| `path` | (string)          Name of the directory to prepend. |
+| `pathVariable` | (string)  Name of the colon-separated path variable (default: PATH). |
+{: .args-table}
+Remove all occurrences of a directory from a colon-separated path variable.
+
+*Args*
+
+| | |
+|---|---|
+| `path` | (string)          Name of directory to append. |
+| `pathVariable` | (string)  Name of the colon-separated path variable (default: PATH). |
+{: .args-table}
 Print a PATH-style variable with each directory on its own numbered line.
-Args: [pathVariable]
-  pathVariable - name of the colon-separated path variable to display (default: PATH)
 
-```bash
-printPath()
-```
+*Args*
 
-### addRayvnProject
+| | |
+|---|---|
+| `removePath` | (string)    Directory path to remove. |
+| `pathVariable` | (string)  Name of the path variable to modify (default: PATH). [R/W] |
+{: .args-table}
 
-**Library:** `rayvn/test`
+*Args*
 
-Register a rayvn project root for use in tests, resolving symlinks and verifying the directory.
-Returns 1 if the project is already registered with the same root; fails if registered with a different root.
-Args: projectName projectRoot
-  projectName - short name for the project (e.g. 'valt')
-  projectRoot - absolute or relative path to the project's root directory
+| | |
+|---|---|
+| `pathVariable` | (string)  Name of the colon-separated path variable to display (default: PATH). |
+{: .args-table}
 
-```bash
-addRayvnProject()
-```
+### addRayvnProject()
 
-### removeRayvnProject
+Register a rayvn project by name and root directory, resolving symlinks via realpath.
 
-**Library:** `rayvn/test`
 
-Unregister a previously added rayvn project, removing its project and library root entries.
-Args: projectName
-  projectName - short name of the project to remove (e.g. 'valt')
+*Args*
 
-```bash
-removeRayvnProject()
-```
+| | |
+|---|---|
+| `projectName` | (string)  Name to register the project under. |
+| `projectRoot` | (string)  Path to the project root directory (resolved to real path). |
+{: .args-table}
 
-### requireAndAssertFailureContains
+*Returns*
 
-**Library:** `rayvn/test`
+| | |
+|---|---|
+| `0` | project successfully registered |
+| `1` | project already registered with the same root (no-op) |
+{: .args-table}
 
-Require a library and assert that the require failure message contains an expected substring.
-Useful for testing libraries that are expected to fail on load.
-Args: library expected
-  library  - library path to require (e.g. 'rayvn/core')
-  expected - substring that must appear in the captured failure message
+### removeRayvnProject()
 
-```bash
-requireAndAssertFailureContains()
-```
+Unregister a project by removing its root entries from _rayvnProjects.
 
-### benchmark
 
-**Library:** `rayvn/test`
+*Args*
 
-Run a function a given number of times and print timing results including ops/sec.
-Args: functionName iterations testCase [args...]
-  functionName - name of the function to benchmark
-  iterations   - number of times to call the function
-  testCase     - label printed in the results line
-  args         - optional arguments passed to the function on each invocation
+| | |
+|---|---|
+| `projectName` | (string)  Name of the project to remove. |
+{: .args-table}
 
-```bash
-benchmark()
-```
+### requireAndAssertFailureContains()
+
+Require a library and assert the failure message contains an expected substring.
+
+
+*Args*
+
+| | |
+|---|---|
+| `library` | (string)   Path to require (e.g. 'rayvn/core'). |
+| `expected` | (string)  Substring that must appear in the captured failure message. |
+{: .args-table}
+
+### benchmark()
+
+Run a function N times and print timing results including ops/sec.
+
+
+*Args*
+
+| | |
+|---|---|
+| `functionName` | (string)  Name of the function to benchmark. |
+| `iterations` | (int)       Number of times to call the function. |
+| `testCase` | (string)      Label printed in the results line. |
+| `[...]` | (string)         Optional arguments passed to the function on each invocation. |
+{: .args-table}
 
