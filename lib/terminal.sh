@@ -8,13 +8,13 @@
 # ◇ Hide the terminal cursor.
 
 cursorHide() {
-    echo -n $'\e[?25l' > /dev/tty
+    echo -n $'\e[?25l' >&${ttyFd}
 }
 
 # ◇ Show the terminal cursor.
 
 cursorShow() {
-    echo -n $'\e[?25h' > /dev/tty
+    echo -n $'\e[?25h' >&${ttyFd}
 }
 
 # ◇ Read the current cursor position.
@@ -36,11 +36,11 @@ cursorPosition() {
     local c
 
     stty -icanon -echo min 1 time 0
-    echo -n $'\e[6n' > /dev/tty
+    echo -n $'\e[6n' >&${ttyFd}
 
     # Read the response character by character until we get 'R'
 
-    while IFS= read -r -n1 c < /dev/tty; do
+    while IFS= read -r -n1 c <&${ttyFd}; do
         response+="${c}"
         [[ "${c}" == 'R' ]] && break
     done
@@ -61,25 +61,25 @@ cursorPosition() {
 #   occurs between the save and restore; use reserveRows() first to prevent scrolling.
 
 cursorSave() {
-    echo -n $'\e[s' > /dev/tty
+    echo -n $'\e[s' >&${ttyFd}
 }
 
 # ◇ Restore the cursor to the position saved by cursorSave().
 
 cursorRestore() {
-    echo -n $'\e[u' > /dev/tty
+    echo -n $'\e[u' >&${ttyFd}
 }
 
 # ◇ Move the cursor up N rows (default: 1).
 
 cursorUp() {
-    printf '\e[%dA' "${1:-1}" > /dev/tty
+    printf '\e[%dA' "${1:-1}" >&${ttyFd}
 }
 
 # ◇ Move cursor up N rows and back to line start (default: 1).
 
 cursorUpToLineStart() {
-    printf '\e[%dA\r' "${1:-1}" > /dev/tty
+    printf '\e[%dA\r' "${1:-1}" >&${ttyFd}
 }
 
 # ◇ Move the cursor up N rows and place it at a 1-based column.
@@ -90,19 +90,19 @@ cursorUpToLineStart() {
 #   col (int)   1-based column to move to.
 
 cursorUpToColumn() {
-    printf '\e[%dA\e[%dG' "$1" "$2" > /dev/tty
+    printf '\e[%dA\e[%dG' "$1" "$2" >&${ttyFd}
 }
 
 # ◇ Move the cursor down by the given number of rows (default: 1).
 
 cursorDown() {
-    printf '\e[%dB' "${1:-1}" > /dev/tty
+    printf '\e[%dB' "${1:-1}" >&${ttyFd}
 }
 
 # ◇ Move the cursor down N rows and to the start of the line (default: 1).
 
 cursorDownToLineStart() {
-    printf '\e[%dB\r' "${1:-1}" > /dev/tty
+    printf '\e[%dB\r' "${1:-1}" >&${ttyFd}
 }
 
 # ◇ Move the cursor down N rows then to a 1-based column position.
@@ -113,10 +113,10 @@ cursorDownToLineStart() {
 #   col (int)   1-based column to place the cursor at.
 
 cursorDownToColumn() {
-    printf '\e[%dB\e[%dG' "$1" "$2" > /dev/tty
+    printf '\e[%dB\e[%dG' "$1" "$2" >&${ttyFd}
 }
 
-# ◇ Move the cursor to an absolute terminal position, writing to /dev/tty.
+# ◇ Move the cursor to an absolute terminal position.
 #
 # · ARGS
 #
@@ -124,55 +124,55 @@ cursorDownToColumn() {
 #   col (int)  1-based column to move to (default: 0).
 
 cursorTo() {
-    printf '\e[%i;%iH' $1 ${2:-0} > /dev/tty
+    printf '\e[%i;%iH' $1 ${2:-0} >&${ttyFd}
 }
 
 # ◇ Move the cursor to an absolute 1-based column on the current row.
 
 cursorToColumn() {
-    printf '\e[%dG' "$1" > /dev/tty
+    printf '\e[%dG' "$1" >&${ttyFd}
 }
 
 # ◇ Move the cursor to column 1 of the current row.
 
 cursorToLineStart() {
-    printf '\r' > /dev/tty
+    printf '\r' >&${ttyFd}
 }
 
 # ◇ Move cursor to column N (1-based) and erase to end of line.
 
 cursorToColumnAndEraseToEndOfLine() {
-    printf '\e[%dG\e[K' "$1" > /dev/tty
+    printf '\e[%dG\e[K' "$1" >&${ttyFd}
 }
 
 # ◇ Move the cursor up one row and erase the entire line.
 
 cursorUpOneAndEraseLine() {
-    echo -n $'\e[A\e[2K\r' > /dev/tty
+    echo -n $'\e[A\e[2K\r' >&${ttyFd}
 }
 
 # ◇ Move the cursor down one row and erase the entire line.
 
 cursorDownOneAndEraseLine() {
-    echo -n $'\e[B\e[2K\r' > /dev/tty
+    echo -n $'\e[B\e[2K\r' >&${ttyFd}
 }
 
 # ◇ Erase from the cursor position to the end of the current line.
 
 eraseToEndOfLine() {
-    echo -n $'\e[0K' > /dev/tty
+    echo -n $'\e[0K' >&${ttyFd}
 }
 
 # ◇ Erase the entire current line and move the cursor to column 1.
 
 eraseCurrentLine() {
-    echo -n $'\e[2K\r' > /dev/tty
+    echo -n $'\e[2K\r' >&${ttyFd}
 }
 
 # ◇ Clear the entire terminal and move the cursor to the top-left.
 
 clearTerminal() {
-    echo -n $'\e[2J\e[H' > /dev/tty
+    echo -n $'\e[2J\e[H' >&${ttyFd}
 }
 
 # ◇ Scroll the terminal to ensure requiredRows are available below the cursor,
@@ -201,7 +201,7 @@ reserveRows() {
         # Move to the last line and force scrolling
 
         cursorTo ${terminalHeight} 0
-        printf '\n%.0s' ${ seq 1 ${scrollRows}; } > /dev/tty
+        printf '\n%.0s' ${ seq 1 ${scrollRows}; } >&${ttyFd}
 
         # Restore cursor to adjusted row and original column
 
@@ -217,7 +217,7 @@ _init_rayvn_terminal() {
     (( isInteractive )) || return 0  # Silently succeed when not interactive
 
     # Save original terminal settings from the terminal device
-    [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g < "${terminal}"; }"
+    [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g <&${ttyFd}; }"
 
     declare -g _cursorRow=
     declare -g _cursorCol=

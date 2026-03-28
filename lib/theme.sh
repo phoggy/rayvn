@@ -160,10 +160,10 @@ _queryBackgroundColor() {
     stty raw -echo min 0 2> /dev/null || return 1
 
     # Send OSC 11 query (query background color)
-    printf '\e]11;?\a' > /dev/tty
+    printf '\e]11;?\a' >&${ttyFd}
 
     # Read response with 0.1s timeout using bash builtin
-    IFS= read -r -t 0.1 response < /dev/tty
+    IFS= read -r -t 0.1 response <&${ttyFd}
 
     # Restore terminal settings
     stty "${oldSettings}" 2> /dev/null

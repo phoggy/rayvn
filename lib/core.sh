@@ -1299,6 +1299,11 @@ _init_rayvn_core() {
         fi
     fi
 
+    # Open a pre-allocated fd for terminal I/O to avoid per-write open/close overhead
+
+    exec {ttyFd}<>"${terminal}"
+    declare -gr ttyFd
+
     # Misc global vars and constants
 
     declare -gi _debug=0
@@ -1589,7 +1594,7 @@ _ensureRayvnTempDir() {
 _restoreTerminal() {
     if (( isInteractive )); then
         stty sane &> /dev/null
-        printf '\e[0K\e[?25h' > ${terminal} # Clear to end of line and show cursor in case sane does not
+        printf '\e[0K\e[?25h' >&${ttyFd} # Clear to end of line and show cursor in case sane does not
     fi
 }
 

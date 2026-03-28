@@ -312,7 +312,7 @@ _spinnerExit() {
     if (( _spinnerServerPid )); then
         # Abnormal exit, clean up
         _shutdownSpinnerServer
-        echo > /dev/tty # Ensure not buffered in stdout
+        echo >&${ttyFd} # Ensure not buffered in stdout
     fi
 }
 
@@ -410,7 +410,7 @@ _removeSpinner() {
         fi
 
         cursorTo ${_spinnerRows[id]} $(( ${_spinnerCols[id]} - backupCount ))
-        echo ${echoArg} "${replacement}" > /dev/tty
+        echo ${echoArg} "${replacement}" >&${ttyFd}
         freeList+=("${id}")
         _spinnerActive[id]=0
         _spinnerResponse 'ok'
@@ -434,7 +434,7 @@ _stopSpinnerServer() {
     for (( i=0; i < ${#_spinnerTypes}; i++ )); do
         if (( _spinnerActive[i] )); then
             cursorTo "${_spinnerRows[i]}" "${_spinnerCols[i]}"
-            echo -n ' ' > /dev/tty
+            echo -n ' ' >&${ttyFd}
         fi
     done
     exit 0
@@ -452,7 +452,7 @@ _renderSpinners() {
                 show -n "${_spinnerColors[i]}" "${spinnerRef[spinnerIndex]}"
             fi
         done
-    } > /dev/tty
+    } >&${ttyFd}
     (( _spinnerTick++ ))
 }
 

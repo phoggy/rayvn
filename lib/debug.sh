@@ -351,7 +351,7 @@ _debugStatus() {
     else
         suffix="${ show bold blue "${_debugOut}"; }"
     fi
-    { echo "${prefix} ${suffix}"; echo; } > ${terminal}
+    { echo "${prefix} ${suffix}"; echo; } >&${ttyFd}
 }
 
 _prepareLogFile() {

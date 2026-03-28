@@ -551,6 +551,85 @@ benchmark() {
       "${testCase}" "${functionName}" "${iterations}" "${duration}" "${opsPerSec}"
 }
 
+### tty capture functions ---------------------------------------------------------------------------------
+
+# ◇ Redirect ttyFd to a temp file to capture terminal UI output. Sets ttyCapturePath.
+#   Pair with stopTtyCapture() to restore, or run inside a subshell for automatic cleanup.
+
+startTtyCapture() {
+    local captureFile; captureFile=${ makeTempFile tty-capture-XXXXXX; }
+    eval "exec ${ttyFd}>\"${captureFile}\""
+    declare -g ttyCapturePath="${captureFile}"
+}
+
+# ◇ Restore ttyFd to the original terminal target and unset ttyCapturePath.
+
+stopTtyCapture() {
+    eval "exec ${ttyFd}<>\"${terminal}\""
+    unset ttyCapturePath
+}
+
+# ◇ Clear the tty capture file content without stopping capture.
+
+clearTtyCapture() {
+    eval "exec ${ttyFd}>\"${ttyCapturePath}\""
+}
+
+# ◇ Return raw tty capture content including all ANSI escape sequences.
+
+getTtyOutput() {
+    cat "${ttyCapturePath}"
+}
+
+# ◇ Return tty capture content with all ANSI escape sequences stripped.
+
+getTtyText() {
+    gsed 's/\x1b\[[0-9;?]*[A-Za-z]//g' < "${ttyCapturePath}"
+}
+
+# ◇ Fail if raw (ANSI-encoded) tty capture content does not contain expected as a substring.
+#   Use this to assert on escape sequences directly. Use assertTtyContains for visible text.
+#
+# · ARGS
+#
+#   expected (string)  Substring that must be present in raw tty output (e.g. $'\e[?25l').
+#   msg (string)       Optional failure message.
+
+assertTtyRawContains() {
+    local expected="$1"
+    local msg="${2:-tty raw output does not contain expected sequence}"
+    local raw; raw=${ getTtyOutput; }
+    [[ "${raw}" == *"${expected}"* ]] || fail "${msg}"
+}
+
+# ◇ Fail if captured tty text does not contain expected as a substring.
+#
+# · ARGS
+#
+#   expected (string)  Substring that must be present in tty output.
+#   msg (string)       Optional failure message.
+
+assertTtyContains() {
+    local expected="$1"
+    local msg="${2:-tty output does not contain '${expected}'}"
+    local text; text=${ getTtyText; }
+    [[ ${text} == *"${expected}"* ]] || fail "${msg}"
+}
+
+# ◇ Fail if captured tty text contains expected as a substring.
+#
+# · ARGS
+#
+#   expected (string)  Substring that must NOT be present in tty output.
+#   msg (string)       Optional failure message.
+
+assertTtyNotContains() {
+    local expected="$1"
+    local msg="${2:-tty output should not contain '${expected}'}"
+    local text; text=${ getTtyText; }
+    [[ ${text} != *"${expected}"* ]] || fail "${msg}"
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_test() {
