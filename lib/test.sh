@@ -16,7 +16,7 @@
 assertNotInFile() {
     local match="$1"
     local file="$2"
-    grep -e "${match}" "${file}" > /dev/null && fail "'${match}' found in file ${file}."
+    ! grep -qe "${match}" "${file}" || fail "'${match}' found in file ${file}."
 }
 
 # ◇ Fail if a grep pattern is not found in a file.
@@ -187,7 +187,7 @@ assertInPath() {
 
 assertFunctionIsNotDefined() {
     local name="$1"
-    [[ ${ declare -f "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }"
+    [[ ${ declare -f "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }" || true
 }
 
 # ◇ Fail if a variable with the given name is currently defined.
@@ -198,7 +198,7 @@ assertFunctionIsNotDefined() {
 
 assertVarIsNotDefined() {
     local name="$1"
-    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }"
+    [[ ${ declare -p "${name}" 2> /dev/null; } ]] && fail "${name} is defined: ${ declare -f ${name}; }" || true
 }
 
 # ◇ Fail if a function with the given name is not currently defined.
@@ -240,8 +240,9 @@ assertVarType() {
         fail "${varName} is not defined"
     fi
 
-    local actualFlags="${declaration#*-}"
-    actualFlags="${actualFlags% *}"
+    local actualFlags
+    [[ "${declaration}" =~ ^declare[[:space:]]+-([a-zA-Z]+)[[:space:]] ]] || fail "${varName} has unexpected declaration format"
+    actualFlags="${BASH_REMATCH[1]}"
 
     local sortedExpected sortedActual
     sortedExpected="${ echo "${expectedFlags}" | grep -o . | sort | tr -d '\n'; }"
@@ -359,7 +360,7 @@ assertHashKeyIsDefined() {
 assertHashKeyIsNotDefined() {
     local varName="$1"
     local keyName="$2"
-    [[ -v ${varName}[${keyName}] ]] && fail "${varName}[${keyName}] is defined"
+    [[ -v ${varName}[${keyName}] ]] && fail "${varName}[${keyName}] is defined" || true
 }
 
 # ◇ Fail if the value at a key in an associative array does not equal the expected value.

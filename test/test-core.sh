@@ -24,7 +24,6 @@ main() {
     testIsMemberOf
     testMaxArrayElementLength
     testVarDefined
-    testAppendVar
     testPushPopIFS
     testNumericPlaces
     testRandomInteger
@@ -36,6 +35,46 @@ main() {
     testHeader
 
     # show() function tests
+    # File system assertions
+    testAssertFileSystemAssertions
+    testAssertGitRepo
+    testAssertPathWithinDirectory
+
+    # Argument parsing and map operations
+    testParseOptionalArg
+    testCopyMap
+
+    # File I/O operations
+    testEnsureDirMakeDir
+    testMakeTempFifo
+    testReadFile
+    testBinaryPath
+
+    # Random and time utilities
+    testRandomHex
+    testTimeUtilities
+
+    # Umask and process utilities
+    testWithUmask
+    testExecuteClean
+    testEraseVars
+    testErrorStream
+
+    # Numeric output
+    testPrintNumber
+
+    # test.sh assertion functions
+    testAssertInFile
+    testAssertInPath
+    testAssertFunctionExists
+    testAssertVarExists
+    testAssertVarType
+    testAssertVarEqualsContains
+    testAssertArrayEquals
+    testAssertHash
+    testAssertEqualIgnoreCase
+    testPathUtilities
+
     testShowBasicUsage
     testShowFormatCombinations
     testShowPerTextReset
@@ -945,6 +984,391 @@ testShowEscapeCodesComplexPatterns() {
     result=${ show bold red; }
     expected=$'\e[1m\e[31m\e[0m'
     assertEqualEscapeCodes "${expected}" "${result}" "Format only (no text) produces format and reset"
+}
+
+# Helper: assertTrue/assertFalse cannot use [[ ]] directly (it's a keyword).
+# Use these wrappers for pattern and glob matching.
+_matchesPattern() { [[ "$1" =~ $2 ]]; }
+_matchesGlob() { [[ "$1" == $2 ]]; }
+
+# ============================================================================
+# File system assertions
+# ============================================================================
+
+testAssertFileSystemAssertions() {
+    local tmpFile; tmpFile=${ makeTempFile test-XXXXXX; }
+    local tmpDir; tmpDir=${ makeTempDir test-XXXXXX; }
+
+    assertTrue "assertFile accepts a regular file" assertFile "${tmpFile}"
+    assertFalse "assertFile rejects a directory" eval "( assertFile '${tmpDir}' ) 2>/dev/null"
+    assertFalse "assertFile rejects missing path" eval "( assertFile '/no/such/path-xyz' ) 2>/dev/null"
+
+    assertTrue "assertDirectory accepts a directory" assertDirectory "${tmpDir}"
+    assertFalse "assertDirectory rejects a regular file" eval "( assertDirectory '${tmpFile}' ) 2>/dev/null"
+    assertFalse "assertDirectory rejects missing path" eval "( assertDirectory '/no/such/dir-xyz' ) 2>/dev/null"
+
+    assertTrue "assertFileExists accepts a file" assertFileExists "${tmpFile}"
+    assertTrue "assertFileExists accepts a directory" assertFileExists "${tmpDir}"
+    assertFalse "assertFileExists rejects missing path" eval "( assertFileExists '/no/such/path-xyz' ) 2>/dev/null"
+
+    assertTrue "assertFileDoesNotExist passes for missing path" assertFileDoesNotExist "/no/such/path-xyz"
+    assertFalse "assertFileDoesNotExist fails for existing file" eval "( assertFileDoesNotExist '${tmpFile}' ) 2>/dev/null"
+    assertFalse "assertFileDoesNotExist fails for existing dir" eval "( assertFileDoesNotExist '${tmpDir}' ) 2>/dev/null"
+
+    rm -f "${tmpFile}"
+    rmdir "${tmpDir}"
+}
+
+testAssertGitRepo() {
+    assertTrue "assertGitRepo succeeds in a git repo" assertGitRepo "${rayvnHome}"
+    assertFalse "assertGitRepo fails outside a git repo" eval "( assertGitRepo '/tmp' ) 2>/dev/null"
+}
+
+testAssertPathWithinDirectory() {
+    local tmpDir; tmpDir=${ makeTempDir test-XXXXXX; }
+    local tmpFile="${tmpDir}/file.txt"
+    touch "${tmpFile}"
+
+    assertTrue "assertPathWithinDirectory accepts path within dir" \
+        assertPathWithinDirectory "${tmpFile}" "${tmpDir}"
+    assertFalse "assertPathWithinDirectory rejects path outside dir" \
+        eval "( assertPathWithinDirectory '/tmp' '${tmpDir}' ) 2>/dev/null"
+
+    rm -f "${tmpFile}"
+    rmdir "${tmpDir}"
+}
+
+# ============================================================================
+# Argument parsing and map operations
+# ============================================================================
+
+testParseOptionalArg() {
+    local result
+
+    assertTrue "parseOptionalArg returns 0 on match" parseOptionalArg '--flag' '--flag' result
+    assertEqual '--flag' "${result}" "parseOptionalArg sets result to arg on match"
+
+    assertFalse "parseOptionalArg returns 1 on non-match" parseOptionalArg '--flag' '--other' result
+    assertEqual '' "${result}" "parseOptionalArg clears result on non-match"
+
+    parseOptionalArg '--flag' '--flag' result 'custom'
+    assertEqual 'custom' "${result}" "parseOptionalArg uses custom result value"
+}
+
+testCopyMap() {
+    local -A src=([key1]="val1" [key2]="val2")
+    local -A dest=()
+
+    copyMap src dest
+
+    assertEqual "val1" "${dest[key1]}" "copyMap copies key1"
+    assertEqual "val2" "${dest[key2]}" "copyMap copies key2"
+    assertEqual "${#src[@]}" "${#dest[@]}" "copyMap produces same-size map"
+}
+
+# ============================================================================
+# File I/O operations
+# ============================================================================
+
+testEnsureDirMakeDir() {
+    local baseDir; baseDir=${ makeTempDir test-XXXXXX; }
+
+    local newDir; newDir=${ makeDir "${baseDir}/sub"; }
+    assertTrue "makeDir creates directory" test -d "${newDir}"
+    assertEqual "${baseDir}/sub" "${newDir}" "makeDir returns created path"
+
+    local subDir; subDir=${ makeDir "${baseDir}" "nested"; }
+    assertTrue "makeDir with subDir creates nested dir" test -d "${subDir}"
+    assertEqual "${baseDir}/nested" "${subDir}" "makeDir with subDir returns correct path"
+
+    ensureDir "${baseDir}/ensure-test"
+    assertTrue "ensureDir creates missing directory" test -d "${baseDir}/ensure-test"
+    assertTrue "ensureDir is idempotent" ensureDir "${baseDir}/ensure-test"
+
+    rm -rf "${baseDir}"
+}
+
+testMakeTempFifo() {
+    local fifo; fifo=${ makeTempFifo test-XXXXXX; }
+    assertTrue "makeTempFifo creates a named pipe" test -p "${fifo}"
+    rm -f "${fifo}"
+}
+
+testReadFile() {
+    local tmpFile; tmpFile=${ makeTempFile test-XXXXXX; }
+    printf 'line one\nline two' > "${tmpFile}"
+
+    local content
+    readFile "${tmpFile}" content
+    assertEqual "line one
+line two" "${content}" "readFile reads file contents"
+
+    printf 'trailing\n' > "${tmpFile}"
+    readFile "${tmpFile}" content
+    assertEqual "trailing" "${content}" "readFile strips trailing newline by default"
+
+    readFile -p "${tmpFile}" content
+    assertEqual "trailing"$'\n' "${content}" "readFile -p preserves trailing newline"
+
+    rm -f "${tmpFile}"
+}
+
+testBinaryPath() {
+    local path; path=${ binaryPath bash; }
+    assertTrue "binaryPath finds bash" test -x "${path}"
+    assertContains "bash" "${path}" "binaryPath returns path containing binary name"
+
+    assertFalse "binaryPath fails for nonexistent binary" \
+        eval "( binaryPath no-such-binary-xyz ) 2>/dev/null"
+}
+
+# ============================================================================
+# Random and time utilities
+# ============================================================================
+
+testRandomHex() {
+    local hex
+    randomHexChar hex
+    assertTrue "randomHexChar produces a single hex char" _matchesPattern "${hex}" '^[0-9a-f]$'
+
+    randomHexString 8 hex
+    assertEqual 8 "${#hex}" "randomHexString produces correct length"
+    assertTrue "randomHexString produces only hex chars" _matchesPattern "${hex}" '^[0-9a-f]+$'
+
+    local template="XXXXXXXX"
+    replaceRandomHex X template
+    assertEqual 8 "${#template}" "replaceRandomHex preserves length"
+    assertTrue "replaceRandomHex produces hex chars" _matchesPattern "${template}" '^[0-9a-f]+$'
+    assertFalse "replaceRandomHex replaces all placeholders" _matchesGlob "${template}" '*X*'
+}
+
+testTimeUtilities() {
+    local epoch; epoch=${ epochSeconds; }
+    assertTrue "epochSeconds returns a decimal number" _matchesPattern "${epoch}" '^[0-9]+\.[0-9]+'
+
+    local stamp; stamp=${ timeStamp; }
+    assertTrue "timeStamp matches YYYY-MM-DD_ format" _matchesPattern "${stamp}" '^[0-9]{4}-[0-9]{2}-[0-9]{2}_'
+
+    local start; start=${ epochSeconds; }
+    local elapsed; elapsed=${ elapsedEpochSeconds "${start}"; }
+    assertTrue "elapsedEpochSeconds returns a decimal number" _matchesPattern "${elapsed}" '^[0-9]+\.[0-9]+'
+}
+
+# ============================================================================
+# Umask and process utilities
+# ============================================================================
+
+testWithUmask() {
+    local tmpDir; tmpDir=${ makeTempDir test-XXXXXX; }
+
+    local privFile="${tmpDir}/private"
+    withUmask 0077 touch "${privFile}"
+    local perms; perms=${ ls -la "${privFile}" | awk '{print substr($1,2,9)}'; }
+    assertEqual "rw-------" "${perms}" "withUmask 0077 creates file with 0600 permissions"
+
+    local pubFile="${tmpDir}/public"
+    withDefaultUmask touch "${pubFile}"
+    perms=${ ls -la "${pubFile}" | awk '{print substr($1,2,9)}'; }
+    assertEqual "rw-r--r--" "${perms}" "withDefaultUmask creates file with 0644 permissions"
+
+    rm -rf "${tmpDir}"
+}
+
+testExecuteClean() {
+    local result; result=${ executeClean bash -c 'echo "${rayvnIsUp:-UNSET}"'; }
+    assertEqual "UNSET" "${result}" "executeClean unsets rayvnIsUp"
+
+    local output; output=${ executeClean echo "hello"; }
+    assertEqual "hello" "${output}" "executeClean passes through command output"
+}
+
+testEraseVars() {
+    declare -g _testEraseTarget="secret-value"
+    assertTrue "var exists before eraseVars" test -v _testEraseTarget
+
+    eraseVars _testEraseTarget
+    assertFalse "eraseVars unsets variable" test -v _testEraseTarget
+}
+
+testErrorStream() {
+    local tmpIn; tmpIn=${ makeTempFile test-XXXXXX; }
+    printf 'err1\nerr2\n' > "${tmpIn}"
+    assertTrue "errorStream processes stdin and exits 0" errorStream < "${tmpIn}" > /dev/null
+    rm -f "${tmpIn}"
+}
+
+# ============================================================================
+# Numeric output
+# ============================================================================
+
+testPrintNumber() {
+    local result; result=${ printNumber 5 3; }
+    assertEqual "  5" "${result}" "printNumber right-pads to width"
+
+    result=${ printNumber 42 5; }
+    assertEqual "   42" "${result}" "printNumber pads multi-digit number"
+}
+
+# ============================================================================
+# test.sh: file assertions
+# ============================================================================
+
+testAssertInFile() {
+    local tmpFile; tmpFile=${ makeTempFile test-XXXXXX; }
+    echo "hello world" > "${tmpFile}"
+
+    assertTrue "assertInFile finds present pattern" assertInFile "hello" "${tmpFile}"
+    assertFalse "assertInFile fails for absent pattern" \
+        eval "( assertInFile 'xyz-not-present' '${tmpFile}' ) 2>/dev/null"
+
+    assertTrue "assertNotInFile passes for absent pattern" assertNotInFile "xyz-not-present" "${tmpFile}"
+    assertFalse "assertNotInFile fails for present pattern" \
+        eval "( assertNotInFile 'hello' '${tmpFile}' ) 2>/dev/null"
+
+    rm -f "${tmpFile}"
+}
+
+# ============================================================================
+# test.sh: path assertions
+# ============================================================================
+
+testAssertInPath() {
+    assertTrue "assertInPath finds bash" assertInPath bash
+    assertFalse "assertInPath fails for nonexistent binary" \
+        eval "( assertInPath 'no-such-binary-xyz' ) 2>/dev/null"
+
+    assertTrue "assertNotInPath passes for nonexistent binary" assertNotInPath "no-such-binary-xyz"
+    assertFalse "assertNotInPath fails for binary in PATH" \
+        eval "( assertNotInPath bash ) 2>/dev/null"
+}
+
+# ============================================================================
+# test.sh: function and variable existence
+# ============================================================================
+
+testAssertFunctionExists() {
+    assertTrue "assertFunctionIsDefined finds existing function" assertFunctionIsDefined show
+    assertFalse "assertFunctionIsDefined fails for undefined" \
+        eval "( assertFunctionIsDefined _no_such_fn_xyz ) 2>/dev/null"
+
+    assertTrue "assertFunctionIsNotDefined passes for undefined" assertFunctionIsNotDefined _no_such_fn_xyz
+    assertFalse "assertFunctionIsNotDefined fails for defined function" \
+        eval "( assertFunctionIsNotDefined show ) 2>/dev/null"
+}
+
+testAssertVarExists() {
+    local myVar="value"
+    assertTrue "assertVarIsDefined finds defined var" assertVarIsDefined myVar
+    assertFalse "assertVarIsDefined fails for undefined var" \
+        eval "( assertVarIsDefined _no_such_var_xyz ) 2>/dev/null"
+
+    assertTrue "assertVarIsNotDefined passes for undefined var" assertVarIsNotDefined _no_such_var_xyz
+    assertFalse "assertVarIsNotDefined fails for defined var" \
+        eval "( assertVarIsNotDefined myVar ) 2>/dev/null"
+}
+
+# ============================================================================
+# test.sh: variable type and value assertions
+# ============================================================================
+
+testAssertVarType() {
+    local -a myArr=()
+    local -A myHash=()
+
+    assertTrue "assertVarType detects array" assertVarType myArr a
+    assertTrue "assertVarType detects hash" assertVarType myHash A
+    assertFalse "assertVarType fails for undefined var" \
+        eval "( assertVarType _no_such_var_xyz r ) 2>/dev/null"
+
+    declare -g -a _testVarTypeArr=()
+    assertFalse "assertVarType fails for wrong type" \
+        eval "( assertVarType _testVarTypeArr A ) 2>/dev/null"
+    unset _testVarTypeArr
+}
+
+testAssertVarEqualsContains() {
+    local myVar="hello world"
+
+    assertTrue "assertVarEquals passes for matching value" assertVarEquals myVar "hello world"
+    assertFalse "assertVarEquals fails for non-matching value" \
+        eval "( assertVarEquals myVar 'other' ) 2>/dev/null"
+
+    assertTrue "assertVarContains passes for substring" assertVarContains myVar "hello"
+    assertTrue "assertVarContains passes for full match" assertVarContains myVar "hello world"
+    assertFalse "assertVarContains fails for non-substring" \
+        eval "( assertVarContains myVar 'xyz' ) 2>/dev/null"
+}
+
+testAssertArrayEquals() {
+    local myArr=("a" "b" "c")
+
+    assertTrue "assertArrayEquals passes for matching array" assertArrayEquals myArr "a" "b" "c"
+    assertFalse "assertArrayEquals fails for different values" \
+        eval "( assertArrayEquals myArr 'a' 'x' 'c' ) 2>/dev/null"
+    assertFalse "assertArrayEquals fails for different length" \
+        eval "( assertArrayEquals myArr 'a' 'b' ) 2>/dev/null"
+}
+
+# ============================================================================
+# test.sh: hash table assertions
+# ============================================================================
+
+testAssertHash() {
+    local -A myHash=([key1]="val1" [key2]="val2")
+
+    assertTrue "assertHashTableIsDefined finds hash" assertHashTableIsDefined myHash
+    assertTrue "assertHashTableIsNotDefined passes for undefined" \
+        assertHashTableIsNotDefined _no_such_hash_xyz
+
+    assertTrue "assertHashKeyIsDefined finds existing key" assertHashKeyIsDefined myHash key1
+    assertFalse "assertHashKeyIsDefined fails for missing key" \
+        eval "( assertHashKeyIsDefined myHash missingKey ) 2>/dev/null"
+
+    assertTrue "assertHashKeyIsNotDefined passes for missing key" \
+        assertHashKeyIsNotDefined myHash missingKey
+    assertFalse "assertHashKeyIsNotDefined fails for existing key" \
+        eval "( assertHashKeyIsNotDefined myHash key1 ) 2>/dev/null"
+
+    assertTrue "assertHashValue passes for correct value" assertHashValue myHash key1 "val1"
+    assertFalse "assertHashValue fails for wrong value" \
+        eval "( assertHashValue myHash key1 'wrong' ) 2>/dev/null"
+}
+
+# ============================================================================
+# test.sh: case-insensitive equality
+# ============================================================================
+
+testAssertEqualIgnoreCase() {
+    assertTrue "assertEqualIgnoreCase passes for same case" assertEqualIgnoreCase "hello" "hello"
+    assertTrue "assertEqualIgnoreCase passes for all-caps" assertEqualIgnoreCase "hello" "HELLO"
+    assertTrue "assertEqualIgnoreCase passes for mixed case" assertEqualIgnoreCase "Hello" "hELLO"
+    assertFalse "assertEqualIgnoreCase fails for different values" \
+        eval "( assertEqualIgnoreCase 'hello' 'world' ) 2>/dev/null"
+}
+
+# ============================================================================
+# test.sh: PATH management
+# ============================================================================
+
+testPathUtilities() {
+    local testDir="/tmp/rayvn-test-path-$$"
+    local savedPath="${PATH}"
+
+    prependPath "${testDir}"
+    assertTrue "prependPath adds to PATH" _matchesGlob ":${PATH}:" "*:${testDir}:*"
+    assertEqual "${testDir}" "${PATH%%:*}" "prependPath puts directory at front"
+
+    removePath "${testDir}"
+    assertFalse "removePath removes from PATH" _matchesGlob ":${PATH}:" "*:${testDir}:*"
+
+    appendPath "${testDir}"
+    assertTrue "appendPath adds to PATH" _matchesGlob ":${PATH}:" "*:${testDir}:*"
+    assertEqual "${testDir}" "${PATH##*:}" "appendPath puts directory at back"
+
+    removePath "${testDir}"
+    assertFalse "removePath removes appended dir" _matchesGlob ":${PATH}:" "*:${testDir}:*"
+
+    PATH="${savedPath}"
 }
 
 # Force 24-bit color mode if not running in a terminal

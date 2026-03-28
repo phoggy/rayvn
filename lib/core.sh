@@ -418,7 +418,7 @@ assertDirectory() {
 # ◇ Fail if the given path already exists.
 
 assertFileDoesNotExist() {
-    [[ -e "$1" ]] && fail "$1 already exists"
+    [[ ! -e "$1" ]] || fail "$1 already exists"
 }
 
 # ◇ Fails if filePath is not located within dirPath, resolving symlinks before checking.

@@ -15,7 +15,7 @@
 # ◇ Return 0 if debug mode is enabled, non-zero otherwise.
 
 isDebugEnabled() {
-    return ${_debug}
+    (( _debug ))
 }
 
 # ◇ Log args. No-op if debug is not enabled.
