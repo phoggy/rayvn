@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2155
 
-# Tests for 'rayvn new project', 'rayvn new script', and 'rayvn new library'.
+# Tests for 'rayvn new project', 'rayvn new script', 'rayvn new library', 'rayvn new test', and 'rayvn -v'.
 
 main() {
     init "$@"
@@ -9,6 +9,8 @@ main() {
     testNewProject
     testNewScript
     testNewLibrary
+    testNewTest
+    testVersion
 
     return 0
 }
@@ -180,6 +182,37 @@ testNewLibrary() {
         [[ -n "${tracked}" ]] || fail "mylib.sh should be git tracked"
 
     ) || exit 1
+}
+
+testNewTest() {
+    (
+        cd "${workDir}/testproj" || exit 1
+
+        rayvn new test mytest > /dev/null 2>&1
+        local exitCode=$?
+        assertEqual "${exitCode}" "0" "rayvn new test exit code"
+
+        local testFile="${workDir}/testproj/test/test-mytest.sh"
+
+        assertFileExists "${testFile}"
+        [[ -x "${testFile}" ]] || fail "test/test-mytest.sh should be executable"
+
+        assertInFile "#!/usr/bin/env bash" "${testFile}"
+        assertInFile "source rayvn.up 'rayvn/test'" "${testFile}"
+        assertInFile "main" "${testFile}"
+
+        local tracked
+        tracked=${ git ls-files "test/test-mytest.sh"; }
+        [[ -n "${tracked}" ]] || fail "test-mytest.sh should be git tracked"
+
+    ) || exit 1
+}
+
+testVersion() {
+    local output
+    output=${ rayvn -v; }
+    [[ -n "${output}" ]] || fail "rayvn -v should print a version string"
+    [[ "${output}" =~ [0-9]+\.[0-9]+ ]] || fail "version output should contain a version number, got: ${output}"
 }
 
 source rayvn.up 'rayvn/test'
