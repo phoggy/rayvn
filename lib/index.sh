@@ -834,10 +834,8 @@ _flushDocSection() {
             done
             _fdsOutRef+=('{: .usage-table}')
             ;;
-        EXAMPLE|NOTES)
-            local fenceOpen='```bash'
-            [[ "${section}" == 'NOTES' ]] && fenceOpen='```'
-            _fdsOutRef+=("${fenceOpen}")
+        EXAMPLE)
+            _fdsOutRef+=('```bash')
             local l hasContent=0
             local -a pendingBlanks=()
             for l in "${_fdsLinesRef[@]}"; do
@@ -854,6 +852,12 @@ _flushDocSection() {
                 fi
             done
             _fdsOutRef+=('```')
+            ;;
+        NOTES)
+            local l
+            for l in "${_fdsLinesRef[@]}"; do
+                _fdsOutRef+=("${l#  }")
+            done
             ;;
         ARGS|RETURNS)
             _fdsOutRef+=('| | |' '|---|---|')

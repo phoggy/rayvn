@@ -26,19 +26,17 @@
 #
 #   Available formats:
 #
-#     Theme:      success, error, warning, info, accent, muted
-#     Style:      bold, dim, italic, underline, blink, reverse, strikethrough
-#     Foreground: black, red, green, yellow, blue, magenta, cyan, white (and bright-* variants)
-#     Background: bg-black, bg-red, bg-green, bg-yellow, bg-blue, bg-magenta, bg-cyan, bg-white
-#                 (and bg-bright-* variants)
-#     256-color:  IDX <0-255>
-#     true-color: RGB <R:G:B>
-#     Special:    nl (insert newline), glue (suppress space before next arg)
+#   - **Theme** `success` `error` `warning` `info` `accent` `muted`
+#   - **Style** `bold` `dim` `italic` `underline` `blink` `reverse` `strikethrough`
+#   - **Foreground** `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` (and `bright-*` variants)
+#   - **Background** `bg-black` `bg-red` `bg-green` `bg-yellow` `bg-blue` `bg-magenta` `bg-cyan` `bg-white` (and `bg-bright-*` variants)
+#   - **256-color** `IDX` \<0-255\>
+#   - **true-color** `RGB` \<R:G:B\>
+#   - **Special** `nl` (insert newline), `glue` (suppress space before next arg)
 #
-#   While most modern terminals can display 256-color or true-color (24 bit), be aware that some
-#   may not. If this is a concern, stick to theme colors as they automatically revert to 16-color
-#   if true-color is not available. Apparently some terminals may not support strikethrough, so
-#   use with caution.
+#   While most modern terminals support 256-color or true-color (24 bit), stick to theme colors
+#   if compatibility is a concern — they automatically fall back to 16-color. Some terminals may
+#   not support strikethrough.
 #
 # · EXAMPLE
 #
