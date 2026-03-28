@@ -198,7 +198,7 @@ _initSpinnerClient() {
 
     # Normal response wait seconds
 
-    declare -gr _spinnerMaxResponseWait=.25
+    declare -gr _spinnerMaxResponseWait=2
 
     # Record the owning process so children don't shut down the server on exit
 
@@ -441,17 +441,18 @@ _stopSpinnerServer() {
 }
 
 _renderSpinners() {
+    (( _activeSpinnerCount )) || return 0
     local i spinnerIndex
-
-    for (( i=0; i < ${#_spinnerActive[@]}; i++ )); do
-        if (( _spinnerActive[i] )); then
-            cursorTo "${_spinnerRows[i]}" "${_spinnerCols[i]}"
-            local -n spinnerRef="_${_spinnerTypes[i]}Spinner"
-            spinnerIndex=$(( _spinnerTick % ${#spinnerRef[@]} ))
-            show -n "${_spinnerColors[i]}" "${spinnerRef[spinnerIndex]}" > /dev/tty
-        fi
-    done
-
+    {
+        for (( i=0; i < ${#_spinnerActive[@]}; i++ )); do
+            if (( _spinnerActive[i] )); then
+                printf '\e[%i;%iH' "${_spinnerRows[i]}" "${_spinnerCols[i]}"
+                local -n spinnerRef="_${_spinnerTypes[i]}Spinner"
+                spinnerIndex=$(( _spinnerTick % ${#spinnerRef[@]} ))
+                show -n "${_spinnerColors[i]}" "${spinnerRef[spinnerIndex]}"
+            fi
+        done
+    } > /dev/tty
     (( _spinnerTick++ ))
 }
 
