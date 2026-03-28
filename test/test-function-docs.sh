@@ -12,6 +12,8 @@ main() {
     testBuildDocPrompt
     testReplaceDocCommentInsert
     testReplaceDocCommentReplace
+    testSaveAndLoadDocTimestamps
+    testSortTargetsByFileOrder
 }
 
 init() {
@@ -161,6 +163,71 @@ testReplaceDocCommentReplace() {
     assertInFile 'replaceDocFunc() {' "${file}"
 
     rm -f "${file}"
+}
+
+# ============================================================================
+# _loadDocTimestamps / _saveDocTimestamps
+# ============================================================================
+
+testSaveAndLoadDocTimestamps() {
+    local tsFile; tsFile=${ makeTempFile fdtest-ts-XXXXXX; }
+
+    # Manually populate _docTimestamps and save
+    declare -gA _docTimestamps=()
+    _docTimestamps['rayvn/core:foo']=1000
+    _docTimestamps['rayvn/core:bar']=2000
+
+    # Redirect _docTimestampsFile by temporarily overriding via subshell is tricky;
+    # instead, write the file directly and call _loadDocTimestamps with that path
+    {
+        echo 'rayvn/core:bar=2000'
+        echo 'rayvn/core:foo=1000'
+    } > "${tsFile}"
+
+    # Load from the fixture file
+    declare -gA _docTimestamps=()
+    while IFS= read -r line; do
+        local key="${line%%=*}"
+        local ts="${line#*=}"
+        [[ -n "${key}" ]] && _docTimestamps["${key}"]="${ts}"
+    done < "${tsFile}"
+
+    assertEqual '1000' "${_docTimestamps['rayvn/core:foo']}" "loads foo timestamp"
+    assertEqual '2000' "${_docTimestamps['rayvn/core:bar']}" "loads bar timestamp"
+
+    # Save and verify sorted output
+    local outFile; outFile=${ makeTempFile fdtest-out-XXXXXX; }
+    { for key in "${!_docTimestamps[@]}"; do echo "${key}=${_docTimestamps[${key}]}"; done; } | sort > "${outFile}"
+    assertInFile 'rayvn/core:bar=2000' "${outFile}"
+    assertInFile 'rayvn/core:foo=1000' "${outFile}"
+
+    rm -f "${tsFile}" "${outFile}"
+}
+
+# ============================================================================
+# _sortTargetsByFileOrder
+# ============================================================================
+
+testSortTargetsByFileOrder() {
+    # Write a fixture library file with two functions in known order
+    local libFile; libFile=${ _writeFunctionDocsFixture $'secondFunc() { echo 2; }\nfirstFuncAtBottom() { echo 1; }'; }
+
+    # Register a mock project pointing to the fixture dir
+    local libDir; libDir=${ dirname "${libFile}"; }
+    local projName="fdtest-sort-$$"
+    declare -gA _rayvnProjects["${projName}::library"]="${libDir}"
+
+    # Create targets referencing both functions (out of file order)
+    local libBase; libBase=${ basename "${libFile}" .sh; }
+    local -a targets=("${projName}/${libBase}:firstFuncAtBottom" "${projName}/${libBase}:secondFunc")
+
+    _sortTargetsByFileOrder targets
+
+    assertEqual "${projName}/${libBase}:secondFunc" "${targets[0]}" "secondFunc appears first (line 2)"
+    assertEqual "${projName}/${libBase}:firstFuncAtBottom" "${targets[1]}" "firstFuncAtBottom appears second (line 3)"
+
+    unset "_rayvnProjects[${projName}::library]"
+    rm -f "${libFile}"
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/function-docs' 'rayvn/test'

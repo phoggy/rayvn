@@ -9,6 +9,8 @@ main() {
     testGetBrewDependenciesBasic
     testGetBrewDependenciesWithMappings
     testGetBrewDependenciesWithExclusions
+    testDepsProjectRootFound
+    testDepsProjectRootMissing
 }
 
 init() {
@@ -105,6 +107,41 @@ testGetBrewDependenciesWithExclusions() {
     assertContains 'depends_on "age"' "${result}" "includes non-excluded dependency"
     [[ "${result}" != *'depends_on "nix"'* ]] || fail "nix should not appear in brew dependencies"
 
+    rm -rf "${dir}"
+}
+
+# ============================================================================
+# _depsProjectRoot
+# ============================================================================
+
+testDepsProjectRootFound() {
+    local dir; dir=${ makeTempDir deps-root-XXXXXX; }
+    touch "${dir}/flake.nix"
+
+    # Set the xyzHome variable that _depsProjectRoot looks for
+    declare -g xyzHome="${dir}"
+
+    local result
+    assertTrue "_depsProjectRoot returns 0 when flake.nix exists" \
+        _depsProjectRoot xyz result
+
+    assertEqual "${dir}" "${result}" "sets project root to dir with flake.nix"
+
+    unset xyzHome
+    rm -rf "${dir}"
+}
+
+testDepsProjectRootMissing() {
+    local dir; dir=${ makeTempDir deps-noflake-XXXXXX; }
+    # No flake.nix in this dir
+
+    declare -g noflakeHome="${dir}"
+
+    local result
+    assertFalse "_depsProjectRoot returns 1 when no flake.nix" \
+        _depsProjectRoot noflake result
+
+    unset noflakeHome
     rm -rf "${dir}"
 }
 
