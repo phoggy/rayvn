@@ -20,6 +20,7 @@ executeTests() {
 
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
+    command -v nix > /dev/null 2>&1 || fail "'rayvn build' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
     echo
     require 'rayvn/spinner' 'rayvn/prompt'
     _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
@@ -132,13 +133,18 @@ _executeTests() {
     local -A buildTaskIdx=()
 
     if (( flags['nix'] )); then
+        command -v nix > /dev/null 2>&1 || fail "'rayvn test --nix' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
         _collectBuildTasks buildTaskIdx
         _collectNixTasks buildTaskIdx
     elif (( flags['all'] )); then
         if [[ -z ${IN_NIX_SHELL} ]]; then
             _collectLocalTasks
-            _collectBuildTasks buildTaskIdx
-            _collectNixTasks buildTaskIdx
+            if command -v nix > /dev/null 2>&1; then
+                _collectBuildTasks buildTaskIdx
+                _collectNixTasks buildTaskIdx
+            else
+                show muted "(nix not available — skipping nix tasks)"
+            fi
         else
             _collectLocalTasks
         fi
