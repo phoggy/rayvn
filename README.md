@@ -175,7 +175,6 @@ After requiring `rayvn/debug` (automatically included with `rayvn/core`), you ca
 ```bash
 debugVars myVar1 myVar2
 debug "processing item ${i} of ${total}"
-
 ```
 
 Debug output is only generated when debug mode is enabled via command-line options.
@@ -205,9 +204,39 @@ $ my-rayvn-app --debug-tty .
 
 ### IntelliJ IDEA
 
-To enable bash syntax highlighting and tooling for rayvn scripts, add `rayvn-bash` as a recognized hashbang:
+The [BashSupport Pro](https://plugins.jetbrains.com/plugin/13841-bashsupport-pro) plugin is strongly
+recommended — it provides full bash language support including syntax highlighting, code completion,
+refactoring, and ShellCheck integration. It is far superior to the built-in shell script support.
+
+After installing BashSupport Pro, register `rayvn-bash` as a recognized hashbang:
 
 **Settings → Editor → File Types → Shell Script → Hashbangs** → add `rayvn-bash`
+
+Then configure shared library sources and usage using your rayvn install location:
+
+**Settings → Languages & Frameworks → BashSupport Pro → Shell Script Libraries**
+
+- In **Library Sources**, add the `rayvn/lib` directory.
+- In **Library Usage**, add the `rayvn/bin` and `rayvn/test` directories.
+
+Do the same for any other rayvn projects you create or install.
+
+
+### VS Code
+
+VS Code doesn't support custom hashbang registration, but you can associate extensionless files in `bin/`
+directories with the Shell Script language by adding this to your `settings.json`
+(**File → Preferences → Settings → Open Settings JSON**):
+
+```json
+{
+    "files.associations": {
+        "*/bin/*": "shellscript"
+    }
+}
+```
+
+For linting, install the [ShellCheck extension](https://marketplace.visualstudio.com/items?itemName=timonwong.shellcheck). It will use the `#!/usr/bin/env rayvn-bash` shebang to infer bash dialect automatically once the file is recognized as a shell script.
 
 ## Installing Nix
 
