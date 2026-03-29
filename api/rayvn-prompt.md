@@ -29,9 +29,9 @@ Read user input into a variable.
 
 *Notes*
 
-```
+
 The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
-```
+
 
 *Returns*
 
@@ -60,9 +60,9 @@ Read user input without echoing it to the terminal.
 
 *Notes*
 
-```
+
 The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
-```
+
 
 *Returns*
 
@@ -93,12 +93,12 @@ Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
 
 *Notes*
 
-```
+
 The -n flag suppresses the trailing newline, as in echo -n.
 
 For destructive actions, consider defaulting to the safer choice: either put the negative answer first, or
 pass true for defaultAnswerTwo.
-```
+
 
 *Returns*
 
@@ -130,9 +130,9 @@ Choose from a list of options using the arrow keys.
 
 *Notes*
 
-```
+
 The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
-```
+
 
 *Returns*
 

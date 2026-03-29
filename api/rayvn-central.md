@@ -30,9 +30,8 @@ and earliest commit date (or current timestamp if no commits exist).
 
 *Notes*
 
-```
+
 Assumes PWD is within the repo for the given projectName.
-```
 
 ### getProjectRegistryPath()
 

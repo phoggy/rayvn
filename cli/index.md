@@ -112,11 +112,12 @@ what's available to `source rayvn.up` or `require`.
 List the public functions defined in each library of one or more projects.
 
 ```
-rayvn functions [PROJECT] [PROJECT...] [--all]
+rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY]] [--all]
 ```
 
 By default shows only public functions (those not prefixed with `_`). Pass `--all` to also show
-private `_functions`. For full documentation including signatures and descriptions, see the
+private `_functions`. Specify a qualified library name (e.g. `rayvn/core`) to list functions for
+a single library. For full documentation including signatures and descriptions, see the
 [API Reference]({{ site.baseurl }}/api) or use `rayvn index` to generate machine-readable indexes.
 
 ### register

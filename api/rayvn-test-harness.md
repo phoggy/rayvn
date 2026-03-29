@@ -18,11 +18,10 @@ Execute tests for one or more rayvn projects, running test files in parallel.
 
 *Notes*
 
-```
+
 Reads project list, filter args, and option flags from the caller's environment
 (the 'projects', 'args', and 'flags' variables set by the rayvn command).
 Supports --nix (run inside nix develop) and --all (run locally then in nix).
-```
 
 ### executeNixBuild()
 

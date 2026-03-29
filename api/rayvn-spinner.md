@@ -70,9 +70,9 @@ Stop a spinner, optionally replacing it with the given text.
 
 *Notes*
 
-```
+
 The -n flag suppresses the trailing newline, as in echo -n.
-```
+
 
 *Example*
 

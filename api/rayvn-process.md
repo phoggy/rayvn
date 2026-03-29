@@ -28,11 +28,11 @@ Wait for a process to exit, escalating SIGTERM then SIGKILL if needed.
 
 *Notes*
 
-```
+
 SIGTERM is sent after the first check interval if the process is still running.
 SIGKILL is sent once termWaitMs has elapsed. Polling continues until timeoutMs
 is reached regardless of which signals have been sent.
-```
+
 
 *Returns*
 
