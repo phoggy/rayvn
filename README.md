@@ -7,46 +7,41 @@ A shared library ecosystem for bash 5.3+.
 
 ## First Look
 
+A minimal rayvn script:
+
 ```bash
-#!/usr/bin/env rayvn-bash    # ensures bash 5.3+
+#!/usr/bin/env rayvn-bash
 
-# Boot rayvn & require two shared libraries ('rayvn/core' is automatic)
+usage() {
+    show "Usage:" bold "greet NAME"
+    bye "$@"
+}
 
-source rayvn.up 'rayvn/prompt' 'rayvn/spinner'
+main() {
+    init "$@"
+    show primary "Hello, " bold "${greetName}" success "!"
+}
 
-# Display styled text using the current theme and an extra newline
+init() {
+    declare -g name
+    while (( $# )); do
+        case "$1" in
+            -h | --help) usage ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ -n ${name} ]] || usage "NAME is required"
+}
 
-show primary "Hello" bold "Bold New" secondary "World" success glue "!" nl
-
-# Display a header and subhead
-
-header "Example 1" primary "using libraries 'rayvn/core' 'rayvn/prompt' 'rayvn/spinner'"
-
-# Ask user to choose a spinner type
-
-local types selectedIndex spinnerId
-spinnerTypes types
-choose 'What type of spinner would you like to see?' types selectedIndex || bye
-
-# Start the chosen spinner, pretend to do some work and stop spinner
-
-echo
-startSpinner spinnerId "Doing something" ${types[selectedIndex]}
-sleep 4
-stopSpinner spinnerId " ${successCheckMark}"
-
-# View themes (limited to 10 visible at a time), and change the current one if desired
-
-require 'rayvn/theme'
-echo
-setTheme 10 || bye
-
-# Generate a random 6 word passphrase using a library from the valt project (must be in PATH)
-
-require 'valt/password'
-header 2 "Generating a new passphrase"
-generatePassphrase 6
+source rayvn.up
+main "$@"
 ```
+
+- `#!/usr/bin/env rayvn-bash` ensures bash 5.3+ regardless of system defaults.
+- `source rayvn.up` bootstraps rayvn; `rayvn/core` library is always loaded automatically.
+- All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
+- Pass library names to load additional libraries: `source rayvn.up 'rayvn/spinner' 'rayvn/prompt'`.
 
 ## Installation
 
@@ -137,20 +132,15 @@ source rayvn.up
 ```
 
 After that line executes, your script now has a `require` function which can then be used to load any installed shared library.
-Nearly all scripts will want to include the `rayvn/core` library:
+The `rayvn/core` library is loaded by default. For convenience, `rayvn.up` accepts a list of library names to immediately `require`:
 ```bash
-require 'rayvn/core'
-```
-
-For convenience, `rayvn.up` accepts a list of library names to immediately `require`:
-```bash
-source rayvn.up 'rayvn/core'
+source rayvn.up 'rayvn/debug'
 ```
 
 `rayvn.up` automatically detects other rayvn projects via `PATH`. If a project is not in `PATH`,
 it can be added explicitly:
 ```bash
-source rayvn.up 'rayvn/core' --add myproject=/path/to/project
+source rayvn.up 'myproject/mylibrary' --add myproject=/path/to/project
 ```
 
 The `require` function can be called lazily, e.g. within a function.
