@@ -315,9 +315,15 @@ _printProjectLibrary() {
 
 listFunctions() {
     if (( flags['help'] )); then
-        echo "rayvn functions [PROJECT...] [--all]"
+        echo "rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY]] [--all]"
     else
-        forEachProject _listProjectLibraries "$1"
+        if [[ -n ${args[0]:-} && ${args[0]} == */* ]]; then
+            local qualifiedLib="${args[0]}"
+            args[0]="${qualifiedLib##*/}"
+            _listProjectLibraries "${qualifiedLib%%/*}"
+        else
+            forEachProject _listProjectLibraries "$1"
+        fi
     fi
 }
 
@@ -331,6 +337,7 @@ _listFunctions() {
     local library="$2"
     local libraryFile="$3"
     local libraryName="${project}/${library}"
+    [[ -n ${args[0]:-} && ${library} != "${args[0]}" ]] && return 0
     local functions=()
     local function
     local includePrivate=0
