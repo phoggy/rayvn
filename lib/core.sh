@@ -104,6 +104,17 @@ show() {
     echo "${options[@]}" "${output}"
 }
 
+# ◇ Shadows the bash builtin echo. Writes to the terminal device when stdout is a terminal,
+#   or to stdout otherwise. This enables tty capture in tests; see startTtyCapture().
+
+echo() {
+    if [[ -t 1 ]]; then
+        builtin echo "$@" >&${ttyFd}
+    else
+        builtin echo "$@"
+    fi
+}
+
 # ◇ Print a styled section header with optional subtitle lines.
 #
 # · USAGE
@@ -150,7 +161,8 @@ header() {
 #   [TEXT] (string)    Text to print with the preceding format applied.
 
 warn() {
-    show warning "⚠️ $1" "${@:2}" > ${terminalErr}
+    local msg; msg=${ show warning "⚠️ $1" "${@:2}"; }
+    builtin echo "${msg}" > ${terminalErr}
 }
 
 # ◇ Print an error message to stderr with a 🔺 prefix.
@@ -164,7 +176,8 @@ warn() {
 #   [TEXT] (string)    Text to print with the preceding format applied.
 
 error() {
-    show error "🔺 $1" "${@:2}" > ${terminalErr}
+    local msg; msg=${ show error "🔺 $1" "${@:2}"; }
+    builtin echo "${msg}" > ${terminalErr}
 }
 
 # ◇ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
@@ -263,11 +276,11 @@ stackTrace() {
         local called=${FUNCNAME[${i} - 1]}
         local script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
         (( i == start )) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
-        echo "   ${function} ${script}:${line} ${arrow} ${called}()"
+        builtin echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
 }
 
-# ◇ Print each line of a piped stream in error color to terminalErr.
+# ◇ Print each line of a piped stream in error color to stderr.
 #
 # · EXAMPLE
 #
@@ -276,7 +289,8 @@ stackTrace() {
 errorStream() {
     local error
     while read error; do
-        show red "${error}"
+        local msg; msg=${ show red "${error}"; }
+        builtin echo "${msg}"
     done
 } > "${terminalErr}"
 
@@ -1188,11 +1202,11 @@ executeClean() {
 #
 #   setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]
 #
-#   --tty TTY (string)    Log debug messages to the TTY instead of the log file.
-#   --tty .               Log debug messages to the TTY read from "${HOME}/.debug.tty".
-#   --noStatus            Suppress debug status line display.
-#   --clearLog            Clear the log file if not tty mode.
-#   --showLogOnExit       Show the log file on exit if not tty mode.
+#   --tty TTY (string)  Log debug messages to the TTY instead of the log file.
+#   --tty .             Log debug messages to the TTY read from "${HOME}/.debug.tty".
+#   --noStatus          Suppress debug status line display.
+#   --clearLog          Clear the log file if not tty mode.
+#   --showLogOnExit     Show the log file on exit if not tty mode.
 
 setDebug() {
     require 'rayvn/debug'
@@ -1290,7 +1304,7 @@ _init_rayvn_core() {
         declare -gr terminalErr="/dev/stderr"
         declare -gri isInteractive=0
 
-        # Unless a special flag is set, turn off colors
+        # Turn off colors unless the test flag is set
 
         if (( rayvnTest_Force24BitColor )); then
             declare -gri terminalColorBits=24
@@ -1310,7 +1324,6 @@ _init_rayvn_core() {
     declare -gr _checkMark='✔' # U+2714 Check mark
     declare -gr _crossMark='✘' # U+2718 Heavy ballot X
     declare -gr _hexChars=( '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'a' 'b' 'c' 'd' 'e' 'f' )
-
     declare -gar _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
     declare -gr inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }

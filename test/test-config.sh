@@ -12,8 +12,15 @@ main() {
 }
 
 init() {
-    if [[ $1 == --debug ]]; then
-        setDebug showLogOnExit
+    local debugOptions=()
+    case "$1" in
+        --debug) debugOptions=('--showLogOnExit') ;;
+        --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
+        --debug-out) debugOptions=('--tty' "${terminal}");;
+        --debug-tty) shift; debugOptions=('--tty' "$1") ;;
+    esac
+    if (( ${#debugOptions} )); then
+        setDebug "${debugOptions[@]}"
         declare -grx tempDir="${ debugDir; }"
     else
         declare -grx tempDir="${ tempDirPath; }"

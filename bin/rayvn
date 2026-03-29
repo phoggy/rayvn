@@ -52,6 +52,7 @@ main() {
 
 init() {
     declare -g debugOptions=()
+    declare -ga debugCommand=()
     declare -g command=
     declare -g projects=()
     declare -g args=()
@@ -77,10 +78,10 @@ init() {
             docs) parseArgs true docsCommand "${@:2}" ;;
             lint) parseArgs true lintCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
-            --debug) debugOptions=('--showLogOnExit') ;;
-            --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
-            --debug-out) debugOptions=('--tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('--tty' "$1") ;;
+            --debug) debugOptions=('--showLogOnExit'); debugCommand=('--debug') ;;
+            --debug-new) debugOptions=('--clearLog' '--showLogOnExit'); debugCommand=('--debug-new') ;;
+            --debug-out) debugOptions=('--tty' "${ tty; }"); debugCommand=('--debug-tty' "${ tty; }") ;;
+            --debug-tty) shift; debugOptions=('--tty' "$1"); debugCommand=('--debug-tty' "$1") ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             -h | --help | help) command='usage' ;;
@@ -113,10 +114,10 @@ parseArgs() {
             --all) flags+=(['all']=1) ;;
             --fix) flags+=(['fix']=1) ;;
             --ask) flags+=(['ask']=1) ;;
-            --debug) debugOptions=('--showLogOnExit') ;;
-            --debug-new) debugOptions=('--clearLog' '--showLogOnExit') ;;
-            --debug-out) debugOptions=('--tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('--tty' "$1") ;;
+            --debug) debugOptions=('--showLogOnExit'); debugCommand=('--debug') ;;
+            --debug-new) debugOptions=('--clearLog' '--showLogOnExit'); debugCommand=('--debug-new') ;;
+            --debug-out) debugOptions=('--tty' "${ tty; }"); debugCommand=('--debug-tty' "${ tty; }") ;;
+            --debug-tty) shift; debugOptions=('--tty' "$1"); debugCommand=('--debug-tty' "$1") ;;
             --repo) shift; gitHubRepo="$1";;
             -*) args+=("$1") ;;
             *)  if [[ ${add} == true ]]; then

@@ -4,7 +4,10 @@
 # Test case support.
 # Use via: require 'rayvn/test'
 
-### assert functions ----------------------------------------------------------------------------------------
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ASSERT FUNCTIONS
+# ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Fail if a pattern is found in a file.
 #
@@ -381,7 +384,9 @@ assertHashValue() {
     [[ ${actualValue} == "${expectedValue}" ]] || fail "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
 }
 
-### PATH functions ----------------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# PATH FUNCTIONS
+# ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Prepend a directory to a PATH-style variable, removing any existing occurrence first.
 #
@@ -493,7 +498,7 @@ addRayvnProject() {
     fi
 }
 
-# ◇ Unregister a project by removing its root entries from _rayvnProjects.
+# ◇ Unregister a project previously added with addRayvnProject().
 #
 # · ARGS
 #
@@ -551,10 +556,12 @@ benchmark() {
       "${testCase}" "${functionName}" "${iterations}" "${duration}" "${opsPerSec}"
 }
 
-### tty capture functions ---------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# TTY CAPTURE FUNCTIONS
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ◇ Redirect ttyFd to a temp file to capture terminal UI output. Sets ttyCapturePath.
-#   Pair with stopTtyCapture() to restore, or run inside a subshell for automatic cleanup.
+# ◇ Begin capturing terminal UI output to a temp file. Access captured output via
+#   getTtyOutput() or getTtyText(). Pair with stopTtyCapture() to restore.
 
 startTtyCapture() {
     local captureFile; captureFile=${ makeTempFile tty-capture-XXXXXX; }
@@ -562,7 +569,7 @@ startTtyCapture() {
     declare -g ttyCapturePath="${captureFile}"
 }
 
-# ◇ Restore ttyFd to the original terminal target and unset ttyCapturePath.
+# ◇ Stop capturing and restore terminal UI output to the original terminal device.
 
 stopTtyCapture() {
     eval "exec ${ttyFd}<>\"${terminal}\""

@@ -74,6 +74,7 @@ main() {
     testAssertHash
     testAssertEqualIgnoreCase
     testPathUtilities
+    testEchoOverride
 
     testShowBasicUsage
     testShowFormatCombinations
@@ -99,10 +100,10 @@ main() {
 init() {
     while (( $# )); do
         case "$1" in
-            --debug) setDebug showLogOnExit ;;
-            --debug-new) setDebug clearLog showLogOnExit ;;
-            --debug-out) setDebug tty "${terminal}" ;;
-            --debug-tty) shift; setDebug tty "$1" ;;
+            --debug) setDebug --showLogOnExit ;;
+            --debug-new) setDebug --clearLog --showLogOnExit ;;
+            --debug-out) setDebug --tty "${terminal}" ;;
+            --debug-tty) shift; setDebug --tty "$1" ;;
         esac
         shift
     done
@@ -1020,8 +1021,11 @@ testAssertFileSystemAssertions() {
 }
 
 testAssertGitRepo() {
-    assertTrue "assertGitRepo succeeds in a git repo" assertGitRepo "${rayvnHome}"
+    local tmpRepo; tmpRepo=${ makeTempDir test-git-XXXXXX; }
+    git init "${tmpRepo}" > /dev/null 2>&1
+    assertTrue "assertGitRepo succeeds in a git repo" assertGitRepo "${tmpRepo}"
     assertFalse "assertGitRepo fails outside a git repo" eval "( assertGitRepo '/tmp' ) 2>/dev/null"
+    rm -rf "${tmpRepo}"
 }
 
 testAssertPathWithinDirectory() {
@@ -1369,6 +1373,37 @@ testPathUtilities() {
     assertFalse "removePath removes appended dir" _matchesGlob ":${PATH}:" "*:${testDir}:*"
 
     PATH="${savedPath}"
+}
+
+# ============================================================================
+# echo() override
+# ============================================================================
+
+testEchoOverride() {
+    # In command substitution: echo always writes to stdout (captured), never to ttyFd
+    local result
+    result=${ echo "captured line"; }
+    assertEqual "captured line" "${result}" "echo captured in command substitution"
+
+    result=${ echo "first"; echo "second"; }
+    assertEqual $'first\nsecond' "${result}" "multiple echo calls captured in sequence"
+
+    result=${ echo -n "no newline"; echo " appended"; }
+    assertEqual "no newline appended" "${result}" "echo -n + echo captured"
+
+    # Empty echo produces a blank line
+    result=${ echo ""; }
+    assertEqual "" "${result}" "echo empty string captured as empty"
+
+    # In terminal context: echo routes to ttyFd (only testable when stdout is a tty)
+    if [[ -t 1 ]]; then
+        startTtyCapture
+        echo "tty output"
+        assertTtyContains "tty output" "direct echo routes to ttyFd in terminal context"
+        echo -n "no newline"
+        assertTtyContains "no newline" "echo -n routes to ttyFd in terminal context"
+        stopTtyCapture
+    fi
 }
 
 # Force 24-bit color mode if not running in a terminal
