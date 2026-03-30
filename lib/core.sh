@@ -1443,7 +1443,7 @@ _init_theme() {
 
 _init_colors() {
     _init_theme
-
+    declare -gr _textReset=$'\e[0m'
     declare -grA _textFormats=(
 
        # Styles
@@ -1512,6 +1512,7 @@ _init_colors() {
 }
 
 _init_noColors() {
+    declare -gr _textReset=''
     declare -grA _textFormats=(
 
         # Styles
