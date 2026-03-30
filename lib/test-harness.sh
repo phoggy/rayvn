@@ -385,7 +385,12 @@ _runAllTasksParallel() {
         _startTask ${i}
         startedTasks[${i}]=1
         (( pendingCount += 1 ))
-        addSpinner spinnerId star "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))"
+        local spinnerColor='' spinnerType='star'
+        if [[ ${_taskTypes[${i}]} == 'build' ]]; then
+            spinnerColor='primary'
+            spinnerType='circle'
+        fi
+        addSpinner spinnerId ${spinnerType} "${taskSpinnerRows[${i}]}" "$(( _testResultColumn + 2 ))" ${spinnerColor}
         taskSpinnerIds[${i}]="${spinnerId}"
     done
 
@@ -428,7 +433,12 @@ _runAllTasksParallel() {
                         _startTask ${j}
                         startedTasks[${j}]=1
                         (( pendingCount += 1 ))
-                        addSpinner spinnerId star "${taskSpinnerRows[${j}]}" "$(( _testResultColumn + 2 ))"
+                        local spinnerColor='' spinnerType='star'
+                        if [[ ${_taskTypes[${j}]} == 'build' ]]; then
+                            spinnerColor='primary'
+                            spinnerType='circle'
+                        fi
+                        addSpinner spinnerId ${spinnerType} "${taskSpinnerRows[${j}]}" "$(( _testResultColumn + 2 ))" ${spinnerColor}
                         taskSpinnerIds[${j}]="${spinnerId}"
                     fi
                 done
