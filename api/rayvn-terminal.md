@@ -92,7 +92,7 @@ Move the cursor down N rows then to a 1-based column position.
 
 ### cursorTo()
 
-Move the cursor to an absolute terminal position, writing to /dev/tty.
+Move the cursor to an absolute terminal position.
 
 
 *Args*

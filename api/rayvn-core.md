@@ -37,13 +37,13 @@ Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 
 Available formats:
 
-- **Theme:** `success` `error` `warning` `info` `accent` `muted`
-- **Style:** `bold` `dim` `italic` `underline` `blink` `reverse` `strikethrough`
-- **Foreground:** `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` (and `bright-*` variants)
-- **Background:** `bg-black` `bg-red` `bg-green` `bg-yellow` `bg-blue` `bg-magenta` `bg-cyan` `bg-white` (and `bg-bright-*` variants)
-- **256-color:** `IDX` \<0-255\>
-- **true-color:** `RGB` \<R:G:B\>
-- **Special:** `nl` (insert newline), `glue` (suppress space before next arg)
+- **Theme** `success` `error` `warning` `info` `accent` `muted`
+- **Style** `bold` `dim` `italic` `underline` `blink` `reverse` `strikethrough`
+- **Foreground** `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` (and `bright-*` variants)
+- **Background** `bg-black` `bg-red` `bg-green` `bg-yellow` `bg-blue` `bg-magenta` `bg-cyan` `bg-white` (and `bg-bright-*` variants)
+- **256-color** `IDX` \<0-255\>
+- **true-color** `RGB` \<R:G:B\>
+- **Special** `nl` (insert newline), `glue` (suppress space before next arg)
 
 While most modern terminals support 256-color or true-color (24 bit), stick to theme colors
 if compatibility is a concern — they automatically fall back to 16-color. Some terminals may
@@ -68,6 +68,11 @@ show IDX 42 "256-color #42" RGB 52:208:88 "truecolor"
 show "(default:" blue "${configDir}" glue ")."            # suppress space before closing paren
 result="${ show bold green "ok"; }"                       # in command substitution
 ```
+
+### echo()
+
+Shadows the bash builtin echo. Writes to the terminal device when stdout is a terminal,
+or to stdout otherwise. This enables tty capture in tests; see `startTtyCapture()`.
 
 ### header()
 
@@ -194,7 +199,7 @@ Print a formatted call stack, optionally preceded by a message.
 
 ### errorStream()
 
-Print each line of a piped stream in error color to terminalErr.
+Print each line of a piped stream in error color to stderr.
 
 
 *Example*
@@ -842,7 +847,7 @@ Enable debug mode.
 | | |
 |---|---|
 | `--tty TTY` *(string)* | Log debug messages to the TTY instead of the log file. |
-| `--tty` | .               Log debug messages to the TTY read from "${HOME}/.debug.tty". |
+| `--tty` | .             Log debug messages to the TTY read from "${HOME}/.debug.tty". |
 | `--noStatus` | Suppress debug status line display. |
 | `--clearLog` | Clear the log file if not tty mode. |
 | `--showLogOnExit` | Show the log file on exit if not tty mode. |

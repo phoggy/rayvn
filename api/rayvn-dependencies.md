@@ -7,7 +7,7 @@ nav_order: 5
 
 # rayvn/dependencies
 
-Project dependency checking and brew formula generation.
+Dependency checking and Homebrew formula generation
 
 ## Functions
 

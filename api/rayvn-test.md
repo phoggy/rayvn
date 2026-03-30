@@ -9,7 +9,7 @@ nav_order: 18
 
 Test assertions
 
-## Functions
+## Assert Functions
 
 ### assertNotInFile()
 
@@ -319,6 +319,8 @@ Fail if the value at a key in an associative array does not equal the expected v
 | `expectedValue` *(string)* | Expected value at that key. |
 {: .args-table}
 
+## Path Functions
+
 ### printPath()
 
 Prepend a directory to a PATH-style variable, removing any existing occurrence first.
@@ -381,7 +383,7 @@ Register a rayvn project by name and root directory, resolving symlinks via real
 
 ### removeRayvnProject()
 
-Unregister a project by removing its root entries from _rayvnProjects.
+Unregister a project previously added with `addRayvnProject()`.
 
 
 *Args*
@@ -417,5 +419,68 @@ Run a function N times and print timing results including ops/sec.
 | `iterations` *(int)* | Number of times to call the function. |
 | `testCase` *(string)* | Label printed in the results line. |
 | `[...]` *(string)* | Optional arguments passed to the function on each invocation. |
+{: .args-table}
+
+## Tty Capture Functions
+
+### startTtyCapture()
+
+Begin capturing terminal UI output to a temp file. Access captured output via
+`getTtyOutput()` or `getTtyText()`. Pair with `stopTtyCapture()` to restore.
+
+### stopTtyCapture()
+
+Stop capturing and restore terminal UI output to the original terminal device.
+
+### clearTtyCapture()
+
+Clear the tty capture file content without stopping capture.
+
+### getTtyOutput()
+
+Return raw tty capture content including all ANSI escape sequences.
+
+### getTtyText()
+
+Return tty capture content with all ANSI escape sequences stripped.
+
+### assertTtyRawContains()
+
+Fail if raw (ANSI-encoded) tty capture content does not contain expected as a substring.
+Use this to assert on escape sequences directly. Use assertTtyContains for visible text.
+
+
+*Args*
+
+| | |
+|---|---|
+| `expected` *(string)* | Substring that must be present in raw tty output (e.g. $'\e[?25l'). |
+| `msg` *(string)* | Optional failure message. |
+{: .args-table}
+
+### assertTtyContains()
+
+Fail if captured tty text does not contain expected as a substring.
+
+
+*Args*
+
+| | |
+|---|---|
+| `expected` *(string)* | Substring that must be present in tty output. |
+| `msg` *(string)* | Optional failure message. |
+{: .args-table}
+
+### assertTtyNotContains()
+
+Fail if captured tty text contains expected as a substring.
+
+
+*Args*
+
+| | |
+|---|---|
+| `expected` *(string)* | Substring that must NOT be present in tty output. |
+| `msg` *(string)* | Optional failure message. |
 {: .args-table}
 

@@ -7,7 +7,7 @@ nav_order: 6
 
 # rayvn/function-docs
 
-Audit and update function doc comments using the ◇ structured format.
+Audit and update function doc comments
 
 ## Functions
 

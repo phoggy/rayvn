@@ -7,7 +7,7 @@ nav_order: 7
 
 # rayvn/index
 
-Generate rayvn library function indexes and Jekyll docs.
+Generate function indexes for AI agent use
 
 ## Functions
 

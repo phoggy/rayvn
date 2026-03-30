@@ -50,6 +50,7 @@ commands accept multiple project names to operate on several at once.
 Run tests for one or more projects. Test files live in each project's `tests/` directory and are
 discovered automatically.
 
+
 ```
 rayvn test [PROJECT] [PROJECT...] [TEST-NAME] [TEST-NAME...] [--nix] [--all]
 ```
@@ -57,6 +58,8 @@ rayvn test [PROJECT] [PROJECT...] [TEST-NAME] [TEST-NAME...] [--nix] [--all]
 Without arguments, tests the current directory's project (or rayvn itself if not in a project).
 Pass one or more TEST-NAME values to run only matching test cases. Use `--nix` to first build the
 project with Nix before running tests, which is useful for verifying a clean Nix-built environment.
+
+{% include asciinema.html id="test-all" src="/rayvn/assets/casts/test-all.cast" %}
 
 ### build
 

@@ -7,7 +7,7 @@ nav_order: 9
 
 # rayvn/node
 
-Node.js / npm utilities.
+Node.js / npm utilities
 
 ## Functions
 

@@ -7,7 +7,7 @@ nav_order: 8
 
 # rayvn/lint
 
-Scan rayvn project source files for bash requirement violations.
+Bash requirement linting
 
 ## Functions
 

@@ -1,0 +1,13 @@
+<div id="asciinema-{{ include.id }}"></div>
+<script>
+  AsciinemaPlayer.create(
+    '{{ include.src }}',
+    document.getElementById('asciinema-{{ include.id }}'),
+    {
+      cols: {{ include.cols | default: 220 }},
+      rows: {{ include.rows | default: 50 }},
+      autoPlay: {{ include.autoplay | default: false }},
+      theme: '{{ include.theme | default: "asciinema" }}'
+    }
+  );
+</script>
