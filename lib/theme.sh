@@ -47,8 +47,6 @@ setTheme() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_theme() {
-    require 'rayvn/core'
-
     # Collect display and var names
 
     local darkNames=()

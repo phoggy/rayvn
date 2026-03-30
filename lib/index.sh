@@ -494,7 +494,7 @@ findDependencies() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/index' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_index() {
-    require 'rayvn/core'
+    :
 }
 
 _initIndex() {

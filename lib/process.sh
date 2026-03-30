@@ -3,8 +3,6 @@
 # Process management.
 # Use via: require 'rayvn/process'
 
-require 'rayvn/core'
-
 # ◇ Wait for a process to exit, escalating SIGTERM then SIGKILL if needed.
 #
 # · ARGS
@@ -66,5 +64,5 @@ waitForProcessExit() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/process' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_process() {
-    require 'rayvn/core'
+    :
 }

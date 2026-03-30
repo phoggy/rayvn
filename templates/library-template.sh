@@ -20,7 +20,7 @@ my${libraryNameInitialCap}LibraryFunction() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN '${projectName}/${libraryName}' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_${projectName}_${libraryName}() {
-    require 'rayvn/core' # Add other required library names here.
+    # require 'other/library'  # Add required library names here if needed.
     echo "library init_${projectName}_${libraryName}() called" # TODO remove/replace me!
 }
 

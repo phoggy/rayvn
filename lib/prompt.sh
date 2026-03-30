@@ -226,7 +226,7 @@ choose() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/prompt' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_prompt() {
-    require 'rayvn/core' 'rayvn/terminal'
+    require 'rayvn/terminal'
 
     declare -gr _promptCanceledMsgINT='canceled (ctrl-c)'
     declare -gr _promptCanceledMsgEmpty='canceled (no input)'

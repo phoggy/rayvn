@@ -44,7 +44,7 @@ extractSafeStaticVars() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/config' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_config() {
-    require 'rayvn/core'
+    :
 }
 
 # Written by Claude Sonnet 4

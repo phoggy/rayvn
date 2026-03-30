@@ -84,7 +84,7 @@ secretExists() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/secrets' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_secrets() {
-    require 'rayvn/core'
+    :
 }
 
 # macOS keychain operations using security command

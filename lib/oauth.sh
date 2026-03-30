@@ -86,7 +86,7 @@ getOAuthAccessToken() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/oauth' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_oauth() {
-    require 'rayvn/core' 'rayvn/prompt' 'rayvn/secrets'
+    require 'rayvn/prompt' 'rayvn/secrets'
 
     # Define our service keys so we can validate
 

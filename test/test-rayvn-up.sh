@@ -261,8 +261,14 @@ testSourceRayvnUp() {
 
     # And that counts are as expected
 
-    assertHashValue '_rayvnRequireCounts' 'rayvn' 2      # both core and test
+    assertHashValue '_rayvnRequireCounts' 'rayvn' 1      # test only; core is implicit, not explicitly required
     assertHashValue '_rayvnRequireCounts' 'rayvn_test' 1
+
+    # Core is implicit in normal use; require it explicitly here to test core function availability
+
+    require 'rayvn/core' || _failed 'require rayvn/core failed'
+
+    assertHashValue '_rayvnRequireCounts' 'rayvn' 2      # now both core and test
     assertHashValue '_rayvnRequireCounts' 'rayvn_core' 1
 
     # Ensure that functions from our core library are now present in this shell

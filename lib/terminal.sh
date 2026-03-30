@@ -212,8 +212,6 @@ reserveRows() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_terminal() {
-    require 'rayvn/core'
-
     (( isInteractive )) || return 0  # Silently succeed when not interactive
 
     # Save original terminal settings from the terminal device

@@ -82,5 +82,5 @@ executeNodeScript() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/node' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_node() {
-    require 'rayvn/core'
+    :
 }

@@ -45,7 +45,7 @@ runLint() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/lint' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_lint() {
-    require 'rayvn/core'
+    :
 }
 
 _lintProject() {

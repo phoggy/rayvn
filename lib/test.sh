@@ -668,7 +668,7 @@ stopInputSimulation() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_test() {
-    require 'rayvn/core'
+    :
 }
 
 _captureRequireFailure() {

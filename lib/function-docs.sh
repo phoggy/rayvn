@@ -228,7 +228,6 @@ updateDocs() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/function-docs' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_function-docs() {
-    require 'rayvn/core'
     require 'rayvn/prompt'
 }
 

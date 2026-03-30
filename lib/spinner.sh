@@ -148,7 +148,7 @@ spinnerCloseInheritedFds() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_spinner() {
-    require 'rayvn/core' 'rayvn/process' 'rayvn/terminal'
+    require 'rayvn/process' 'rayvn/terminal'
     local fifo type
 
     # Request and response fifos
