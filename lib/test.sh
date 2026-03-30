@@ -637,6 +637,34 @@ assertTtyNotContains() {
     [[ ${text} != *"${expected}"* ]] || fail "${msg}"
 }
 
+# ──────────────────────────────────────────────────────────────────────────────
+# INPUT SIMULATION FUNCTIONS
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ◇ Begin simulating user input from a string. Redirects stdinFd to a temp file
+#   containing the given input so prompt functions read from it instead of the
+#   terminal. Pair with stopInputSimulation() to restore.
+#
+# · ARGS
+#
+#   input (string)  The simulated input (e.g. "y" for a confirm, "2" for a choice).
+
+startInputSimulation() {
+    local input="$1"
+    local inputFile; inputFile=${ makeTempFile stdin-sim-XXXXXX; }
+    printf '%s' "${input}" > "${inputFile}"
+    eval "exec ${stdinFd}< \"${inputFile}\""
+    declare -g _stdinSimFile="${inputFile}"
+}
+
+# ◇ Stop simulating user input and restore stdinFd to the real stdin.
+
+stopInputSimulation() {
+    eval "exec ${stdinFd}<&0"
+    rm -f "${_stdinSimFile}"
+    unset _stdinSimFile
+}
+
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/test' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_test() {

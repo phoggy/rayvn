@@ -3,7 +3,7 @@
 # Tests for prompt.sh public functions: request, secureRequest, confirm, choose
 #
 # Uses rayvnTest_ModifiableFunctions=1 to override terminal functions with mocks,
-# and process substitution to inject keystrokes via stdin.
+# and startInputSimulation/stopInputSimulation to inject keystrokes via stdinFd.
 
 main() {
     init "$@"
@@ -107,9 +107,11 @@ _installMocks() {
 
 testRequestBasicInput() {
     (
-        local result
-        request "Name" result false < <(printf 'hello\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'hello\n'
+        request "Name" result false
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "request basic input: exit code"
         assertEqual "hello" "${result}" "request basic input: result"
     ) || exit 1
@@ -117,18 +119,22 @@ testRequestBasicInput() {
 
 testRequestEmptyInputCancelOnEmpty() {
     (
-        local result
-        request "Name" result true < <(printf '\n') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation $'\n'
+        request "Name" result true
+        exitCode=$?
+        stopInputSimulation
         assertEqual "1" "${exitCode}" "request empty input cancel on empty: exit code"
     ) || exit 1
 }
 
 testRequestEmptyInputAllowed() {
     (
-        local result
-        request "Name" result false < <(printf '\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\n'
+        request "Name" result false
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "request empty input allowed: exit code"
         assertEqual "" "${result}" "request empty input allowed: result"
     ) || exit 1
@@ -136,18 +142,22 @@ testRequestEmptyInputAllowed() {
 
 testRequestEscapeCancel() {
     (
-        local result
-        request "Name" result false < <(printf '\e') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation $'\e'
+        request "Name" result false
+        exitCode=$?
+        stopInputSimulation
         assertEqual "130" "${exitCode}" "request escape cancel: exit code"
     ) || exit 1
 }
 
 testRequestHiddenInput() {
     (
-        local result
-        request "Password" result false 30 true < <(printf 'secret\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'secret\n'
+        request "Password" result false 30 true
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "request hidden input: exit code"
         assertEqual "secret" "${result}" "request hidden input: result"
     ) || exit 1
@@ -155,9 +165,11 @@ testRequestHiddenInput() {
 
 testRequestTimeout() {
     (
-        local result
-        request "Name" result false 1 < <(printf '') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation ''
+        request "Name" result false 1
+        exitCode=$?
+        stopInputSimulation
         assertEqual "124" "${exitCode}" "request timeout: exit code"
     ) || exit 1
 }
@@ -166,9 +178,11 @@ testRequestTimeout() {
 
 testSecureRequestBasicInput() {
     (
-        local result
-        secureRequest "Password" result < <(printf 'password\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'password\n'
+        secureRequest "Password" result
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "secureRequest basic input: exit code"
         assertEqual "password" "${result}" "secureRequest basic input: result"
     ) || exit 1
@@ -176,9 +190,11 @@ testSecureRequestBasicInput() {
 
 testSecureRequestEscapeCancel() {
     (
-        local result
-        secureRequest "Password" result < <(printf '\e') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation $'\e'
+        secureRequest "Password" result
+        exitCode=$?
+        stopInputSimulation
         assertEqual "130" "${exitCode}" "secureRequest escape cancel: exit code"
     ) || exit 1
 }
@@ -187,9 +203,11 @@ testSecureRequestEscapeCancel() {
 
 testConfirmSelectFirstAnswer() {
     (
-        local result
-        confirm "Continue?" "yes" "no" result < <(printf '\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\n'
+        confirm "Continue?" "yes" "no" result
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "confirm select first answer: exit code"
         assertEqual "0" "${result}" "confirm select first answer: result"
     ) || exit 1
@@ -197,9 +215,11 @@ testConfirmSelectFirstAnswer() {
 
 testConfirmSelectSecondViaArrowRight() {
     (
-        local result
-        confirm "Continue?" "yes" "no" result < <(printf '\e[C\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\e[C\n'
+        confirm "Continue?" "yes" "no" result
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "confirm select second via arrow right: exit code"
         assertEqual "1" "${result}" "confirm select second via arrow right: result"
     ) || exit 1
@@ -207,9 +227,11 @@ testConfirmSelectSecondViaArrowRight() {
 
 testConfirmSelectFirstViaArrowLeft() {
     (
-        local result
-        confirm "Continue?" "yes" "no" result < <(printf '\e[C\e[D\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\e[C\e[D\n'
+        confirm "Continue?" "yes" "no" result
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "confirm select first via arrow left: exit code"
         assertEqual "0" "${result}" "confirm select first via arrow left: result"
     ) || exit 1
@@ -217,9 +239,11 @@ testConfirmSelectFirstViaArrowLeft() {
 
 testConfirmDefaultAnswerTwo() {
     (
-        local result
-        confirm "Continue?" "yes" "no" result true < <(printf '\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\n'
+        confirm "Continue?" "yes" "no" result true
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "confirm default answer two: exit code"
         assertEqual "1" "${result}" "confirm default answer two: result"
     ) || exit 1
@@ -227,18 +251,22 @@ testConfirmDefaultAnswerTwo() {
 
 testConfirmEscapeCancel() {
     (
-        local result
-        confirm "Continue?" "yes" "no" result < <(printf '\e') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation $'\e'
+        confirm "Continue?" "yes" "no" result
+        exitCode=$?
+        stopInputSimulation
         assertEqual "130" "${exitCode}" "confirm escape cancel: exit code"
     ) || exit 1
 }
 
 testConfirmTimeout() {
     (
-        local result
-        confirm "Continue?" "yes" "no" result false 1 < <(printf '') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation ''
+        confirm "Continue?" "yes" "no" result false 1
+        exitCode=$?
+        stopInputSimulation
         assertEqual "124" "${exitCode}" "confirm timeout: exit code"
     ) || exit 1
 }
@@ -248,9 +276,11 @@ testConfirmTimeout() {
 testChooseSelectFirst() {
     (
         local choices=("Option A" "Option B" "Option C")
-        local result
-        choose "Pick" choices result false 0 0 3 < <(printf '\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\n'
+        choose "Pick" choices result false 0 0 3
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "choose select first: exit code"
         assertEqual "0" "${result}" "choose select first: result"
     ) || exit 1
@@ -259,9 +289,11 @@ testChooseSelectFirst() {
 testChooseNavigateDownAndSelect() {
     (
         local choices=("Option A" "Option B" "Option C")
-        local result
-        choose "Pick" choices result false 0 0 3 < <(printf '\e[B\e[B\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\e[B\e[B\n'
+        choose "Pick" choices result false 0 0 3
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "choose navigate down and select: exit code"
         assertEqual "2" "${result}" "choose navigate down and select: result"
     ) || exit 1
@@ -270,9 +302,11 @@ testChooseNavigateDownAndSelect() {
 testChooseNavigateUpWrapsAround() {
     (
         local choices=("Option A" "Option B" "Option C")
-        local result
-        choose "Pick" choices result false 0 0 3 < <(printf '\e[A\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\e[A\n'
+        choose "Pick" choices result false 0 0 3
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "choose navigate up wraps around: exit code"
         assertEqual "2" "${result}" "choose navigate up wraps around: result"
     ) || exit 1
@@ -281,9 +315,11 @@ testChooseNavigateUpWrapsAround() {
 testChooseStartIndex() {
     (
         local choices=("Option A" "Option B" "Option C")
-        local result
-        choose "Pick" choices result false 2 0 3 < <(printf '\n') > /dev/null
-        local exitCode=$?
+        local result exitCode
+        startInputSimulation $'\n'
+        choose "Pick" choices result false 2 0 3
+        exitCode=$?
+        stopInputSimulation
         assertEqual "0" "${exitCode}" "choose start index: exit code"
         assertEqual "2" "${result}" "choose start index: result"
     ) || exit 1
@@ -292,9 +328,11 @@ testChooseStartIndex() {
 testChooseEscapeCancel() {
     (
         local choices=("Option A" "Option B" "Option C")
-        local result
-        choose "Pick" choices result false 0 0 3 < <(printf '\e') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation $'\e'
+        choose "Pick" choices result false 0 0 3
+        exitCode=$?
+        stopInputSimulation
         assertEqual "130" "${exitCode}" "choose escape cancel: exit code"
     ) || exit 1
 }
@@ -302,9 +340,11 @@ testChooseEscapeCancel() {
 testChooseTimeout() {
     (
         local choices=("Option A" "Option B" "Option C")
-        local result
-        choose "Pick" choices result false 0 0 3 1 < <(printf '') > /dev/null
-        local exitCode=$?
+        local exitCode
+        startInputSimulation ''
+        choose "Pick" choices result false 0 0 3 1
+        exitCode=$?
+        stopInputSimulation
         assertEqual "124" "${exitCode}" "choose timeout: exit code"
     ) || exit 1
 }

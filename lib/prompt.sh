@@ -462,10 +462,10 @@ _preparePromptChoices() {
 
 _executePrompt() {
     SECONDS=0 # Reset seconds counter
-    stty cbreak -echo
+    [[ -t ${stdinFd} ]] && stty cbreak -echo
 
     while true; do
-        if IFS= read -t 0.1 -r -n1 key 2> /dev/null; then
+        if IFS= read -u ${stdinFd} -t 0.1 -r -n1 key 2> /dev/null; then
             (( _promptClearHint )) && _clearHint
 
             case "${key}" in
@@ -524,7 +524,7 @@ _readPromptEscapeSequence() {
 
     # Is there more input?
 
-    if read -n1 -t 0.1 c; then
+    if read -u ${stdinFd} -n1 -t 0.1 c; then
 
         # Yes, it is an escape sequence
 
@@ -533,7 +533,7 @@ _readPromptEscapeSequence() {
             '[') # CSI sequence, read up to 3 more characters and process last
 
                 for (( promptIndex=0; promptIndex < 3; promptIndex++ )); do
-                    if ! read -n1 -t 0.1 c; then
+                    if ! read -u ${stdinFd} -n1 -t 0.1 c; then
                         break # timeout, assume we already read the last char
                     fi
 
@@ -554,7 +554,7 @@ _readPromptEscapeSequence() {
                     # fail here if it becomes an issue.
 
                 local debugBuffer="${c}"
-                while read -n1 -t 0.05 c; do
+                while read -u ${stdinFd} -n1 -t 0.05 c; do
                     debugBuffer+="${c}"
                 done
                 debugBinary "Unknown keyboard ESC sequence: " "${debugBuffer}"
@@ -634,7 +634,7 @@ _finalizePrompt() {
 
     # Restore terminal settings
 
-    stty "${_originalStty}"
+    [[ -t ${stdinFd} ]] && stty "${_originalStty}"
 }
 
 

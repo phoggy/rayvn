@@ -1318,6 +1318,9 @@ _init_rayvn_core() {
     exec {ttyFd}<>"${terminal}"
     declare -gr ttyFd
 
+    exec {stdinFd}<&0
+    declare -gr stdinFd
+
     # Misc global vars and constants
 
     declare -gi _debug=0
