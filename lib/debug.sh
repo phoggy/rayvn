@@ -45,7 +45,7 @@ debugBinary() {
         for (( i=0; i < ${#binary}; i++ )); do
             printf '%02X ' "'${binary:i:1}" >&${_debugFd}
         done
-        echo >&${_debugFd}
+        echo - >&${_debugFd}
     fi
 }
 
@@ -90,9 +90,9 @@ debugVarIsSet() {
             if varDefined ${var}; then
                 declare -p ${var}
             else
-                show red "NOT SET!"
+                show - red "NOT SET!"
                 stackTrace
-                echo
+                echo -
             fi
         ) >&${_debugFd}
     fi
@@ -114,11 +114,11 @@ debugVarIsNotSet() {
             local var="$1"
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is not set ->" ;} "
             if varDefined ${var}; then
-                show red "=${!var}"
+                show - red "=${!var}"
                 stackTrace
-                echo
+                echo -
             else
-                echo "not set"
+                echo - "not set"
             fi
         ) >&${_debugFd}
     fi
@@ -278,12 +278,12 @@ _debugEcho() {
     if (( _debugRemote )); then
         printf '%s\r\n' "${_debugPrefix}$*" >&${_debugFd}
     else
-        echo "${_debugPrefix}$*" >&${_debugFd}
+        echo - "${_debugPrefix}$*" >&${_debugFd}
     fi
 }
 
 _debugEchoNoNewline() {
-    echo -n "${_debugPrefix}$*" >&${_debugFd}
+    echo - -n "${_debugPrefix}$*" >&${_debugFd}
 }
 
 _setDebug() {
@@ -327,7 +327,7 @@ _setDebug() {
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
             clear >&${_debugFd} # clear remote terminal
-            show -e bold green "BEGIN" primary "debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
+            show - -e bold green "BEGIN" primary "debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n" >&${_debugFd}
         fi
     else
         _prepareLogFile ${clearLog}
@@ -382,11 +382,11 @@ _prepareLogFile() {
 }
 
 _debugExit() {
-    exec {_debugFd}>&- # close it
     (( _debugShowLogOnExit )) && _printDebugLog
     if (( _debugRemote )); then
-        show -e bold green "\r\nEND" primary "  debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n"  > ${_debugOut}
+        show - -e bold green "\r\nEND" primary "  debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n" >&${_debugFd}
     fi
+    exec {_debugFd}>&- # close it
 }
 
 _printDebugLog() {

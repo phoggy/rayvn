@@ -104,11 +104,14 @@ show() {
     echo "${options[@]}" "${output}"
 }
 
-# ◇ Shadows the bash builtin echo. Writes to the terminal device when stdout is a terminal,
-#   or to stdout otherwise. This enables tty capture in tests; see startTtyCapture().
+# ◇ Shadows the bash builtin echo. Routes to the terminal device when stdout is a TTY,
+#   enabling tty capture in tests; see startTtyCapture(). Pass '-' as the first arg to
+#   write to stdout directly (bypasses TTY routing, e.g. when redirecting to another fd).
 
 echo() {
-    if [[ -t 1 ]]; then
+    if [[ $1 == '-' ]]; then
+        shift; builtin echo "$@"
+    elif [[ -t 1 ]]; then
         builtin echo "$@" >&${ttyFd}
     else
         builtin echo "$@"
