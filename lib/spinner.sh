@@ -24,7 +24,7 @@ spinnerTypes() {
     (( isInteractive )) || return 0  # No-op when not interactive
 
     local -n resultArrayRef=$1
-    resultArrayRef=("${_spinnerNameList[@]}")
+    resultArrayRef=("${_spinnerTypesList[@]}")
 }
 
 # ◇ Start a spinner at the current cursor position, storing its assigned ID via nameref.
@@ -106,7 +106,8 @@ addSpinner() {
     [[ -n ${type} ]] || invalidArgs "type required"
     [[ -n ${row} ]] || invalidArgs "row required"
     [[ -n ${col} ]] || invalidArgs "col required"
-    [[ -v _spinnerNameMap[${type}] ]] || invalidArgs "unknown type: ${type}"
+    [[ -v _spinnerTypesMap[${type}] ]] || invalidArgs "unknown type: ${type}"
+    [[ -v _textFormats[${color}] ]] || invalidArgs "unknown color: ${color}"
 
     if _spinnerRequest add "${type}" "${color}" "${row}" "${col}"; then
         idRef=${response[1]}
@@ -162,14 +163,14 @@ _init_rayvn_spinner() {
 
     declare -g _spinnerFirstRequest=1
 
-    # Spinner type name list and map
+    # Spinner type list and map
 
-    declare -gra _spinnerNameList=('star' 'dots' 'line' 'circle' 'arrow' 'box' 'bounce' 'pulse' 'grow')
-    declare -gA _spinnerNameMap=()
-    for type in "${_spinnerNameList[@]}"; do
-        _spinnerNameMap+=([${type}]=1)
+    declare -gra _spinnerTypesList=('star' 'drop' 'dots' 'line' 'circle' 'arrow' 'box' 'bounce' 'pulse' 'grow' 'moon')
+    declare -gA _spinnerTypesMap=()
+    for type in "${_spinnerTypesList[@]}"; do
+        _spinnerTypesMap+=([${type}]=1)
     done
-    declare -grA _spinnerNameMap
+    declare -grA _spinnerTypesMap
 
     # Add shutdown handler
 
@@ -241,6 +242,8 @@ _initSpinnerServer() {
 
     declare -gra _starSpinner=('✴' '❈' '❀' '❁' '❂' '❃' '❄' '❆' '❈' '✦' '✧' '✱' '✲' '✳' '✴' '✵' '✶' '✷' '✸' '✹' '✺' '✻' '✼' '✽' '✾' '✿')
     declare -gra _dotsSpinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+    #declare -gra _dots2Spinner=('⠁' '⠁' '⠉' '⠙' '⠚' '⠒' '⠂' '⠂' '⠒' '⠲' '⠴' '⠤' '⠄' '⠄' '⠤' '⠠' '⠠' '⠤' '⠦' '⠖' '⠒' '⠐' '⠐' '⠒' '⠓' '⠋' '⠉' '⠈' '⠈')
+    declare -gra _dropSpinner=('⢹' '⢺' '⢼' '⣸' '⣇' '⡧' '⡗' '⡏')
     declare -gra _lineSpinner=('-' '\' '|' '/')
     declare -gra _circleSpinner=('◐' '◓' '◑' '◒')
     declare -gra _arrowSpinner=('←' '↖' '↑' '↗' '→' '↘' '↓' '↙')
@@ -248,6 +251,10 @@ _initSpinnerServer() {
     declare -gra _bounceSpinner=('⠁' '⠂' '⠄' '⠂')
     declare -gra _pulseSpinner=('∙' '●' '◉' '●' '∙')
     declare -gra _growSpinner=('▁' '▃' '▅' '▇' '█' '▇' '▅' '▃')
+    declare -gra _moonSpinner=('🌑' '🌒' '🌓' '🌔' '🌕' '🌖' '🌗' '🌘')
+
+    # TODO: even more spinners, and... intervals: https://raw.githubusercontent.com/sindresorhus/cli-spinners/45cef9dff64ac5e36b46a194c68bccba448899ac/spinners.json
+    # TODO: consider progress bars like the one shown here: https://cli.r-lib.org/index.html
 
     # Add exit handler
 
@@ -301,10 +308,9 @@ _spinnerRequest() {
         else
             fail "${response[0]}"
         fi
-    elif (( readResult > 128 )); then
-        fail "spinner request failed: response timeout"
     else
-        fail "spinner request failed with exit ${readResult}"
+        # Timeout or read error: non-fatal — caller continues without spinner update
+        return 1
     fi
 }
 
@@ -312,7 +318,7 @@ _spinnerExit() {
     if (( _spinnerServerPid )); then
         # Abnormal exit, clean up
         _shutdownSpinnerServer
-        echo >&${ttyFd} # Ensure not buffered in stdout
+        echo - >&${ttyFd} # Ensure not buffered in stdout
     fi
 }
 
@@ -387,7 +393,7 @@ _addSpinner() {
 
     _spinnerActive[id]=1
     _spinnerTypes[id]="${type}"
-    _spinnerColors[id]="${color}"
+    _spinnerColors[id]="${_textFormats[${color}]}"
     _spinnerRows[id]="${row}"
     _spinnerCols[id]="${col}"
     _spinnerResponse 'ok' "${id}"
@@ -410,7 +416,7 @@ _removeSpinner() {
         fi
 
         cursorTo ${_spinnerRows[id]} $(( ${_spinnerCols[id]} - backupCount ))
-        echo ${echoArg} "${replacement}" >&${ttyFd}
+        builtin echo ${echoArg} "${replacement}" >&${ttyFd}
         freeList+=("${id}")
         _spinnerActive[id]=0
         _spinnerResponse 'ok'
@@ -434,7 +440,7 @@ _stopSpinnerServer() {
     for (( i=0; i < ${#_spinnerTypes}; i++ )); do
         if (( _spinnerActive[i] )); then
             cursorTo "${_spinnerRows[i]}" "${_spinnerCols[i]}"
-            echo -n ' ' >&${ttyFd}
+            builtin echo -n ' ' >&${ttyFd}
         fi
     done
     exit 0
@@ -449,7 +455,7 @@ _renderSpinners() {
                 printf '\e[%i;%iH' "${_spinnerRows[i]}" "${_spinnerCols[i]}"
                 local -n spinnerRef="_${_spinnerTypes[i]}Spinner"
                 spinnerIndex=$(( _spinnerTick % ${#spinnerRef[@]} ))
-                show -n "${_spinnerColors[i]}" "${spinnerRef[spinnerIndex]}"
+                builtin echo -n "${_spinnerColors[i]}${spinnerRef[spinnerIndex]}${_textReset}"
             fi
         done
     } >&${ttyFd}
