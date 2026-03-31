@@ -21,7 +21,6 @@ executeTests() {
 executeNixBuild() {
     _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
     command -v nix > /dev/null 2>&1 || fail "'rayvn build' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
-    echo
     require 'rayvn/spinner' 'rayvn/prompt'
     _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
     _taskLogFileNames=() _taskProjects=() _taskBlocker=()
@@ -107,7 +106,6 @@ _ensureRayvnProject() {
 
 _executeTests() {
     rayvnTest_TraceFail=1
-    echo
     require 'rayvn/spinner' 'rayvn/prompt'
     unset rayvnNoExitOnCtrlC
 
@@ -361,12 +359,17 @@ _runAllTasksParallel() {
         return
     fi
 
-    # Interactive: print all task lines, compute rows, start unblocked tasks with spinners
+    # Interactive: clear screen if asciinema is recording
+
+    (( ${ASCIINEMA_REC:-0} )) && printf '\033[2J\033[H'
+
+    # Print all task lines, compute rows, start unblocked tasks with spinners
 
     local -A taskLineOffsets=() taskSpinnerIds=() taskSpinnerRows=()
     local -A startedTasks=() completedTasks=()
     local pendingCount=0
 
+    echo
     _displayAllTasks _displayPendingTask
     local totalLines=${lineNumber}
 
