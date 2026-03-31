@@ -61,7 +61,8 @@ project with Nix before running tests, which is useful for verifying a clean Nix
 
 Tests run in parallel. When using `--nix` or `--all` the nix tests are blocked until the build completes:
 
-{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" cols=185 rows=55 autoplay=true%}
+{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" %}
+
 ### build
 
 Build one or more projects using their Nix flake. Useful for verifying the flake is valid and that
