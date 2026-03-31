@@ -359,9 +359,9 @@ _runAllTasksParallel() {
         return
     fi
 
-    # Interactive: clear screen if asciinema is recording
+    # Interactive: move cursor to line 1 if asciinema is recording
 
-    (( ${ASCIINEMA_REC:-0} )) && printf '\033[2J\033[H'
+    (( ${ASCIINEMA_REC:-0} )) && { printf '\033[H'; echo; }
 
     # Print all task lines, compute rows, start unblocked tasks with spinners
 
