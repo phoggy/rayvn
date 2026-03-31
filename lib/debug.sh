@@ -326,7 +326,7 @@ _setDebug() {
 
         if [[ ${_debugOut} != "${terminal}" && ${_debugOut} =~ tty ]]; then
             _debugRemote=1
-            clear >&${_debugFd} # clear remote terminal
+            printf '\033[2J\033[H' >&${_debugFd} # clear remote terminal
             show - -e bold green "BEGIN" primary "debug output from ${currentProjectName}, pid ${BASHPID} ----------------------------------\r\n" >&${_debugFd}
         fi
     else
