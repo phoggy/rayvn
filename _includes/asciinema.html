@@ -1,7 +1,7 @@
 <div id="asciinema-{{ include.id }}"></div>
 <script>
   AsciinemaPlayer.create(
-    '{{ include.src }}',
+    '{{ include.src | relative_url }}',
     document.getElementById('asciinema-{{ include.id }}'),
     {
       {% if include.cols %}cols: {{ include.cols }},{% endif %}
