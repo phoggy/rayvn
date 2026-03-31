@@ -3,9 +3,9 @@
 
 usage() {
     echo
-    show bold "does, uh..." off italic "something" off "."
+    show bold "does, uh..." italic "something" glue "."
     echo
-    show "Usage:" bold "${scriptName}" off "<options>"
+    show "Usage:" bold "${scriptName}" "<options>"
     echo
     echo "Options:"
     echo
@@ -53,10 +53,10 @@ init() {
 
 # TODO remove me!
 doSomething() {
-    show "🌱" bold yellow "doSomething here!" off "🌱"
+    show "🌱" bold yellow "doSomething here!" "🌱"
 }
 
-source rayvn.up 'rayvn/core' ${qualifiedName} || exit
+source rayvn.up  ${qualifiedName} || exit
 main "$@"
 
 
