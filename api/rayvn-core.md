@@ -71,8 +71,9 @@ result="${ show bold green "ok"; }"                       # in command substitut
 
 ### echo()
 
-Shadows the bash builtin echo. Writes to the terminal device when stdout is a terminal,
-or to stdout otherwise. This enables tty capture in tests; see `startTtyCapture()`.
+Shadows the bash builtin echo. Routes to the terminal device when stdout is a TTY,
+enabling tty capture in tests; see `startTtyCapture()`. Pass '-' as the first arg to
+write to stdout directly (bypasses TTY routing, e.g. when redirecting to another fd).
 
 ### header()
 

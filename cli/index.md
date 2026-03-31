@@ -59,7 +59,9 @@ Without arguments, tests the current directory's project (or rayvn itself if not
 Pass one or more TEST-NAME values to run only matching test cases. Use `--nix` to first build the
 project with Nix before running tests, which is useful for verifying a clean Nix-built environment.
 
-{% include asciinema.html id="test-all" src="/rayvn/assets/casts/test-all.cast" %}
+Tests run in parallel. When using `--nix` or `--all` the nix tests are blocked until the build completes:
+
+{% include asciinema.html id="test-all" src="/rayvn/assets/casts/test-all.cast" cols=130 autoplay=true %}
 
 ### build
 

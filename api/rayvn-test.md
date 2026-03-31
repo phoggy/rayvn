@@ -484,3 +484,23 @@ Fail if captured tty text contains expected as a substring.
 | `msg` *(string)* | Optional failure message. |
 {: .args-table}
 
+## Input Simulation Functions
+
+### startInputSimulation()
+
+Begin simulating user input from a string. Redirects stdinFd to a temp file
+containing the given input so prompt functions read from it instead of the
+terminal. Pair with `stopInputSimulation()` to restore.
+
+
+*Args*
+
+| | |
+|---|---|
+| `input` *(string)* | The simulated input (e.g. "y" for a confirm, "2" for a choice). |
+{: .args-table}
+
+### stopInputSimulation()
+
+Stop simulating user input and restore stdinFd to the real stdin.
+
