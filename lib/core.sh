@@ -330,6 +330,31 @@ parseOptionalArg() {
     fi
 }
 
+# ◇ Maps a boolean argument to 1 for true, 0 for false so that it can subsequently be tested using (( flag )).
+#   Converted to lower case to allow upper or mixed case true/false. An integer value >= 1 is true, <= 0 is false.
+#
+# · ARGS
+#
+#   arg (bool)            The boolean argument.
+#   resultRef (stringRef) Name of var to set result.
+#
+# · EXAMPLE
+#
+#   local doX; booleanArgToInt "$1" doX           # Set doX
+#   local doY; booleanArgToInt "${1:-true}" doY   # Set doY with default value.
+
+booleanArgToInt() {
+    local arg="${1,,}"
+    local -n resultRef=$2
+    if [[ ${arg} == 'true' ]] || [[ ${arg} =~ ^[1-9][0-9]*$ ]]; then
+        resultRef=1
+    elif [[ ${arg} == 'false' ]] || [[ ${arg} =~ ^-?[0-9]+$ ]]; then
+        resultRef=0
+    else
+        fail "boolean argument required, got: $1"
+    fi
+}
+
 # ◇ Return 0 if a variable with the given name is defined, including empty or null-value vars.
 
 varDefined() {
