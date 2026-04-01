@@ -16,6 +16,7 @@ main() {
     testLintDetectsNonCamelCase
     testLintDetectsNonCamelCaseVar
     testLintDetectsNonRefNameref
+    testLintDetectsBareNamedVar
     testLintFixesBracedPositional
     testLintFixesSpacing
     testLintFixesStrictMode
@@ -60,13 +61,13 @@ testLintCleanFile() {
 }
 
 testLintDetectsBracedPositional() {
-    _writeLintFixture "braced-pos.sh" 'myFunc() { echo $1; }' > /dev/null
-    assertFalse "runLint detects \$1 braced positional param" runLint "${lintTestProject}" 2>/dev/null
+    _writeLintFixture "braced-pos.sh" 'myFunc() { echo ${1}; }' > /dev/null
+    assertFalse "runLint detects \${1} braced positional param" runLint "${lintTestProject}" 2>/dev/null
 }
 
 testLintDetectsBracedSpecial() {
-    _writeLintFixture "braced-special.sh" 'myFunc() { echo $@; }' > /dev/null
-    assertFalse "runLint detects \$@ braced special param" runLint "${lintTestProject}" 2>/dev/null
+    _writeLintFixture "braced-special.sh" 'myFunc() { echo ${@}; }' > /dev/null
+    assertFalse "runLint detects \${@} braced special param" runLint "${lintTestProject}" 2>/dev/null
 }
 
 testLintDetectsStrictMode() {
@@ -99,16 +100,21 @@ testLintDetectsNonRefNameref() {
     assertFalse "runLint detects nameref not ending in Ref" runLint "${lintTestProject}" 2>/dev/null
 }
 
+testLintDetectsBareNamedVar() {
+    _writeLintFixture "bare-var.sh" 'myFunc() { local foo=1; echo $foo; }' > /dev/null
+    assertFalse "runLint detects bare named var without \${}" runLint "${lintTestProject}" 2>/dev/null
+}
+
 # ============================================================================
 # Auto-fix tests (write only a fixable file, verify --fix passes)
 # ============================================================================
 
 testLintFixesBracedPositional() {
     rm -f "${lintTestRoot}"/lib/*.sh
-    local file; file=${ _writeLintFixture "fix-pos.sh" 'myFunc() { echo $1; }'; }
-    assertTrue "runLint --fix corrects \$1" runLint --fix "${lintTestProject}" 2>/dev/null
+    local file; file=${ _writeLintFixture "fix-pos.sh" 'myFunc() { echo ${1}; }'; }
+    assertTrue "runLint --fix corrects \${1}" runLint --fix "${lintTestProject}" 2>/dev/null
     assertInFile '$1' "${file}"
-    assertNotInFile '$1' "${file}"
+    assertNotInFile '${1}' "${file}"
 }
 
 testLintFixesSpacing() {

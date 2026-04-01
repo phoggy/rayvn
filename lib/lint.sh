@@ -194,11 +194,11 @@ _lintRunChecks() {
     local -n _lintRunChecksRef=$2
     local -n _lintRunChecksFixRef=$3
 
-    _lintCheck '\$\{[1-9]\}'                        "${_lintRunChecksFile}" '${N} positional param with braces — use $N'         BRACED_POSITIONAL     _lintRunChecksRef _lintRunChecksFixRef
-    _lintCheck '\$\{[#@?!*]\}'                      "${_lintRunChecksFile}" '${special} param with braces — use $# $@ $* $? $!'  BRACED_SPECIAL        _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?<!\\)\$\{[1-9]\}'                 "${_lintRunChecksFile}" '${N} positional param with braces — use $N'         BRACED_POSITIONAL     _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?<!\\)\$\{[#@?!*]\}'               "${_lintRunChecksFile}" '${special} param with braces — use $# $@ $* $? $!'  BRACED_SPECIAL        _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '^\s*set\s+(-[a-zA-Z]*[eu]|-o\s+pipefail)' \
                                                     "${_lintRunChecksFile}" 'strict mode not allowed in rayvn scripts'            STRICT_MODE           _lintRunChecksRef _lintRunChecksFixRef
-    _lintCheck '\$\([^(]'                           "${_lintRunChecksFile}" 'old-style command substitution — use ${ cmd; }'      NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?<!\\)\$\([^(]'                    "${_lintRunChecksFile}" 'old-style command substitution — use ${ cmd; }'      NONE                  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\(\([^ ]'                           "${_lintRunChecksFile}" 'missing space after (( operator'                     SPACE_AFTER_DPARENS   _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '[^ ]\)\)'                           "${_lintRunChecksFile}" 'missing space before )) operator'                    SPACE_BEFORE_DPARENS  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '(?:^|[ \t])\[\[[^ :]'              "${_lintRunChecksFile}" 'missing space after [[ operator'                     SPACE_AFTER_DBRACKET  _lintRunChecksRef _lintRunChecksFixRef
@@ -215,7 +215,7 @@ _lintRunChecks() {
     _lintCheck '^[ \t]*(?:local|declare)[ \t]+-n[ \t]+[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)' \
                                                     "${_lintRunChecksFile}" 'nameref name should end in Ref'                        NONE                  _lintRunChecksRef _lintRunChecksFixRef \
                                                     '(?:local|declare)[ \t]+-n[ \t]+\K[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)'
-    _lintCheck '^(?:[^'"'"']*'"'"'[^'"'"']*'"'"')*[^'"'"']*\K(?<!\\)\$(?!\{)[a-zA-Z_][a-zA-Z0-9_]+' \
+    _lintCheck '(?<!\\)\$(?!\{)[a-zA-Z_][a-zA-Z0-9_]+' \
                                                     "${_lintRunChecksFile}" 'named var without ${} — use ${varName}'               BARE_NAMED_VAR        _lintRunChecksRef _lintRunChecksFixRef
 }
 
@@ -300,6 +300,9 @@ _lintCheck() {
         lineContent="${match#*:}"
         [[ "${lineContent}" =~ ^[[:space:]]*\# ]] && continue
         [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
+        # Skip matches inside single-quoted strings (e.g. jq/awk programs passed as args)
+        local strippedContent; strippedContent=${ printf '%s' "${lineContent}" | sed "s/'[^']*'/ /g"; }
+        _lintGrep "${pattern}" <<< "${strippedContent}" > /dev/null 2>&1 || continue
         local displayMessage="${message}"
         if [[ -n "${extractPattern}" ]]; then
             local extracted
