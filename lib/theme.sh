@@ -17,7 +17,8 @@ showThemes() {
     _displayThemes ${_themeDefaultIndent} ${position}
 }
 
-# ◇ Interactively prompt the user to select and apply a new theme.
+# ◇ Interactively prompt the user to select and apply a new theme. Note that any change will not apply to the
+#   current process, only to new ones.
 #
 # · ARGS
 #
@@ -33,15 +34,20 @@ setTheme() {
     # Build items array
 
     for (( i=0; i < _themeCount; i++ )); do
-        theme="${ _displayTheme ${i}; }"
+        theme="${ _displayTheme $i; }"
         themes+=("${theme}")
     done
 
-    choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" 1 "${maxVisible}" || return 1
-    if (( selectedIndex != _currentThemeIndex )); then
+    choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" 1 "${maxVisible}" 30 false || return 1
+    if (( selectedIndex == _currentThemeIndex )); then
+        show "remains" primary "${_themeNames[${selectedIndex}]}"
+    else
         _setTheme "${selectedIndex}"
-        show "Theme changed to" bold "${_themeNames[${selectedIndex}]}"
+        show "changed to" primary "${_themeNames[${selectedIndex}]}"
     fi
+
+    echo
+    _displayTheme ${selectedIndex} 0 after false
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -89,10 +95,11 @@ _displayTheme() {
     local themeIndex="$1"
     local indent="${2:-${_themeDefaultIndent}}"
     local position="${3:-after}"
-    local displayName boldDisplayName paddedDisplayName
+    local includeName="${4:-true}"
+    local displayName="" boldDisplayName paddedDisplayName
     local -n themeRef="${_themeVarNames[${themeIndex}]}"
 
-    displayName="${_themeNames[${themeIndex}]}"
+    [[ ${includeName} == true ]] && displayName="${_themeNames[${themeIndex}]}"
     paddedDisplayName="${ padString "${displayName}" ${indent} ${position}; }"
     boldDisplayName="${ show -n bold "${paddedDisplayName}"; }"
     show -n bold "${paddedDisplayName}"

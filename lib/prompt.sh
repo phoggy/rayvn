@@ -129,6 +129,7 @@ confirm() {
 #                              0 = never (default: 0).
 #   maxVisibleItems (int)      Max items to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0).
 #   timeout (int)              Inactivity timeout in seconds (default: 30). Resets on any keypress.
+#   showResult (bool)          Write the selected item after the prompt before returning (default: true).
 #
 # · NOTES
 #
@@ -156,6 +157,7 @@ choose() {
     local numberChoices="${6:-0}"
     local maxVisibleItems="${7:-0}"
     local timeout="${8:-${_defaultPromptTimeout}}"
+    local show; booleanArgToInt ${9:-'true'} show
     local totalVisibleItems
     local rowsPerItem
     local cursorRow
@@ -219,7 +221,7 @@ choose() {
 
     _prompt --prompt "${prompt}" --hint '↑↓ arrows to move, ESC to cancel' --result "${resultVarName}" \
             --choices "${choicesVarName}" --startIndex "${startIndex}" \
-            --reserveRows "${reserveRows}" --timeout "${timeout}" "${args[@]}" \
+            --reserveRows "${reserveRows}" --timeout "${timeout}" "${args[@]}" --showResult "${show}" \
             --init _chooseInit --paint _choosePaint --up _chooseUp --down _chooseDown --success _arrowPromptSuccess
 }
 
@@ -256,6 +258,7 @@ _init_rayvn_prompt() {
     declare -g _promptNumberChoices
     declare -g _promptChoiceIndex
     declare -g _promptFinalizeArg
+    declare -g _promptShowResult
 
     # Callback functions
 
@@ -305,6 +308,7 @@ _prompt() {
     _promptChoices=()
     _promptNumberChoices=0
     _promptChoiceIndex=0
+    _promptShowResult=1
 
     # Set Callback function defaults
 
@@ -356,6 +360,7 @@ _prompt() {
             --cancelOnEmpty) _promptCancelOnEmpty=1 ;;
             --clearHint) _promptClearHint=1 ;;
             --collect) _promptCollectInput=1 ;;
+            --showResult) shift; _promptShowResult="$1" ;;
             *) fail "Unknown configuration option: $1" ;;
         esac
         shift
@@ -623,13 +628,15 @@ _finalizePrompt() {
         done
     fi
 
-    # Restore cursor and show result message if not hidden
+    # Restore cursor and update result message if we're supposed to and it is not hidden
 
     cursorRestore
-    if (( ! isSecure )); then
-        show ${_promptFinalizeArg} "${formats[@]}" "${resultMessageRef}" >&${ttyFd}
-    elif [[ ! -n ${_promptFinalizeArg} ]]; then
-        echo ${_promptFinalizeArg} >&${ttyFd}
+    if (( _promptShowResult )); then
+        if (( ! isSecure )); then
+            show ${_promptFinalizeArg} "${formats[@]}" "${resultMessageRef}" >&${ttyFd}
+        elif [[ ! -n ${_promptFinalizeArg} ]]; then
+            echo ${_promptFinalizeArg} >&${ttyFd}
+        fi
     fi
 
     # Restore terminal settings
