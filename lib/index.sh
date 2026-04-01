@@ -49,10 +49,12 @@ runIndex() {
 #
 # · USAGE
 #
-#   runPages PROJECT [--dir DIR] [--publish | --view]
+#   runPages PROJECT [--dir DIR] [--setup | --record | --publish | --view]
 #
 #   PROJECT (string)       The project to generate pages for (e.g. rayvn, valt, wardn).
 #   --dir DIR (string)     Output directory (default: project's configured worktree).
+#   --setup                First-time setup: create gh-pages branch, worktree, and workflow.
+#   --record               Re-record all asciinema casts with cmd= attributes in markdown files.
 #   --publish              Commit and push changes to gh-pages after generating.
 #   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
 
@@ -63,6 +65,7 @@ runPages() {
 
     local dir=''
     local publish=0
+    local record=0
     local setup=0
     local view=0
     local _userSpecifiedDir=0
@@ -71,6 +74,7 @@ runPages() {
         case $1 in
             --dir)     shift; dir="$1"; _userSpecifiedDir=1 ;;
             --publish) publish=1 ;;
+            --record)  record=1 ;;
             --setup)   setup=1 ;;
             --view)    view=1 ;;
             *)         fail "Unknown option: $1" ;;
@@ -81,6 +85,7 @@ runPages() {
     (( publish && view )) && fail "--publish and --view are mutually exclusive"
     (( setup && publish )) && fail "--setup and --publish are mutually exclusive"
     (( setup && view )) && fail "--setup and --view are mutually exclusive"
+    (( setup && record )) && fail "--setup and --record are mutually exclusive"
 
     local projectRoot="${_rayvnProjects[${projectName}::project]}"
     [[ -n "${projectRoot}" ]] || fail "unknown project: ${projectName}"
@@ -104,6 +109,11 @@ runPages() {
             fail "Pages not set up for ${projectName}." off "Run:" blue "rayvn pages ${projectName} --setup" nl \
                  off "   Worktree location:" blue "${dir}"
         fi
+    fi
+
+    if (( record )); then
+        require 'rayvn/asciinema'
+        _recordCasts "${dir}"
     fi
 
     _ensurePagesFiles "${projectName}" "${projectRoot}" "${dir}"
@@ -136,6 +146,34 @@ runPages() {
         }
         bundle exec jekyll serve
     fi
+}
+
+_recordCasts() {
+    local pagesDir="$1"
+    local castFile cmd src line
+
+    show bold "Scanning for asciinema includes with" blue "cmd=" "attribute..."
+    echo
+
+    local found=0
+    while IFS= read -r line; do
+        src=${ printf '%s' "${line}" | gawk 'match($0, /src="([^"]+)"/, a) { print a[1] }'; }
+        cmd=${ printf '%s' "${line}" | gawk 'match($0, /cmd="([^"]+)"/, a) { print a[1] }'; }
+        [[ -n "${src}" && -n "${cmd}" ]] || continue
+        (( found += 1 ))
+
+        # Resolve web-root-relative src to absolute path within pagesDir
+        castFile="${pagesDir}/${src#/}"
+        ensureDir "${castFile%/*}"
+
+        show "Recording" bold "${cmd}" "→" bold "${castFile}"
+        echo
+        asciinemaRecord "${castFile}" "${cmd}" || fail "recording failed: ${cmd}"
+        echo
+        asciinemaMarkup "${castFile}"
+    done < <(grep -rh '{% include asciinema.html' "${pagesDir}" --include='*.md' | grep 'cmd=')
+
+    (( found )) || show muted "No asciinema includes with cmd= found in ${pagesDir}"
 }
 
 _setupPages() {

@@ -442,9 +442,10 @@ indexDocs() {
 
 pagesCommand() {
     if (( flags['help'] )); then
-        echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --publish | --view]"
+        echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record | --publish | --view]"
         echo "  PROJECT defaults to the current directory's project; only one may be specified."
         echo "  --setup     First-time setup: create gh-pages branch, worktree, and workflow."
+        echo "  --record    Re-record all asciinema casts that have a cmd= attribute."
         echo "  --dir DIR   Output directory (default: project's configured worktree)."
         echo "  --publish   Generate pages, then commit and push to gh-pages."
         echo "  --view      Generate pages, then serve locally with Jekyll."
