@@ -59,9 +59,13 @@ Without arguments, tests the current directory's project (or rayvn itself if not
 Pass one or more TEST-NAME values to run only matching test cases. Use `--nix` to first build the
 project with Nix before running tests, which is useful for verifying a clean Nix-built environment.
 
-Tests run in parallel. When using `--nix` or `--all` the nix tests are blocked until the build completes:
+Tests run in parallel:
 
-{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" cols=125 rows=40 autoplay=true %}
+{% include asciinema.html id="test" src="/assets/casts/test.cast" cmd="rayvn test" autoplay=true %}
+
+When using `--nix` or `--all` the nix tests are blocked until the build completes:
+
+{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" cmd="rayvn test --all" %}
 
 ### build
 
@@ -187,7 +191,7 @@ Run `rayvn index` after adding or modifying library functions to keep the indexe
 Generate, preview, and publish the project's GitHub Pages documentation site.
 
 ```
-rayvn pages [PROJECT] [--dir DIR] [--setup | --publish | --view]
+rayvn pages [PROJECT] [--dir DIR] [--setup | --record | --publish | --view]
 ```
 
 Only one project at a time is supported. Subcommands:
@@ -195,6 +199,9 @@ Only one project at a time is supported. Subcommands:
 - **`--setup`** — first-time setup: creates a `gh-pages` branch and worktree, generates scaffolding
   files (`_config.yml`, `Gemfile`, `index.md`, CI workflow), and pushes to GitHub. After setup,
   enable GitHub Pages in the repo settings (Source: GitHub Actions).
+- **`--record`** — scan all markdown files in the pages worktree for asciinema includes with a
+  `cmd=` attribute and re-record each cast using `rayvn-rec`. Casts are written to the path given
+  by the `src=` attribute. Add `cmd="COMMAND"` to any include tag to make it recordable.
 - **`--publish`** — regenerate all docs, then commit and push the gh-pages branch. The GitHub
   Actions workflow deploys automatically on push.
 - **`--view`** — regenerate docs and serve the site locally with Jekyll at `http://localhost:4000`
