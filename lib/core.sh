@@ -82,7 +82,7 @@ show() {
                     # Invalid color value, treat IDX and value as text
                     (( addSpace )) && output+=' '
                     output+=${currentFormat}"IDX $1"
-                    [[ -n $currentFormat ]] && output+=$'\e[0m'
+                    [[ -n ${currentFormat} ]] && output+=$'\e[0m'
                     currentFormat=''
                     addSpace=1
                 fi
@@ -93,14 +93,14 @@ show() {
             else
                 (( addSpace )) && output+=' '
                 output+=${currentFormat}$1
-                [[ -n $currentFormat ]] && output+=$'\e[0m'
+                [[ -n ${currentFormat} ]] && output+=$'\e[0m'
                 currentFormat=''
                 addSpace=1
             fi
         fi
         shift
     done
-    [[ -n $currentFormat ]] && output+=$currentFormat$'\e[0m'
+    [[ -n ${currentFormat} ]] && output+=${currentFormat}$'\e[0m'
     echo "${options[@]}" "${output}"
 }
 
@@ -700,7 +700,7 @@ indexOf() {
                 resultRef=${_i}; return 0
             fi
         else
-            if [[ ${arrayRef[_i]} == $_p"${match}"$_s ]]; then
+            if [[ ${arrayRef[_i]} == ${_p}"${match}"${_s} ]]; then
                 resultRef=${_i}; return 0
             fi
         fi

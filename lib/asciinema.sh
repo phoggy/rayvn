@@ -232,7 +232,7 @@ _asciinemaComputeDimensions() {
         {
             # Scan for cursor-positioning sequences to track max row
             data = $0
-            while (match(data, /\033\[([0-9]+);([0-9]+)[Hf]/, arr)) {
+            while (match(data, /\033\[([0-9]+);([0-9]+)[Hf]/, arr )) {
                 if (arr[1] + 0 > max_row) max_row = arr[1] + 0
                 data = substr(data, RSTART + RLENGTH)
             }

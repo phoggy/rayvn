@@ -425,6 +425,7 @@ _callClaudeApi() {
     local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (4b) ARGS variadic naming: required variadic args use "..." as the name; optional variadic args use "[...]" as the name — e.g. "... (string)" or "[...] (string)". (4c) Flags go in USAGE with inline descriptions, never in ARGS. When USAGE is present, omit ARGS entirely — USAGE inline descriptions replace it. Types are required on all data parameters and flag+value entries (e.g. "--output FILE (string)"); pure flags with no value are exempt. (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst )). When the default is a shell variable, wrap it in ${}: e.g. (default: ${PWD}) not (default: PWD).'
 
     local payload
+    # lint-skip-start (jq variable references inside single-quoted filter)
     payload=${ jq -n \
         --arg model 'claude-sonnet-4-6' \
         --arg system "${systemPrompt}" \
@@ -439,6 +440,7 @@ _callClaudeApi() {
             ],
             messages: [{role: "user", content: $user}]
         }'; }
+    # lint-skip-end
 
     local response
     response=${ curl -s -X POST 'https://api.anthropic.com/v1/messages' \

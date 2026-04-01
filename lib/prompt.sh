@@ -448,7 +448,7 @@ _preparePromptChoices() {
         # No, so color the display choices and the finalized prompt
 
         for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++  )); do
-            _promptDisplayChoices[$promptIndex]="${ show primary "${_promptChoices[$promptIndex]}"; }"
+            _promptDisplayChoices[${promptIndex}]="${ show primary "${_promptChoices[${promptIndex}]}"; }"
         done
         _promptSuccessColor='primary'
     fi
@@ -459,8 +459,8 @@ _preparePromptChoices() {
         local number
         local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
         for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++ )); do
-            number="${ printNumber $(( $promptIndex +1 )) ${places} ; }"
-            _promptDisplayChoices[$promptIndex]="${ show dim "${number}." "${_promptDisplayChoices[${promptIndex}]}"; }"
+            number="${ printNumber $(( ${promptIndex} +1 )) ${places} ; }"
+            _promptDisplayChoices[${promptIndex}]="${ show dim "${number}." "${_promptDisplayChoices[${promptIndex}]}"; }"
         done
     fi
 }

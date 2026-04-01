@@ -315,7 +315,7 @@ _printProjectLibrary() {
 
 listFunctions() {
     if (( flags['help'] )); then
-        echo "rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY]] [--all]"
+        echo "rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY ]] [--all]"
     else
         if [[ -n ${args[0]:-} && ${args[0]} == */* ]]; then
             local qualifiedLib="${args[0]}"

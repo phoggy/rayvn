@@ -432,7 +432,7 @@ removePath () {
     shopt -s nocasematch
     for dir in "${paths[@]}" ; do
         if [[ "${dir}" != "${removePath}" ]] ; then
-            newPath="${newPath:+$newPath:}${dir}"
+            newPath="${newPath:+${newPath}:}${dir}"
         fi
     done
     shopt -u nocasematch
@@ -451,7 +451,7 @@ printPath() {
     if [[ ${!pathVariable} ]]; then
         echo
         echo "${pathVariable} search order:"
-        echo $PATH | tr ':' '\n' | nl
+        echo ${PATH} | tr ':' '\n' | nl
         echo
     else
         echo "'${pathVariable}' is not defined"

@@ -117,7 +117,13 @@ _lintFile() {
         return 0
     fi
 
-    _lintRunChecks "${file}" findings fixes
+    local lintFile="${file}"
+    local filteredFile; filteredFile=${ makeTempFile; }
+    gawk '/# lint-skip-start/{skip=1; print ""; next} /# lint-skip-end/{skip=0; print ""; next} skip{print ""; next} {print}' \
+        "${file}" > "${filteredFile}"
+    [[ -s "${filteredFile}" ]] && lintFile="${filteredFile}"
+
+    _lintRunChecks "${lintFile}" findings fixes
 
     if (( ${#findings[@]} == 0 )); then
         show bold "  ${relPath}" "${successCheckMark}"
@@ -209,6 +215,8 @@ _lintRunChecks() {
     _lintCheck '^[ \t]*(?:local|declare)[ \t]+-n[ \t]+[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)' \
                                                     "${_lintRunChecksFile}" 'nameref name should end in Ref'                        NONE                  _lintRunChecksRef _lintRunChecksFixRef \
                                                     '(?:local|declare)[ \t]+-n[ \t]+\K[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)'
+    _lintCheck '^(?:[^'"'"']*'"'"'[^'"'"']*'"'"')*[^'"'"']*\K(?<!\\)\$(?!\{)[a-zA-Z_][a-zA-Z0-9_]+' \
+                                                    "${_lintRunChecksFile}" 'named var without ${} — use ${varName}'               BARE_NAMED_VAR        _lintRunChecksRef _lintRunChecksFixRef
 }
 
 # Apply fixes only to the specific lines flagged by _lintRunChecks.
@@ -272,6 +280,8 @@ _fixLine() {
             gsed -i -E "${lineNum}"'s/([[:blank:]])\[\[([^ :])/\1[[ \2/g' "${file}" ;;
         SPACE_BEFORE_DBRACKET)
             gsed -i -E "${lineNum}"'s/([^] [:blank:]:])\]\]/\1 \]\]/g' "${file}" ;; # lint-ok
+        BARE_NAMED_VAR)
+            gsed -i -E "${lineNum}"'s/\$([a-zA-Z_][a-zA-Z0-9_]+)/\${\1}/g' "${file}" ;;
     esac
 }
 

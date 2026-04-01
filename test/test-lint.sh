@@ -60,13 +60,13 @@ testLintCleanFile() {
 }
 
 testLintDetectsBracedPositional() {
-    _writeLintFixture "braced-pos.sh" 'myFunc() { echo ${1}; }' > /dev/null
-    assertFalse "runLint detects \${1} braced positional param" runLint "${lintTestProject}" 2>/dev/null
+    _writeLintFixture "braced-pos.sh" 'myFunc() { echo $1; }' > /dev/null
+    assertFalse "runLint detects \$1 braced positional param" runLint "${lintTestProject}" 2>/dev/null
 }
 
 testLintDetectsBracedSpecial() {
-    _writeLintFixture "braced-special.sh" 'myFunc() { echo ${@}; }' > /dev/null
-    assertFalse "runLint detects \${@} braced special param" runLint "${lintTestProject}" 2>/dev/null
+    _writeLintFixture "braced-special.sh" 'myFunc() { echo $@; }' > /dev/null
+    assertFalse "runLint detects \$@ braced special param" runLint "${lintTestProject}" 2>/dev/null
 }
 
 testLintDetectsStrictMode() {
@@ -80,8 +80,8 @@ testLintDetectsOldStyleCommandSub() {
 }
 
 testLintDetectsMissingSpaces() {
-    _writeLintFixture "spaces.sh" 'myFunc() { if [[! -z "$1" ]]; then echo hi; fi; }' > /dev/null
-    assertFalse "runLint detects missing space after [[" runLint "${lintTestProject}" 2>/dev/null
+    _writeLintFixture "spaces.sh" 'myFunc() { if [[ ! -z "$1" ]]; then echo hi; fi; }' > /dev/null
+    assertFalse "runLint detects missing space after [[ " runLint "${lintTestProject}" 2>/dev/null
 }
 
 testLintDetectsNonCamelCase() {
@@ -105,10 +105,10 @@ testLintDetectsNonRefNameref() {
 
 testLintFixesBracedPositional() {
     rm -f "${lintTestRoot}"/lib/*.sh
-    local file; file=${ _writeLintFixture "fix-pos.sh" 'myFunc() { echo ${1}; }'; }
-    assertTrue "runLint --fix corrects \${1}" runLint --fix "${lintTestProject}" 2>/dev/null
+    local file; file=${ _writeLintFixture "fix-pos.sh" 'myFunc() { echo $1; }'; }
+    assertTrue "runLint --fix corrects \$1" runLint --fix "${lintTestProject}" 2>/dev/null
     assertInFile '$1' "${file}"
-    assertNotInFile '${1}' "${file}"
+    assertNotInFile '$1' "${file}"
 }
 
 testLintFixesSpacing() {

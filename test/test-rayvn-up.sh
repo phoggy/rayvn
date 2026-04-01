@@ -38,7 +38,7 @@ assertEnvPreconditions() {
 
     # Ensure we contain only our own functions
 
-    local allFunctions="${ declare -F | gawk '{print $NF}'; }"
+    local allFunctions="${ declare -F | gawk '{print $NF}'; }" # lint-ok
     declare -A expectedFunctions=
     local name
 
@@ -167,7 +167,7 @@ _removePath () {
     shopt -s nocasematch
     for dir in "${paths[@]}" ; do
         if [[ "${dir}" != "${removePath}" ]] ; then
-            newPath="${newPath:+$newPath:}${dir}"
+            newPath="${newPath:+${newPath}:}${dir}"
         fi
     done
     shopt -u nocasematch
