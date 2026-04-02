@@ -788,6 +788,29 @@ printNumber() {
     printf '%*s' "${places}" "${number}"
 }
 
+# ◇ Prints a numbered list of items, with right-aligned numbers padded to a consistent width.
+#
+# · ARGS
+#
+#   [--indent N] (int)  Leading spaces before each item; defaults to 4.
+#   items (string...)   Items to list; each becomes one numbered line.
+
+printList() {
+    local indent=4
+    [[ $1 == --indent ]] && { indent=$2; shift 2; }
+    local -a items=("$@")
+    local count=${#items[@]}
+    (( count == 0 )) && return 0
+    local places; places=${ numericPlaces ${count} 1; }
+    local pad; pad=${ printf '%*s' "${indent}" ''; }
+    local num
+    local -i i
+    for (( i = 0; i < count; i++ )); do
+        num=${ printNumber $(( i + 1 )) ${places}; }
+        echo "${pad}${num}. ${items[${i}]}"
+    done
+}
+
 # ◇ Set a variable to a random integer, optionally capped at maxValue (inclusive).
 #
 # · ARGS
