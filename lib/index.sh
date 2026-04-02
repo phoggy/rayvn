@@ -422,9 +422,11 @@ _showPagesSetupInstructions() {
 # · ARGS
 #
 #   projectName (string)  Name of the rayvn project to scan (e.g. 'valt', 'rayvn').
+#   fixMode     (string)  Optional. Pass 'fix' to auto-replace awk→gawk and sed→gsed in source.
 
 findDependencies() {
     local projectName="$1"
+    local fixMode="${2:-}"
     [[ ${projectName} ]] || fail "projectName required"
     require 'rayvn/dependencies'
 
@@ -433,21 +435,31 @@ findDependencies() {
 
     header "Finding dependencies for ${projectName}"
 
-    # Collect all source files from bin/ and lib/
+    # Collect all source files from bin/, lib/, and plugins/
     local -a sourceFiles=()
     local f
-    for f in "${projectRoot}/bin"/* "${projectRoot}/lib"/*.sh; do
+    for f in "${projectRoot}/bin"/* "${projectRoot}/lib"/*.sh "${projectRoot}/plugins"/*.sh; do
         [[ -f "${f}" ]] && sourceFiles+=("${f}")
     done
     (( ${#sourceFiles[@]} )) || fail "no source files found in ${projectRoot}"
     show "Scanning ${#sourceFiles[@]} source files"
 
-    # Extract deduplicated candidate command words from source files
-    local -a candidates=()
-    local word
-    while IFS= read -r word; do
-        [[ ${word} ]] && candidates+=("${word}")
-    done < <( _findDepsExtractCommands "${sourceFiles[@]}" | sort -u )
+    # Extract candidate command words from source files (with file:line context)
+    # Occurrences stored as "absFile:lineNum" for both display (stripped to rel) and fixing
+    local -a candidates=() awkOccurrences=() sedOccurrences=()
+    local -A _seenWords=()
+    local word file lineNum
+    while IFS=$'\t' read -r word file lineNum; do
+        [[ ${word} ]] || continue
+        case "${word}" in
+            awk) awkOccurrences+=("${file}:${lineNum}") ;;
+            sed) sedOccurrences+=("${file}:${lineNum}") ;;
+            *)
+                [[ ${_seenWords[${word}]+defined} ]] && continue
+                _seenWords[${word}]=1
+                candidates+=("${word}") ;;
+        esac
+    done < <( _findDepsExtractCommands "${sourceFiles[@]}" )
     show "Found ${#candidates[@]} candidate tokens"
 
     # Load known rayvn and project-defined function names
@@ -468,65 +480,135 @@ findDependencies() {
         # Only accept absolute paths — shell functions/aliases don't return a path
         [[ "${cmdPath}" == /* ]] && confirmedBins+=("${word}")
     done
-    show nl primary "Confirmed ${#confirmedBins[@]} external binaries:" nl nl secondary "${confirmedBins[*]:-none}"
+    show nl primary "Confirmed ${#confirmedBins[@]} external binaries:"
+    echo
+    printList "${confirmedBins[@]}"
 
     local flakeFile="${projectRoot}/flake.nix"
     if [[ ! -f "${flakeFile}" ]]; then
-        show warning "No flake.nix found; skipping auto-update"
-        return 0
-    fi
-
-    # Load nixBinaryMap from rayvn.pkg (maps nixPkgName → binary name).
-    # sourceConfigFile uses declare -g, so unset the local first to avoid shadowing.
-    local pkgFile="${projectRoot}/rayvn.pkg"
-    unset nixBinaryMap
-    [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
-
-    # Build reverse map: binary name → nix package name (default: same name)
-    local -A binToNixPkg=()
-    local binN nixKey nixN
-    for binN in "${confirmedBins[@]}"; do
-        nixN=''
-        for nixKey in "${!nixBinaryMap[@]}"; do
-            if [[ "${nixBinaryMap[${nixKey}]}" == "${binN}" ]]; then
-                nixN="${nixKey}"
-                break
-            fi
-        done
-        binToNixPkg["${binN}"]="${nixN:-${binN}}"
-    done
-
-    # Collect existing nix package names from flake.nix
-    local -A existingPkgs=()
-    local type name
-    while IFS=: read -r type name; do
-        case "${type}" in
-            pkg)   existingPkgs["${name}"]=1 ;;
-            local) existingPkgs["${name%Pkg}"]=1 ;;
-        esac
-    done < <( _extractFlakeDeps "${projectRoot}" )
-
-    # Add any missing deps to flake.nix
-    local -a added=()
-    for binN in "${confirmedBins[@]}"; do
-        nixN="${binToNixPkg[${binN}]}"
-        [[ ${existingPkgs[${nixN}]+defined} ]] && continue
-        _findDepsAddToFlake "${flakeFile}" "${nixN}" || fail "failed to add pkgs.${nixN} to flake.nix"
-        existingPkgs["${nixN}"]=1
-        added+=("${nixN}")
-        show success "Added pkgs.${nixN} to flake.nix"
-    done
-
-    if (( ${#added[@]} == 0 )); then
-        show nl primary "All dependencies already present in flake.nix"
-    else
+        show nl warning "No flake.nix found; skipping auto-update"
         echo
-        show bold "Added ${#added[@]} dep(s) to flake.nix:" nl primary "${added[*]}"
-        show nl "Run 'nix build' to verify, then commit the changes"
+    else
+        # Load nixBinaryMap from rayvn.pkg (maps nixPkgName → binary name).
+        # sourceConfigFile uses declare -g, so unset the local first to avoid shadowing.
+        local pkgFile="${projectRoot}/rayvn.pkg"
+        unset nixBinaryMap
+        [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
+
+        # Build reverse map: binary name → nix package name (default: same name)
+        local -A binToNixPkg=()
+        local binN nixKey nixN
+        for binN in "${confirmedBins[@]}"; do
+            nixN=''
+            for nixKey in "${!nixBinaryMap[@]}"; do
+                if [[ "${nixBinaryMap[${nixKey}]}" == "${binN}" ]]; then
+                    nixN="${nixKey}"
+                    break
+                fi
+            done
+            binToNixPkg["${binN}"]="${nixN:-${binN}}"
+        done
+
+        # Collect existing nix package names from flake.nix
+        local -A existingPkgs=()
+        local type name
+        while IFS=: read -r type name; do
+            case "${type}" in
+                pkg)   existingPkgs["${name}"]=1 ;;
+                local) existingPkgs["${name%Pkg}"]=1 ;;
+            esac
+        done < <( _extractFlakeDeps "${projectRoot}" )
+
+        # Add any missing deps to flake.nix
+        local -a added=()
+        for binN in "${confirmedBins[@]}"; do
+            nixN="${binToNixPkg[${binN}]}"
+            [[ ${existingPkgs[${nixN}]+defined} ]] && continue
+            _findDepsAddToFlake "${flakeFile}" "${nixN}" || fail "failed to add pkgs.${nixN} to flake.nix"
+            existingPkgs["${nixN}"]=1
+            added+=("${nixN}")
+            show success "Added pkgs.${nixN} to flake.nix"
+        done
+
+        if (( ${#added[@]} == 0 )); then
+            show nl primary "All dependencies already present in flake.nix"
+            echo
+        else
+            echo
+            show bold "Added ${#added[@]} dep(s) to flake.nix:" nl primary "${added[*]}"
+            show nl "Run 'nix build' to verify, then commit the changes"
+            echo
+        fi
     fi
 
-    # Find and update npm dependencies in node/package.json
-    _findNpmDependencies "${projectName}" "${projectRoot}"
+    # Portability check
+    header "Checking portability"
+
+    # Emit portability errors (or fix) for awk/sed occurrences
+    local loc relLoc absFile
+    local -i portabilityErrors=0
+    if (( ${#awkOccurrences[@]} )); then
+        if [[ ${fixMode} == fix ]]; then
+            show primary "Fixing 'awk' → 'gawk' in ${projectName} source"
+            echo
+            local -a awkFixed=()
+            for loc in "${awkOccurrences[@]}"; do
+                absFile="${loc%:*}"; lineNum="${loc##*:}"
+                gsed -i -E "${lineNum}s/\\bawk\\b/gawk/g" "${absFile}"
+                awkFixed+=("fixed: ${absFile#${projectRoot}/}:${lineNum}")
+            done
+            printList "${awkFixed[@]}"
+            echo
+        else
+            show error "'awk' found in ${projectName} source — use 'gawk' for portability (macOS ships BSD awk)"
+            echo
+            local -a awkRel=()
+            for loc in "${awkOccurrences[@]}"; do awkRel+=("${loc#${projectRoot}/}"); done
+            printList "${awkRel[@]}"
+            echo
+            (( portabilityErrors += 1 ))
+        fi
+    fi
+    if (( ${#sedOccurrences[@]} )); then
+        if [[ ${fixMode} == fix ]]; then
+            show primary "Fixing 'sed' → 'gsed' in ${projectName} source"
+            echo
+            local -a sedFixed=()
+            for loc in "${sedOccurrences[@]}"; do
+                absFile="${loc%:*}"; lineNum="${loc##*:}"
+                gsed -i -E "${lineNum}s/\\bsed\\b/gsed/g" "${absFile}"
+                sedFixed+=("fixed: ${absFile#${projectRoot}/}:${lineNum}")
+            done
+            printList "${sedFixed[@]}"
+            echo
+        else
+            show error "'sed' found in ${projectName} source — use 'gsed' for portability (macOS ships BSD sed, which lacks \\x escapes and requires -i.bak)"
+            echo
+            local -a sedRel=()
+            for loc in "${sedOccurrences[@]}"; do sedRel+=("${loc#${projectRoot}/}"); done
+            printList "${sedRel[@]}"
+            echo
+            (( portabilityErrors += 1 ))
+        fi
+    fi
+    if (( portabilityErrors )); then
+        show "Run " glue primary "rayvn deps --fix ${projectName}" glue " to auto-correct."
+    else
+        show success "No portability issues found"
+        echo
+    fi
+
+    # Run project-specific deps plugins (plugins/*-plugin.sh each implementing findProjectDeps)
+    local pluginFile
+    for pluginFile in "${projectRoot}/plugins/"*-plugin.sh; do
+        [[ -f "${pluginFile}" ]] || continue
+        source "${pluginFile}"
+        findProjectDeps "${projectName}" "${projectRoot}" "${fixMode}" "${flakeFile}"
+        unset -f findProjectDeps
+    done
+
+    (( portabilityErrors )) && return 1
+    return 0
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/index' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -1541,6 +1623,13 @@ _findDepsExtractCommands() {
                     next
                 }
             }
+            # Strip complete double-quoted strings first so apostrophes inside them
+            # (e.g. "it'"'"'s", "directory'"'"'s") don'"'"'t trigger false single-quote tracking
+            dq = "\x22"
+            dqPat = dq "[^" dq "]*" dq
+            while (match(line, dqPat)) { # lint-ok
+                line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
+            }
             # Strip complete inline single-quoted strings (e.g. '"'"'pattern'"'"', '"'"'literal'"'"')
             while (match(line, /\x27[^\x27]*\x27/)) { # lint-ok
                 line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
@@ -1558,6 +1647,8 @@ _findDepsExtractCommands() {
                 if (seg == "") continue
                 if (seg ~ /^#/) continue
                 if (seg ~ /^[0-9]*[<>]/) continue
+                # Skip arithmetic compound commands and their fragments split on && inside (( ))
+                if (seg ~ /^\(\(/ || seg ~ /\)\)[[:space:]]*$/) continue
                 # Skip case statement pattern labels: word) or word|word)
                 if (seg ~ /^[A-Za-z][A-Za-z0-9_.-]*\)/) continue
                 while (seg ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/) {
@@ -1574,7 +1665,7 @@ _findDepsExtractCommands() {
                 }
                 if (match(seg, /^([A-Za-z][A-Za-z0-9_.-]*)/, m)) { # lint-ok
                     word = m[1]
-                    if (!(word in skip)) print word # lint-ok
+                    if (!(word in skip)) print word "\t" FILENAME "\t" FNR # lint-ok
                 }
             }
         }
@@ -1641,8 +1732,7 @@ _findDepsIsExternal() {
 
     # Skip standard POSIX/system tools universally available on macOS and Linux
     case "${word}" in
-        awk) warn "'awk' found in ${projectName} source — use 'gawk' for portability (macOS ships BSD awk)"; return 1 ;;
-        sed) warn "'sed' found in ${projectName} source — use 'gsed' for portability (macOS ships BSD sed, which lacks \\x escapes and requires -i.bak)"; return 1 ;;
+        awk|sed)                                               return 1 ;; # warned earlier with file:line context
         nix|git|grep|egrep|fgrep|find|xargs)                  return 1 ;;
         cat|head|tail|sort|uniq|wc|tr|cut|paste|tee)         return 1 ;;
         date|mkdir|rmdir|rm|mv|cp|ln|chmod|chown|touch)      return 1 ;;
@@ -1653,7 +1743,9 @@ _findDepsIsExternal() {
         pgrep|pkill|ssh|scp|sftp|rsync|make|cmake)           return 1 ;;
         python|python3|ruby|perl|java|ldd|strace)            return 1 ;;
         # Bundled tools (provided by their parent package, not standalone Nix deps)
-        npm|npx|pip|pip3|gem|cargo|mvn|gradle)              return 1 ;;
+        npm|npx|pip|pip3|gem|cargo|mvn|gradle|node)         return 1 ;;
+        # macOS brew aliases for GNU tools — Linux equivalents are the same binary name
+        gsed|gawk|gfind|gxargs|gstat|greadlink)              return 1 ;;
         # coreutils/terminal utilities always available
         basename|dirname|realpath|readlink|mktemp|mkfifo)    return 1 ;;
         sleep|usleep|true|false|yes|echo|printf|nl|split)    return 1 ;;
@@ -1699,133 +1791,4 @@ _findDepsAddToFlake() {
             print
         }
     ' "${flakeFile}" > "${tmpFile}" && mv "${tmpFile}" "${flakeFile}"
-}
-
-# Find npm dependencies in node/*.js files and update node/package.json.
-# Scans for require()/import statements, filters Node.js built-ins, queries npm for
-# versions of new packages, and writes/updates node/package.json.
-# Args: projectName projectRoot
-_findNpmDependencies() {
-    local projectName="$1" projectRoot="$2"
-    local nodeDir="${projectRoot}/node"
-
-    [[ -d "${nodeDir}" ]] || return 0
-
-    local -a jsFiles=()
-    local f
-    for f in "${nodeDir}"/*.js; do
-        [[ -f "${f}" ]] && jsFiles+=("${f}")
-    done
-    (( ${#jsFiles[@]} )) || return 0
-
-    show nl "Scanning ${#jsFiles[@]} JS file(s) in node/ for npm dependencies"
-
-    local -a packages=()
-    local pkg
-    while IFS= read -r pkg; do
-        [[ ${pkg} ]] && packages+=("${pkg}")
-    done < <( _findNpmExtractPackages "${jsFiles[@]}" )
-
-    show primary "Found npm package(s): ${packages[*]:-none}"
-    (( ${#packages[@]} )) || return 0
-
-    local packageJsonFile="${nodeDir}/package.json"
-
-    # Load existing dependencies from package.json
-    local -A existingDeps=()
-    if [[ -f "${packageJsonFile}" ]]; then
-        local existingPkg ver
-        while IFS='=' read -r existingPkg ver; do
-            [[ ${existingPkg} ]] && existingDeps["${existingPkg}"]="${ver}"
-        done < <( node -e "
-            const p = require('${packageJsonFile}');
-            Object.entries(p.dependencies||{}).forEach(([k,v])=>console.log(k+'='+v)); # lint-ok
-        " 2>/dev/null )
-    fi
-
-    # Query npm for versions of new packages
-    local -A newDeps=()
-    local versionOut
-    for pkg in "${packages[@]}"; do
-        [[ ${existingDeps[${pkg}]+defined} ]] && continue
-        versionOut=${ npm view "${pkg}" version 2>/dev/null; }
-        if [[ -z "${versionOut}" ]]; then
-            warn "Could not find npm version for '${pkg}', skipping"
-            continue
-        fi
-        newDeps["${pkg}"]="^${versionOut}"
-        show success "Found new npm dependency: ${pkg}@^${versionOut}"
-    done
-
-    (( ${#newDeps[@]} )) || return 0
-
-    _findNpmWritePackageJson "${packageJsonFile}" "${projectName}" existingDeps newDeps
-}
-
-# Extract npm package names from JS files, filtering Node.js built-ins and relative imports.
-# Scans for require('pkg') and from 'pkg' patterns.
-# Args: jsFiles...
-_findNpmExtractPackages() {
-    gawk '
-        BEGIN {
-            split("assert async_hooks buffer child_process cluster console constants crypto dgram diagnostics_channel dns domain events fs http http2 https inspector module net os path perf_hooks process punycode querystring readline repl stream string_decoder sys timers tls trace_events tty url util v8 vm wasi worker_threads zlib", a, " ")
-            for (i in a) builtin[a[i]] = 1 # lint-ok
-        }
-        function extract(line,    full, pkg, lookup, p, n) {
-            while (match(line, /(require|from)[ \t(]*[\x22\x27][^\x22\x27]+[\x22\x27]/)) { # lint-ok
-                full = substr(line, RSTART, RLENGTH)
-                line = substr(line, RSTART + RLENGTH)
-                if (!match(full, /[\x22\x27][^\x22\x27]+[\x22\x27]/)) continue # lint-ok
-                pkg = substr(full, RSTART + 1, RLENGTH - 2)
-                if (pkg ~ /^[.\/]/) continue
-                lookup = pkg; sub(/^node:/, "", lookup)
-                if (builtin[lookup]) continue
-                if (pkg !~ /^@/) { n = split(pkg, p, "/"); pkg = p[1] }
-                if (!seen[pkg]++) print pkg
-            }
-        }
-        { extract($0) }
-    ' "$@" | sort -u
-}
-
-# Write node/package.json with merged existing and new dependencies.
-# Args: packageJsonFile projectName existingDepsVar newDepsVar
-_findNpmWritePackageJson() {
-    local packageJsonFile="$1" projectName="$2"
-    local -n _fNpwExistingRef="$3"
-    local -n _fNpwNewRef="$4"
-
-    # Merge deps
-    local -A allDeps=()
-    local k
-    for k in "${!_fNpwExistingRef[@]}"; do allDeps["${k}"]="${_fNpwExistingRef[${k}]}"; done
-    for k in "${!_fNpwNewRef[@]}"; do allDeps["${k}"]="${_fNpwNewRef[${k}]}"; done
-
-    # Sort keys
-    local -a sortedKeys=()
-    while IFS= read -r k; do
-        sortedKeys+=("${k}")
-    done < <( printf '%s\n' "${!allDeps[@]}" | sort )
-
-    local tmpFile="${packageJsonFile}.tmp"
-    {
-        printf '{\n'
-        printf '  "name": "%s-node",\n' "${projectName}"
-        printf '  "private": true,\n'
-        printf '  "dependencies": {\n'
-        local i
-        for (( i = 0; i < ${#sortedKeys[@]}; i++ )); do
-            k="${sortedKeys[${i}]}"
-            if (( i + 1 < ${#sortedKeys[@]} )); then
-                printf '    "%s": "%s",\n' "${k}" "${allDeps[${k}]}"
-            else
-                printf '    "%s": "%s"\n' "${k}" "${allDeps[${k}]}"
-            fi
-        done
-        printf '  }\n'
-        printf '}\n'
-    } > "${tmpFile}" && mv "${tmpFile}" "${packageJsonFile}"
-
-    show success "Updated ${packageJsonFile}"
-    show nl "Run 'nix build' to verify, then commit node/package.json and update npmDepsHash in flake.nix"
 }

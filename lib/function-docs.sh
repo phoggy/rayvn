@@ -489,7 +489,7 @@ _extractReferencedConstants() {
     local ref
     while IFS= read -r ref; do
         [[ -n "${ref}" ]] && refs["${ref}"]=1
-    done < <( grep -oE '\$\{?_[a-zA-Z][a-zA-Z0-9_]+' <<< "${body}" | sed 's/[${}]//g' | sort -u )
+    done < <( grep -oE '\$\{?_[a-zA-Z][a-zA-Z0-9_]+' <<< "${body}" | gsed 's/[${}]//g' | sort -u )
 
     (( ${#refs[@]} == 0 )) && return 0
 

@@ -481,16 +481,20 @@ lintCommand() {
 
 depsCommand() {
     if (( flags['help'] )) || (( ${#projects[@]} == 0 )); then
-        echo "rayvn deps [PROJECT...]"
+        echo "rayvn deps [--fix] [PROJECT...]"
         echo
         echo "Scan source files for external command dependencies and auto-add missing"
         echo "entries to flake.nix runtimeDeps."
+        echo
+        echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files."
     else
         require 'rayvn/index'
-        local project
+        local fixMode=; (( flags['fix'] )) && fixMode=fix
+        local project result=0
         for project in "${projects[@]}"; do
-            findDependencies "${project}"
+            findDependencies "${project}" "${fixMode}" || result=1
         done
+        return ${result}
     fi
 }
 

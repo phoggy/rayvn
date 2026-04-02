@@ -87,7 +87,8 @@ _collectLintFiles() {
 
     for file in "${projectRoot}/lib/"*.sh \
                 "${projectRoot}/test/"*.sh \
-                "${projectRoot}/tests/"*.sh; do
+                "${projectRoot}/tests/"*.sh \
+                "${projectRoot}/plugins/"*.sh; do
         [[ -f "${file}" ]] && _lintFilesRef+=("${file}")
     done
 
@@ -301,7 +302,7 @@ _lintCheck() {
         [[ "${lineContent}" =~ ^[[:space:]]*\# ]] && continue
         [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
         # Skip matches inside single-quoted strings (e.g. jq/awk programs passed as args)
-        local strippedContent; strippedContent=${ printf '%s' "${lineContent}" | sed "s/'[^']*'/ /g"; }
+        local strippedContent; strippedContent=${ printf '%s' "${lineContent}" | gsed "s/'[^']*'/ /g"; }
         _lintGrep "${pattern}" <<< "${strippedContent}" > /dev/null 2>&1 || continue
         local displayMessage="${message}"
         if [[ -n "${extractPattern}" ]]; then
@@ -317,18 +318,10 @@ _lintCheck() {
 _lintGrep() {
     local pattern=$1
     local file="${2:-}"
-    # Use ggrep (GNU grep, required for -P Perl regex) — available via brew on macOS, native on Linux
-    if command -v ggrep &> /dev/null; then
-        if [[ -n "${file}" ]]; then
-            ggrep -nP "${pattern}" "${file}" 2> /dev/null
-        else
-            ggrep -oP "${pattern}" 2> /dev/null
-        fi
+    # grep -P (Perl regex) is required; on nix both macOS and Linux provide GNU grep as 'grep'
+    if [[ -n "${file}" ]]; then
+        grep -nP "${pattern}" "${file}" 2> /dev/null
     else
-        if [[ -n "${file}" ]]; then
-            grep -nP "${pattern}" "${file}" 2> /dev/null
-        else
-            grep -oP "${pattern}" 2> /dev/null
-        fi
+        grep -oP "${pattern}" 2> /dev/null
     fi
 }

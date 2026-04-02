@@ -43,7 +43,7 @@ testTypistDelaysPositive() {
     local delays=() delay
     typistDelays 120 'hello world' delays
     for delay in "${delays[@]}"; do
-        local ms; ms=${ printf '%s' "${delay}" | awk '{printf "%d", $1 * 1000}'; }
+        local ms; ms=${ printf '%s' "${delay}" | gawk '{printf "%d", $1 * 1000}'; }
         assertTrue "delay '${delay}' is positive" eval "(( ${ms} > 0 ))"
     done
 }
@@ -56,8 +56,8 @@ testTypistDelaysWpmScaling() {
 
     local fastSum=0 slowSum=0 i
     for (( i = 0; i < ${#fastDelays[@]}; i++ )); do
-        (( fastSum += ${ printf '%s' "${fastDelays[$i]}" | awk '{printf "%d", $1 * 1000}'; } ))
-        (( slowSum += ${ printf '%s' "${slowDelays[$i]}" | awk '{printf "%d", $1 * 1000}'; } ))
+        (( fastSum += ${ printf '%s' "${fastDelays[$i]}" | gawk '{printf "%d", $1 * 1000}'; } ))
+        (( slowSum += ${ printf '%s' "${slowDelays[$i]}" | gawk '{printf "%d", $1 * 1000}'; } ))
     done
     assertTrue "300 wpm total delay < 30 wpm total delay" eval "(( ${fastSum} < ${slowSum} ))"
 }

@@ -96,7 +96,7 @@ testAsciinemaPostProcessV2Prepend() {
     assertEqual 5 "${lineCount}" "typing events prepended"
 
     # First event line after header should be the prompt
-    local secondLine; secondLine=${ sed -n '2p' "${castFile}"; }
+    local secondLine; secondLine=${ gsed -n '2p' "${castFile}"; }
     assertTrue "first event is prompt" eval "[[ '${secondLine}' == *'[t]\$ '* ]]"
 }
 
@@ -112,9 +112,9 @@ testAsciinemaPostProcessV2Shift() {
     asciinemaPostProcess "${castFile}" "${typingFile}" 0
 
     # Original first event was at t=1.0; after shift by 0.4 it should be ~1.4
-    local firstOrigTs; firstOrigTs=${ sed -n '4p' "${castFile}" | jq '.[0]'; }
+    local firstOrigTs; firstOrigTs=${ gsed -n '4p' "${castFile}" | jq '.[0]'; }
     assertTrue "original events shifted forward" \
-        eval "awk 'BEGIN{exit !(${firstOrigTs} > 1.0)}'"
+        eval "gawk 'BEGIN{exit !(${firstOrigTs} > 1.0)}'"
 }
 
 testAsciinemaPostProcessNoTrim() {
