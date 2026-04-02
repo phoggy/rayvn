@@ -1721,9 +1721,10 @@ _findDepsIsExternal() {
     local -n _fdFnsRef="$2"
     local projectName="$3"
 
-    # Skip non-command patterns (paths, flags, numbers, brackets)
+    # Skip non-command patterns (paths, flags, numbers, brackets, uppercase-initial tokens)
     [[ "${word}" =~ [/] ]] && return 1
     [[ "${word}" =~ ^[-0-9\[\{\(] ]] && return 1
+    [[ "${word}" =~ ^[A-Z] ]] && return 1  # shell commands don't start with uppercase (filters Ruby class refs etc.)
 
     # Skip known rayvn/project functions
     [[ ${_fdFnsRef["${word}"]+defined} ]] && return 1
