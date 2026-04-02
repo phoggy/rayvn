@@ -24,7 +24,7 @@ executeNixBuild() {
     require 'rayvn/spinner' 'rayvn/prompt'
     _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
     _taskLogFileNames=() _taskProjects=() _taskBlocker=()
-    _taskSkip=() _taskSkipMsgs=() _taskPids=()
+    _taskSkip=() _taskSkipMsgs=() _taskMissingTool=() _taskMissingToolDesc=() _taskPids=()
     local -A buildTaskIdx=()
     _collectBuildTasks buildTaskIdx
     _computeResultColumn
@@ -55,6 +55,8 @@ _init_rayvn_test-harness() {
     declare -ga _taskBlocker=()
     declare -ga _taskSkip=()
     declare -ga _taskSkipMsgs=()
+    declare -ga _taskMissingTool=()
+    declare -ga _taskMissingToolDesc=()
     declare -ga _taskPids=()
     _testLogDir="${ configDirPath tests; }" || fail
     _testResultDir="${ tempDirPath test-results; }"
@@ -113,7 +115,7 @@ _executeTests() {
 
     _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
     _taskLogFileNames=() _taskProjects=() _taskBlocker=()
-    _taskSkip=() _taskSkipMsgs=() _taskPids=()
+    _taskSkip=() _taskSkipMsgs=() _taskMissingTool=() _taskMissingToolDesc=() _taskPids=()
     rm "${_testLogDir:?}"/* 2> /dev/null
     rm "${_testResultDir:?}"/* 2> /dev/null
 
@@ -156,6 +158,7 @@ _executeTests() {
 
     _runAllTasksParallel
     _promptFailedLogs "${taskCount}" || return 1
+    _promptMissingTools "${taskCount}"
     return 0
 }
 
@@ -175,6 +178,8 @@ _collectLocalTasks() {
             _taskBlocker+=(-1)
             _taskSkip+=(2)
             _taskSkipMsgs+=('no tests')
+            _taskMissingTool+=('')
+            _taskMissingToolDesc+=('')
         else
             _collectProjectTestTasks "${project}" "${projectRoot}" 'local' -1
         fi
@@ -197,6 +202,8 @@ _collectBuildTasks() {
             _taskBlocker+=(-1)
             _taskSkip+=(0)
             _taskSkipMsgs+=('')
+            _taskMissingTool+=('')
+            _taskMissingToolDesc+=('')
         fi
     done
 }
@@ -222,18 +229,28 @@ _collectProjectTestTasks() {
     local blocker="$4"
     local testDir="${projectRoot}/test"
 
-    # Parse include/exclude patterns
-
-    local includePatterns=() excludePatterns=() arg
+    # Parse include/exclude patterns from CLI args
+    local includePatterns=() cliExcludePatterns=() arg
     for arg in "${args[@]}"; do
         if [[ "${arg}" == -* ]]; then
-            excludePatterns+=("${arg#-}")
+            cliExcludePatterns+=("${arg#-}")
         else
             includePatterns+=("${arg}")
         fi
     done
 
-    local file fileName testName skip skipMsg pattern
+    # Load persistent exclude patterns from test.excludes
+    local filterFile="${HOME}/.config/${project}/test.excludes"
+    local fileExcludePatterns=()
+    if [[ -f "${filterFile}" ]]; then
+        local filterLine
+        while IFS= read -r filterLine; do
+            [[ -z "${filterLine}" || "${filterLine}" == '#'* ]] && continue
+            fileExcludePatterns+=("${filterLine#-}")
+        done < "${filterFile}"
+    fi
+
+    local file fileName testName skip skipMsg missingTool missingToolDesc pattern
     local files=("${testDir}"/test-*.sh)
 
     for file in "${files[@]}"; do
@@ -246,6 +263,8 @@ _collectProjectTestTasks() {
 
         skip=0
         skipMsg=''
+        missingTool=''
+        missingToolDesc=''
 
         # Include filter: if patterns exist, test must match at least one
         if (( ${#includePatterns[@]} )); then
@@ -255,20 +274,46 @@ _collectProjectTestTasks() {
                     skip=0; break
                 fi
             done
+            (( skip )) && skipMsg="skipped, does not match ${_testNoMatchMsg}"
         fi
 
-        # Exclude filter: always takes precedence
-        for pattern in "${excludePatterns[@]}"; do
-            if [[ "${testName}" =~ ${pattern} ]]; then
-                skip=1; break
-            fi
-        done
+        # CLI exclude filter: always takes precedence
+        if (( ! skip )); then
+            for pattern in "${cliExcludePatterns[@]}"; do
+                if [[ "${testName}" =~ ${pattern} ]]; then
+                    skip=1
+                    skipMsg="skipped, does not match ${_testNoMatchMsg}"
+                    break
+                fi
+            done
+        fi
 
-        if (( skip )); then
-            skipMsg="skipped, does not match ${_testNoMatchMsg}"
-        elif [[ ${taskType} == 'local' ]] && (( inContainer )) && [[ ${file} == *linux*.sh ]]; then
-            skip=1
-            skipMsg="skipped, linux test in linux container"
+        # File exclude filter: takes precedence over include, but shown differently
+        if (( ! skip )); then
+            for pattern in "${fileExcludePatterns[@]}"; do
+                if [[ "${testName}" =~ ${pattern} ]]; then
+                    skip=1
+                    skipMsg="skipped, filtered by ${filterFile/#${HOME}/\~}"
+                    break
+                fi
+            done
+        fi
+
+        if (( ! skip )); then
+            if [[ ${taskType} == 'local' ]] && (( inContainer )) && [[ ${file} == *linux*.sh ]]; then
+                skip=1
+                skipMsg="skipped, linux test in linux container"
+            elif [[ ${taskType} == 'local' ]]; then
+                # Check for # REQUIRES: <tool> [description] in test file
+                _findTestRequires "${file}" missingTool missingToolDesc
+                if [[ -n "${missingTool}" ]] && ! command -v "${missingTool}" > /dev/null 2>&1; then
+                    skip=1
+                    skipMsg="skipped, ${missingTool} not installed"
+                else
+                    missingTool=''
+                    missingToolDesc=''
+                fi
+            fi
         fi
 
         _taskTypes+=("${taskType}")
@@ -280,7 +325,31 @@ _collectProjectTestTasks() {
         _taskBlocker+=("${blocker}")
         _taskSkip+=("${skip}")
         _taskSkipMsgs+=("${skipMsg}")
+        _taskMissingTool+=("${missingTool}")
+        _taskMissingToolDesc+=("${missingToolDesc}")
     done
+}
+
+# Scan a test file for a '# REQUIRES: <tool> [description]' declaration.
+# Sets the tool name and optional description via namerefs. Returns 0 if found.
+_findTestRequires() {
+    local file="$1"
+    local -n _ftrToolRef="$2"
+    local -n _ftrDescRef="$3"
+    local line
+    local lineCount=0
+    while IFS= read -r line; do
+        (( lineCount += 1 ))
+        (( lineCount > 30 )) && break
+        if [[ "${line}" =~ ^#[[:space:]]*REQUIRES:[[:space:]]*([^[:space:]]+)[[:space:]]*(.*)?$ ]]; then
+            _ftrToolRef="${BASH_REMATCH[1]}"
+            _ftrDescRef="${BASH_REMATCH[2]}"
+            return 0
+        fi
+    done < "${file}"
+    _ftrToolRef=''
+    _ftrDescRef=''
+    return 1
 }
 
 _computeResultColumn() {
@@ -518,6 +587,31 @@ _promptFailedLogs() {
         fi
         return 1
     fi
+}
+
+_promptMissingTools() {
+    local taskCount="$1"
+    (( isInteractive && ! inContainer )) || return 0
+    local i
+    for (( i=0; i < taskCount; i++ )); do
+        [[ -z "${_taskMissingTool[${i}]}" ]] && continue
+        local tool="${_taskMissingTool[${i}]}"
+        local desc="${_taskMissingToolDesc[${i}]}"
+        local testName="${_taskNames[${i}]}"
+        local project="${_taskProjects[${i}]}"
+        local filterFile="${HOME}/.config/${project}/test.excludes"
+        echo
+        show warning "The '${testName}' test requires ${tool}, which is not installed."
+        [[ -n "${desc}" ]] && show nl "${desc}"
+        local choiceIndex
+        confirm "Always skip this test?" yes no choiceIndex || return 0
+        if (( choiceIndex == 0 )); then
+            mkdir -p "${HOME}/.config/${project}"
+            echo "${testName}" >> "${filterFile}"
+            show success "Added '${testName}' to ${filterFile/#${HOME}/\~}"
+            show nl "To re-enable, remove that line from ${filterFile/#${HOME}/\~}"
+        fi
+    done
 }
 
 _startBuildTask() {

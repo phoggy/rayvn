@@ -2,6 +2,7 @@
 
 # Linux Compatibility Test
 # Runs full Docker-based test suite to verify Linux compatibility
+# REQUIRES: docker Runs all tests inside a Linux container to verify cross-platform compatibility.
 
 source rayvn.up 'rayvn/core'
 
@@ -17,10 +18,12 @@ if [[ -n ${IN_NIX_SHELL} ]]; then
     exit 0
 fi
 
-# Check if Docker is available and the daemon is running
+# Skip if Docker is not installed (harness checks this before running, but guard for direct invocation)
 if ! command -v docker &> /dev/null; then
-    fail "Docker is required but not installed. See https://docs.docker.com/get-docker/"
+    echo "Skipping: docker not installed"
+    exit 0
 fi
+
 if ! docker info &> /dev/null; then
     echo "Skipping: Docker daemon is not running"
     exit 0
