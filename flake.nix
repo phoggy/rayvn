@@ -19,6 +19,9 @@
           pkgs.gh
           pkgs.curl
           pkgs.jq
+          pkgs.asciinema
+          pkgs.bundle
+          pkgs.Jekyll
         ];
 
         rayvn = pkgs.stdenv.mkDerivation {

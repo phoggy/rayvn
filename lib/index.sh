@@ -1736,7 +1736,7 @@ _findDepsIsExternal() {
         nix|git|grep|egrep|fgrep|find|xargs)                  return 1 ;;
         cat|head|tail|sort|uniq|wc|tr|cut|paste|tee)         return 1 ;;
         date|mkdir|rmdir|rm|mv|cp|ln|chmod|chown|touch)      return 1 ;;
-        diff|patch|stat|file|ls|df|du|ps|lsof|install)        return 1 ;;
+        diff|patch|stat|file|ls|df|du|mount|umount|ps|lsof|install) return 1 ;;
         openssl|base64|shasum|md5sum|sha256sum|sha512sum)     return 1 ;;
         env|uname|hostname|id|whoami|su|sudo)                 return 1 ;;
         tar|gzip|gunzip|bzip2|xz|zip|unzip)                  return 1 ;;
