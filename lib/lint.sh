@@ -318,10 +318,13 @@ _lintCheck() {
 _lintGrep() {
     local pattern=$1
     local file="${2:-}"
-    # grep -P (Perl regex) is required; on nix both macOS and Linux provide GNU grep as 'grep'
+    # grep -P (Perl regex) is required. On Linux and nix-wrapped rayvn, 'grep' is GNU grep.
+    # On macOS without nix, fall back to ggrep (GNU grep via Homebrew).
+    local grepCmd=grep
+    (( onMacOS )) && ! grep -P '' /dev/null 2> /dev/null && grepCmd=ggrep
     if [[ -n "${file}" ]]; then
-        grep -nP "${pattern}" "${file}" 2> /dev/null
+        ${grepCmd} -nP "${pattern}" "${file}" 2> /dev/null
     else
-        grep -oP "${pattern}" 2> /dev/null
+        ${grepCmd} -oP "${pattern}" 2> /dev/null
     fi
 }
