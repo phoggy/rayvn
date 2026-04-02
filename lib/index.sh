@@ -483,6 +483,7 @@ findDependencies() {
     show nl primary "Confirmed ${#confirmedBins[@]} external binaries:"
     echo
     printList "${confirmedBins[@]}"
+    echo
 
     local flakeFile="${projectRoot}/flake.nix"
     if [[ ! -f "${flakeFile}" ]]; then
