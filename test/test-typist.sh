@@ -16,7 +16,7 @@ init() {
         case "$1" in
             --debug)     setDebug --showLogOnExit ;;
             --debug-new) setDebug --clearLog --showLogOnExit ;;
-            --debug-out) setDebug --tty "${ tty; }" ;;
+            --debug-out) setDebug --tty "${terminal}" ;;
             --debug-tty) shift; setDebug --tty "$1" ;;
         esac
         shift
