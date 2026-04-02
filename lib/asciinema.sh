@@ -138,10 +138,10 @@ asciinemaPostProcess() {
     else
         # v2: absolute timestamps — shift original events by total typing duration
         local offset
-        offset=${ jq -s '[.[].0] | add // 0' "${typingFile}"; }
+        offset=${ jq -s '[.[][0]] | add // 0' "${typingFile}"; }
         cat "${typingFile}" > "${tmpBody}"
         tail -n +2 "${castFile}" | \
-            jq --argjson off "${offset}" '.[0] = ((.[0] + $off) * 1000 | round / 1000)' \
+            jq -c --argjson off "${offset}" '.[0] = ((.[0] + $off) * 1000 | round / 1000)' \
             >> "${tmpBody}"
     fi
 

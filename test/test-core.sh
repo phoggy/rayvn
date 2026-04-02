@@ -41,6 +41,7 @@ main() {
     testAssertPathWithinDirectory
 
     # Argument parsing and map operations
+    testBooleanArgToInt
     testParseOptionalArg
     testCopyMap
 
@@ -1045,6 +1046,25 @@ testAssertPathWithinDirectory() {
 # ============================================================================
 # Argument parsing and map operations
 # ============================================================================
+
+testBooleanArgToInt() {
+    local result
+    booleanArgToInt 'true' result;  assertEqual 1 "${result}" "true → 1"
+    booleanArgToInt '1' result;     assertEqual 1 "${result}" "1 → 1"
+    booleanArgToInt '42' result;    assertEqual 1 "${result}" "42 → 1"
+    booleanArgToInt 'false' result; assertEqual 0 "${result}" "false → 0"
+    booleanArgToInt '0' result;     assertEqual 0 "${result}" "0 → 0"
+    booleanArgToInt '-1' result;    assertEqual 0 "${result}" "-1 → 0"
+    booleanArgToInt 'True' result;  assertEqual 1 "${result}" "True → 1"
+    booleanArgToInt 'TRUE' result;  assertEqual 1 "${result}" "TRUE → 1"
+    booleanArgToInt 'False' result; assertEqual 0 "${result}" "False → 0"
+    booleanArgToInt 'FALSE' result; assertEqual 0 "${result}" "FALSE → 0"
+
+    assertFalse "rejects 'yes'"     eval "( booleanArgToInt 'yes' _unused ) 2>/dev/null"
+    assertFalse "rejects 'enabled'" eval "( booleanArgToInt 'enabled' _unused ) 2>/dev/null"
+    assertFalse "rejects empty"     eval "( booleanArgToInt '' _unused ) 2>/dev/null"
+    assertFalse "rejects '1x'"      eval "( booleanArgToInt '1x' _unused ) 2>/dev/null"
+}
 
 testParseOptionalArg() {
     local result
