@@ -20,7 +20,8 @@ Take a snapshot.
 
 | | |
 |---|---|
-| `label` *(string)* | Optional snapshot label |
+| `label` *(string)* | Optional snapshot label. |
+| `resultVar` *(stringRef)* | Optional var name to receive the snapshot path. |
 {: .args-table}
 
 ### snapshotInstallHandler()
