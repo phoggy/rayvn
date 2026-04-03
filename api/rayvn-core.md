@@ -719,7 +719,7 @@ Create a unique temp directory in the session temp directory, outputting its pat
 
 ### configDirPath()
 
-Outputs the config directory path for the current project, creating it if needed,
+Outputs the config directory path for the current or specified project, creating it if needed,
 optionally joined with fileName.
 
 
@@ -727,6 +727,7 @@ optionally joined with fileName.
 
 | | |
 |---|---|
+| `-p PROJECT` *(string)* | Specify project name (default: ${currentProjectName}) |
 | `fileName` *(string)* | Optional name of a file to append to the config dir path. |
 {: .args-table}
 

@@ -45,7 +45,7 @@ Generate Jekyll pages for a single project's gh-pages site.
 | `PROJECT` *(string)* | The project to generate pages for (e.g. rayvn, valt, wardn). |
 | `--dir DIR` *(string)* | Output directory (default: project's configured worktree). |
 | `--setup` | First-time setup: create gh-pages branch, worktree, and workflow. |
-| `--record` | Re-record all asciinema casts with cmd= attributes in markdown files. |
+| `--record` | [ID...]       Re-record asciinema casts with cmd= attributes in markdown files; optional IDs filter to specific casts. |
 | `--publish` | Commit and push changes to gh-pages after generating. |
 | `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with --publish). |
 {: .usage-table}

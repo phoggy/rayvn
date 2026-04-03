@@ -39,6 +39,7 @@ See the [README](https://github.com/phoggy/rayvn#readme) for installation instru
 | [rayvn/lint](/rayvn/api/rayvn-lint) | Bash requirement linting |
 | [rayvn/asciinema](/rayvn/api/rayvn-asciinema) | Requires: jq, gawk |
 | [rayvn/typist](/rayvn/api/rayvn-typist) | Jitter model (log-normal distribution approximation): |
+| [rayvn/snapshot](/rayvn/api/rayvn-snapshot) |   depth = hops from current PID up to (but not including) the root bash |
 
 ## Related Projects
 

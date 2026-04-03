@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/typist"
 parent: API Reference
-nav_order: 20
+nav_order: 21
 ---
 
 # rayvn/typist
