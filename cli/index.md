@@ -63,12 +63,12 @@ project with Nix before running tests, which is useful for verifying a clean Nix
 
 Tests run in parallel:
 
-<!-- record id="test" cmd="rayvn test" -->
+<!-- record id="test" pre="cd ~/dev/rayvn" cmd="rayvn test" -->
 {% include asciinema.html id="test" src="/assets/casts/test.cast" autoplay=true %}
 
 When using `--nix` or `--all` the nix tests are blocked until the build completes:
 
-<!-- record id="test-all" cmd="rayvn test --all" -->
+<!-- record id="test-all" pre="cd ~/dev/rayvn" cmd="rayvn test --all" -->
 {% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" autoplay=false %}
 
 ### build
@@ -83,14 +83,14 @@ rayvn build [PROJECT] [PROJECT...]
 Each project must have a `flake.nix`. The build runs `nix build` in the project root. Failure
 here typically means a missing dependency in `flake.nix` — run `rayvn deps` to sync them.
 
-<!-- record id="build" cmd="rayvn build" -->
+<!-- record id="build" pre="cd ~/dev/rayvn" cmd="rayvn build" -->
 {% include asciinema.html id="build" src="/assets/casts/build.cast" autoplay=false %}
 
 ### theme
 
 Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.
 
-<!-- record id="theme" cmd="rayvn theme" -->
+<!-- record id="theme" pre="cd ~/dev/rayvn" cmd="rayvn theme" -->
 {% include asciinema.html id="theme" src="/assets/casts/theme.cast" autoplay=false %}
 
 ### new
@@ -102,7 +102,7 @@ rayvn new project|script|library|test NAME [--local]
 ```
 
 - **project** — creates a full project directory with `bin/`, `lib/`, `tests/`, a `rayvn.pkg`,
-  `flake.nix`, README, and Homebrew formula. By default also creates a GitHub repo and clones it.
+  `flake.nix`, README, and Homebrew formula. Asks if you want to create a GitHub repo and clones it if so.
   Use `--local` to skip GitHub and create only a local git repo.
 - **script** — adds a new executable to the current project's `bin/` directory, pre-populated
   from the script template.
@@ -136,7 +136,7 @@ rayvn libraries [PROJECT] [PROJECT...]
 Prints each library in `project/library` format, grouped by project. Useful for quickly seeing
 what's available to `source rayvn.up` or `require`.
 
-<!-- record id="libraries" cmd="rayvn libraries" -->
+<!-- record id="libraries" pre="cd ~/dev/rayvn" cmd="rayvn libraries" -->
 {% include asciinema.html id="libraries" src="/assets/casts/libraries.cast" autoplay=false %}
 
 
@@ -153,7 +153,7 @@ private `_functions`. Specify a qualified library name (e.g. `rayvn/core`) to li
 a single library. For full documentation including signatures and descriptions, see the
 [API Reference]({{ site.baseurl }}/api) or use `rayvn index` to generate machine-readable indexes.
 
-<!-- record id="functions" cmd="rayvn functions" -->
+<!-- record id="functions" pre="cd ~/dev/rayvn" cmd="rayvn functions" -->
 {% include asciinema.html id="functions" src="/assets/casts/functions.cast" autoplay=false %}
 
 ### register
