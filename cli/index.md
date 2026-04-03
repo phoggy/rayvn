@@ -115,7 +115,7 @@ All generated files are automatically staged in git.
 
 <!-- record id="new-project" 
      pre="pushd ~/dev" 
-     cmd="rayvn new project foo --local && cd foo && rayvn new library bar && rayvn new test bar && eza --tree foo" 
+     cmd="rayvn new project foo --local && cd foo && rayvn new library bar && rayvn new test bar && eza --tree ../foo" 
      post="rm -rf foo; popd" -->
 {% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" autoplay=false %}
 
