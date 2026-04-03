@@ -37,13 +37,15 @@ Generate Jekyll pages for a single project's gh-pages site.
 
 *Usage*
 
-`runPages PROJECT [--dir DIR] [--publish | --view]`
+`runPages PROJECT [--dir DIR] [--setup | --record | --publish | --view]`
 {: .usage-signature}
 
 | | |
 |---|---|
 | `PROJECT` *(string)* | The project to generate pages for (e.g. rayvn, valt, wardn). |
 | `--dir DIR` *(string)* | Output directory (default: project's configured worktree). |
+| `--setup` | First-time setup: create gh-pages branch, worktree, and workflow. |
+| `--record` | Re-record all asciinema casts with cmd= attributes in markdown files. |
 | `--publish` | Commit and push changes to gh-pages after generating. |
 | `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with --publish). |
 {: .usage-table}
@@ -60,5 +62,6 @@ and adds any missing entries to flake.nix. Also delegates npm dependency updates
 | | |
 |---|---|
 | `projectName` *(string)* | Name of the rayvn project to scan (e.g. 'valt', 'rayvn'). |
+| `fixMode` *(string)* | Optional. Pass 'fix' to auto-replace awk→gawk and sed→gsed in source. |
 {: .args-table}
 

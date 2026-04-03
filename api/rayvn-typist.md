@@ -2,15 +2,12 @@
 layout: default
 title: "rayvn/typist"
 parent: API Reference
-nav_order: 21
+nav_order: 20
 ---
 
 # rayvn/typist
 
 Jitter model (log-normal distribution approximation):
-  - Most keystrokes cluster near the base interval
-  - Occasional slower keystrokes (hesitation, harder keys)
-  - Rare fast bursts (familiar words/patterns)
 
 ## Functions
 

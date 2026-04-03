@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/spinner"
 parent: API Reference
-nav_order: 16
+nav_order: 15
 ---
 
 # rayvn/spinner

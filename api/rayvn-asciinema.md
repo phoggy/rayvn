@@ -11,31 +11,40 @@ Requires: jq, gawk
 
 ## Functions
 
-### typistAsciinemaEvents()
+### asciinemaRecord()
 
-Generate a typing events file for use as a cast prelude.
-Writes a prompt event followed by per-character events for COMMAND.
+Record COMMAND with asciinema and post-process the cast in-place.
+Deletes any existing cast file, records, prepends a simulated typing
+prelude, and trims the terminal dimensions to fit the content.
 
 
 *Args*
 
 | | |
 |---|---|
-| `wpm` *(int)* | Typing speed in words per minute. |
-| `prompt` *(string)* | Shell prompt text (e.g. '[rayvn]$ '). |
-| `command` *(string)* | Command text to simulate typing. |
-| `outputFile` *(string)* | Path to write the events file. |
+| `castFile` *(string)* | Output path for the cast file. |
+| `command` *(string)* | Shell command to record. |
 {: .args-table}
+
+*Options*
+
+--wpm N       Typing speed in words per minute (default: 120).
+--cols N      Recording terminal width (default: 220).
+--rows N      Recording terminal height (default: 60).
+--prompt TEXT Shell prompt text (default: '[COMMAND]$ ').
+--no-trim     Skip trimming terminal dimensions to content.
+
+*Notes*
+
+
+Requires asciinema in PATH. The cast file is overwritten if it exists.
+
+### typistAsciinemaEvents()
+
 Output asciinema event lines simulating TEXT typed at WPM words per minute.
-
-*Example*
-
-```bash
-local typingFile; typingFile=${ makeTempFile; }
-asciinemaTypingFile 120 '[rayvn]$ ' 'rayvn test' "${typingFile}"
 Uses typistDelays for timing, then formats each character as a JSON event.
 Includes a final Enter key event.
-```
+
 
 *Args*
 

@@ -251,8 +251,8 @@ Converted to lower case to allow upper or mixed case true/false. An integer valu
 *Example*
 
 ```bash
-local doX; booleanArgToInt "$1" doX            # Set doX
-local doY; booleanArgToInt "${1:-'true'}" doY  # Set doY with default value.
+local doX; booleanArgToInt "$1" doX           # Set doX
+local doY; booleanArgToInt "${1:-true}" doY   # Set doY with default value.
 ```
 
 ### varDefined()
@@ -538,6 +538,19 @@ Outputs a number right-aligned within a fixed-width field.
 |---|---|
 | `number` *(int)* | Number to output. |
 | `places` *(int)* | Minimum field width; defaults to 1. |
+{: .args-table}
+
+### printList()
+
+Prints a numbered list of items, with right-aligned numbers padded to a consistent width.
+
+
+*Args*
+
+| | |
+|---|---|
+| `[--indent N]` *(int)* | Leading spaces before each item; defaults to 4. |
+| `items` | (string...)   Items to list; each becomes one numbered line. |
 {: .args-table}
 
 ### randomInteger()
