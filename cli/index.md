@@ -113,12 +113,16 @@ rayvn new project|script|library|test NAME [--local]
 
 All generated files are automatically staged in git.
 
-<!-- record id="new-project" 
+<!-- record id="new-project"  
      pre="pushd ~/dev" 
-     cmd="rayvn new project foo --local && cd foo && rayvn new test example && cd .. && eza --tree foo" 
-     post="rm -rf foo; popd" -->
+     cmd="rayvn new project foo --local"
+     cmd="eza --tree foo" 
+     cmd="cd foo"
+     cmd="rayvn new library bar" 
+     cmd="rayvn new test bar" 
+     cmd="eza --tree" 
+     post="cd ~/dev; rm -rf foo; popd" -->
 {% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" autoplay=false %}
-
 
 ### libraries
 
