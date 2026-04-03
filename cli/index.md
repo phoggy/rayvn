@@ -63,11 +63,13 @@ project with Nix before running tests, which is useful for verifying a clean Nix
 
 Tests run in parallel:
 
-{% include asciinema.html id="test" src="/assets/casts/test.cast" cmd="rayvn test" autoplay=true %}
+<!-- record id="test" cmd="rayvn test" -->
+{% include asciinema.html id="test" src="/assets/casts/test.cast" autoplay=true %}
 
 When using `--nix` or `--all` the nix tests are blocked until the build completes:
 
-{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" cmd="rayvn test --all" autoplay=false %}
+<!-- record id="test-all" cmd="rayvn test --all" -->
+{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" autoplay=false %}
 
 ### build
 
@@ -81,13 +83,15 @@ rayvn build [PROJECT] [PROJECT...]
 Each project must have a `flake.nix`. The build runs `nix build` in the project root. Failure
 here typically means a missing dependency in `flake.nix` — run `rayvn deps` to sync them.
 
-{% include asciinema.html id="build" src="/assets/casts/build.cast" cmd="rayvn build" autoplay=false %}
+<!-- record id="build" cmd="rayvn build" -->
+{% include asciinema.html id="build" src="/assets/casts/build.cast" autoplay=false %}
 
 ### theme
 
 Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.
 
-{% include asciinema.html id="theme" src="/assets/casts/theme.cast" cmd="rayvn theme" autoplay=false %}
+<!-- record id="theme" cmd="rayvn theme" -->
+{% include asciinema.html id="theme" src="/assets/casts/theme.cast" autoplay=false %}
 
 ### new
 
@@ -109,8 +113,7 @@ rayvn new project|script|library|test NAME [--local]
 
 All generated files are automatically staged in git.
 
-
-<!-- record id="new-project" pre="pushd /tmp" cmd="rayvn new project foo --local && eza --tree foo" post="rm -rf foo; popd" -->
+<!-- record id="new-project" pre="pushd ~/dev" cmd="rayvn new project foo --local && eza --tree foo" post="rm -rf foo; popd" -->
 {% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" autoplay=false %}
 
 
