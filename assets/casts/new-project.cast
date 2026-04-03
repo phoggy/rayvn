@@ -1,22 +1,4 @@
-{
-  "version": 3,
-  "term": {
-    "cols": 106,
-    "rows": 18,
-    "type": "xterm-256color",
-    "version": "iTerm2 3.6.9",
-    "theme": {
-      "fg": "#bbbbbb",
-      "bg": "#2b2b30",
-      "palette": "#000000:#ec756d:#387c20:#cdcb40:#6595e9:#ed7df9:#69c9cb:#bbbbbb:#686868:#ef8e88:#98f776:#fffc52:#89aeef:#f1a1fa:#8ad8d9:#f2f2f2"
-    }
-  },
-  "timestamp": 1775257929,
-  "command": "rayvn new project foo; eza --tree foo; cd foo; rayvn new library bar; rayvn new test bar; eza --tree",
-  "env": {
-    "SHELL": "/usr/local/bin/bash"
-  }
-}
+{"version":3,"term":{"cols":106,"rows":18,"type":"xterm-256color","version":"iTerm2 3.6.9","theme":{"fg":"#bbbbbb","bg":"#2b2b30","palette":"#000000:#ec756d:#387c20:#cdcb40:#6595e9:#ed7df9:#69c9cb:#bbbbbb:#686868:#ef8e88:#98f776:#fffc52:#89aeef:#f1a1fa:#8ad8d9:#f2f2f2"}},"timestamp":1775257929,"command":"rayvn new project foo; eza --tree foo; cd foo; rayvn new library bar; rayvn new test bar; eza --tree","env":{"SHELL":"/usr/local/bin/bash"}}
 [0.300, "o", "[rayvn]$ "]
 [0.093, "o", "r"]
 [0.116, "o", "a"]
