@@ -109,8 +109,6 @@ rayvn new project|script|library|test NAME [--local]
 
 All generated files are automatically staged in git.
 
-{% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" cmd="rayvn new project foo && eza --tree foo" autoplay=false %}
-
 
 ### libraries
 
