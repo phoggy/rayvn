@@ -1040,15 +1040,18 @@ makeTempDir() {
 #
 # · ARGS
 #
+#   -p PROJECT (string)  Specify project name (default: ${currentProjectName})
 #   fileName (string)    Optional name of a file to append to the config dir path.
 
 configDirPath() {
+    local projectName="${currentProjectName}"
+    [[ $1 == '-p' ]] && { projectName="$2"; shift 2; }
     local fileName="${1:-}"
-    local configDir="${_systemConfigDir}/${currentProjectName}"
+    local configDir="${_systemConfigDir}/${projectName}"
 
     # Make sure we create the directory if needed. Do it only once by using a global variable
 
-    local configVarName="_${currentProjectName//-/_}ConfigDir" # convert hyphens to underscores
+    local configVarName="_${projectName//-/_}ConfigDir" # convert hyphens to underscores
     local -n configRef="${configVarName}"
     if [[ -z ${configRef:-} ]]; then
         configRef="${configDir}"
