@@ -7,10 +7,7 @@ nav_order: 15
 
 # rayvn/snapshot
 
-  depth = hops from current PID up to (but not including) the root bash
-  label = user defined label
-  Fields separated by __ allow lexical sort by time, then tree traversal
-  Parent linkage in filename enables upward/downward tree walk without dirs
+depth = hops from current PID up to (but not including) the root bash
 
 ## Functions
 
