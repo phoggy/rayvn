@@ -121,7 +121,8 @@ All generated files are automatically staged in git.
      cmd="rayvn new library bar" 
      cmd="rayvn new test bar" 
      cmd="eza --tree" 
-     post="cd ~/dev; rm -rf foo; popd" -->
+     post="cd ~/dev; rm -rf foo; popd" 
+-->
 {% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" autoplay=false %}
 
 ### libraries
@@ -135,7 +136,8 @@ rayvn libraries [PROJECT] [PROJECT...]
 Prints each library in `project/library` format, grouped by project. Useful for quickly seeing
 what's available to `source rayvn.up` or `require`.
 
-{% include asciinema.html id="libraries" src="/assets/casts/libraries.cast" cmd="rayvn libraries" autoplay=false %}
+<!-- record id="libraries" cmd="rayvn libraries" -->
+{% include asciinema.html id="libraries" src="/assets/casts/libraries.cast" autoplay=false %}
 
 
 ### functions
@@ -151,7 +153,8 @@ private `_functions`. Specify a qualified library name (e.g. `rayvn/core`) to li
 a single library. For full documentation including signatures and descriptions, see the
 [API Reference]({{ site.baseurl }}/api) or use `rayvn index` to generate machine-readable indexes.
 
-{% include asciinema.html id="functions" src="/assets/casts/functions.cast" cmd="rayvn functions" autoplay=false %}
+<!-- record id="functions" cmd="rayvn functions" -->
+{% include asciinema.html id="functions" src="/assets/casts/functions.cast" autoplay=false %}
 
 ### register
 
