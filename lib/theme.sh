@@ -121,7 +121,6 @@ _setTheme() {
     # Convert to a 'theme' array with the display name as the first element and the index as the second
 
     local theme=("${displayName}" "${themeIndex}")
-debugVar displayName themeIndex theme
     for colorName in "${_themeColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
         theme+=("${colorCode}")

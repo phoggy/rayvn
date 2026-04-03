@@ -1478,10 +1478,10 @@ _init_theme() {
         if (( terminalColorBits < 24 )); then
             index=0  # Basic
         else
-            index=1  # Dark Material Design
+            index=3  # Dark Vibrant
         fi
         _setTheme ${index}
-        echo -e "\nNOTE: Using default theme '${_themeNames[${index}]}'. Run 'rayvn themes' to change.\n"
+        echo -e "\nUsing default theme '${_themeNames[${index}]}'. Run 'rayvn themes' to change.\n"
     else
         index=${theme[1]}
     fi
