@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/theme"
 parent: API Reference
-nav_order: 19
+nav_order: 20
 ---
 
 # rayvn/theme
@@ -21,7 +21,8 @@ Display all available themes with color swatches at the given position, defaulti
 
 ### setTheme()
 
-Interactively prompt the user to select and apply a new theme.
+Interactively prompt the user to select and apply a new theme. Note that any change will not apply to the
+current process, only to new ones.
 
 
 *Args*

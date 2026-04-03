@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/core"
 parent: API Reference
-nav_order: 3
+nav_order: 4
 ---
 
 # rayvn/core
@@ -233,6 +233,27 @@ Check if an argument matches an expected value, setting a result var via nameref
 | `0` | matched |
 | `1` | not matched |
 {: .args-table}
+
+### booleanArgToInt()
+
+Maps a boolean argument to 1 for true, 0 for false so that it can subsequently be tested using (( flag )).
+Converted to lower case to allow upper or mixed case true/false. An integer value >= 1 is true, <= 0 is false.
+
+
+*Args*
+
+| | |
+|---|---|
+| `arg` *(bool)* | The boolean argument. |
+| `resultRef` *(stringRef)* | Name of var to set result. |
+{: .args-table}
+
+*Example*
+
+```bash
+local doX; booleanArgToInt "$1" doX            # Set doX
+local doY; booleanArgToInt "${1:-'true'}" doY  # Set doY with default value.
+```
 
 ### varDefined()
 

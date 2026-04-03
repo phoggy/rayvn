@@ -37,6 +37,8 @@ See the [README](https://github.com/phoggy/rayvn#readme) for installation instru
 | [rayvn/index](/rayvn/api/rayvn-index) | Generate function indexes for AI agent use |
 | [rayvn/node](/rayvn/api/rayvn-node) | Node.js / npm utilities |
 | [rayvn/lint](/rayvn/api/rayvn-lint) | Bash requirement linting |
+| [rayvn/asciinema](/rayvn/api/rayvn-asciinema) | Requires: jq, gawk |
+| [rayvn/typist](/rayvn/api/rayvn-typist) | Jitter model (log-normal distribution approximation): |
 
 ## Related Projects
 

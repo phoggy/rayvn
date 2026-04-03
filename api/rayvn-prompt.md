@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/prompt"
 parent: API Reference
-nav_order: 12
+nav_order: 13
 ---
 
 # rayvn/prompt
@@ -126,6 +126,7 @@ Choose from a list of options using the arrow keys.
 | `numberChoices` *(int)* | When or if to number the choices: > 0 = always; < 0 = only if 1 or more items are off-screen; |
 | `maxVisibleItems` *(int)* | Max items to display. 0 = fill available terminal rows; < 0 = clear screen then fill (default: 0). |
 | `timeout` *(int)* | Inactivity timeout in seconds (default: 30). Resets on any keypress. |
+| `showResult` *(bool)* | Write the selected item after the prompt before returning (default: true). |
 {: .args-table}
 
 *Notes*

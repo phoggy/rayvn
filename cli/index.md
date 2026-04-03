@@ -43,6 +43,8 @@ Options:
 PROJECT defaults to the current directory's project when run from within a rayvn project. Most
 commands accept multiple project names to operate on several at once.
 
+Note: All examples below assume rayvn as the working directory so omit PROJECT.
+
 ## Commands
 
 ### test
@@ -65,7 +67,7 @@ Tests run in parallel:
 
 When using `--nix` or `--all` the nix tests are blocked until the build completes:
 
-{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" cmd="rayvn test --all" %}
+{% include asciinema.html id="test-all" src="/assets/casts/test-all.cast" cmd="rayvn test --all" autoplay=false %}
 
 ### build
 
@@ -79,11 +81,13 @@ rayvn build [PROJECT] [PROJECT...]
 Each project must have a `flake.nix`. The build runs `nix build` in the project root. Failure
 here typically means a missing dependency in `flake.nix` — run `rayvn deps` to sync them.
 
+{% include asciinema.html id="build" src="/assets/casts/build.cast" cmd="rayvn build" autoplay=false %}
+
 ### theme
 
 Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.
 
-![Theme selector]({{ site.baseurl }}/assets/images/theme-selector.png)
+{% include asciinema.html id="theme" src="/assets/casts/theme.cast" cmd="rayvn theme" autoplay=false %}
 
 ### new
 
@@ -105,6 +109,9 @@ rayvn new project|script|library|test NAME [--local]
 
 All generated files are automatically staged in git.
 
+{% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" cmd="rayvn new project foo && eza --tree foo" autoplay=false %}
+
+
 ### libraries
 
 List the available libraries for one or more projects.
@@ -115,6 +122,9 @@ rayvn libraries [PROJECT] [PROJECT...]
 
 Prints each library in `project/library` format, grouped by project. Useful for quickly seeing
 what's available to `source rayvn.up` or `require`.
+
+{% include asciinema.html id="libraries" src="/assets/casts/libraries.cast" cmd="rayvn libraries" autoplay=false %}
+
 
 ### functions
 
@@ -128,6 +138,8 @@ By default shows only public functions (those not prefixed with `_`). Pass `--al
 private `_functions`. Specify a qualified library name (e.g. `rayvn/core`) to list functions for
 a single library. For full documentation including signatures and descriptions, see the
 [API Reference]({{ site.baseurl }}/api) or use `rayvn index` to generate machine-readable indexes.
+
+{% include asciinema.html id="functions" src="/assets/casts/functions.cast" cmd="rayvn functions" autoplay=false %}
 
 ### register
 
