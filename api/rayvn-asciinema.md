@@ -126,7 +126,8 @@ and computes the web-relative src path automatically.
 
 *Output*
 
-A {% include asciinema.html ... %} tag ready to paste into a markdown file.
+A `<!-- record id="..." cmd="..." -->` comment and
+`{% raw %}{% include asciinema.html ... %}{% endraw %}` tag ready to paste into a markdown file.
 
 *Example*
 

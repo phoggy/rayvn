@@ -115,7 +115,7 @@ All generated files are automatically staged in git.
 
 <!-- record id="new-project"  
      pre="pushd ~/dev" 
-     cmd="rayvn new project foo --local"
+     cmd="rayvn new project foo"
      cmd="eza --tree foo" 
      cmd="cd foo"
      cmd="rayvn new library bar" 
