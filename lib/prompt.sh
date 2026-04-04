@@ -622,8 +622,7 @@ _finalizePrompt() {
 
     eraseToEndOfLine
     if (( _promptMaxChoicesIndex )); then
-        cursorDownOneAndEraseLine
-        for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++ )); do
+        for (( promptIndex=0; promptIndex < _promptReserveRows - 1; promptIndex++ )); do
             cursorDownOneAndEraseLine
         done
     fi
