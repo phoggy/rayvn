@@ -889,3 +889,5 @@ Enable debug mode.
 | `--showLogOnExit` | Show the log file on exit if not tty mode. |
 {: .usage-table}
 
+### setDebugNew()
+

@@ -113,7 +113,8 @@ rayvn new project|script|library|test NAME [--local]
 
 All generated files are automatically staged in git.
 
-<!-- record id="new-project"  
+<!-- record id="new-project"
+     prompt="[rayvn]$ "
      cmd="cd /tmp" 
      cmd="rayvn new project foo"
      cmd="eza --tree foo" 
