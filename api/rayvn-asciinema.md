@@ -13,9 +13,10 @@ Requires: jq, gawk
 
 ### asciinemaRecord()
 
-Record COMMAND with asciinema and post-process the cast in-place.
-Deletes any existing cast file, records, prepends a simulated typing
-prelude, and trims the terminal dimensions to fit the content.
+Record one or more commands with asciinema and post-process the cast in-place.
+Deletes any existing cast file, records each command separately with a simulated
+typing prelude, concatenates them into a single cast, and trims the terminal
+dimensions to fit the content.
 
 
 *Args*
@@ -23,11 +24,14 @@ prelude, and trims the terminal dimensions to fit the content.
 | | |
 |---|---|
 | `castFile` *(string)* | Output path for the cast file. |
-| `command` *(string)* | Shell command to record. |
 {: .args-table}
 
 *Options*
 
+--cmd CMD     Command to record (repeatable; required; each recorded as a separate
+              segment with its own typing prelude, then concatenated in order).
+--pre CMD     Shell command to run before recording (optional; runs in current shell).
+--post CMD    Shell command to run after recording (optional; runs in current shell).
 --wpm N       Typing speed in words per minute (default: 120).
 --cols N      Recording terminal width (default: 220).
 --rows N      Recording terminal height (default: 60).
@@ -38,6 +42,7 @@ prelude, and trims the terminal dimensions to fit the content.
 
 
 Requires asciinema in PATH. The cast file is overwritten if it exists.
+--pre and --post run once, wrapping all --cmd recordings as a group.
 
 ### typistAsciinemaEvents()
 
