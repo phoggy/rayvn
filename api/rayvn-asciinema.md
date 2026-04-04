@@ -114,6 +114,9 @@ Supports both v2 (absolute timestamps) and v3 (relative/delta timestamps).
 For v2, original event timestamps are shifted by the total typing duration.
 For v3, typing events are simply prepended (already in delta format).
 Trimmed cols are at least 106 to ensure comfortable display in web players.
+Absolute cursor-row positions in recording events are shifted by the number of rows
+added by the typing prelude (always 1: the prompt line + Enter), so that widgets
+using cursor-position queries render on the correct row relative to their question text.
 
 ### asciinemaMarkup()
 
