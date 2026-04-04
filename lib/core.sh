@@ -1035,7 +1035,7 @@ makeTempDir() {
     echo "${dirPath}"
 }
 
-# ◇ Outputs the config directory path for the current project, creating it if needed,
+# ◇ Outputs the config directory path for the current or specified project, creating it if needed,
 #   optionally joined with fileName.
 #
 # · ARGS
