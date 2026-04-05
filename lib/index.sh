@@ -54,7 +54,7 @@ runIndex() {
 #   PROJECT (string)       The project to generate pages for (e.g. rayvn, valt, wardn).
 #   --dir DIR (string)     Output directory (default: project's configured worktree).
 #   --setup                First-time setup: create gh-pages branch, worktree, and workflow.
-#   --record               Re-record all asciinema casts with cmd= attributes in markdown files.
+#   --record [ID...]       Re-record asciinema casts with cmd= attributes in markdown files; optional IDs filter to specific casts.
 #   --publish              Commit and push changes to gh-pages after generating.
 #   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
 
@@ -69,12 +69,18 @@ runPages() {
     local setup=0
     local view=0
     local _userSpecifiedDir=0
+    local -a recordIds=()
 
     while (( $# )); do
         case $1 in
             --dir)     shift; dir="$1"; _userSpecifiedDir=1 ;;
             --publish) publish=1 ;;
-            --record)  record=1 ;;
+            --record)
+                record=1
+                while [[ -n "${2:-}" && "${2:-}" != --* ]]; do
+                    shift; recordIds+=("$1")
+                done
+                ;;
             --setup)   setup=1 ;;
             --view)    view=1 ;;
             *)         fail "Unknown option: $1" ;;
@@ -113,10 +119,11 @@ runPages() {
 
     if (( record )); then
         require 'rayvn/asciinema'
-        _recordCasts "${dir}"
+        _recordCasts "${dir}" "${recordIds[@]}"
+        return
     fi
 
-    _ensurePagesFiles "${projectName}" "${projectRoot}" "${dir}"
+    _ensurePagesFiles "${projectName}" "${projectRoot}" "${dir}" "${publish}"
 
     local libFiles=()
     _collectLibFiles libFiles
@@ -148,32 +155,86 @@ runPages() {
     fi
 }
 
+# {% include asciinema.html id="new-project" src="/assets/casts/new-project.cast" \
+#    pre="cd /tmp" cmd="rayvn new project foo && eza --tree foo" post="rm -rf foo"
+#    autoplay=false %}
 _recordCasts() {
     local pagesDir="$1"
-    local castFile cmd src line
+    shift
+    local -a filterIds=("$@")
+    local castFile cmd id pre post prompt src line
 
-    show bold "Scanning for asciinema includes with" blue "cmd=" "attribute..."
+    show bold "Scanning for" blue "<!-- record -->" "comments with" blue "cmd=" "attribute..."
     echo
 
     local found=0
     while IFS= read -r line; do
+        id=${ printf '%s' "${line}" | gawk 'match($0, /id="([^"]+)"/, a) { print a[1] }'; }
         src=${ printf '%s' "${line}" | gawk 'match($0, /src="([^"]+)"/, a) { print a[1] }'; }
-        cmd=${ printf '%s' "${line}" | gawk 'match($0, /cmd="([^"]+)"/, a) { print a[1] }'; }
-        [[ -n "${src}" && -n "${cmd}" ]] || continue
-        (( found += 1 ))
+        [[ -n "${id}" && -n "${src}" ]] || continue
+        local -a cmds=()
+        while IFS= read -r c; do
+            cmds+=("${c}")
+        done < <(printf '%s' "${line}" | gawk '{
+            s = $0
+            while (match(s, /cmd="([^"]+)"/, a) > 0) { print a[1]; s = substr(s, RSTART + RLENGTH) }
+        }')
+        (( ${#cmds[@]} )) || continue
+        (( ${#filterIds[@]} )) && ! memberOf "${id}" filterIds && continue
+        pre=${ printf '%s' "${line}" | gawk 'match($0, /pre="([^"]+)"/, a) { print a[1] }'; }
+        post=${ printf '%s' "${line}" | gawk 'match($0, /post="([^"]+)"/, a) { print a[1] }'; }
+        prompt=${ printf '%s' "${line}" | gawk 'match($0, /prompt="([^"]+)"/, a) { print a[1] }'; }
+        (( found++ ))
 
         # Resolve web-root-relative src to absolute path within pagesDir
         castFile="${pagesDir}/${src#/}"
         ensureDir "${castFile%/*}"
 
-        show "Recording" bold "${cmd}" "→" bold "${castFile}"
+        clear
+        local c
+        [[ -n "${pre}" ]] && show "Pre-run" bold "${pre}"
+        for c in "${cmds[@]}"; do show "Recording" bold "${c}"; done
+        show "→" bold "${castFile}"
+        [[ -n "${post}" ]] && show "Post-run" bold "${post}"
         echo
-        asciinemaRecord "${castFile}" "${cmd}" || fail "recording failed: ${cmd}"
+        local -a recordArgs=()
+        for c in "${cmds[@]}"; do recordArgs+=(--cmd "${c}"); done
+        [[ -n "${pre}" ]]    && recordArgs+=(--pre    "${pre}")
+        [[ -n "${post}" ]]   && recordArgs+=(--post   "${post}")
+        [[ -n "${prompt}" ]] && recordArgs+=(--prompt "${prompt}")
+        asciinemaRecord "${castFile}" "${recordArgs[@]}" || fail "recording failed: ${cmds[*]}"
         echo
         asciinemaMarkup "${castFile}"
-    done < <(grep -rh '{% include asciinema.html' "${pagesDir}" --include='*.md' | grep 'cmd=')
+    done < <(find "${pagesDir}" -name '*.md' -print0 | while IFS= read -r -d '' mdFile; do
+        gawk '
+            /<!--[[:space:]]*record/ {
+                buf = $0
+                while (buf !~ /-->/ && (getline line) > 0) { buf = buf " " line }
+                if (match(buf, /id="([^"]+)"/, a) > 0) { id = a[1]; comments[id] = buf }
+            }
+            /\{%[[:space:]]*include[[:space:]]+asciinema\.html/ {
+                buf = $0
+                if (match(buf, /id="([^"]+)"/, a) > 0 && match(buf, /src="([^"]+)"/, b) > 0) {
+                    includes[ a[1] ] = b[1]
+                }
+            }
+            END {
+                for (id in comments) {
+                    if (id in includes && comments[id] ~ /cmd=/) {
+                        print comments[id] " src=\"" includes[id] "\""
+                    }
+                }
+            }
+        ' "${mdFile}"
+    done)
 
-    (( found )) || show muted "No asciinema includes with cmd= found in ${pagesDir}"
+    if (( ! found )); then
+        if (( ${#filterIds[@]} )); then
+            show muted "No record comments matching" bold "${filterIds[*]}" muted "found in ${pagesDir}"
+        else
+            show muted "No <!-- record --> comments with cmd= found in ${pagesDir}"
+        fi
+    fi
 }
 
 _setupPages() {
@@ -184,7 +245,7 @@ _setupPages() {
     header "Setting up ${projectName} pages"
 
     _ensurePagesWorktree "${projectName}" "${projectRoot}" "${worktreePath}"
-    _ensurePagesFiles "${projectName}" "${projectRoot}" "${worktreePath}"
+    _ensurePagesFiles "${projectName}" "${projectRoot}" "${worktreePath}" 1
     _ensurePagesWorkflow "${projectName}" "${projectRoot}"
     _showPagesSetupInstructions "${projectName}" "${projectRoot}"
 }
@@ -218,6 +279,7 @@ _ensurePagesFiles() {
     local projectName="$1"
     local projectRoot="$2"
     local worktreePath="$3"
+    local publish=${4:-0}
 
     local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
     local githubUser; githubUser=${ echo "${remoteUrl}" | gsed -E 's|.*github\.com[:/]([^/]+)/.*|\1|'; }
@@ -310,12 +372,14 @@ EOF
         show "Created _plugins/ruby4_compat.rb"
     fi
 
-    local changedFiles; changedFiles=${ git -C "${worktreePath}" status --porcelain; }
-    if [[ -n "${changedFiles}" ]]; then
-        git -C "${worktreePath}" add -A || fail "git add failed"
-        git -C "${worktreePath}" commit -m "Initialize pages scaffolding" || fail "commit failed"
-        git -C "${worktreePath}" push || fail "git push failed"
-        show success "Pages scaffolding committed and pushed"
+    if (( publish )); then
+        local changedFiles; changedFiles=${ git -C "${worktreePath}" status --porcelain; }
+        if [[ -n "${changedFiles}" ]]; then
+            git -C "${worktreePath}" add -A || fail "git add failed"
+            git -C "${worktreePath}" commit -m "Initialize pages scaffolding" || fail "commit failed"
+            git -C "${worktreePath}" push || fail "git push failed"
+            show success "Pages scaffolding committed and pushed"
+        fi
     fi
 }
 
