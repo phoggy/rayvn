@@ -206,7 +206,7 @@ _addRayvnProjectFromExecutable() {
     local projectName="$1"
     local executable="${2:-${projectName}}"
     local path projectRoot
-    if path="${ type -p "${executable}"; }"; then
+    if path="${ type -P "${executable}"; }"; then
         path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
         projectRoot="${ dirname "${path}"; }/.."
         traceUp "adding rayvn project ${projectName} found at ${projectRoot}"
@@ -368,7 +368,7 @@ configure() {
     while (( $# > 0 )); do
         case "$1" in
             -a | --add) shift; IFS=',' read -r -a split <<< "$1"; projects+=("${split[@]}") ;;
-            *) { [[ "$1" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("$1") ;;
+            */*) { [[ "$1" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("$1") ;;
         esac
         shift
     done
@@ -435,7 +435,6 @@ configure() {
 
     declare -grx rayvnIsUp=1
     declare -g _rayvnShellPid="${BASHPID}"
-
 }
 
 # Verify key requirements
@@ -463,13 +462,15 @@ fi
 
 if (( ! rayvnIsUp )); then
 
-    # No, so configure, require specified libraries, then remove all temp functions and vars.
+    # No, so configure, require specified libraries
 
     configure "$@"
 
-    # Export key maps so child processes can restore them via _restoreGlobalMaps.
+    # Export key maps so child processes can restore them via _restoreGlobalMaps
 
     (( rayvnTest_DeferCore )) || exportGlobalMaps _rayvnProjects _rayvnRequireCounts _rayvnFunctionSources _ignoreRayvnUpFunctions
+
+    # Remove all temp functions and vars
 
     unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
     return 0
