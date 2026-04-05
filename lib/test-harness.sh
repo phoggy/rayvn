@@ -669,7 +669,7 @@ _startNixTask() {
             spinnerCloseInheritedFds
             executeClean rayvnTest_NonInteractive=1 \
                 nix develop --no-warn-dirty "${projectRoot}" \
-                --command "${BASH}" --noprofile --norc "${nixTestFile}" "${debugCommand[@]}" \
+                --command "${BASH}" --noprofile --norc "${nixTestFile}" "${debugArgs[@]}" \
                 &> "${logFile}"
             echo $? > "${resultFile}"
         ) &
@@ -835,7 +835,7 @@ _setPadding() {
 _executeTestFile() {
     local testFile="$1"
     shift
-    executeClean rayvnTest_NonInteractive=1 "$@" "${BASH}" --noprofile --norc "${testFile}" "${debugCommand[@]}"
+    executeClean rayvnTest_NonInteractive=1 "$@" "${BASH}" --noprofile --norc "${testFile}" "${debugArgs[@]}"
     testResult=$?
     return ${testResult}
 }

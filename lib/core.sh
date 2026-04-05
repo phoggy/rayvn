@@ -1256,15 +1256,27 @@ executeClean() {
 #
 #   setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]
 #
-#   --tty TTY (string)  Log debug messages to the TTY instead of the log file.
-#   --tty .             Log debug messages to the TTY read from "${HOME}/.debug.tty".
-#   --noStatus          Suppress debug status line display.
-#   --clearLog          Clear the log file if not tty mode.
-#   --showLogOnExit     Show the log file on exit if not tty mode.
+#    --debug           Enable debug, write output to log file and show on exit."
+#    --debug-new       Enable debug, clear log file, write output to log file and show on exit."
+#    --debug-out       Enable debug, write output to the current terminal."
+#    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
+#    --debug-tty .     Enable debug, write output to the TTY path read from the '${HOME}/.debug.tty' file."
 
 setDebug() {
-    require 'rayvn/debug'
-    _setDebug "$@"
+    local options=() extraShift=0 args=("$1")
+    case "$1" in
+        --debug)     options=('--showLogOnExit') ;;
+        --debug-new) options=('--clearLog' '--showLogOnExit') ;;
+        --debug-out) options=('--tty'); (( isInteractive )) && options+=("${ tty; }") || options+=("${terminal}") ;;
+        --debug-tty) shift; options=('--tty' "$1"); args+=("$1"); extraShift=1 ;;
+        --debug*) fail "unknown debug option: $1" ;;
+    esac
+    if (( ${#options[@]} )); then
+        require 'rayvn/debug'
+        _setDebug "${options[@]}"
+        declare -ga debugArgs=("${args[@]}")
+    fi
+    return ${extraShift}
 }
 
 # Placeholder debug functions; replaced by rayvn/debug when debug mode is enabled.

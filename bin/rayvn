@@ -51,14 +51,11 @@ main() {
 }
 
 init() {
-    declare -g debugOptions=()
-    declare -ga debugCommand=()
     declare -g command=
     declare -g projects=()
     declare -g args=()
     declare -g gitHubRepo
     declare -gAi flags=()
-    upOptions=()
 
     # process arguments
 
@@ -78,12 +75,9 @@ init() {
             docs) parseArgs true docsCommand "${@:2}" ;;
             lint) parseArgs true lintCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
-            --debug) debugOptions=('--showLogOnExit'); debugCommand=('--debug') ;;
-            --debug-new) debugOptions=('--clearLog' '--showLogOnExit'); debugCommand=('--debug-new') ;;
-            --debug-out) debugOptions=('--tty' "${ tty; }"); debugCommand=('--debug-tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('--tty' "$1"); debugCommand=('--debug-tty' "$1") ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
+            --debug*) setDebug "$@"; shift $? ;;
             -h | --help | help) command='usage' ;;
             -*) command='usage'; args=("Unknown option:" "$1") ;;
             *) command='usage'; [[ -n $1 ]] && args=("Unknown command:" "$1");;
@@ -91,11 +85,7 @@ init() {
         shift
     done
 
-    # Boot rayvn, adding any additional projects, then load core
-    source rayvn.up "${upOptions[@]}" 'rayvn/core'
-
     [[ -n ${command} ]] || usage
-    [[ -n "${debugOptions}" ]] && setDebug "${debugOptions[@]}"
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
@@ -114,14 +104,11 @@ parseArgs() {
             --all) flags+=(['all']=1) ;;
             --fix) flags+=(['fix']=1) ;;
             --ask) flags+=(['ask']=1) ;;
-            --debug) debugOptions=('--showLogOnExit'); debugCommand=('--debug') ;;
-            --debug-new) debugOptions=('--clearLog' '--showLogOnExit'); debugCommand=('--debug-new') ;;
-            --debug-out) debugOptions=('--tty' "${ tty; }"); debugCommand=('--debug-tty' "${ tty; }") ;;
-            --debug-tty) shift; debugOptions=('--tty' "$1"); debugCommand=('--debug-tty' "$1") ;;
+            --debug*) setDebug "$@"; shift $? ;;
             --repo) shift; gitHubRepo="$1";;
             -*) args+=("$1") ;;
             *)  if [[ ${add} == true ]]; then
-                addIfRayvnExecutable "$1" || args+=("$1")
+                _addIfRayvnExecutable "$1" || args+=("$1")
             else
                 args+=("$1")
             fi ;;
@@ -135,9 +122,13 @@ _detectCurrentProject() {
     local dir="${PWD}"
     while [[ -n "${dir}" && "${dir}" != '/' ]]; do
         if [[ -f "${dir}/rayvn.pkg" ]]; then
-            local pkgName
-            pkgName=${ bash -c "source '${dir}/rayvn.pkg' 2>/dev/null && printf '%s' \"\${projectName}\""; }
-            [[ -n "${pkgName}" ]] && addProject "${pkgName}=${dir}"
+            local projectName; projectName=${ gawk -F"'" '/^projectName=/{print $2; exit}' "${dir}/rayvn.pkg"; }
+            if [[ -n "${projectName}" ]]; then
+                if [[ "${projectName}" != rayvn ]]; then
+                    _addRayvnProject "${projectName}" "${dir}"
+                fi
+                projects+=( "${projectName}" )
+            fi
             return 0
         fi
         dir="${dir%/*}"
@@ -145,44 +136,35 @@ _detectCurrentProject() {
     return 0
 }
 
-theme() {
-    require 'rayvn/theme'
-    setTheme
-}
-
-addIfRayvnExecutable() {
+_addIfRayvnExecutable() {
     [[ ${command} == 'create' ]] && return 1
     local name="$1"
     local path root rayvnPkgFile
-    path="${ type -p "${name}"; }"
+    path="${ type -P "${name}"; }"
     if [[ -n "${path}" ]]; then
-
-        # Get root directory
-
-        path="${ realpath "${path}"; }"
-        path="${path%/}"  # normalize trailing slash
-        path="${path%/*}" # strip last component
-        root="${path%/*}" # and again to reach root
-
-        # See if there is a rayvn.pkg file
-
-        rayvnPkgFile="${root}/rayvn.pkg"
-        [[ -f "${rayvnPkgFile}" ]] || rayvnPkgFile="${root}/share/${name}/rayvn.pkg"
-        if [[ -f ${rayvnPkgFile} ]]; then
-            addProject "${name}=${root}"
+        if [[ "${name}" == 'rayvn'  ]]; then
+            projects+=( "${name}" )
             return 0
+        else
+            # Get root directory
+
+            path="${ realpath "${path}"; }"
+            path="${path%/}"  # normalize trailing slash
+            path="${path%/*}" # strip last component
+            root="${path%/*}" # and again to reach root
+
+            # See if there is a rayvn.pkg file
+
+            rayvnPkgFile="${root}/rayvn.pkg"
+            [[ -f "${rayvnPkgFile}" ]] || rayvnPkgFile="${root}/share/${name}/rayvn.pkg"
+            if [[ -f ${rayvnPkgFile} ]]; then
+                _addRayvnProject "${name}" "${root}"
+                projects+=( "${name}" )
+                return 0
+            fi
         fi
     fi
     return 1
-}
-
-addProject() {
-    local projectName="${1%%=*}"
-    local project="$1"
-    [[ " ${projects[*]} " =~ " ${projectName} " ]] && return 0
-    projects+=("${projectName}")
-    [[ ${projectName} == rayvn ]] && return 0
-    upOptions+=("--add" "${project}")
 }
 
 assertSingleProject() {
@@ -203,6 +185,11 @@ SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+
 
 printUsage() {
     usage
+}
+
+theme() {
+    require 'rayvn/theme'
+    setTheme
 }
 
 create() {
@@ -303,6 +290,7 @@ listLibraries() {
 
 _printLibraries() {
     local project="$1"
+    echo
     show bold "project ${project}" nl
     forEachLibrary "${project}" _printProjectLibrary
 }
@@ -373,12 +361,9 @@ forEachProject() {              # TODO: this pattern is a pain. Replace with get
     local command="$1"
     local arguments=("${@:2}")
     local projectRoot
-    for project in "${!_rayvnProjects[@]}"; do
-        if [[ "${project}" == *"::project"  ]]; then
-            project="${project%::project}"
-            projectRoot="${_rayvnProjects[${project}::project]}"
-            "${command}" "${project}" "${projectRoot}" "${arguments}"
-        fi
+    for project in "${projects[@]}"; do
+        projectRoot="${_rayvnProjects[${project}::project]}"
+        "${command}" "${project}" "${projectRoot}" "${arguments}"
     done
 }
 
@@ -398,9 +383,6 @@ forEachLibrary() {              # TODO: this pattern is a pain. Replace with get
 
 printVersion() {
     local verbose="${1:-}"
-    if ! declare -p _rayvnProjects &> /dev/null; then
-        source rayvn.up 'rayvn/core'
-    fi
     projectVersion rayvn "${verbose}"
 }
 
@@ -555,12 +537,14 @@ createProject() {
                     bye "Please go to https://github.com/ and create an account first."
                 fi
             fi
+            echo
             gh repo create "${projectName}" --add-readme --private --clone || fail
             cd "${projectRoot}" || fail
             repoUrl="${ git remote get-url origin; }"
             registerProjectOnRayvnCentral "${projectName}" || fail
             createdRepo=1
         else
+            echo
             makeDir "${projectRoot}" > /dev/null
             cd "${projectRoot}" || fail
             git init --initial-branch=main || fail
@@ -605,11 +589,9 @@ createProject() {
         echo
         show bold "Once you create a repo on GitHub, use the following commands to push it:"
         echo
-        echo "   TODO: create a 'rayvn save-project' command, using initNewProjectFormulaInRayvnCentral + the following;"
         echo "   cd ${projectRoot}"
-        echo "   git remote add origin https://github.com/YOUR_USER_NAME/${projectName}.git"
+        echo "   git remote add origin https://github.com/YOUR_GH_USER_NAME/${projectName}.git"
         echo "   git push -u origin main"
-        echo
         echo
     fi
     remindIfNotInPath "${binDir}"
@@ -718,4 +700,5 @@ copyFileAndSubstituteVars() {
     gsed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
 
+source rayvn.up
 main "$@"

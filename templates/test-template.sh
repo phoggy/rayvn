@@ -15,15 +15,12 @@ init() {
 
     while (( $# )); do
         case "$1" in
-            --debug) setDebug --showLogOnExit ;;
-            --debug-new) setDebug --clearLog --showLogOnExit ;;
-            --debug-out) setDebug --tty "${terminal}" ;;
-            --debug-tty) shift; setDebug --tty "${1}" ;;
+            --debug*) setDebug "$@"; shift $? ;;
         esac
         shift
     done
 
-    # TODO other initialization here
+    # TODO add other initialization here
 }
 
 # TODO replace me!

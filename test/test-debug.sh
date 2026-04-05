@@ -20,10 +20,7 @@ main() {
 init() {
     while (( $# )); do
         case "$1" in
-            --debug) setDebug --showLogOnExit ;;
-            --debug-new) setDebug --clearLog --showLogOnExit ;;
-            --debug-out) setDebug --tty "${terminal}" ;;
-            --debug-tty) shift; setDebug --tty "$1" ;;
+            --debug*) setDebug "$@"; shift $? ;;
         esac
         shift
     done
@@ -67,7 +64,7 @@ testIsDebugEnabledWhenOn() {
     local result
     result=${ executeClean bash -c "
         source rayvn.up 'rayvn/debug' 'rayvn/test'
-        setDebug --tty /dev/null --noStatus
+        _setDebug --tty /dev/null --noStatus
         isDebugEnabled && echo on || echo off
     "; }
     assertEqual "on" "${result}" "isDebugEnabled returns true when debug is active"
@@ -78,7 +75,7 @@ testDebugMessageOutput() {
 
     executeClean bash -c "
         source rayvn.up 'rayvn/debug'
-        setDebug --tty '${tmpOut}' --noStatus
+        _setDebug --tty '${tmpOut}' --noStatus
         debug 'hello from debug'
     "
 
@@ -91,7 +88,7 @@ testDebugVarOutput() {
 
     executeClean bash -c "
         source rayvn.up 'rayvn/debug'
-        setDebug --tty '${tmpOut}' --noStatus
+        _setDebug --tty '${tmpOut}' --noStatus
         declare -g myDebugTestVar='sentinel'
         debugVar myDebugTestVar
         debugVars myDebugTestVar
@@ -106,7 +103,7 @@ testDebugBinaryOutput() {
 
     executeClean bash -c "
         source rayvn.up 'rayvn/debug'
-        setDebug --tty '${tmpOut}' --noStatus
+        _setDebug --tty '${tmpOut}' --noStatus
         debugBinary 'bytes:' 'AB'
     "
 
@@ -119,7 +116,7 @@ testDebugVarIsSetOutput() {
 
     executeClean bash -c "
         source rayvn.up 'rayvn/debug'
-        setDebug --tty '${tmpOut}' --noStatus
+        _setDebug --tty '${tmpOut}' --noStatus
         declare -g setVar='value'
         debugVarIsSet setVar
         debugVarIsNotSet unsetVar
@@ -134,7 +131,7 @@ testDebugStackOutput() {
 
     executeClean bash -c "
         source rayvn.up 'rayvn/debug'
-        setDebug --tty '${tmpOut}' --noStatus
+        _setDebug --tty '${tmpOut}' --noStatus
         debugStack 'stack label'
     "
 
