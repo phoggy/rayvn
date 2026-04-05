@@ -218,6 +218,8 @@ _lintRunChecks() {
                                                     '(?:local|declare)[ \t]+-n[ \t]+\K[a-zA-Z_][a-zA-Z0-9]*(?<!Ref)(?=[= \t]|$)'
     _lintCheck '(?<!\\)\$(?!\{)[a-zA-Z_][a-zA-Z0-9_]+' \
                                                     "${_lintRunChecksFile}" 'named var without ${} — use ${varName}'               BARE_NAMED_VAR        _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\[\[\s+\$\{[^}]+\}\s+\]\]'         "${_lintRunChecksFile}" 'bare [[ ${var} ]] — use [[ -n ${var} ]]'             BRACKET_VAR_NONEMPTY  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\[\[\s+!\s+\$\{[^}]+\}\s+\]\]'     "${_lintRunChecksFile}" 'bare [[ ! ${var} ]] — use [[ -z ${var} ]]'           BRACKET_VAR_EMPTY     _lintRunChecksRef _lintRunChecksFixRef
 }
 
 # Apply fixes only to the specific lines flagged by _lintRunChecks.
@@ -283,6 +285,10 @@ _fixLine() {
             gsed -i -E "${lineNum}"'s/([^] [:blank:]:])\]\]/\1 \]\]/g' "${file}" ;; # lint-ok
         BARE_NAMED_VAR)
             gsed -i -E "${lineNum}"'s/\$([a-zA-Z_][a-zA-Z0-9_]+)/\${\1}/g' "${file}" ;;
+        BRACKET_VAR_NONEMPTY)
+            gsed -i -E "${lineNum}"'s/\[\[ (\$\{[^}]+\}) \]\]/[[ -n \1 ]]/g' "${file}" ;;
+        BRACKET_VAR_EMPTY)
+            gsed -i -E "${lineNum}"'s/\[\[ ! (\$\{[^}]+\}) \]\]/[[ -z \1 ]]/g' "${file}" ;;
     esac
 }
 
