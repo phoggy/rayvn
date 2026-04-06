@@ -34,7 +34,7 @@ require() {
 
             _loadRayvnLibrary
         else
-            traceUp "skipping '${qualifiedName}', already loaded"
+            traceUp "skipping '${qualifiedName}': already loaded"
         fi
         shift
     done
@@ -74,11 +74,7 @@ _loadRayvnLibrary() { # note: relies on local vars set by caller
                 reason="${ show ':' bold italic "${functionName}()" error "already defined by library '${source}'"; }"
             fi
         fi
-        if (( loadingRayvnCore )); then
-            ${failed} "failed to load shared library '${qualifiedName}'${reason}"
-        else
-            ${failed} "failed to load shared library '${qualifiedName}'${reason}"
-        fi
+        ${failed} "failed to load shared library '${qualifiedName}'${reason}"
     else
         # Add it to our list of sources
 
