@@ -215,7 +215,7 @@ _init_rayvn_terminal() {
     (( isInteractive )) || return 0  # Silently succeed when not interactive
 
     # Save original terminal settings from the terminal device
-    [[ ${_originalStty} ]] || declare -gr _originalStty="${ stty -g <&${ttyFd}; }"
+    [[ -n ${_originalStty} ]] || declare -gr _originalStty="${ stty -g <&${ttyFd}; }"
 
     declare -g _cursorRow=
     declare -g _cursorCol=

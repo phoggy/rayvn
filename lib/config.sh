@@ -34,7 +34,7 @@ extractSafeStaticVars() {
 
     result="${ _extractSafeStaticVarsOnly "${input}"; }" || fail
 
-    if [[ ${prefixFilter} ]]; then
+    if [[ -n ${prefixFilter} ]]; then
         result="${ _filterStaticVarsByPrefix "${result}" "${prefixFilter}"; }"
     fi
 

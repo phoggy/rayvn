@@ -95,7 +95,7 @@ _installMocks() {
     clearTerminal() { :; }
 
     # Set variables that _init_rayvn_terminal skips when isInteractive=0
-    [[ ${_originalStty} ]] || declare -g _originalStty="sane"
+    [[ -n ${_originalStty} ]] || declare -g _originalStty="sane"
     declare -gi _cursorRow=10
     declare -gi _cursorCol=1
 }

@@ -491,11 +491,11 @@ _showPagesSetupInstructions() {
 findDependencies() {
     local projectName="$1"
     local fixMode="${2:-}"
-    [[ ${projectName} ]] || fail "projectName required"
+    [[ -n ${projectName} ]] || fail "projectName required"
     require 'rayvn/dependencies'
 
     local projectRoot="${_rayvnProjects[${projectName}::project]}"
-    [[ ${projectRoot} ]] || fail "unknown project: ${projectName}"
+    [[ -n ${projectRoot} ]] || fail "unknown project: ${projectName}"
 
     header "Finding dependencies for ${projectName}"
 
@@ -514,7 +514,7 @@ findDependencies() {
     local -A _seenWords=()
     local word file lineNum
     while IFS=$'\t' read -r word file lineNum; do
-        [[ ${word} ]] || continue
+        [[ -n ${word} ]] || continue
         case "${word}" in
             awk) awkOccurrences+=("${file}:${lineNum}") ;;
             sed) sedOccurrences+=("${file}:${lineNum}") ;;
@@ -1751,7 +1751,7 @@ _findDepsLoadFunctions() {
         while IFS= read -r line; do
             [[ "${line}" =~ ^# ]] && continue
             fnName="${line%% *}"
-            [[ ${fnName} ]] && _fdFnRef["${fnName}"]=1
+            [[ -n ${fnName} ]] && _fdFnRef["${fnName}"]=1
         done < "${compactFile}"
     fi
 

@@ -167,11 +167,11 @@ assertInPath() {
     local executable="$1"
     local expectedPath="$2"
     local foundPath="${ command -v ${executable}; }"
-    [[ ${foundPath} ]] || fail "${executable} was not found in PATH"
+    [[ -n ${foundPath} ]] || fail "${executable} was not found in PATH"
     assertFile "${foundPath}"
     local realPath="${ realpath ${foundPath}; }"
 
-    if [[ ${expectedPath} ]]; then
+    if [[ -n ${expectedPath} ]]; then
         if [[ ${realPath} == "${foundPath}" ]]; then
             if [[ ${foundPath} != "${expectedPath}" ]]; then
                 fail "${executable} found at ${foundPath}, expected ${expectedPath}"
@@ -448,7 +448,7 @@ removePath () {
 
 printPath() {
     local pathVariable=${1:-PATH}
-    if [[ ${!pathVariable} ]]; then
+    if [[ -n ${!pathVariable} ]]; then
         echo
         echo "${pathVariable} search order:"
         echo ${PATH} | tr ':' '\n' | nl

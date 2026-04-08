@@ -51,7 +51,7 @@ assertEnvPreconditions() {
         unset -f expectedFunctions["${name}"]  || _failed "unset expected"
     done
 
-    [[ ${expectedFunctions[*]} ]] && _failed "missing functions '${expectedFunctions[*]}'"
+    [[ -n ${expectedFunctions[*]} ]] && _failed "missing functions '${expectedFunctions[*]}'"
     unset expectedFunctions
 
     # Now make sure we do not have the require function
@@ -135,7 +135,7 @@ _failed() {
 
 _printPath() {
     local pathVariable=${1:-PATH}
-    if [[ ${!pathVariable} ]]; then
+    if [[ -n ${!pathVariable} ]]; then
         local paths length width i
         echo "${pathVariable} search order:"
         echo
@@ -190,7 +190,7 @@ testSourceRayvnUp() {
 
     while true; do
         found="${ which rayvn; }"
-        if [[ ${found} ]]; then
+        if [[ -n ${found} ]]; then
             pathDir="${ dirname "${found}"; }"
             _removePath "${pathDir}"
         else

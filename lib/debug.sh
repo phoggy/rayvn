@@ -84,7 +84,7 @@ debugVarIsSet() {
     if (( _debug )); then
         local var="$1"
         local prefix="$2"
-        [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
+        [[ -n ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is set ->" ;} "
             if varDefined ${var}; then
@@ -109,7 +109,7 @@ debugVarIsNotSet() {
     if (( _debug )); then
         local var="$1"
         local prefix="$2"
-        [[ ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
+        [[ -n ${prefix} ]] && prefix="${ show accent "${prefix} and" ;} "
         (
             local var="$1"
             _debugEchoNoNewline "${prefix}${ show primary "expect '${var}' is not set ->" ;} "
@@ -344,7 +344,7 @@ _debugStatus() {
     prefix="${ show accent italic 'debug ⮕ '; }"
     if [[ -n ${_debugLogFile} ]]; then
         local show=
-        [[ ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]"; }"
+        [[ -n ${_debugShowLogOnExit} ]] && show=" ${ show dim "[show on exit]"; }"
         suffix="${ show bold blue "${_debugLogFile}" ;}${show}"
     elif [[ ${_debugOut} == "${terminal}" ]]; then
         suffix="${ show bold blue "terminal"; }"

@@ -1209,10 +1209,10 @@ projectVersion() {
     (
         require 'rayvn/config'
         sourceConfigFile "${pkgFile}" project
-        if [[ ${projectReleaseDate} ]]; then
-            [[ ${verbose} ]] && description=" (released ${projectReleaseDate})"
+        if [[ -n ${projectReleaseDate} ]]; then
+            [[ -n ${verbose} ]] && description=" (released ${projectReleaseDate})"
         else
-            [[ ${verbose} ]] && description=" (development)"
+            [[ -n ${verbose} ]] && description=" (development)"
         fi
         echo "${projectName} ${projectVersion}${description}"
     )
@@ -1649,7 +1649,7 @@ _setFileSystemVar() {
     local description="$3"
     local isDir="$4"
 
-    [[ ${file} ]] || fail "${description} path is required"
+    [[ -n ${file} ]] || fail "${description} path is required"
     [[ -e ${file} ]] || fail "${file} not found"
     if [[ ${isDir} == true ]]; then
         [[ -d ${file} ]] || fail "${file} is not a directory"
@@ -1716,7 +1716,7 @@ _onRayvnExit() {
 
     # Delete temp dir if we created it
 
-    if [[ ${_rayvnTempDir} ]] && (( BASHPID == _rayvnTempDirOwner )); then
+    if [[ -n ${_rayvnTempDir} ]] && (( BASHPID == _rayvnTempDirOwner )); then
         rm -rf -- "${_rayvnTempDir}" &>/dev/null
     fi
 }

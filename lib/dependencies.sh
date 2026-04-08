@@ -82,7 +82,7 @@ getBrewDependencies() {
     if [[ -z ${projectRoot} ]]; then
         local homeVar="${projectName//-/_}Home"
         projectRoot="${!homeVar}"
-        [[ ${projectRoot} ]] || projectRoot="${PWD}"
+        [[ -n ${projectRoot} ]] || projectRoot="${PWD}"
     fi
 
     local pkgFile="${projectRoot}/rayvn.pkg"
@@ -128,7 +128,7 @@ _depsProjectRoot() {
 
     local homeVar="${projectName//-/_}Home"
     local candidateRoot="${!homeVar}"
-    [[ ${candidateRoot} ]] || candidateRoot="${PWD}"
+    [[ -n ${candidateRoot} ]] || candidateRoot="${PWD}"
 
     if [[ -f "${candidateRoot}/flake.nix" ]]; then
         _rootRef="${candidateRoot}"
