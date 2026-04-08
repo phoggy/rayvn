@@ -1396,6 +1396,7 @@ _init_rayvn_core() {
     declare -gar _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
     declare -gr inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
+    declare -g _rayvnExitMessage=''
 
     # Detect the best available RAM-backed temp storage strategy.
     # linux_shm:   /dev/shm (tmpfs, standard on Linux)
@@ -1712,7 +1713,7 @@ _onRayvnExit() {
     # Add a line and any deferred signal message after exit tasks have repositioned the cursor
 
     (( rayvnTest_NoEchoOnExit )) || echo
-    [[ -v _rayvnExitMessage ]] && echo "${_rayvnExitMessage}"
+    [[ -n ${_rayvnExitMessage} ]] && echo "${_rayvnExitMessage}"
 
     # Delete temp dir if we created it
 

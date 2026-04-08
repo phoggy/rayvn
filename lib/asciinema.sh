@@ -314,7 +314,7 @@ _asciinemaFixWidgetPositions() {
                 cpr_seen = 1
             if (cpr_seen) {
                 s = line; out = ""
-                while (match(s, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) {
+                while (match(s, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
                     out = out substr(s, 1, RSTART-1) "\\u001b[" a[2] "G"
                     s = substr(s, RSTART + RLENGTH)
                 }

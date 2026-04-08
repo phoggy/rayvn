@@ -23,7 +23,7 @@ init() {
 }
 
 assertEnvPreconditions() {
-    errorPrefix='precondition: '
+    local errorPrefix='precondition: '
 
     # Make sure we did not inherit our boot vars
 
@@ -57,8 +57,6 @@ assertEnvPreconditions() {
     # Now make sure we do not have the require function
 
     _assertFunctionIsNotDefined require
-
-    errorPrefix=''
 }
 
 # Prefix all assert function names with '_' so that we know they don't collide with
@@ -188,6 +186,7 @@ testSourceRayvnUp() {
 
     # Remove all PATH dirs containing rayvn so that we can test rayvn.up
 
+    local found pathDir
     while true; do
         found="${ which rayvn; }"
         if [[ -n ${found} ]]; then

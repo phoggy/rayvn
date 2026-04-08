@@ -220,6 +220,80 @@ _lintRunChecks() {
                                                     "${_lintRunChecksFile}" 'named var without ${} — use ${varName}'               BARE_NAMED_VAR        _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\[\[\s+\$\{[^}]+\}\s+\]\]'         "${_lintRunChecksFile}" 'bare [[ ${var} ]] — use [[ -n ${var} ]]'             BRACKET_VAR_NONEMPTY  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\[\[\s+!\s+\$\{[^}]+\}\s+\]\]'     "${_lintRunChecksFile}" 'bare [[ ! ${var} ]] — use [[ -z ${var} ]]'           BRACKET_VAR_EMPTY     _lintRunChecksRef _lintRunChecksFixRef
+
+    # Stateful gawk check: implicit global — assignment inside a function to a variable not
+    # declared local/declare in that function. Requires local or declare -g (explicit global).
+    # Two-pass: pass 1 collects all declare -g* names (file-level globals, e.g. from _init_*);
+    # pass 2 flags bare assignments to variables not in either localVars or fileGlobals.
+    local _implicitGlobalsScript='
+        NR == FNR {
+            if (/declare[[:space:]]+-[a-zA-Z]*g[a-zA-Z]*[[:space:]]/)
+                if (match($0, /declare[[:space:]]+-[a-zA-Z]+[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)/, m))
+                    fileGlobals[m[1]] = 1
+            next
+        }
+
+        BEGIN { depth = 0; isPrivate = 0 }
+        /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+
+        # Track function body depth and whether we are in a private (_*) function.
+        # Private functions are excluded from this check: they legitimately access
+        # caller-scope locals via bash dynamic scoping.
+        /^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\).*\{[[:space:]]*(#.*)?$/ ||
+        /^function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*.*\{[[:space:]]*(#.*)?$/ {
+            if (depth == 0) {
+                match($0, /(function[[:space:]]+)?([a-zA-Z_][a-zA-Z0-9_]*)/, m)
+                isPrivate = (m[2] ~ /^_/ || m[2] == "init"); delete localVars
+            }
+            depth++; next
+        }
+        /^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\)[[:space:]]*(#.*)?$/ ||
+        /^function[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*(#.*)?$/ {
+            if (depth == 0) {
+                match($0, /(function[[:space:]]+)?([a-zA-Z_][a-zA-Z0-9_]*)/, m)
+                isPrivate = (m[2] ~ /^_/ || m[2] == "init"); delete localVars
+            }
+            next
+        }
+        /^[[:space:]]*\{[[:space:]]*(#.*)?$/ { depth++; next }
+        /^[[:space:]]*\}[[:space:]]*(#.*)?$/ {
+            if (depth > 0) depth--
+            if (depth == 0) { isPrivate = 0; delete localVars }
+            next
+        }
+
+        # Track all local/declare (non-global) variable declarations in current function.
+        # Handles: local foo, local -a foo, local -n fooRef=$1, local foo bar, local foo=val
+        depth > 0 && /^[[:space:]]*(local|declare)[[:space:]]/ &&
+        !/declare[[:space:]]+-[a-zA-Z]*g[a-zA-Z]*[[:space:]]/ {
+            line = $0
+            gsub(/^[[:space:]]*(local|declare)[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*/, "", line)
+            n = split(line, parts, " ")
+            for (i = 1; i <= n; i++) {
+                if (match(parts[i], /^([a-zA-Z_][a-zA-Z0-9_]*)/, m) && m[1] != "")
+                    localVars[m[1]] = 1
+            }
+            next
+        }
+
+        # Skip explicit declare -g* (intentional globals are fine)
+        depth > 0 && /declare[[:space:]]+-[a-zA-Z]*g[a-zA-Z]*[[:space:]]/ { next }
+
+        # Flag bare assignments in public functions to variables neither local to this
+        # function nor declared global in the file. Private functions (_*) are excluded:
+        # they use dynamic scoping to access caller-scope locals intentionally.
+        !isPrivate && depth > 0 && /^[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[+]?=/ {
+            if ($0 ~ /^[[:space:]]*(local|declare|export|readonly|function)[[:space:]]/) next
+            if ($0 ~ /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*\[/)                          next  # array subscript
+            if ($0 ~ /^[[:space:]]*(IFS|PIPESTATUS|REPLY|SECONDS|PATH)[+]?=/)             next  # special vars
+            if ($0 ~ /^[[:space:]]*[A-Z_][A-Z0-9_]*=.+[[:space:]]+[a-zA-Z\/]/)        next  # inline env-var override (VAR=val cmd)
+            if (match($0, /^[[:space:]]*([a-zA-Z_][a-zA-Z0-9_]*)[+]?=/, m) && m[1] != "") {
+                if (!(m[1] in localVars) && !(m[1] in fileGlobals)) print FNR ":" $0
+            }
+        }
+    '
+    _lintGawkCheck "${_implicitGlobalsScript}" "${_lintRunChecksFile}" \
+        'implicit global — use local or declare -g' _lintRunChecksRef
 }
 
 # Apply fixes only to the specific lines flagged by _lintRunChecks.
@@ -333,4 +407,21 @@ _lintGrep() {
     else
         ${grepCmd} -oP "${pattern}" 2> /dev/null
     fi
+}
+
+# Run a stateful gawk script against a file and collect findings. The script must output
+# "lineNum:lineContent" for each violation. No auto-fix support — gawk checks require manual fixes.
+_lintGawkCheck() {
+    local awkScript=$1
+    local file=$2
+    local message=$3
+    local -n _lintGawkFindingsRef=$4
+    local match lineNum lineContent
+
+    while IFS= read -r match; do
+        lineNum="${match%%:*}"
+        lineContent="${match#*:}"
+        [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
+        _lintGawkFindingsRef+=("    line ${lineNum}  ${message}")
+    done < <(gawk "${awkScript}" "${file}" "${file}")
 }
