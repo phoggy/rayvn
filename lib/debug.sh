@@ -266,7 +266,6 @@ _init_rayvn_debug() {
                     debugFileDescriptors
     fi
 
-    declare -gx _debug=0
     declare -gx _debugFd=
     declare -gx _debugOut=
     declare -gx _debugPrefix=

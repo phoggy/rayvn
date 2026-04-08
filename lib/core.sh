@@ -1279,7 +1279,7 @@ setDebug() {
     return ${extraShift}
 }
 
-# Placeholder debug functions; replaced by rayvn/debug when debug mode is enabled.
+# namespace-skip-start: placeholder stubs replaced by rayvn/debug when debug mode is enabled.
 debug() { :; }
 debugEnabled() { return 0; }
 debugDir() { :; }
@@ -1296,6 +1296,7 @@ debugTraceOff() { :; }
 debugEscapes() { :; }
 debugEnvironment() { :; }
 debugFileDescriptors() { :; }
+# namespace-skip-end
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/core' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 

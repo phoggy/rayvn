@@ -19,6 +19,7 @@ usage() {
     echo "    register NAME     Stake a claim on the project name, if available."
     echo "    release           Create a new release."
     echo "    lint              Scan source files for requirement violations."
+    echo "    collisions        Check for namespace collisions across projects."
     echo "    deps              Scan source files and ensure dependency tracking is up to date."
     echo "    index             Generate function indexes for AI agent use."
     echo "    pages             Generate and preview project gh-pages site."
@@ -74,6 +75,7 @@ init() {
             pages) parseArgs true pagesCommand "${@:2}" ;;
             docs) parseArgs true docsCommand "${@:2}" ;;
             lint) parseArgs true lintCommand "${@:2}" ;;
+            collisions) parseArgs true collisionsCommand "${@:2}" ;;
             deps) parseArgs true depsCommand "${@:2}" ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
@@ -458,6 +460,21 @@ lintCommand() {
         (( flags['ask'] )) && fixMode='--ask'
         require 'rayvn/lint'
         runLint ${fixMode} "${projects[@]}"
+    fi
+}
+
+collisionsCommand() {
+    if (( flags['help'] )); then
+        echo "rayvn collisions [PROJECT...]"
+        echo "  Check for function and variable name collisions across rayvn project libraries."
+        echo "  Defaults to all currently registered projects."
+    else
+        require 'rayvn/namespace'
+        if (( ${#projects[@]} > 0 )); then
+            checkNamespaces "${projects[@]}"
+        else
+            checkNamespaces
+        fi
     fi
 }
 

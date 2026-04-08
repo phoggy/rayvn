@@ -17,7 +17,7 @@ release () {
     local project="${ghRepo#*/}"
 
     [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
-    [[ ${version} ]] || fail "version required"
+    [[ -n ${version} ]] || fail "version required"
     command -v nix > /dev/null 2>&1 || fail "'rayvn release' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
 
     header -u "Releasing ${project} v${version}" off primary "${ghRepo}"
@@ -27,6 +27,7 @@ release () {
     _ensureRepoIsReadyForRelease "${version}" || fail
     _runTests "${project}" || fail
     _runLint "${project}" || fail
+    _checkNamespaces || fail
     _auditDocs "${project}" || fail
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
@@ -54,6 +55,18 @@ _init_rayvn_release() {
     require 'rayvn/function-docs'
     require 'rayvn/test-harness'
     require 'rayvn/lint'
+    require 'rayvn/namespace'
+}
+
+_checkNamespaces() {
+    header 2 "Checking namespace collisions"
+    # Ensure all known rayvn-family projects are registered for a comprehensive cross-project check
+    local knownProject
+    for knownProject in rayvn valt wardn sandbox; do
+        [[ -v "_rayvnProjects[${knownProject}${_projectRootSuffix}]" ]] || \
+            _addRayvnProject "${knownProject}" 2>/dev/null || true
+    done
+    checkNamespaces || fail "Namespace collisions found — fix before releasing"
 }
 
 _runLint() {
@@ -269,7 +282,7 @@ _ensureRepoIsReadyForRelease() {
     # Check if the version tag exists in the remote but not locally
 
     remoteTag="${ git ls-remote --tags origin "${versionTag}"; }"
-    if [[ ${remoteTag} ]]  && ! git rev-parse --verify "${versionTag}" &> /dev/null; then
+    if [[ -n ${remoteTag} ]]  && ! git rev-parse --verify "${versionTag}" &> /dev/null; then
         echo "Tag ${versionTag} exists in the remote but not locally. Pulling tag..."
 
         # Fetch and checkout the tag from the remote
@@ -364,7 +377,7 @@ _updateBrewFormula() {
         -f "message=Update ${project}.rb for v${version}"
         -f "content=${encoded}"
     )
-    [[ ${currentSha} ]] && putArgs+=(-f "sha=${currentSha}")
+    [[ -n ${currentSha} ]] && putArgs+=(-f "sha=${currentSha}")
 
     gh api "${tapApiPath}" "${putArgs[@]}" > /dev/null || fail "Failed to update formula in tap ${brewTapRepo}"
     echo "Formula ${project}.rb updated in ${brewTapRepo}"
