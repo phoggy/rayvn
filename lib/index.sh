@@ -609,6 +609,22 @@ findDependencies() {
     # Portability check
     header "Checking portability"
 
+    # Filter out case-alternative labels (e.g. awk|sed) return 1;;) — the | split in the
+    # gawk extractor produces bare 'awk' or 'sed' tokens from such lines; skip them here.
+    local -a _filtered=()
+    local _loc _f _ln
+    for _loc in "${awkOccurrences[@]}"; do
+        _f="${_loc%:*}"; _ln="${_loc##*:}"
+        [[ "${ gsed -n "${_ln}p" "${_f}"; }" =~ ^[[:space:]]*[A-Za-z_*?][A-Za-z0-9_.*?|]*\) ]] || _filtered+=("${_loc}")
+    done
+    awkOccurrences=("${_filtered[@]}")
+    _filtered=()
+    for _loc in "${sedOccurrences[@]}"; do
+        _f="${_loc%:*}"; _ln="${_loc##*:}"
+        [[ "${ gsed -n "${_ln}p" "${_f}"; }" =~ ^[[:space:]]*[A-Za-z_*?][A-Za-z0-9_.*?|]*\) ]] || _filtered+=("${_loc}")
+    done
+    sedOccurrences=("${_filtered[@]}")
+
     # Emit portability errors (or fix) for awk/sed occurrences
     local loc relLoc absFile
     local -i portabilityErrors=0
