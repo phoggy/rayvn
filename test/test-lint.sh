@@ -21,6 +21,13 @@ main() {
     testLintFixesSpacing
     testLintFixesStrictMode
     testLintUnregisteredProject
+    testLintDetectsImplicitGlobal
+    testLintAllowsDeclareGlobal
+    testLintAllowsLocalVar
+    testLintAllowsPrivateFunction
+    testLintAllowsInitFunction
+    testLintAllowsPathAssignment
+    testLintImplicitGlobalLintOk
 }
 
 init() {
@@ -135,6 +142,70 @@ testLintFixesStrictMode() {
 testLintUnregisteredProject() {
     assertFalse "runLint fails for unregistered project" \
         eval "( runLint 'no-such-project-xyz' ) 2>/dev/null"
+}
+
+# ============================================================================
+# Implicit globals check
+# ============================================================================
+
+testLintDetectsImplicitGlobal() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "implicit-global.sh" 'publicFunc() {
+    implicitVar="hello"
+}' > /dev/null
+    assertFalse "runLint detects implicit global in public function" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintAllowsDeclareGlobal() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "declare-g.sh" '_init_lint_test_declareG() {
+    declare -g myGlobal
+}
+publicFunc() {
+    myGlobal="hello"
+}' > /dev/null
+    assertTrue "runLint allows assignment to declared -g global" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintAllowsLocalVar() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "local-var.sh" 'publicFunc() {
+    local myVar
+    myVar="hello"
+}' > /dev/null
+    assertTrue "runLint allows assignment to declared local variable" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintAllowsPrivateFunction() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "private-func.sh" '_privateFunc() {
+    bareVar="hello"
+}' > /dev/null
+    assertTrue "runLint allows bare assignment in private (_) function" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintAllowsInitFunction() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "init-func.sh" 'init() {
+    bareVar="hello"
+}' > /dev/null
+    assertTrue "runLint allows bare assignment in init() function" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintAllowsPathAssignment() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "path-var.sh" 'publicFunc() {
+    PATH="/usr/bin:${PATH}"
+}' > /dev/null
+    assertTrue "runLint allows PATH assignment (special shell variable)" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintImplicitGlobalLintOk() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "implicit-global-ok.sh" 'publicFunc() {
+    implicitVar="hello" # lint-ok
+}' > /dev/null
+    assertTrue "runLint respects # lint-ok on implicit global line" runLint "${lintTestProject}" 2>/dev/null
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/lint' 'rayvn/test'
