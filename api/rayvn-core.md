@@ -882,12 +882,5 @@ Enable debug mode.
 
 | | |
 |---|---|
-| `--tty TTY` *(string)* | Log debug messages to the TTY instead of the log file. |
-| `--tty` | .             Log debug messages to the TTY read from "${HOME}/.debug.tty". |
-| `--noStatus` | Suppress debug status line display. |
-| `--clearLog` | Clear the log file if not tty mode. |
-| `--showLogOnExit` | Show the log file on exit if not tty mode. |
 {: .usage-table}
-
-### setDebugNew()
 
