@@ -23,7 +23,7 @@ usage() {
     echo "    pages             Generate and preview project gh-pages site."
     echo "    build             Run nix build."
     echo "    release           Create a new release."
-    echo "    register NAME     Stake a claim on a project name, if available."
+    echo "    register          Stake a claim on a project name, if available."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project"
     echo "if within one. 'test' falls back to rayvn if not in a project."
