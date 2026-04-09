@@ -157,31 +157,36 @@ _collectUnknownRayvnFunctions() {
 _addRayvnProject() {
     local projectName="$1"
     local projectRoot="${2:-}"
+    if [[ ! -v _rayvnProjects[${projectName}${_projectRootSuffix}] ]]; then
 
-    # Add project root
+        # Add project root
 
-    if [[ -n ${projectRoot} && -d ${projectRoot} ]]; then
-        traceUp "adding project ${projectName} at ${projectRoot}"
-        _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+        if [[ -n ${projectRoot} && -d ${projectRoot} ]]; then
+            traceUp "adding project ${projectName} at ${projectRoot}"
+            _addRayvnProjectRoot "${projectName}" "${_projectRootSuffix}" "${projectRoot}"
+        else
+            traceUp "adding project ${projectName} from executable"
+            _addRayvnProjectFromExecutable "${projectName}" "${projectName}"
+            return 0
+        fi
+
+        # Resolve resource root: where lib/, etc/, rayvn.pkg live.
+        # Normal git clone: same as project root.
+        # Nix profile layout: share/<project>/ under project root.
+
+        local resolvedRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}"
+        local resourceRoot="${resolvedRoot}"
+        [[ -d "${resolvedRoot}/share/${projectName}" ]] && resourceRoot="${resolvedRoot}/share/${projectName}"
+        declare -grx "${projectName//-/_}Home"="${resourceRoot}"
+
+        # Add library root if it exists (under resource root)
+
+        local libraryRoot="${resourceRoot}/lib"
+        if [[ -d "${libraryRoot}" ]]; then
+            _addRayvnProjectRoot "${projectName}" "${_libraryRootSuffix}" "${libraryRoot}"
+        fi
     else
-        traceUp "adding project ${projectName} from executable"
-        _addRayvnProjectFromExecutable "${projectName}" "${projectName}"
-    fi
-
-    # Resolve resource root: where lib/, etc/, rayvn.pkg live.
-    # Normal git clone: same as project root.
-    # Nix profile layout: share/<project>/ under project root.
-
-    local resolvedRoot="${_rayvnProjects[${projectName}${_projectRootSuffix}]}"
-    local resourceRoot="${resolvedRoot}"
-    [[ -d "${resolvedRoot}/share/${projectName}" ]] && resourceRoot="${resolvedRoot}/share/${projectName}"
-    declare -grx "${projectName//-/_}Home"="${resourceRoot}"
-
-    # Add library root if it exists (under resource root)
-
-    local libraryRoot="${resourceRoot}/lib"
-    if [[ -d "${libraryRoot}" ]]; then
-        _addRayvnProjectRoot "${projectName}" "${_libraryRootSuffix}" "${libraryRoot}"
+        traceUp "${projectName} already present"
     fi
 }
 
@@ -202,17 +207,18 @@ _addRayvnProjectFromExecutable() {
     local projectName="$1"
     local executable="${2:-${projectName}}"
     local path projectRoot
+
     if path="${ type -P "${executable}"; }"; then
         path="${ realpath "${path}"; }" || fail # handle symlinks, e.g. brew style
         projectRoot="${ dirname "${path}"; }/.."
-        traceUp "adding rayvn project ${projectName} found at ${projectRoot}"
+        traceUp "project ${projectName} found at ${projectRoot}"
         _addRayvnProject "${projectName}" "${projectRoot}"
     elif [[ ${executable} == "${projectName}" ]]; then
         fail "project '${executable}' executable not found in PATH"
     else
         fail "'${executable}' not found in PATH for project '${projectName}'"
     fi
-}
+ }
 
 _restoreGlobalMaps() {
     [[ -v _rayvnGlobalMaps ]] || return 0

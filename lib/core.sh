@@ -1203,6 +1203,8 @@ addExitHandler() {
 projectVersion() {
     local projectName="$1"
     local verbose="${2:-}"
+    _addRayvnProject "${projectName}"
+
     local -n projectHomeRef="${projectName//-/_}Home"
     local pkgFile="${projectHomeRef}/rayvn.pkg"
     assertFileExists "${pkgFile}"
@@ -1214,7 +1216,7 @@ projectVersion() {
         else
             [[ -n ${verbose} ]] && description=" (development)"
         fi
-        echo "${projectName} ${projectVersion}${description}"
+        show bold "${projectName}" "${projectVersion}${description}"
     )
 }
 

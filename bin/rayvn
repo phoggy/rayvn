@@ -10,29 +10,29 @@ usage() {
     echo
     echo "Commands"
     echo
+    echo "    new TYPE NAME     Create a new project, script, library or test with the specified NAME."
     echo "    test              Run tests."
-    echo "    build             Run nix build."
     echo "    theme             Select theme."
-    echo "    new TYPE NAME     Create a new project/script/library/test with the specified NAME."
     echo "    libraries         List libraries."
-    echo "    functions         List public functions."
-    echo "    register NAME     Stake a claim on the project name, if available."
-    echo "    release           Create a new release."
+    echo "    functions         List functions."
     echo "    lint              Scan source files for requirement violations."
-    echo "    collisions        Check for namespace collisions across projects."
-    echo "    deps              Scan source files and ensure dependency tracking is up to date."
+    echo "    collisions        Check for namespace collisions within and across projects."
+    echo "    dependencies      Scan source files and ensure dependency tracking is up to date."
     echo "    index             Generate function indexes for AI agent use."
-    echo "    pages             Generate and preview project gh-pages site."
     echo "    docs              Audit or update function documentation."
+    echo "    pages             Generate and preview project gh-pages site."
+    echo "    build             Run nix build."
+    echo "    release           Create a new release."
+    echo "    register NAME     Stake a claim on a project name, if available."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project"
     echo "if within one. 'test' falls back to rayvn if not in a project."
     echo
     echo "Options:"
     echo
-    echo "    -h, --help        Print this help message and exit."
-    echo "    -v                Print the version and exit."
-    echo "    --version         Print the version with release date and exit."
+    echo "    -h, --help        Print this help message."
+    echo "    -v                Print the version."
+    echo "    --version         Print the version with release date."
     echo
     echo "Debug Options:"
     echo
@@ -40,7 +40,7 @@ usage() {
     echo "    --debug-new       Enable debug, clear log file, write output to log file and show on exit."
     echo "    --debug-out       Enable debug, write output to the current terminal."
     echo "    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
-    echo "    --debug-tty .     Enable debug, write output to the TTY path read from the '${HOME}/.debug.tty' file."
+    echo "    --debug-tty .     Enable debug, write output to the TTY path read from the '~/.debug.tty' file."
     bye "$@"
 }
 
@@ -62,21 +62,21 @@ init() {
 
     while (( $# )) && [[ -z ${command} ]]; do
         case "$1" in
-            test) parseArgs true runTests "${@:2}" ;;
-            build) parseArgs true nixBuild "${@:2}" ;;
-            theme) parseArgs false theme "${@:2}" ;;
-            new | create) parseArgs false create "${@:2}" ;;
-            projects) parseArgs true listProjects "${@:2}" ;;
-            libraries) parseArgs true listLibraries "${@:2}" ;;
-            functions) parseArgs true listFunctions "${@:2}" ;;
-            register) parseArgs false registerProject "${@:2}" ;;
-            release) parseArgs true releaseProject "${@:2}" ;;
-            index) parseArgs true indexDocs "${@:2}" ;;
-            pages) parseArgs true pagesCommand "${@:2}" ;;
-            docs) parseArgs true docsCommand "${@:2}" ;;
-            lint) parseArgs true lintCommand "${@:2}" ;;
-            collisions) parseArgs true collisionsCommand "${@:2}" ;;
-            deps) parseArgs true depsCommand "${@:2}" ;;
+            test) parseArgs true testCmd "${@:2}" ;;
+            build) parseArgs true buildCmd "${@:2}" ;;
+            theme) parseArgs false themeCmd "${@:2}" ;;
+            new | create) parseArgs false newCmd "${@:2}" ;;
+            projects) parseArgs true projectsCmd "${@:2}" ;;
+            libraries) parseArgs true librariesCmd "${@:2}" ;;
+            functions) parseArgs true functionsCmd "${@:2}" ;;
+            register) parseArgs false registerCmd "${@:2}" ;;
+            release) parseArgs true releaseCmd "${@:2}" ;;
+            index) parseArgs true indexCmd "${@:2}" ;;
+            pages) parseArgs true pagesCmd "${@:2}" ;;
+            docs) parseArgs true docsCmd "${@:2}" ;;
+            lint) parseArgs true lintCmd "${@:2}" ;;
+            collisions) parseArgs true collisionsCmd "${@:2}" ;;
+            deps|dependencies) parseArgs true dependenciesCmd "${@:2}" ;;
             -v) printVersion; exit 0 ;;
             --version) printVersion true; exit 0 ;;
             --debug*) setDebug "$@"; shift $? ;;
@@ -110,17 +110,17 @@ parseArgs() {
             --repo) shift; gitHubRepo="$1";;
             -*) args+=("$1") ;;
             *)  if [[ ${add} == true ]]; then
-                _addIfRayvnExecutable "$1" || args+=("$1")
+                addIfRayvnExecutable "$1" || args+=("$1")
             else
                 args+=("$1")
             fi ;;
         esac
         shift
     done
-    [[ ${add} == true ]] && (( ${#projects[@]} == 0 )) && _detectCurrentProject
+    [[ ${add} == true ]] && (( ${#projects[@]} == 0 )) && detectCurrentProject
 }
 
-_detectCurrentProject() {
+detectCurrentProject() {
     local dir="${PWD}"
     while [[ -n "${dir}" && "${dir}" != '/' ]]; do
         if [[ -f "${dir}/rayvn.pkg" ]]; then
@@ -138,8 +138,8 @@ _detectCurrentProject() {
     return 0
 }
 
-_addIfRayvnExecutable() {
-    [[ ${command} == 'create' ]] && return 1
+addIfRayvnExecutable() {
+    [[ ${command} == 'newCmd' ]] && return 1
     local name="$1"
     local path root rayvnPkgFile
     path="${ type -P "${name}"; }"
@@ -189,14 +189,14 @@ printUsage() {
     usage
 }
 
-theme() {
-    require 'rayvn/theme'
-    setTheme
-}
 
-create() {
+newCmd() {
     if (( flags['help'] )); then
         echo "rayvn new project|script|library|test NAME [--local]"
+        echo
+        echo "  Create a new project, script, library, or test file from a template."
+        echo
+        echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
     else
         local type=${args[0]}
         local name=${args[1]}
@@ -212,34 +212,225 @@ create() {
         args=("${args[@]:3}")
 
         case ${type} in
-            project) createProject;;
-            script) createScript ;;
-            library) createLibrary ;;
-            test) createTest ;;
+            project) newProject;;
+            script) newScript ;;
+            library) newLibrary ;;
+            test) newTest ;;
         esac
     fi
 }
 
-registerProject() {
+themeCmd() {
     if (( flags['help'] )); then
-        echo "rayvn register PROJECT [--remove] "
+        echo "rayvn theme"
+        echo
+        echo "  Interactively select a color theme for rayvn output."
     else
-        assertGitRepo
-        require 'rayvn/central'
-        local projectName=${args[0]}
-        [[ -n ${projectName} ]] || fail "project name required"
-        local projectUrl repoName
-        projectUrl="${ git remote get-url origin; }" || fail
-        projectUrl="${projectUrl%.git}"
-        repoName=${ baseName ${projectUrl}; }
-        [[ ${projectName} == "${repoName}" ]]
-        registerProjectOnRayvnCentral "${projectName}" || fail
+        require 'rayvn/theme'
+        setTheme
     fi
 }
 
-releaseProject() {
+projectsCmd() {
     if (( flags['help'] )); then
-        echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION "
+        echo "rayvn projects [PROJECT...]"
+        echo
+        echo "  Show info for one or more projects."
+    else
+        echo
+        forEachProject printProject "${args[@]}"
+    fi
+}
+
+librariesCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn libraries [PROJECT...]"
+        echo
+        echo "  List all libraries for one or more projects."
+    else
+        forEachProject printLibraries "$1"
+    fi
+}
+
+functionsCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY]] [--all]"
+        echo
+        echo "  List public functions for project libraries."
+        echo
+        echo "  --all  Also list private (_-prefixed) functions."
+    else
+        if [[ -n ${args[0]:-} && ${args[0]} == */* ]]; then
+            local qualifiedLib="${args[0]}"
+            args[0]="${qualifiedLib##*/}"
+            listProjectLibraries "${qualifiedLib%%/*}"
+        else
+            forEachProject listProjectLibraries "$1"
+        fi
+    fi
+}
+
+testCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
+        echo
+        echo "  Run tests for one or more projects."
+        echo
+        echo "  --nix  Run tests inside a nix develop shell."
+        echo "  --all  Run tests locally and then again inside nix."
+    else
+        require 'rayvn/test-harness'
+        executeTests
+    fi
+}
+
+buildCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn build [PROJECT...]"
+        echo
+        echo "  Run nix build for one or more projects."
+    else
+        require 'rayvn/test-harness'
+        executeNixBuild
+    fi
+}
+
+indexCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
+        echo
+        echo "  Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
+        echo "  Run after adding or modifying library functions to keep the indexes current."
+    else
+        require 'rayvn/index'
+        runIndex "${args[@]}"
+    fi
+}
+
+pagesCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record [ID...] | --publish | --view]"
+        echo
+        echo "  PROJECT defaults to the current directory's project; only one may be specified."
+        echo
+        echo "  --setup          First-time setup: create gh-pages branch, worktree, and workflow."
+        echo "  --record [ID...] Re-record asciinema casts. Optionally filter by cast ID(s)."
+        echo "  --dir DIR        Output directory (default: project's configured worktree)."
+        echo "  --publish        Generate pages, then commit and push to gh-pages."
+        echo "  --view           Generate pages, then serve locally with Jekyll."
+        echo
+        echo "Record markup (in any .md file in the pages dir):"
+        echo
+        echo "  <!-- record id=\"NAME\" cmd=\"COMMAND\" [cmd=\"COMMAND\" ...] [pre=\"CMD\"] [post=\"CMD\"] [prompt=\"PS1\"] -->"
+        echo "  {% include asciinema.html id=\"NAME\" src=\"...\" %}"
+        echo
+        echo "  Each <!-- record --> comment must be paired with a matching {% include asciinema.html %} tag."
+        echo
+        echo "  id=      Cast identifier (must match the include tag's id= attribute)."
+        echo "  cmd=     Command to record. Repeatable; commands are recorded sequentially."
+        echo "  pre=     Optional setup command run before recording (not captured)."
+        echo "  post=    Optional cleanup command run after recording (not captured)."
+        echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
+        echo
+    else
+        assertProjectsSpecified
+        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+        require 'rayvn/index'
+        runPages "${projects[0]}" "${args[@]}"
+    fi
+}
+
+lintCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn lint [PROJECT...] [--fix] [--ask]"
+        echo
+        echo "  Scan project source files for violations of rayvn's bash requirements."
+        echo
+        echo "  --fix  Auto-fix all violations that can be corrected automatically."
+        echo "  --ask  Interactively prompt whether to fix each file with violations."
+        echo
+        echo "  Note: old-style command substitution \$() is detected but not auto-fixed." # lint-ok
+    else
+        assertProjectsSpecified
+        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+        local fixMode=
+        (( flags['fix'] )) && fixMode='--fix'
+        (( flags['ask'] )) && fixMode='--ask'
+        require 'rayvn/lint'
+        runLint ${fixMode} "${projects[@]}"
+    fi
+}
+
+collisionsCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn collisions [PROJECT...]"
+        echo
+        echo "  Check for function and global variable name collisions across project libraries."
+    else
+        require 'rayvn/namespace'
+        if (( ${#projects[@]} > 0 )); then
+            checkNamespaces "${projects[@]}"
+        else
+            checkNamespaces
+        fi
+    fi
+}
+
+dependenciesCmd() {
+    if (( flags['help'] )) || (( ${#projects[@]} == 0 )); then
+        echo "rayvn dependencies [--fix] [PROJECT...]"
+        echo
+        echo "  Scan source files for external command dependencies and verify they are"
+        echo "  declared in flake.nix runtimeDeps."
+        echo
+        echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files."
+    else
+        require 'rayvn/index'
+        local fixMode=; (( flags['fix'] )) && fixMode=fix
+        local project result=0
+        for project in "${projects[@]}"; do
+            findDependencies "${project}" "${fixMode}" || result=1
+        done
+        return ${result}
+    fi
+}
+
+docsCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn docs audit | update [PROJECT...] [OPTIONS]"
+        echo
+        echo "  audit [OPTIONS]    Report missing/stale ◇ doc comments."
+        echo
+        echo "  --release          Exit 1 if any public functions are missing ◇ doc comments."
+        echo
+        echo "  update [OPTIONS]   Generate or fix ◇ doc comments via Claude API."
+        echo
+        echo "  --dry-run          Print proposed docs without writing any changes."
+        echo "  --regen            Regenerate docs for all public functions, not just missing/stale."
+        echo "  --missing-only     Only process functions missing a ◇ doc comment."
+        echo "  --stale-only       Only process functions with potentially stale docs."
+        echo "  --lib NAME         Limit to a single library by name."
+        echo "  --since DURATION   Skip functions updated within this duration (e.g. '30m', '2h', '1d')."
+        echo "  --delay SECS       Seconds to sleep between API calls to avoid rate limits (default: 5)."
+    else
+        require 'rayvn/function-docs'
+        local subcommand="${args[0]}"
+        local subArgs=("${args[@]:1}")
+        case "${subcommand}" in
+            audit)  auditDocs  "${subArgs[@]}" ;;
+            update) updateDocs "${subArgs[@]}" ;;
+            *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
+        esac
+    fi
+}
+
+releaseCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION"
+        echo
+        echo "  Create a versioned GitHub release for a project."
+        echo
+        echo "  --repo ACCOUNT/REPO  Specify the GitHub repository explicitly."
     else
         local version=
         if (( ${#projects[@]} )); then
@@ -271,58 +462,57 @@ releaseProject() {
     fi
 }
 
-
-listProjects() {
-    forEachProject _printProject "${args[@]}"
-}
-
-_printProject() {
-    local projectName="$1"
-    local projectRoot="$2"
-    echo "project '${projectName}' -> ${projectRoot}"
-}
-
-listLibraries() {
+registerCmd() {
     if (( flags['help'] )); then
-        echo "rayvn libraries [PROJECT...]"
+        echo "rayvn register PROJECT [--remove]"
+        echo
+        echo "  Stake a claim on a project name on rayvn central."
+        echo
+        echo "  --remove  Release the registered name."
     else
-        forEachProject _printLibraries "$1"
+        assertGitRepo
+        require 'rayvn/central'
+        local projectName=${args[0]}
+        [[ -n ${projectName} ]] || fail "project name required"
+        local projectUrl repoName
+        projectUrl="${ git remote get-url origin; }" || fail
+        projectUrl="${projectUrl%.git}"
+        repoName=${ baseName ${projectUrl}; }
+        [[ ${projectName} == "${repoName}" ]]
+        registerProjectOnRayvnCentral "${projectName}" || fail
     fi
 }
 
-_printLibraries() {
+
+SECTION="--+-+-----+-++(-++(---++++(---+( IMPLEMENTATION )+---)++++---)++-)++-+------+-+--"
+
+
+printProject() {
+    local projectName="$1"
+    local projectRoot="$2"
+    local version; version="${ projectVersion "${projectName}" true; }"
+    echo "${version} -> ${projectRoot}"
+}
+
+printLibraries() {
     local project="$1"
     echo
     show bold "project ${project}" nl
-    forEachLibrary "${project}" _printProjectLibrary
+    forEachLibrary "${project}" printProjectLibrary
 }
 
-_printProjectLibrary() {
+printProjectLibrary() {
     local project="$1"
     local library="$2"
     show primary "    ${project}/${library}"
 }
 
-listFunctions() {
-    if (( flags['help'] )); then
-        echo "rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY ]] [--all]"
-    else
-        if [[ -n ${args[0]:-} && ${args[0]} == */* ]]; then
-            local qualifiedLib="${args[0]}"
-            args[0]="${qualifiedLib##*/}"
-            _listProjectLibraries "${qualifiedLib%%/*}"
-        else
-            forEachProject _listProjectLibraries "$1"
-        fi
-    fi
-}
-
-_listProjectLibraries() {
+listProjectLibraries() {
     local project="$1"
-    forEachLibrary "${project}" _listFunctions
+    forEachLibrary "${project}" listFunctions
 }
 
-_listFunctions() {
+listFunctions() {
     local project=$1
     local library="$2"
     local libraryFile="$3"
@@ -333,7 +523,7 @@ _listFunctions() {
     local includePrivate=0
     (( flags['all'] )) && includePrivate=1
 
-    _getFunctions "${libraryFile}" functions
+    getFunctions "${libraryFile}" functions
 
     echo
     show bold "${libraryName} functions"
@@ -349,7 +539,7 @@ _listFunctions() {
     fi
 }
 
-_getFunctions() {
+getFunctions() {
     local sourcePath="$1"
     local -n arrayRef="$2"
     local _functions
@@ -388,134 +578,14 @@ printVersion() {
     projectVersion rayvn "${verbose}"
 }
 
-_printLibrary() {
+printLibrary() {
     local projectName="$1"
     local libraryName="$2"
     local libraryRoot="$3"
     echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
-runTests() {
-    if (( flags['help'] )); then
-        echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
-    else
-        require 'rayvn/test-harness'
-        executeTests
-    fi
-}
-
-nixBuild() {
-    if (( flags['help'] )); then
-        echo "rayvn build [PROJECT...]"
-    else
-        require 'rayvn/test-harness'
-        executeNixBuild
-    fi
-}
-
-indexDocs() {
-    if (( flags['help'] )); then
-        echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
-        echo "  Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
-        echo "  Run after adding or modifying library functions to keep the indexes current."
-    else
-        require 'rayvn/index'
-        runIndex "${args[@]}"
-    fi
-}
-
-pagesCommand() {
-    if (( flags['help'] )); then
-        echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record | --publish | --view]"
-        echo "  PROJECT defaults to the current directory's project; only one may be specified."
-        echo "  --setup     First-time setup: create gh-pages branch, worktree, and workflow."
-        echo "  --record    Re-record all asciinema casts that have a cmd= attribute."
-        echo "  --dir DIR   Output directory (default: project's configured worktree)."
-        echo "  --publish   Generate pages, then commit and push to gh-pages."
-        echo "  --view      Generate pages, then serve locally with Jekyll."
-    else
-        assertProjectsSpecified
-        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
-        require 'rayvn/index'
-        runPages "${projects[0]}" "${args[@]}"
-    fi
-}
-
-lintCommand() {
-    if (( flags['help'] )); then
-        echo "rayvn lint [PROJECT...] [--fix] [--ask]"
-        echo "  PROJECT defaults to the current directory's project; only one may be specified."
-        echo
-        echo "Scan project source files for violations of rayvn's bash requirements."
-        echo
-        echo "  --fix  Auto-fix all violations that can be corrected automatically."
-        echo "  --ask  Interactively prompt whether to fix each file with violations."
-        echo
-        echo "Note: old-style command substitution \$() is detected but not auto-fixed." # lint-ok
-    else
-        assertProjectsSpecified
-        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
-        local fixMode=
-        (( flags['fix'] )) && fixMode='--fix'
-        (( flags['ask'] )) && fixMode='--ask'
-        require 'rayvn/lint'
-        runLint ${fixMode} "${projects[@]}"
-    fi
-}
-
-collisionsCommand() {
-    if (( flags['help'] )); then
-        echo "rayvn collisions [PROJECT...]"
-        echo "  Check for function and variable name collisions across rayvn project libraries."
-        echo "  Defaults to all currently registered projects."
-    else
-        require 'rayvn/namespace'
-        if (( ${#projects[@]} > 0 )); then
-            checkNamespaces "${projects[@]}"
-        else
-            checkNamespaces
-        fi
-    fi
-}
-
-depsCommand() {
-    if (( flags['help'] )) || (( ${#projects[@]} == 0 )); then
-        echo "rayvn deps [--fix] [PROJECT...]"
-        echo
-        echo "Scan source files for external command dependencies and auto-add missing"
-        echo "entries to flake.nix runtimeDeps."
-        echo
-        echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files."
-    else
-        require 'rayvn/index'
-        local fixMode=; (( flags['fix'] )) && fixMode=fix
-        local project result=0
-        for project in "${projects[@]}"; do
-            findDependencies "${project}" "${fixMode}" || result=1
-        done
-        return ${result}
-    fi
-}
-
-docsCommand() {
-    if (( flags['help'] )); then
-        echo "rayvn docs update | audit [PROJECT...] [OPTIONS]"
-        echo "  update  [--dry-run] [--regen] [--missing-only|--stale-only] [--lib NAME]  Generate/fix docs via Claude API"
-        echo "          [--since DUR] [--delay N]"
-        echo "  audit   [--release]                                                       Report missing/stale docs"
-    else
-        require 'rayvn/function-docs'
-        local subcommand="${args[0]}"
-        local subArgs=("${args[@]:1}")
-        case "${subcommand}" in
-            audit)  auditDocs  "${subArgs[@]}" ;;
-            update) updateDocs "${subArgs[@]}" ;;
-            *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
-        esac
-    fi
-}
-
-createProject() {
+newProject() {
     [[ "${name}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || fail "sorry, '${name}' is not a valid bash identifier"
     [[ -n ${gitRoot} ]] && fail "${PWD} is within an existing project/git repo"
     local projectName="${name}"
@@ -621,7 +691,7 @@ remindIfNotInPath() {
     fi
 }
 
-createScript() {
+newScript() {
     local projectRoot projectName
     local templateFile="${templateDir}/script-template.sh"
     getProjectRoot projectRoot projectName
@@ -643,7 +713,7 @@ createScript() {
     remindIfNotInPath "${binDir}"
 }
 
-createLibrary() {
+newLibrary() {
     local projectRoot projectName
     local templateFile="${templateDir}/library-template.sh"
     getProjectRoot projectRoot projectName
@@ -665,7 +735,7 @@ createLibrary() {
     show "Created" blue "lib/${name}.sh"
 }
 
-createTest() {
+newTest() {
     local projectRoot projectName
     local templateFile="${templateDir}/test-template.sh"
     getProjectRoot projectRoot projectName
