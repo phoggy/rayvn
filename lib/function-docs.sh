@@ -42,7 +42,7 @@ auditDocs() {
 
     [[ ${#libFiles[@]} -gt 0 ]] || fail "No library files found"
 
-    _checkAndUpdateHashes "${libFiles[@]}"
+    _checkAndUpdateHashes --progress "${libFiles[@]}"
 
     local missingCount=${#_idxMissingDocs[@]}
 
@@ -120,7 +120,7 @@ updateDocs() {
 
     [[ ${#libFiles[@]} -gt 0 ]] || fail "No library files found"
 
-    _checkAndUpdateHashes "${libFiles[@]}"
+    _checkAndUpdateHashes --progress "${libFiles[@]}"
 
     # Build list of functions to process
     local -a targets=()
@@ -248,7 +248,7 @@ _collectLibFilesByName() {
             libraryRoot="${_rayvnProjects[${project}::library]:-}"
             file="${libraryRoot}/${libName}.sh"
             if [[ -f "${file}" ]]; then
-                show "Scanning" bold "${file}"
+                show "Scanning" bold "${ tildePath "${file}"; }"
                 _clbnRef+=("${file}")
             fi
         done
@@ -258,7 +258,7 @@ _collectLibFilesByName() {
             [[ -n "${libraryRoot}" ]] || { warn "Unknown project: ${project}"; continue; }
             file="${libraryRoot}/${libName}.sh"
             if [[ -f "${file}" ]]; then
-                show "Scanning" bold "${file}"
+                show "Scanning" bold "${ tildePath "${file}"; }"
                 _clbnRef+=("${file}")
             fi
         done

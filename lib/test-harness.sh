@@ -293,7 +293,7 @@ _collectProjectTestTasks() {
             for pattern in "${fileExcludePatterns[@]}"; do
                 if [[ "${testName}" =~ ${pattern} ]]; then
                     skip=1
-                    skipMsg="skipped, filtered by ${filterFile/#${HOME}/\~}"
+                    skipMsg="skipped, filtered by ${ tildePath "${filterFile}"; }"
                     break
                 fi
             done
@@ -608,8 +608,8 @@ _promptMissingTools() {
         if (( choiceIndex == 0 )); then
             mkdir -p "${HOME}/.config/${project}"
             echo "${testName}" >> "${filterFile}"
-            show success "Added '${testName}' to ${filterFile/#${HOME}/\~}"
-            show nl "To re-enable, remove that line from ${filterFile/#${HOME}/\~}"
+            show success "Added '${testName}' to ${ tildePath "${filterFile}"; }"
+            show nl "To re-enable, remove that line from ${ tildePath "${filterFile}"; }"
         fi
     done
 }
@@ -734,20 +734,20 @@ _displayPendingTask() {
         local)
             _setPadding _testResultColumn $(( -${#taskName} - 4 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${testLogFile/#${HOME}/\~}"
+            local displayLogFile="${ tildePath "${testLogFile}"; }"
             show bold "${project}" "test" primary "${taskName}" "${_testPadding}" dim "log at ${displayLogFile}"
             ;;
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 8 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${testLogFile/#${HOME}/\~}"
+            local displayLogFile="${ tildePath "${testLogFile}"; }"
             show bold "${project}" "test" primary "${taskName}" muted "nix" "${_testPadding}" dim "log at ${displayLogFile}"
             ;;
         build)
             local projectPad rightPad
             (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${logFile/#${HOME}/\~}"
+            local displayLogFile="${ tildePath "${logFile}"; }"
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
             show bold "${project}" "${projectPad}nix" "build" "${rightPad}" dim " log at ${displayLogFile}"
@@ -767,7 +767,7 @@ _displayTaskResult() {
         local)
             _setPadding _testResultColumn $(( -${#taskName} - 4 ))
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${logFile/#${HOME}/\~}"
+            local displayLogFile="${ tildePath "${logFile}"; }"
             if (( result == 0 )); then
                 show bold "${project}" "test" primary "${taskName}" "${_testPadding}" " ${mark}" dim "log at ${displayLogFile}"
             else
@@ -777,7 +777,7 @@ _displayTaskResult() {
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 8 ))
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${logFile/#${HOME}/\~}"
+            local displayLogFile="${ tildePath "${logFile}"; }"
             if (( result == 0 )); then
                 show bold "${project}" "test" primary "${taskName}" muted "nix" "${_testPadding}" " ${mark}" dim "log at ${displayLogFile}"
             else
@@ -788,7 +788,7 @@ _displayTaskResult() {
             local projectPad rightPad
             (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${logFile/#${HOME}/\~}"
+            local displayLogFile="${ tildePath "${logFile}"; }"
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
             if (( result == 0 )); then

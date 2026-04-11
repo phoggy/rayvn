@@ -1101,6 +1101,12 @@ baseName() {
     echo "${path##*/}"
 }
 
+# ◇ Outputs a path with the home directory prefix replaced by '~'.
+
+tildePath() {
+    echo "${1/#${HOME}/\~}"
+}
+
 # ◇ Read the entire contents of a file into a variable, without forking a subprocess.
 #   Trailing newlines are stripped, matching command substitution behavior.
 #

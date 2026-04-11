@@ -31,12 +31,12 @@ runIndex() {
 
     # Generate verbose index
     _generateIndex "${libFiles[@]}" > "${_idxOutputFile}"
-    show success "Verbose index written to ${_idxOutputFile}"
+    show success "Verbose index written to ${ tildePath "${_idxOutputFile}"; }"
 
     # Generate compact index if enabled
     if (( _idxGenerateCompact )); then
         _generateCompactIndex "${libFiles[@]}" > "${_idxCompactFile}"
-        show success "Compact index written to ${_idxCompactFile}"
+        show success "Compact index written to ${ tildePath "${_idxCompactFile}"; }"
     fi
 
     # Check for changed functions and update hashes
@@ -143,7 +143,7 @@ runPages() {
             show success "${projectName} pages unchanged, nothing to push"
         fi
     elif (( view )); then
-        show bold "Starting Jekyll server in ${dir}"
+        show bold "Starting Jekyll server in ${ tildePath "${dir}"; }"
         cd "${dir}" || fail "could not cd to ${dir}"
         bundle check 2>/dev/null || bundle install 2>/dev/null || {
             show "Installing bundler..."
@@ -161,7 +161,7 @@ _recordCasts() {
     local pagesDir="$1"
     shift
     local -a filterIds=("$@")
-    local castFile cmd id pre post prompt src line
+    local castFile cmd id pre post prompt cols src line
 
     local found=0 castsFd
     while IFS= read -r -u "${castsFd}" line; do
@@ -180,6 +180,7 @@ _recordCasts() {
         pre=${ printf '%s' "${line}" | gawk 'match($0, /pre="([^"]+)"/, a) { print a[1] }'; }
         post=${ printf '%s' "${line}" | gawk 'match($0, /post="([^"]+)"/, a) { print a[1] }'; }
         prompt=${ printf '%s' "${line}" | gawk 'match($0, /prompt="([^"]+)"/, a) { print a[1] }'; }
+        cols=${ printf '%s' "${line}" | gawk 'match($0, /cols="([^"]+)"/, a) { print a[1] }'; }
         (( found++ ))
 
         # Resolve web-root-relative src to absolute path within pagesDir
@@ -190,7 +191,7 @@ _recordCasts() {
         local c
         [[ -n "${pre}" ]] && show "Pre-run" bold "${pre}"
         for c in "${cmds[@]}"; do show "Recording" bold "${c}"; done
-        show "→" bold "${castFile}"
+        show "→" bold "${ tildePath "${castFile}"; }"
         [[ -n "${post}" ]] && show "Post-run" bold "${post}"
         echo
         local -a recordArgs=()
@@ -198,6 +199,7 @@ _recordCasts() {
         [[ -n "${pre}" ]]    && recordArgs+=(--pre    "${pre}")
         [[ -n "${post}" ]]   && recordArgs+=(--post   "${post}")
         [[ -n "${prompt}" ]] && recordArgs+=(--prompt "${prompt}")
+        [[ -n "${cols}" ]]   && recordArgs+=(--cols   "${cols}")
         asciinemaRecord "${castFile}" "${recordArgs[@]}" || fail "recording failed: ${cmds[*]}"
         echo
         asciinemaMarkup "${castFile}"
@@ -223,9 +225,9 @@ _recordCasts() {
 
     if (( ! found )); then
         if (( ${#filterIds[@]} )); then
-            show muted "No record comments matching" bold "${filterIds[*]}" muted "found in ${pagesDir}"
+            show muted "No record comments matching" bold "${filterIds[*]}" muted "found in ${ tildePath "${pagesDir}"; }"
         else
-            show muted "No <!-- record --> comments with cmd= found in ${pagesDir}"
+            show muted "No <!-- record --> comments with cmd= found in ${ tildePath "${pagesDir}"; }"
         fi
     fi
 }
@@ -249,11 +251,11 @@ _ensurePagesWorktree() {
     local worktreePath="$3"
 
     if [[ -d "${worktreePath}" ]]; then
-        show success "Worktree already exists: ${worktreePath}"
+        show success "Worktree already exists: ${ tildePath "${worktreePath}"; }"
         return 0
     fi
 
-    show "Creating gh-pages worktree at ${worktreePath}..."
+    show "Creating gh-pages worktree at ${ tildePath "${worktreePath}"; }..."
 
     local hasRemoteBranch; hasRemoteBranch=${ git -C "${projectRoot}" ls-remote --heads origin gh-pages; }
     if [[ -z "${hasRemoteBranch}" ]]; then
@@ -265,7 +267,7 @@ _ensurePagesWorktree() {
         git -C "${projectRoot}" worktree add "${worktreePath}" gh-pages || fail "could not create worktree"
     fi
 
-    show success "Worktree created: ${worktreePath}"
+    show success "Worktree created: ${ tildePath "${worktreePath}"; }"
 }
 
 _ensurePagesFiles() {
@@ -383,7 +385,7 @@ _ensurePagesWorkflow() {
     local workflowFile="${workflowDir}/deploy-pages.yml"
 
     if [[ -f "${workflowFile}" ]]; then
-        show success "Workflow already exists: ${workflowFile}"
+        show success "Workflow already exists: ${ tildePath "${workflowFile}"; }"
         # Commit and push if it's staged but not yet committed
         local staged; staged=${ git -C "${projectRoot}" diff --cached --name-only; }
         if echo "${staged}" | grep -q "deploy-pages.yml"; then
@@ -727,7 +729,7 @@ _collectLibFiles() {
         libraryRoot="${_rayvnProjects[${project}::library]}"
         [[ -n "${libraryRoot}" ]] || continue
 
-        show "Scanning" bold "${libraryRoot}"
+        show "Scanning" bold "${ tildePath "${libraryRoot}"; }"
         for file in "${libraryRoot}"/*.sh; do
             [[ -e "${file}" ]] || continue
             _libFilesRef+=("${file}")
@@ -1267,7 +1269,7 @@ _generateDocs() {
         _generateCliPage
     fi
 
-    show success "Docs written to ${_idxDocsDir}"
+    show success "Docs written to ${ tildePath "${_idxDocsDir}"; }"
 }
 
 # Generate a single per-library Jekyll documentation page
@@ -1315,7 +1317,7 @@ _generateLibraryPage() {
         fi
     } > "${outFile}"
 
-    show "Generated" bold "${outFile}"
+    show "Generated" bold "${ tildePath "${outFile}"; }"
 }
 
 # Extract the library description from the file preamble (before the first # ◇ or function).
@@ -1393,12 +1395,12 @@ _generateCliPage() {
 
     if [[ ! -f "${outFile}" ]]; then
         _initCliPage "${outFile}"
-        show "Generated" bold "${outFile}"
+        show "Generated" bold "${ tildePath "${outFile}"; }"
         return 0
     fi
 
     _updateCliPageCommands "${outFile}"
-    show "Generated" bold "${outFile}"
+    show "Generated" bold "${ tildePath "${outFile}"; }"
 }
 
 # Write the initial CLI page with frontmatter, overview, and a section per command.
@@ -1616,7 +1618,10 @@ _hashLibFile() {
 
 # Check all library files for changed functions, report results, and update stored hashes.
 # Populates globals: _idxChangedFunctions, _idxMissingDocs, _idxStaleDocs.
+# Pass --progress as the first argument to show per-library pass/fail lines.
 _checkAndUpdateHashes() {
+    local showProgress=0
+    [[ $1 == --progress ]] && { showProgress=1; shift; }
     local libFiles=("$@")
 
     declare -gA _idxCurrentHashes=()
@@ -1632,11 +1637,13 @@ _checkAndUpdateHashes() {
         libraryName=${ basename "${libFile}" .sh; }
         local prevMissing=${#_idxMissingDocs[@]} prevStale=${#_idxStaleDocs[@]}
         _hashLibFile "${libFile}" "${projectName}" "${libraryName}"
-        local newIssues=$(( (${#_idxMissingDocs[@]} - prevMissing) + (${#_idxStaleDocs[@]} - prevStale) ))
-        if (( newIssues > 0 )); then
-            show bold "  ${projectName}/${libraryName}" "${errorCrossMark}" error "${newIssues} issue(s)"
-        else
-            show bold "  ${projectName}/${libraryName}" "${successCheckMark}"
+        if (( showProgress )); then
+            local newIssues=$(( (${#_idxMissingDocs[@]} - prevMissing) + (${#_idxStaleDocs[@]} - prevStale) ))
+            if (( newIssues > 0 )); then
+                show bold "  ${projectName}/${libraryName}" "${errorCrossMark}" error "${newIssues} issue(s)"
+            else
+                show bold "  ${projectName}/${libraryName}" "${successCheckMark}"
+            fi
         fi
     done
 
