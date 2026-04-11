@@ -11,10 +11,10 @@ usage() {
     echo "Commands"
     echo
     echo "    new TYPE NAME     Create a new project, script, library or test with the specified NAME."
-    echo "    test              Run tests."
-    echo "    theme             Select theme."
     echo "    libraries         List libraries."
     echo "    functions         List functions."
+    echo "    test              Run tests."
+    echo "    theme             Select theme."
     echo "    lint              Scan source files for requirement violations."
     echo "    collisions        Check for namespace collisions within and across projects."
     echo "    dependencies      Scan source files and ensure dependency tracking is up to date."
@@ -254,16 +254,25 @@ librariesCmd() {
 
 functionsCmd() {
     if (( flags['help'] )); then
-        echo "rayvn functions [PROJECT/LIBRARY | PROJECT... [LIBRARY]] [--all]"
+        echo "rayvn functions [PROJECT/LIBRARY... | PROJECT... [LIBRARY]] [--all]"
         echo
         echo "  List public functions for project libraries."
         echo
         echo "  --all  Also list private (_-prefixed) functions."
     else
         if [[ -n ${args[0]:-} && ${args[0]} == */* ]]; then
-            local qualifiedLib="${args[0]}"
-            args[0]="${qualifiedLib##*/}"
-            listProjectLibraries "${qualifiedLib%%/*}"
+            local qualifiedLib project library
+            local -a libNames=() libProjects=()
+            for qualifiedLib in "${args[@]}"; do
+                project="${qualifiedLib%%/*}"
+                library="${qualifiedLib##*/}"
+                libNames+=("${library}")
+                memberOf "${project}" libProjects || libProjects+=("${project}")
+            done
+            args=("${libNames[@]}")
+            for project in "${libProjects[@]}"; do
+                listProjectLibraries "${project}"
+            done
         else
             forEachProject listProjectLibraries "$1"
         fi
@@ -517,7 +526,7 @@ listFunctions() {
     local library="$2"
     local libraryFile="$3"
     local libraryName="${project}/${library}"
-    [[ -n ${args[0]:-} && ${library} != "${args[0]}" ]] && return 0
+    [[ ${#args[@]} -gt 0 ]] && ! memberOf "${library}" args && return 0
     local functions=()
     local function
     local includePrivate=0

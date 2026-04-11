@@ -31,7 +31,7 @@ auditDocs() {
     require 'rayvn/index'
     _initIndex
 
-    header "Auditing documentation"
+    header "Auditing Library Documentation"
 
     local -a libFiles=()
     if (( ${#targetProjects[@]} == 0 )); then
@@ -279,7 +279,6 @@ _collectProjectLibFiles() {
         [[ -n "${projectRoot}" ]] || { warn "Unknown project: ${targetProject}"; continue; }
         libraryRoot="${_rayvnProjects[${targetProject}::library]:-}"
         [[ -n "${libraryRoot}" ]] || continue
-        show "Scanning" bold "${libraryRoot}"
         for file in "${libraryRoot}"/*.sh; do
             [[ -e "${file}" ]] || continue
             _cplfRef+=("${file}")

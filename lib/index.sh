@@ -120,7 +120,6 @@ runPages() {
     if (( record )); then
         require 'rayvn/asciinema'
         _recordCasts "${dir}" "${recordIds[@]}"
-        return
     fi
 
     _ensurePagesFiles "${projectName}" "${projectRoot}" "${dir}" "${publish}"
@@ -164,11 +163,8 @@ _recordCasts() {
     local -a filterIds=("$@")
     local castFile cmd id pre post prompt src line
 
-    show bold "Scanning for" blue "<!-- record -->" "comments with" blue "cmd=" "attribute..."
-    echo
-
-    local found=0
-    while IFS= read -r line; do
+    local found=0 castsFd
+    while IFS= read -r -u "${castsFd}" line; do
         id=${ printf '%s' "${line}" | gawk 'match($0, /id="([^"]+)"/, a) { print a[1] }'; }
         src=${ printf '%s' "${line}" | gawk 'match($0, /src="([^"]+)"/, a) { print a[1] }'; }
         [[ -n "${id}" && -n "${src}" ]] || continue
@@ -205,25 +201,22 @@ _recordCasts() {
         asciinemaRecord "${castFile}" "${recordArgs[@]}" || fail "recording failed: ${cmds[*]}"
         echo
         asciinemaMarkup "${castFile}"
-    done < <(find "${pagesDir}" -name '*.md' -print0 | while IFS= read -r -d '' mdFile; do
+    done {castsFd}< <(find "${pagesDir}" -name '*.md' -print0 | while IFS= read -r -d '' mdFile; do
         gawk '
+            /^[[:space:]]*```/ { in_code = !in_code; next }
+            in_code { next }
             /<!--[[:space:]]*record/ {
                 buf = $0
                 while (buf !~ /-->/ && (getline line) > 0) { buf = buf " " line }
-                if (match(buf, /id="([^"]+)"/, a) > 0) { id = a[1]; comments[id] = buf }
-            }
-            /\{%[[:space:]]*include[[:space:]]+asciinema\.html/ {
-                buf = $0
-                if (match(buf, /id="([^"]+)"/, a) > 0 && match(buf, /src="([^"]+)"/, b) > 0) {
-                    includes[ a[1] ] = b[1]
-                }
-            }
-            END {
-                for (id in comments) {
-                    if (id in includes && comments[id] ~ /cmd=/) {
-                        print comments[id] " src=\"" includes[id] "\""
+                if (buf !~ /cmd=/ || match(buf, /id="([^"]+)"/, a) == 0) next
+                src = ""
+                while ((getline line) > 0) {
+                    if (match(line, /\{%[[:space:]]*include[[:space:]]+asciinema\.html.*src="([^"]+)"/, b) > 0) {
+                        src = b[1]; break
                     }
+                    if (line ~ /<!--[[:space:]]*record/) break
                 }
+                if (src != "") print buf " src=\"" src "\""
             }
         ' "${mdFile}"
     done)
@@ -1637,7 +1630,14 @@ _checkAndUpdateHashes() {
     for libFile in "${libFiles[@]}"; do
         projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
         libraryName=${ basename "${libFile}" .sh; }
+        local prevMissing=${#_idxMissingDocs[@]} prevStale=${#_idxStaleDocs[@]}
         _hashLibFile "${libFile}" "${projectName}" "${libraryName}"
+        local newIssues=$(( (${#_idxMissingDocs[@]} - prevMissing) + (${#_idxStaleDocs[@]} - prevStale) ))
+        if (( newIssues > 0 )); then
+            show bold "  ${projectName}/${libraryName}" "${errorCrossMark}" error "${newIssues} issue(s)"
+        else
+            show bold "  ${projectName}/${libraryName}" "${successCheckMark}"
+        fi
     done
 
     _saveHashes
@@ -1653,6 +1653,7 @@ _checkAndUpdateHashes() {
             show "  " bold "${key}"
         done
     elif [[ "${isFirstRun}" == false ]]; then
+        echo
         show success "No function body changes detected"
     fi
 
