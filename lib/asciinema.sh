@@ -300,6 +300,10 @@ _init_rayvn_asciinema() {
 # \u001b[colG (column-absolute only). This is safe because no \r\n appears between the
 # question text and the widget repaints, so the cursor is already on the correct row.
 # Absolute-to-column-only conversion is player-position-agnostic.
+#
+# Exception: if \u001b[H (home to row 1) appears before the CPR, the widget first resets
+# to row 1 and positions its rows relative to that — the absolute rows are already
+# correct in playback and must not be converted (e.g. the test runner display).
 
 _asciinemaFixWidgetPositions() {
     local castFile=$1
@@ -307,12 +311,14 @@ _asciinemaFixWidgetPositions() {
     local tmpBody; tmpBody=${ makeTempFile; } || fail "failed to create temp file"
     gawk '/^\[/{found=1} found' "${castFile}" | \
         gawk '
-        BEGIN { cpr_seen = 0 }
+        BEGIN { cpr_seen = 0; home_seen = 0 }
         {
             line = $0
+            if (!cpr_seen && !home_seen && index(line, "\\u001b[H") > 0)
+                home_seen = 1
             if (!cpr_seen && index(line, "\\u001b[6n") > 0)
                 cpr_seen = 1
-            if (cpr_seen) {
+            if (cpr_seen && !home_seen) {
                 s = line; out = ""
                 while (match(s, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
                     out = out substr(s, 1, RSTART-1) "\\u001b[" a[2] "G"
@@ -346,25 +352,46 @@ _asciinemaComputeDimensions() {
     local -n _colsRef=$2
     local -n _rowsRef=$3
 
-    local result
-    result=${
+    # Pass 1: max visible cols — use jq -r (per-event) so incremental emitters like
+    # progress indicators (one symbol per event) are measured individually, not accumulated.
+    local maxCol
+    maxCol=${
+        gawk '/^\[/{found=1} found' "${castFile}" | \
+        jq -r 'select(.[1] == "o") | .[2]' | \
+        gawk '
+        BEGIN { max_col = 1 }
+        {
+            gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
+            gsub(/\033[()][AB012]/, "")
+            gsub(/\033[=>M]/, "")
+            gsub(/[\007\017\016\r\n]/, "")
+            gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
+            sub(/[[:space:]]+$/, "")
+            if (length($0) > max_col) max_col = length($0)
+        }
+        END { print max_col }
+        ';
+    }
+
+    # Pass 2: rows — use jq -rs add (full stream) so \n-based line counting is correct
+    # and typing prelude characters (separate events) do not inflate NR.
+    local maxRow lastContentRow
+    read -r maxRow lastContentRow < <(
         gawk '/^\[/{found=1} found' "${castFile}" | \
         jq -rs '[.[] | select(.[1] == "o") | .[2]] | add // ""' | \
         gawk '
-        BEGIN { max_row = 1; max_col = 1; last_content_row = 0 }
+        BEGIN { max_row = 1; last_content_row = 0 }
         {
-            # Scan for cursor-positioning sequences to track max row
             data = $0
-            while (match(data, /\033\[([0-9]+);([0-9]+)[Hf]/, arr )) {
+            while (match(data, /\033\[([0-9]+);([0-9]+)[Hf]/, arr)) {
                 if (arr[1] + 0 > max_row) max_row = arr[1] + 0
                 data = substr(data, RSTART + RLENGTH)
             }
-            # Strip ANSI sequences (including private params like ?25l)
             gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
             gsub(/\033[()][AB012]/, "")
             gsub(/\033[=>M]/, "")
             gsub(/[\007\017\016]/, "")
-            # \r overwrites from col 0; use the last non-empty CR-separated piece
+            gsub(/\033\][^\007\033]*(\007|\033\\)/, "")
             n = split($0, pieces, /\r/)
             line = ""
             for (i = n; i >= 1; i--) {
@@ -372,17 +399,15 @@ _asciinemaComputeDimensions() {
             }
             sub(/[[:space:]]+$/, "", line)
             if (length(line) > 0) last_content_row = NR
-            if (length(line) > max_col) max_col = length(line)
         }
-        END {
-            cols = max_col + 4
-            if (cols < 106) cols = 106
-            rows = (last_content_row > max_row) ? last_content_row : max_row
-            print cols " " (rows + 1)
-        }
-        ';
-    }
+        END { print max_row " " last_content_row }
+        '
+    )
 
-    _colsRef="${result%% *}"
-    _rowsRef="${result##* }"
+    local computedCols=$(( maxCol + 4 ))
+    (( computedCols < 106 )) && computedCols=106
+    local computedRows=$(( (lastContentRow > maxRow ? lastContentRow : maxRow) + 1 ))
+
+    _colsRef=${computedCols}
+    _rowsRef=${computedRows}
 }
