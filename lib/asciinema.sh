@@ -88,7 +88,7 @@ asciinemaRecord() {
     # Redact home directory from cast output
     gsed -i "s|${HOME}|~|g" "${castFile}"
 
-    [[ -n ${post} ]] && { eval "${post}" || fail "post-run failed: ${post}"; }
+    [[ -z ${post} ]] || { eval "${post}" || fail "post-run failed: ${post}"; }
 }
 
 # ◇ Output asciinema event lines simulating TEXT typed at WPM words per minute.
@@ -349,9 +349,9 @@ _asciinemaComputeDimensions() {
     local result
     result=${
         gawk '/^\[/{found=1} found' "${castFile}" | \
-        jq -r 'select(.[1] == "o") | .[2]' | \
+        jq -rs '[.[] | select(.[1] == "o") | .[2]] | add // ""' | \
         gawk '
-        BEGIN { max_row = 1; max_col = 1 }
+        BEGIN { max_row = 1; max_col = 1; last_content_row = 0 }
         {
             # Scan for cursor-positioning sequences to track max row
             data = $0
@@ -359,18 +359,26 @@ _asciinemaComputeDimensions() {
                 if (arr[1] + 0 > max_row) max_row = arr[1] + 0
                 data = substr(data, RSTART + RLENGTH)
             }
-            # Strip remaining ANSI sequences then measure visible line length
-            gsub(/\033\[[0-9;]*[A-Za-z]/, "")
+            # Strip ANSI sequences (including private params like ?25l)
+            gsub(/\033\[[0-9;?]*[A-Za-z]/, "")
             gsub(/\033[()][AB012]/, "")
             gsub(/\033[=>M]/, "")
-            gsub(/[\007\017\016\r]/, "")
-            sub(/[[:space:]]+$/, "")
-            if (length($0) > max_col) max_col = length($0)
+            gsub(/[\007\017\016]/, "")
+            # \r overwrites from col 0; use the last non-empty CR-separated piece
+            n = split($0, pieces, /\r/)
+            line = ""
+            for (i = n; i >= 1; i--) {
+                if (length(pieces[i]) > 0) { line = pieces[i]; break }
+            }
+            sub(/[[:space:]]+$/, "", line)
+            if (length(line) > 0) last_content_row = NR
+            if (length(line) > max_col) max_col = length(line)
         }
         END {
             cols = max_col + 4
             if (cols < 106) cols = 106
-            print cols " " (max_row + 1)
+            rows = (last_content_row > max_row) ? last_content_row : max_row
+            print cols " " (rows + 1)
         }
         ';
     }
