@@ -63,8 +63,8 @@ asciinemaRecord() {
         asciinema rec --command "${cmds[0]}" --cols "${cols}" --rows "${rows}" "${castFile}" || return 1
         local typingFile; typingFile=${ makeTempFile; } || return 1
         asciinemaTypingFile "${wpm}" "${prompt}" "${cmds[0]}" "${typingFile}" || return 1
-        asciinemaPostProcess "${castFile}" "${typingFile}" "${trim}"
-        _asciinemaFixWidgetPositions "${castFile}"
+        asciinemaPostProcess "${castFile}" "${typingFile}" "${trim}" "${prompt}"
+        _asciinemaFixWidgetPositions --single "${castFile}"
     else
         # Multiple commands: record each separately with its own typing prelude, then concatenate
         local -a tmpCasts=()
@@ -81,7 +81,7 @@ asciinemaRecord() {
             newDir=${ bash -c "${c}; pwd" 2> /dev/null | tail -1; }
             [[ -n "${newDir}" && "${newDir}" != "${PWD}" && -d "${newDir}" ]] && cd "${newDir}"
         done
-        _asciinemaConcatCasts "${castFile}" "${trim}" "${tmpCasts[@]}"
+        _asciinemaConcatCasts "${castFile}" "${trim}" "${prompt}" "${tmpCasts[@]}"
         _asciinemaFixWidgetPositions "${castFile}"
     fi
 
@@ -158,7 +158,7 @@ asciinemaTypingFile() {
 #   Trimmed cols are at least 106 to ensure comfortable display in web players.
 
 asciinemaPostProcess() {
-    local castFile=$1 typingFile=$2 trim=${3:-1}
+    local castFile=$1 typingFile=$2 trim=${3:-1} prompt=${4:-}
 
     local version
     version=${ gawk '/^\[/{exit} 1' "${castFile}" | jq '.version // 2'; }
@@ -179,6 +179,9 @@ asciinemaPostProcess() {
             >> "${tmpBody}"
     fi
 
+    # Append prompt at end so the final frame looks like the shell is ready for input
+    [[ -n ${prompt} ]] && printf '[0.300, "o", "%s"]\n' "${prompt}" >> "${tmpBody}"
+
     # Patch header dimensions; compact to single line (player requires single-line header)
     local header
     header=${ gawk '/^\[/{exit} 1' "${castFile}" | jq -c '.'; }
@@ -193,8 +196,15 @@ asciinemaPostProcess() {
         '; }
     fi
 
-    # All reads complete — write final cast file
-    { printf '%s\n' "${header}"; cat "${tmpBody}"; } > "${castFile}"
+    # All reads complete — write final cast file.
+    # Ensure cursor is hidden in the final frame: insert cursor-hide before any exit event,
+    # or append it at the end for v2 casts that have no exit event.
+    { printf '%s\n' "${header}"; gawk '
+        BEGIN { had_exit = 0 }
+        /^\[.*"x"/ { had_exit = 1; print "[0.000, \"o\", \"\\u001b[?25l\"]" }
+        { print }
+        END { if (!had_exit) print "[0.000, \"o\", \"\\u001b[?25l\"]" }
+    ' "${tmpBody}"; } > "${castFile}"
 }
 
 # ◇ Print a Jekyll asciinema include tag for a cast file.
@@ -240,8 +250,8 @@ asciinemaMarkup() {
 # duration of preceding casts. Trims header dimensions to fit all content if trim=1.
 
 _asciinemaConcatCasts() {
-    local castFile=$1 trim=$2
-    shift 2
+    local castFile=$1 trim=$2 prompt=$3
+    shift 3
     local -a files=("$@")
 
     local version
@@ -268,6 +278,9 @@ _asciinemaConcatCasts() {
         done
     fi
 
+    # Append prompt at end so the final frame looks like the shell is ready for input
+    [[ -n ${prompt} ]] && printf '[0.300, "o", "%s"]\n' "${prompt}" >> "${tmpBody}"
+
     if (( trim )); then
         local tmpCast; tmpCast=${ makeTempFile; } || fail "failed to create temp file"
         { printf '%s\n' "${header}"; cat "${tmpBody}"; } > "${tmpCast}"
@@ -281,7 +294,12 @@ _asciinemaConcatCasts() {
         '; }
     fi
 
-    { printf '%s\n' "${header}"; cat "${tmpBody}"; } > "${castFile}"
+    { printf '%s\n' "${header}"; gawk '
+        BEGIN { had_exit = 0 }
+        /^\[.*"x"/ { had_exit = 1; print "[0.000, \"o\", \"\\u001b[?25l\"]" }
+        { print }
+        END { if (!had_exit) print "[0.000, \"o\", \"\\u001b[?25l\"]" }
+    ' "${tmpBody}"; } > "${castFile}"
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/asciinema' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -290,27 +308,35 @@ _init_rayvn_asciinema() {
     :
 }
 
-# Fix absolute cursor-row positions used by interactive widgets (e.g. confirm prompts).
-# When a command is recorded in a fresh pty, interactive widgets issue a CPR (\u001b[6n)
-# to learn their row, then repaint using \u001b[row;colH absolute positioning. After
-# concatenation, those absolute rows no longer match the widget's natural row in playback,
-# and the offset also varies depending on how many lines the player emits before starting.
+# Fix absolute cursor-row positions used by interactive widgets (e.g. confirm prompts,
+# theme selector). When a command is recorded in a fresh pty, interactive widgets issue
+# a CPR (\u001b[6n) to learn their row, then repaint using \u001b[row;colH absolute
+# positioning. The rows returned reflect the recording PTY, not the player.
 #
-# The fix: once a CPR is detected, replace subsequent \u001b[row;colH sequences with
-# \u001b[colG (column-absolute only). This is safe because no \r\n appears between the
-# question text and the widget repaints, so the cursor is already on the correct row.
-# Absolute-to-column-only conversion is player-position-agnostic.
+# Two cases after prepending the typing prelude:
 #
-# Exception: if \u001b[H (home to row 1) appears before the CPR, the widget first resets
-# to row 1 and positions its rows relative to that — the absolute rows are already
-# correct in playback and must not be converted (e.g. the test runner display).
+#   --single  The typing prelude added exactly 1 row the recording PTY didn't have.
+#             Offset each \u001b[row;colH by +1 to compensate. This preserves full
+#             row;col positioning and is required for multi-row widgets (e.g. theme
+#             selector list).
+#
+#   (default) After concatenation the offset varies by preceding cast length, so an
+#             exact row offset isn't known. Fall back to column-only (\u001b[colG):
+#             safe for single-row widgets (confirm prompts) where no \r\n separates
+#             repaints and the cursor is already on the correct row.
+#
+# Exception: if \u001b[H (home to row 1) appears before the CPR, the widget resets to
+# row 1 first and its absolute rows are already correct in playback — no fix applied
+# (e.g. the test runner display).
 
 _asciinemaFixWidgetPositions() {
+    local rowOffset=0
+    [[ $1 == --single ]] && { rowOffset=1; shift; }
     local castFile=$1
     local header; header=${ gawk '/^\[/{exit} 1' "${castFile}" | jq -c '.'; }
     local tmpBody; tmpBody=${ makeTempFile; } || fail "failed to create temp file"
     gawk '/^\[/{found=1} found' "${castFile}" | \
-        gawk '
+        gawk -v row_offset="${rowOffset}" '
         BEGIN { cpr_seen = 0; home_seen = 0 }
         {
             line = $0
@@ -321,7 +347,11 @@ _asciinemaFixWidgetPositions() {
             if (cpr_seen && !home_seen) {
                 s = line; out = ""
                 while (match(s, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
-                    out = out substr(s, 1, RSTART-1) "\\u001b[" a[2] "G"
+                    if (row_offset > 0) {
+                        out = out substr(s, 1, RSTART-1) "\\u001b[" (a[1] + row_offset) ";" a[2] "H"
+                    } else {
+                        out = out substr(s, 1, RSTART-1) "\\u001b[" a[2] "G"
+                    }
                     s = substr(s, RSTART + RLENGTH)
                 }
                 print out s

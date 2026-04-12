@@ -89,8 +89,8 @@ testAsciinemaPostProcessV2Prepend() {
     asciinemaPostProcess "${castFile}" "${typingFile}" 0
 
     local lineCount; lineCount=${ wc -l < "${castFile}" | tr -d ' '; }
-    # 1 header + 2 typing lines + 2 original events = 5
-    assertEqual 5 "${lineCount}" "typing events prepended"
+    # 1 header + 2 typing lines + 2 original events + 1 cursor-hide = 6
+    assertEqual 6 "${lineCount}" "typing events prepended"
 
     # First event line after header should be the prompt
     local secondLine; secondLine=${ gsed -n '2p' "${castFile}"; }
