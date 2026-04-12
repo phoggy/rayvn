@@ -145,7 +145,7 @@ header() {
     (( toUpper )) && header="${header^^}"
     local color="${_headerColors[${colorIndex}]}"
     echo
-    show bold primary "┃┃" "${color}" "${header[@]}"
+    show primary "┃┃" "${color}" "${header[@]}"
     if (( $# > 1 )); then
         shift
         show primary "┃┃" "${color}" "$1" "${@:2}"
@@ -1582,6 +1582,11 @@ _init_colors() {
 
         ['nl']=$'\n'
     )
+
+#    ─ U+2500 BOX DRAWINGS LIGHT HORIZONTAL — ──────────────
+#    ━ U+2501 BOX DRAWINGS HEAVY HORIZONTAL — ━━━━━━━━━━━━━━
+#    ▬ U+25AC BLACK RECTANGLE — ▬▬▬▬▬▬▬▬
+#    — U+2014 EM DASH — ——————————
 }
 
 _init_noColors() {
