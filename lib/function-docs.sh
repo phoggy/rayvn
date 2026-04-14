@@ -95,6 +95,9 @@ updateDocs() {
         shift
     done
 
+    # If --lib uses qualified 'project/name' format, infer project from it
+    [[ -n "${libFilter}" && "${libFilter}" == */* && ${#targetProjects[@]} == 0 ]] && targetProjects+=("${libFilter%%/*}")
+
     (( ${#targetProjects[@]} == 0 )) && targetProjects=("${projects[@]}")
 
     require 'rayvn/index'
@@ -237,6 +240,8 @@ _collectLibFilesByName() {
     local -n _clbnRef="$1"
     local libName="$2"
     shift 2
+    # Support 'project/name' format — strip project prefix
+    [[ "${libName}" == */* ]] && libName="${libName##*/}"
     local -a searchProjects=("$@")
 
     local project projectRoot libraryRoot file

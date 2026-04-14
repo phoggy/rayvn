@@ -108,6 +108,7 @@ parseArgs() {
             --ask) flags+=(['ask']=1) ;;
             --debug*) setDebug "$@"; shift $? ;;
             --repo) shift; gitHubRepo="$1";;
+            --lib)  shift; args+=("--lib" "$1") ;;
             -*) args+=("$1") ;;
             *)  if [[ ${add} == true ]]; then
                 addIfRayvnExecutable "$1" || args+=("$1")
