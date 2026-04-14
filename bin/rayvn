@@ -10,37 +10,27 @@ usage() {
     echo
     echo "Commands"
     echo
-    echo "    new TYPE NAME     Create a new project, script, library or test with the specified NAME."
-    echo "    libraries         List libraries."
-    echo "    functions         List functions."
-    echo "    test              Run tests."
-    echo "    theme             Select theme."
-    echo "    lint              Scan source files for requirement violations."
-    echo "    collisions        Check for namespace collisions within and across projects."
-    echo "    dependencies      Scan source files and ensure dependency tracking is up to date."
-    echo "    index             Generate function indexes for AI agent use."
-    echo "    docs              Audit or update function documentation."
-    echo "    pages             Generate and preview project gh-pages site."
-    echo "    build             Run nix build."
-    echo "    release           Create a new release."
-    echo "    register          Stake a claim on a project name, if available."
+    echo "    new TYPE NAME    Create a new project, script, library or test with the specified NAME."
+    echo "    libraries        List libraries."
+    echo "    functions        List functions."
+    echo "    test             Run tests."
+    echo "    theme            Select theme."
+    echo "    lint             Scan source files for requirement violations."
+    echo "    collisions       Check for namespace collisions within and across projects."
+    echo "    dependencies     Scan source files and ensure dependency tracking is up to date."
+    echo "    index            Generate function indexes for AI agent use."
+    echo "    docs             Audit or update function documentation."
+    echo "    pages            Generate and preview project gh-pages site."
+    echo "    build            Run nix build."
+    echo "    release          Create a new release."
+    echo "    register         Stake a claim on a project name, if available."
     echo
     echo "Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project"
     echo "if within one. 'test' falls back to rayvn if not in a project."
     echo
-    echo "Options:"
+    echo "Options"
     echo
-    echo "    -h, --help        Print this help message."
-    echo "    -v                Print the version."
-    echo "    --version         Print the version with release date."
-    echo
-    echo "Debug Options:"
-    echo
-    echo "    --debug           Enable debug, write output to log file and show on exit."
-    echo "    --debug-new       Enable debug, clear log file, write output to log file and show on exit."
-    echo "    --debug-out       Enable debug, write output to the current terminal."
-    echo "    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
-    echo "    --debug-tty .     Enable debug, write output to the TTY path read from the '~/.debug.tty' file."
+    commonOptions 21
     bye "$@"
 }
 

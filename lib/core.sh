@@ -153,6 +153,46 @@ header() {
     echo
 }
 
+# ◇ Prints common CLI options, optionally including a debug options section.
+#
+# · ARGS
+#
+#   col (int)            Column width for option alignment (default: 21).
+#   includeDebug (bool)  Whether to print the debug options section (default: 'true').
+
+commonOptions() {
+    local col=${1:-21}
+    local includeDebug="${2:-true}"
+    option "-v"               "Print the version." ${col}
+    option "--version"        "Print the version and release date." ${col}
+    option "-h, --help"       "Print this help message." ${col}
+    if [[ ${includeDebug} == true ]]; then
+        echo
+        echo "Debug Options"
+        echo
+        option "--debug"          "Enable debug, write output to log file and show on exit." ${col}
+        option "--debug-new"      "Enable debug, clear log file, write output to log file and show on exit." ${col}
+        option "--debug-out"      "Enable debug, write output to the current terminal." ${col}
+        option "--debug-tty TTY"  "Enable debug, write output to the specified TTY (e.g., /dev/ttys001)." ${col}
+        option "--debug-tty ."    "Enable debug, write output to the TTY path read from the '~/.debug.tty' file" ${col}
+    fi
+}
+
+# ◇ Prints a formatted option line with the option name padded to a description column.
+#
+# · ARGS
+#
+#   option (string)          The option name or flag to display.
+#   description (string)     The description text to print after padding.
+#   descriptionColumn (int)  Column position for the description (default: 21).
+
+option() {
+    local option="$1"
+    local description="$2"
+    local descriptionColumn="${3-:21}"
+    padString "    ${option}" ${descriptionColumn}; echo "${description}"
+}
+
 # ◇ Print a warning message to stderr with a ⚠️ prefix.
 #
 # · USAGE
@@ -633,7 +673,7 @@ repeat() {
 #
 #   string (string)    Target string.
 #   width (int)        Minimum visible character width.
-#   position (string)  Padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
+#   position (string)  Optional padding side: 'after'/'left' (default), 'before'/'right', or 'center'.
 
 padString() {
     local string="$1"
@@ -1262,13 +1302,13 @@ executeClean() {
 #
 # · USAGE
 #
-#   setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]
+#   setDebug [OPTIONS]
 #
-#    --debug           Enable debug, write output to log file and show on exit."
-#    --debug-new       Enable debug, clear log file, write output to log file and show on exit."
-#    --debug-out       Enable debug, write output to the current terminal."
-#    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
-#    --debug-tty .     Enable debug, write output to the TTY path read from the '${HOME}/.debug.tty' file."
+#   --debug          Enable debug, write output to log file and show on exit."
+#   --debug-new      Enable debug, clear log file, write output to log file and show on exit."
+#   --debug-out      Enable debug, write output to the current terminal."
+#   --debug-tty TTY  Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
+#   --debug-tty .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file."
 
 setDebug() {
     local options=() extraShift=0 args=("$1")

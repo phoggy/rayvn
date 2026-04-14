@@ -3,24 +3,13 @@
 
 usage() {
     echo
-    show bold "does, uh..." italic "something" glue "."
+    show bold "does" italic "something" glue "."
     echo
-    show "Usage:" bold "${scriptName}" "<options>"
+    show "Usage:" bold "${scriptName}" "[options]"
     echo
     echo "Options:"
     echo
-    echo "    -h, --help        Print this help message and exit."
-    echo "    -v                Print the version and exit."
-    echo "    --version         Print the version with release date and exit."
-    echo
-    echo "Debug Options:"
-    echo
-    echo "    --debug           Enable debug, write output to log file and show on exit."
-    echo "    --debug-new       Enable debug, clear log file, write output to log file and show on exit."
-    echo "    --debug-out       Enable debug, write output to the current terminal."
-    echo "    --debug-tty TTY   Enable debug, write output to the specified TTY (e.g., /dev/ttys001)."
-    echo "    --debug-tty .     Enable debug, write output to the TTY path read from the '${HOME}/.debug.tty' file."
-    echo
+    commonOptions 21 true # description column, show debug options
     bye "$@"
 }
 

@@ -13,18 +13,15 @@ usage() {
     echo
     show "Usage:" bold "${scriptName}" "[COMMAND]"
     echo
-    echo "Commands:"
+    echo "Commands"
     echo
-    echo "    status            Show current temp storage strategy (default)."
-    echo "    install           Install LaunchDaemon to mount tmpfs at boot (macOS, requires sudo)."
-    echo "    uninstall         Remove the LaunchDaemon and unmount tmpfs (macOS, requires sudo)."
+    echo "    status       Show current temp storage strategy (default)."
+    echo "    install      Install LaunchDaemon to mount tmpfs at boot (macOS, requires sudo)."
+    echo "    uninstall    Remove the LaunchDaemon and unmount tmpfs (macOS, requires sudo)."
     echo
-    echo "Options:"
+    echo "Options"
     echo
-    echo "    -h, --help        Print this help message and exit."
-    echo "    -v                Print the version and exit."
-    echo "    --version         Print the version with release date and exit."
-    echo
+    commonOptions 17 false
     bye "$@"
 }
 
@@ -44,6 +41,7 @@ init() {
             -h | --help) usage ;;
             -v) projectVersion 'rayvn'; exit 0 ;;
             --version) projectVersion 'rayvn' true; exit 0 ;;
+            --debug*) setDebug "$@"; shift $? ;;
             *) usage "Unknown option: $1" ;;
         esac
         shift
