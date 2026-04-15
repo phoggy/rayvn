@@ -168,6 +168,8 @@ All rayvn applications support debug options via the `rayvn/debug` library. Use 
 
 ### Debug Options
 
+| | |
+|---|---|
 | `--debug` | Enable debug logging, show log on exit |
 | `--debug-new` | Enable debug logging with cleared log file, show log on exit |
 | `--debug-out` | Send debug output to current terminal (uses `tty`) |
