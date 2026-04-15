@@ -168,13 +168,13 @@ All rayvn applications support debug options via the `rayvn/debug` library. Use 
 
 ### Debug Options
 
-| | |
-|---|---|
-| `--debug` | Enable debug logging, show log on exit |
-| `--debug-new` | Enable debug logging with cleared log file, show log on exit |
-| `--debug-out` | Send debug output to current terminal (uses `tty`) |
-| `--debug-tty /dev/ttys001` | Send debug output to specific terminal device |
-| `--debug-tty .` | Read tty path from `${HOME}/.debug.tty` file |
+```
+--debug                   Enable debug logging, show log on exit
+--debug-new               Enable debug logging with cleared log file, show log on exit
+--debug-out               Send debug output to current terminal (uses tty)
+--debug-tty /dev/ttys001  Send debug output to specific terminal device
+--debug-tty .             Read tty path from ~/.debug.tty file
+```
 
 ### Using Debug Functions
 
