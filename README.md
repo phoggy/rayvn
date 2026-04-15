@@ -134,11 +134,17 @@ source rayvn.up
 After that line executes, your script now has a `require` function which can then be used to load any installed shared library.
 The `rayvn/core` library is loaded by default. For convenience, `rayvn.up` accepts a list of library names to immediately `require`:
 ```bash
-source rayvn.up 'rayvn/debug'
+source rayvn.up 'rayvn/prompt'
 ```
 
-`rayvn.up` automatically detects other rayvn projects via `PATH`. If a project is not in `PATH`,
-it can be added explicitly:
+`rayvn.up` automatically detects other rayvn projects via `PATH`, so:
+
+```bash
+source rayvn.up 'valt/archive' 
+
+```
+works if the `valt` project is in `PATH`. If a project is not in `PATH`, it can be added explicitly:
+
 ```bash
 source rayvn.up 'myproject/mylibrary' --add myproject=/path/to/project
 ```
@@ -154,7 +160,7 @@ rayvn functions rayvn/core        # only rayvn/core
 rayvn functions rayvn/core --all  # include private functions
 ```
 
-Private functions have an underscore prefix and are always *subject to change*.
+Private functions have an underscore prefix and are **always** *subject to change*.
 
 ## Debugging rayvn applications
 
@@ -162,22 +168,26 @@ All rayvn applications support debug options via the `rayvn/debug` library. Use 
 
 ### Debug Options
 
-- `--debug` Enable debug logging, show log on exit
-- `--debug-new` Enable debug logging with cleared log file, show log on exit
-- `--debug-out` Send debug output to current terminal (uses `tty`)
-- `--debug-tty /dev/ttys001` Send debug output to specific terminal device
-- `--debug-tty .` Read tty path from `${HOME}/.debug.tty` file
+| `--debug` | Enable debug logging, show log on exit |
+| `--debug-new` | Enable debug logging with cleared log file, show log on exit |
+| `--debug-out` | Send debug output to current terminal (uses `tty`) |
+| `--debug-tty /dev/ttys001` | Send debug output to specific terminal device |
+| `--debug-tty .` | Read tty path from `${HOME}/.debug.tty` file |
 
 ### Using Debug Functions
 
-After requiring `rayvn/debug` (automatically included with `rayvn/core`), you can use:
+The debug options are processed by the `setDebug` function in `rayvn/core`. You can then use e.g.:
 
 ```bash
-debugVars myVar1 myVar2
 debug "processing item ${i} of ${total}"
+debugVars myVar myArray myMap 
+debugTraceOn # set -x directed to debug output
+cmd1
+cmd2
+debugTraceOff # set +x
 ```
 
-Debug output is only generated when debug mode is enabled via command-line options.
+Debug output is only generated when debug mode is enabled via the command-line options.
 
 ### Example
 

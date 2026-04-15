@@ -187,7 +187,7 @@ asciinemaPostProcess() {
     header=${ gawk '/^\[/{exit} 1' "${castFile}" | jq -c '.'; }
     if (( trim )); then
         local neededCols neededRows
-        _asciinemaComputeDimensions "${castFile}" neededCols neededRows
+        _asciinemaComputeDimensions "${tmpBody}" neededCols neededRows
         header=${ printf '%s' "${header}" | jq -c \
             --argjson c "${neededCols}" --argjson r "${neededRows}" '
             if .term then .term.cols = $c | .term.rows = $r else . end |

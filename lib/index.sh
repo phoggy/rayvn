@@ -118,6 +118,8 @@ runPages() {
     fi
 
     if (( record )); then
+        (( terminalColorBits >= 24 )) || \
+            show warning "Terminal does not support 24-bit color; recorded casts may use degraded colors."
         require 'rayvn/asciinema'
         _recordCasts "${dir}" "${recordIds[@]}"
     fi

@@ -349,7 +349,8 @@ lintCmd() {
         echo "  --fix  Auto-fix all violations that can be corrected automatically."
         echo "  --ask  Interactively prompt whether to fix each file with violations."
         echo
-        echo "  Note: old-style command substitution \$() is detected but not auto-fixed." # lint-ok
+        echo "  Note: The old \$( cmd ) command substitution syntax is detected but not auto-fixed." # lint-ok
+        echo "        The current \${ cmd; } syntax is significantly more efficient."
     else
         assertProjectsSpecified
         (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
@@ -383,7 +384,7 @@ dependenciesCmd() {
         echo "  Scan source files for external command dependencies and verify they are"
         echo "  declared in flake.nix runtimeDeps."
         echo
-        echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files."
+        echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability."
     else
         require 'rayvn/index'
         local fixMode=; (( flags['fix'] )) && fixMode=fix
