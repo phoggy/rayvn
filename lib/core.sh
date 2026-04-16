@@ -1433,6 +1433,11 @@ _init_rayvn_core() {
     exec {ttyFd}<>"${terminal}"
     declare -gr ttyFd
 
+    # Save original terminal settings for restoration on exit or interrupt.
+    # Captured here so _restoreTerminal can always replay the exact initial state,
+    # even when rayvn/terminal is not loaded.
+    declare -gr _originalStty="${ stty -g <&${ttyFd} 2> /dev/null; }"
+
     exec {stdinFd}<&0
     declare -gr stdinFd
 
@@ -1731,8 +1736,8 @@ _ensureRayvnTempDir() {
 
 _restoreTerminal() {
     if (( isInteractive )); then
-        stty sane &> /dev/null
-        printf '\e[0K\e[?25h' >&${ttyFd} # Clear to end of line and show cursor in case sane does not
+        [[ -n ${_originalStty} ]] && stty "${_originalStty}" 2> /dev/null || stty sane 2> /dev/null
+        printf '\e[0K\e[?25h' >&${ttyFd}
     fi
 }
 

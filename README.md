@@ -13,13 +13,13 @@ A minimal rayvn script:
 #!/usr/bin/env rayvn-bash
 
 usage() {
-    show "Usage:" bold "greet NAME"
+    show "Usage:" bold "greet" italic "NAME"
     bye "$@"
 }
 
 main() {
     init "$@"
-    show primary "Hello, " bold "${greetName}" success "!"
+    show primary "Hey ${name}!"
 }
 
 init() {
@@ -27,7 +27,8 @@ init() {
     while (( $# )); do
         case "$1" in
             -h | --help) usage ;;
-            *) name="$1" ;;
+            -* | --*) usage "unknown option: $1" ;;
+            *) name="${1^}" ;;
         esac
         shift
     done
@@ -38,8 +39,9 @@ source rayvn.up
 main "$@"
 ```
 
-- `#!/usr/bin/env rayvn-bash` ensures bash 5.3+ regardless of system defaults.
+- `#!/usr/bin/env rayvn-bash` ensures bash 5.3+ if available, regardless of system defaults.
 - `source rayvn.up` bootstraps rayvn; `rayvn/core` library is always loaded automatically.
+- The `show` function is in `rayvn/core` and supports colored/styled text output.
 - All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
 - Pass library names to load additional libraries: `source rayvn.up 'rayvn/spinner' 'rayvn/prompt'`.
 
@@ -105,7 +107,7 @@ rayvn provides two tools for working with projects:
 `cd` to the desired parent directory, then:
 
 ```bash
-rayvn new project my-name          # creates the project, a GitHub repo, and clones it
+rayvn new project my-name          # creates the project and a GitHub repo (after prompt)
 rayvn new project my-name --local  # local git repo only, no GitHub
 ```
 

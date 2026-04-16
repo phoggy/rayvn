@@ -17,6 +17,24 @@ cursorShow() {
     echo -n $'\e[?25h' >&${ttyFd}
 }
 
+# ◇ Read the current terminal size.
+#
+# · ARGS
+#
+#   rowsVarRef (stringRef)  Receives the 1-based row size.
+#   colsVarRef (stringRef)  Receives the 1-based column size.
+#
+# · EXAMPLE
+#
+#   terminalSize rows cols
+#   echo "Terminal is ${rows} rows by ${cols} columns"
+
+terminalSize() {
+    local -n rowsVarRef="$1"
+    local -n colsVarRef="$2"
+    read -r rowsVarRef colsVarRef < <(stty size <&${ttyFd})
+}
+
 # ◇ Read the current cursor position.
 #
 # · ARGS
@@ -213,9 +231,6 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/terminal' PRI
 
 _init_rayvn_terminal() {
     (( isInteractive )) || return 0  # Silently succeed when not interactive
-
-    # Save original terminal settings from the terminal device
-    [[ -n ${_originalStty} ]] || declare -gr _originalStty="${ stty -g <&${ttyFd}; }"
 
     declare -g _cursorRow=
     declare -g _cursorCol=

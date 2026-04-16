@@ -40,10 +40,10 @@ setTheme() {
 
     choose 'Select theme' themes selectedIndex true "${_currentThemeIndex}" 1 "${maxVisible}" 30 false || return 1
     if (( selectedIndex == _currentThemeIndex )); then
-        show "remains" primary "${_themeNames[${selectedIndex}]}"
+        show primary "${_themeNames[${selectedIndex}]}" "(unchanged)"
     else
         _setTheme "${selectedIndex}"
-        show "changed to" primary "${_themeNames[${selectedIndex}]}"
+        show primary "${_themeNames[${selectedIndex}]}"
     fi
 
     echo
