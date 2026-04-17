@@ -202,7 +202,8 @@ clearTerminal() {
 
 reserveRows() {
     local requiredRows="${1:-2}"
-    local terminalHeight=${ tput lines; }
+    local terminalHeight _ignoredCols
+    terminalSize terminalHeight _ignoredCols
     local remainingRows
 
     cursorPosition _cursorRow _cursorCol
