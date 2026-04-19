@@ -74,6 +74,7 @@ asciinemaRecord() {
         asciinemaTypingFile "${wpm}" "${prompt}" "${cmds[0]}" "${typingFile}" || return 1
         asciinemaPostProcess "${castFile}" "${typingFile}" "${trim}" "${prompt}"
         _asciinemaFixWidgetPositions --single "${castFile}"
+        _asciinemaShiftTypingRows "${castFile}"
     else
         # Multiple commands: record each separately with its own typing prelude, then concatenate
         local -a tmpCasts=()
@@ -186,7 +187,7 @@ asciinemaPostProcess() {
 #
 # · ARGS
 #
-#   transform  (string)  Which transform to apply (name or step number 1–8).
+#   transform  (string)  Which transform to apply (name or step number 1–9).
 #   castFile   (string)  Cast file to transform in-place.
 #
 # · OPTIONS
@@ -205,6 +206,7 @@ asciinemaPostProcess() {
 #   6  patch-header        Strip recorder fields; compute and update dimensions.
 #   7  insert-cursor-hide  Add \u001b[?25l] before exit event.
 #   8  fix-positions       Shift widget absolute rows by (1 - record_row).
+#   9  shift-typing-rows   Shift widget rows down by the number of pre-CPR newlines.
 
 asciinemaApplyTransform() {
     local transform=$1 castFile=$2
@@ -232,6 +234,7 @@ asciinemaApplyTransform() {
         6|patch-header)       _asciinemaPatchHeader "${castFile}" ;;
         7|insert-cursor-hide) _asciinemaInsertCursorHide "${castFile}" ;;
         8|fix-positions)      _asciinemaFixWidgetPositions --single "${castFile}" ;;
+        9|shift-typing-rows)  _asciinemaShiftTypingRows "${castFile}" ;;
         *) fail "unknown transform '${transform}'" ;;
     esac
 }
@@ -637,11 +640,52 @@ _asciinemaFixWidgetPositions() {
         END {
             # Flush any held candidate that never got paired with a \r\n.
             if (pending_scroll != "") {
-                if (record_row == 0 && match(pending_scroll, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) {
+                if (record_row == 0 && match(pending_scroll, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
                     record_row = (a[2]+0 == 0) ? a[1]+0 - 2 : a[1]+0
                     offset = 1 - record_row
                 }
                 print applyOffset(pending_scroll)
+            }
+        }' > "${tmpBody}"
+    { printf '%s\n' "${header}"; cat "${tmpBody}"; } > "${castFile}"
+}
+
+# Shift all absolute cursor-row positions after the first CPR (\u001b[6n]) down by the
+# number of \r\n sequences that appear before it. This corrects the row mismatch introduced
+# when a typing prelude (transform 2) is prepended to a widget recording: the prelude adds
+# one \r\n (the Enter keypress) that moves the player cursor to row 2 before the widget
+# header, but the widget's absolute positions were recorded relative to row 1 (fresh PTY).
+# Without this adjustment items appear one row too high — immediately under the header with
+# no blank row between them.
+#
+# Safe to call on casts without a typing prelude (0 pre-CPR \r\n → no-op).
+
+_asciinemaShiftTypingRows() {
+    local castFile=$1
+    local header; header=${ gawk '/^\[/{exit} 1' "${castFile}" | jq -c '.'; }
+    local tmpBody; tmpBody=${ makeTempFile; } || fail "failed to create temp file"
+    gawk '/^\[/{found=1} found' "${castFile}" | \
+        gawk '
+        BEGIN { cpr_seen = 0; pre_cpr_rows = 0; offset = 0 }
+        {
+            line = $0
+            if (!cpr_seen) {
+                tmp = line
+                while (match(tmp, /\\r\\n/)) { pre_cpr_rows++; tmp = substr(tmp, RSTART + RLENGTH) } # lint-ok
+                if (index(line, "\\u001b[6n") > 0) {
+                    cpr_seen = 1
+                    offset = pre_cpr_rows
+                }
+            }
+            if (cpr_seen && offset > 0) {
+                s = line; out = ""
+                while (match(s, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
+                    out = out substr(s, 1, RSTART-1) "\\u001b[" a[1]+0 + offset ";" a[2] "H"
+                    s = substr(s, RSTART + RLENGTH)
+                }
+                print out s
+            } else {
+                print line
             }
         }' > "${tmpBody}"
     { printf '%s\n' "${header}"; cat "${tmpBody}"; } > "${castFile}"
