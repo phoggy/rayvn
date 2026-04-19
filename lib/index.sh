@@ -163,7 +163,7 @@ _recordCasts() {
     local pagesDir="$1"
     shift
     local -a filterIds=("$@")
-    local castFile cmd id pre post prompt cols src line
+    local castFile cmd id pre post prompt keys src line
 
     local found=0 castsFd
     while IFS= read -r -u "${castsFd}" line; do
@@ -182,7 +182,7 @@ _recordCasts() {
         pre=${ printf '%s' "${line}" | gawk 'match($0, /pre="([^"]+)"/, a) { print a[1] }'; }
         post=${ printf '%s' "${line}" | gawk 'match($0, /post="([^"]+)"/, a) { print a[1] }'; }
         prompt=${ printf '%s' "${line}" | gawk 'match($0, /prompt="([^"]+)"/, a) { print a[1] }'; }
-        cols=${ printf '%s' "${line}" | gawk 'match($0, /cols="([^"]+)"/, a) { print a[1] }'; }
+        keys=${ printf '%s' "${line}" | gawk 'match($0, /keys="([^"]+)"/, a) { print a[1] }'; }
         (( found++ ))
 
         # Resolve web-root-relative src to absolute path within pagesDir
@@ -201,7 +201,7 @@ _recordCasts() {
         [[ -n "${pre}" ]]    && recordArgs+=(--pre    "${pre}")
         [[ -n "${post}" ]]   && recordArgs+=(--post   "${post}")
         [[ -n "${prompt}" ]] && recordArgs+=(--prompt "${prompt}")
-        [[ -n "${cols}" ]]   && recordArgs+=(--cols   "${cols}")
+        [[ -n "${keys}" ]]   && recordArgs+=(--keys   "${keys}")
         asciinemaRecord "${castFile}" "${recordArgs[@]}" || fail "recording failed: ${cmds[*]}"
         echo
         asciinemaMarkup "${castFile}"
