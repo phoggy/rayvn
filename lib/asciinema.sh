@@ -467,9 +467,8 @@ _asciinemaRecordWithKeys() {
         # in a real terminal it typically does; in a headless PTY (e.g. script(1)) it may not.
         # Use a short timeout so we send the CPR response quickly in either case. The idle gap
         # is at most 3 seconds and is compressed further by --idle-time-limit 2 in the player.
-        # Row 2 is correct: the prepended typing occupies row 1; after its \r\n the cursor is
-        # at row 2 where the widget header lands. No scroll occurs (fresh PTY has plenty of
-        # room), so _asciinemaFixWidgetPositions uses offset = 0 — raw positions are kept as-is.
+        # Row 2 is correct: the widget's header line is on row 1; after \r\n the cursor is at
+        # row 2. _asciinemaFixWidgetPositions computes offset = 2 - 2 = 0 (no adjustment).
         printf 'set timeout 3\n'
         printf 'expect {\n'
         printf '    "\\033\\[6n" { send "\\033\\[2;1R" }\n'
@@ -538,12 +537,10 @@ _asciinemaStripWidgetCleanup() {
 #             If scroll occurred: reserveRows() moves to the last row and emits \r\n pairs
 #             to scroll — that cursorTo + following \r\n-only events are dropped, and
 #             record_row is taken from the first surviving absolute position (the cursor
-#             restore that follows the scroll). offset = 1 - record_row (pulls the
-#             scroll-displaced widget back to row 1).
-#             If no scroll: offset = (number of \r\n events before CPR). Manual recordings
-#             have 0 pre-CPR newlines (offset = 0, positions unchanged). Automated recordings
-#             with a typing prelude have 1 (offset = 1), which shifts widget rows down by 1
-#             in the player to account for the typing line that precedes the widget header.
+#             restore that follows the scroll). offset = 1 - record_row.
+#             If no scroll (cursor at top of fresh PTY): the first absolute position after
+#             CPR is an item row at col 0. record_row is back-calculated as (item_row - 2)
+#             = _promptRow, and offset = 1 - record_row (typically 0).
 #
 #   (default) After concatenation the offset varies by preceding cast length. Fall
 #             back to column-only (\u001b[colG): safe for single-row widgets (confirm
@@ -562,17 +559,11 @@ _asciinemaFixWidgetPositions() {
     local tmpBody; tmpBody=${ makeTempFile; } || fail "failed to create temp file"
     gawk '/^\[/{found=1} found' "${castFile}" | \
         gawk -v single="${single}" '
-        BEGIN { cpr_seen = 0; home_seen = 0; pending_scroll = ""; draining_scroll = 0; scroll_happened = 0; pre_cpr_rows = 0; record_row = 0; offset = 0 }
+        BEGIN { cpr_seen = 0; home_seen = 0; pending_scroll = ""; draining_scroll = 0; record_row = 0; offset = 0 }
         {
             line = $0
             if (!cpr_seen && !home_seen && index(line, "\\u001b[H") > 0)
                 home_seen = 1
-            if (!cpr_seen) {
-                # Count \r\n sequences before CPR to track how many rows of content
-                # precede the widget in the player (0 for manual, 1 for typing prelude).
-                tmp = line
-                while (match(tmp, /\\r\\n/)) { pre_cpr_rows++; tmp = substr(tmp, RSTART + RLENGTH) } # lint-ok
-            }
             if (!cpr_seen && index(line, "\\u001b[6n") > 0)
                 cpr_seen = 1
             if (cpr_seen && !home_seen) {
@@ -584,14 +575,15 @@ _asciinemaFixWidgetPositions() {
                             # drain any further \r\n-only events that follow.
                             pending_scroll = ""
                             draining_scroll = 1
-                            scroll_happened = 1
                             next
                         }
-                        # Not a scroll — the candidate survives. Offset equals the number of
-                        # \r\n events before CPR (e.g. 1 for a typing prelude, 0 for manual).
-                        if (record_row == 0 && match(pending_scroll, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
-                            record_row = a[1]+0
-                            offset = pre_cpr_rows
+                        # Not a scroll — the candidate survives: use its row for record_row.
+                        # If col==0 this is an item row (no-scroll case); back-calculate _promptRow.
+                        if (record_row == 0) {
+                            if (match(pending_scroll, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
+                                record_row = (a[2]+0 == 0) ? a[1]+0 - 2 : a[1]+0
+                                offset = 1 - record_row
+                            }
                         }
                         print applyOffset(pending_scroll)
                         pending_scroll = ""
@@ -615,11 +607,9 @@ _asciinemaFixWidgetPositions() {
                         }
                     }
                     # Regular line: set record_row from the first absolute position seen.
-                    # After a scroll, shift to row 1 (offset = 1 - record_row).
-                    # Without scroll, shift by pre_cpr_rows (0 for manual, 1 for typing prelude).
                     if (record_row == 0 && match(line, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
                         record_row = a[1]+0
-                        offset = scroll_happened ? 1 - record_row : pre_cpr_rows
+                        offset = 1 - record_row
                     }
                     print applyOffset(line)
                 } else {
@@ -647,9 +637,9 @@ _asciinemaFixWidgetPositions() {
         END {
             # Flush any held candidate that never got paired with a \r\n.
             if (pending_scroll != "") {
-                if (record_row == 0 && match(pending_scroll, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) { # lint-ok
-                    record_row = a[1]+0
-                    offset = scroll_happened ? 1 - record_row : pre_cpr_rows
+                if (record_row == 0 && match(pending_scroll, /\\u001b\[([0-9]+);([0-9]+)[Hf]/, a)) {
+                    record_row = (a[2]+0 == 0) ? a[1]+0 - 2 : a[1]+0
+                    offset = 1 - record_row
                 }
                 print applyOffset(pending_scroll)
             }
