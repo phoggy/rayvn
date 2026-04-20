@@ -800,7 +800,7 @@ copyMap() {
 #
 # · ARGS
 #
-#   maxValue (int)  Largest value to represent; must be a positive integer.
+#   maxValue (int)    Largest value to represent; must be a positive integer.
 #   startValue (int)  Index base: 0 (zero-indexed, default) or 1 (one-indexed).
 
 numericPlaces() {
@@ -856,7 +856,7 @@ printList() {
 # · ARGS
 #
 #   intResult (stringRef)  Variable to receive the result.
-#   maxValue (int)  Optional inclusive upper bound; omits for full SRANDOM range.
+#   maxValue (int)         Optional inclusive upper bound; omits for full SRANDOM range.
 
 randomInteger() {
     local -n _intResultRef="$1"
@@ -882,11 +882,11 @@ randomHexChar() {
     _hexResultRef=${_hexChars[_hexIndex]}
 }
 
-# ◇ Generate a random hex string of count characters, stored via name-ref.
+# ◇ Generate a random hex string of count characters, stored via nameref.
 #
 # · ARGS
 #
-#   count (int)  Number of hex characters to generate.
+#   count (int)             Number of hex characters to generate.
 #   _resultRef (stringRef)  Name of the variable to receive the result.
 
 randomHexString() {
@@ -1072,6 +1072,7 @@ makeTempFifo() {
 makeTempDir() {
     local dirPath="${ tempDirPath -r "$1"; }"
     mkdir "${dirPath}" || fail "could not create directory: ${dirPath}"
+    chmod 700 "${dirPath}"
     echo "${dirPath}"
 }
 
@@ -1079,10 +1080,10 @@ makeTempDir() {
 #
 # · ARGS
 #
-#   dirRef (nameref)         Variable to receive the directory path.
-#   isRamBackedRef (nameref) Optional; receives 1 if RAM-backed, 0 if disk-backed (default temp).
-#   sizeMb (integer)         Optional RAM disk size in MB for hdiutil fallback (default: 64).
-#                            Ignored when an existing tmpfs/shm is used.
+#   dirRef (stringRef)         Variable to receive the directory path.
+#   isRamBackedRef (stringRef) Optional; receives 1 if RAM-backed, 0 if disk-backed (default temp).
+#   sizeMb (int)               Optional RAM disk size in MB for hdiutil fallback (default: 64).
+#                              Ignored when an existing tmpfs/shm is used.
 #
 # · NOTES
 #
@@ -1101,9 +1102,8 @@ makeSecureTempDir() {
     local _mstdDir='' _mstdRamBacked=0
 
     if [[ -n ${_secureTempBase} ]]; then
-        # Existing tmpfs/shm — zero overhead
-        _mstdDir=${ withUmask 0077 mktemp -d "${_secureTempBase}/rayvn-XXXXXX"; } || fail "could not create secure temp directory in ${_secureTempBase}"
-        chmod 700 "${_mstdDir}"
+        # Existing tmpfs/shm — zero overhead; session temp dir is already RAM-backed
+        _mstdDir=${ makeTempDir; }
         _mstdRamBacked=1
 
     elif (( onMacOS )); then
