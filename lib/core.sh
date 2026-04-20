@@ -1069,6 +1069,7 @@ makeTempFifo() {
 #
 #   dirName (string)  Optional; see tempDirPath -r.
 
+# shellcheck disable=SC2120
 makeTempDir() {
     local dirPath="${ tempDirPath -r "$1"; }"
     mkdir "${dirPath}" || fail "could not create directory: ${dirPath}"
@@ -1080,15 +1081,15 @@ makeTempDir() {
 #
 # · ARGS
 #
-#   dirRef (stringRef)         Variable to receive the directory path.
-#   isRamBackedRef (stringRef) Optional; receives 1 if RAM-backed, 0 if disk-backed (default temp).
-#   sizeMb (int)               Optional RAM disk size in MB for hdiutil fallback (default: 64).
-#                              Ignored when an existing tmpfs/shm is used.
+#   dirRef (stringRef)          Variable to receive the directory path.
+#   isRamBackedRef (stringRef)  Optional variable name; receives 1 if RAM-backed, 0 if disk-backed (default temp).
+#   sizeMb (int)                Optional RAM disk size in MB for hdiutil fallback (default: 64).
+#                               Ignored when an existing tmpfs/shm is used.
 #
 # · NOTES
 #
 #   Strategy, in order of preference:
-#     1. Existing tmpfs/shm (_secureTempBase set by rayvn-tmp or Linux /dev/shm): zero overhead.
+#     1. Existing tmpfs/shm (set by rayvn-tmp or Linux /dev/shm): zero overhead.
 #     2. hdiutil RAM disk (macOS only, no sudo required): ~1–2s overhead to format and mount.
 #        An exit handler is registered automatically to detach the disk on exit.
 #     3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
@@ -1097,55 +1098,55 @@ makeTempDir() {
 #   check isRamBackedRef and warn or abort when it is 0.
 
 makeSecureTempDir() {
-    local -n _mstdDirRef=$1
-    local _mstdSizeMb="${3:-64}"
-    local _mstdDir='' _mstdRamBacked=0
+    local -n _resultDirRef=$1
+    local _isRamBackedVar=${2:-}
+    local _dirSizeMb="${3:-64}"
+    local _resultDir='' _isRamBacked=0
 
     if [[ -n ${_secureTempBase} ]]; then
         # Existing tmpfs/shm — zero overhead; session temp dir is already RAM-backed
-        _mstdDir=${ makeTempDir; }
-        _mstdRamBacked=1
+        _resultDir=${ makeTempDir; }
+        _isRamBacked=1
 
     elif (( onMacOS )); then
         # hdiutil RAM disk — ~1–2s overhead to format and mount; no sudo required
-        local _mstdSectors=$(( _mstdSizeMb * 2048 ))
-        local _mstdDevice
-        _mstdDevice=${ hdiutil attach -nomount "ram://${_mstdSectors}" 2>/dev/null; }
-        _mstdDevice="${_mstdDevice// /}"
-        if [[ -n ${_mstdDevice} ]]; then
-            local _mstdLabel="rayvn-s-$$-${#_hdiutilSecureDevices[@]}"
-            if diskutil erasevolume HFS+ "${_mstdLabel}" "${_mstdDevice}" > /dev/null 2>&1; then
-                local _mstdMount="/Volumes/${_mstdLabel}"
-                if [[ -d ${_mstdMount} ]]; then
-                    _mstdDir=${ withUmask 0077 mktemp -d "${_mstdMount}/tmp.XXXXXX"; }
-                    if [[ -n ${_mstdDir} && -d ${_mstdDir} ]]; then
-                        chmod 700 "${_mstdDir}"
+        local _diskSectors=$(( _dirSizeMb * 2048 ))
+        local _diskDevice
+        _diskDevice=${ hdiutil attach -nomount "ram://${_diskSectors}" 2>/dev/null; }
+        _diskDevice="${_diskDevice// /}"
+        if [[ -n ${_diskDevice} ]]; then
+            local _diskLabel="rayvn-s-$$-${#_hdiutilSecureDevices[@]}"
+            if diskutil erasevolume HFS+ "${_diskLabel}" "${_diskDevice}" > /dev/null 2>&1; then
+                local _diskMount="/Volumes/${_diskLabel}"
+                if [[ -d ${_diskMount} ]]; then
+                    _resultDir=${ withUmask 0077 mktemp -d "${_diskMount}/tmp.XXXXXX"; }
+                    if [[ -n ${_resultDir} && -d ${_resultDir} ]]; then
+                        chmod 700 "${_resultDir}"
                         (( ${#_hdiutilSecureDevices[@]} == 0 )) && addExitHandler '_cleanupHdiutilDevices'
-                        _hdiutilSecureDevices+=("${_mstdDevice}")
-                        _mstdRamBacked=1
+                        _hdiutilSecureDevices+=("${_diskDevice}")
+                        _isRamBacked=1
                     else
-                        hdiutil detach "${_mstdDevice}" -force > /dev/null 2>&1 || true
-                        _mstdDir=''
+                        hdiutil detach "${_diskDevice}" -force > /dev/null 2>&1 || true
+                        _resultDir=''
                     fi
                 else
-                    hdiutil detach "${_mstdDevice}" -force > /dev/null 2>&1 || true
+                    hdiutil detach "${_diskDevice}" -force > /dev/null 2>&1 || true
                 fi
             else
-                hdiutil detach "${_mstdDevice}" -force > /dev/null 2>&1 || true
+                hdiutil detach "${_diskDevice}" -force > /dev/null 2>&1 || true
             fi
         fi
     fi
 
     # Fallback to regular temp directory
-    if [[ -z ${_mstdDir} ]]; then
-        _mstdDir=${ withUmask 0077 mktemp -d; } || fail "could not create temp directory"
-        chmod 700 "${_mstdDir}"
+    if [[ -z ${_resultDir} ]]; then
+        _resultDir=${ makeTempDir; }
     fi
 
-    _mstdDirRef="${_mstdDir}"
-    if [[ -n ${2:-} ]]; then
-        local -n _mstdRamRef=$2
-        _mstdRamRef=${_mstdRamBacked}
+    _resultDirRef="${_resultDir}"
+    if [[ -n ${_isRamBackedVar} ]]; then
+        local -n _isRamBackedRef=${_isRamBackedVar}
+        _isRamBackedRef=${_isRamBacked}
     fi
 }
 
