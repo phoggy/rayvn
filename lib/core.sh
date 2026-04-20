@@ -1075,6 +1075,81 @@ makeTempDir() {
     echo "${dirPath}"
 }
 
+# ◇ Create a unique temp directory backed by RAM when possible, storing the path in dirRef.
+#
+# · ARGS
+#
+#   dirRef (nameref)         Variable to receive the directory path.
+#   isRamBackedRef (nameref) Optional; receives 1 if RAM-backed, 0 if disk-backed (default temp).
+#   sizeMb (integer)         Optional RAM disk size in MB for hdiutil fallback (default: 64).
+#                            Ignored when an existing tmpfs/shm is used.
+#
+# · NOTES
+#
+#   Strategy, in order of preference:
+#     1. Existing tmpfs/shm (_secureTempBase set by rayvn-tmp or Linux /dev/shm): zero overhead.
+#     2. hdiutil RAM disk (macOS only, no sudo required): ~1–2s overhead to format and mount.
+#        An exit handler is registered automatically to detach the disk on exit.
+#     3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
+#
+#   Callers that require RAM-backing (e.g. to ensure sensitive data never touches disk) should
+#   check isRamBackedRef and warn or abort when it is 0.
+
+makeSecureTempDir() {
+    local -n _mstdDirRef=$1
+    local _mstdSizeMb="${3:-64}"
+    local _mstdDir='' _mstdRamBacked=0
+
+    if [[ -n ${_secureTempBase} ]]; then
+        # Existing tmpfs/shm — zero overhead
+        _mstdDir=${ withUmask 0077 mktemp -d "${_secureTempBase}/rayvn-XXXXXX"; } || fail "could not create secure temp directory in ${_secureTempBase}"
+        chmod 700 "${_mstdDir}"
+        _mstdRamBacked=1
+
+    elif (( onMacOS )); then
+        # hdiutil RAM disk — ~1–2s overhead to format and mount; no sudo required
+        local _mstdSectors=$(( _mstdSizeMb * 2048 ))
+        local _mstdDevice
+        _mstdDevice=${ hdiutil attach -nomount "ram://${_mstdSectors}" 2>/dev/null; }
+        _mstdDevice="${_mstdDevice// /}"
+        if [[ -n ${_mstdDevice} ]]; then
+            local _mstdLabel="rayvn-s-$$-${#_hdiutilSecureDevices[@]}"
+            if diskutil erasevolume HFS+ "${_mstdLabel}" "${_mstdDevice}" > /dev/null 2>&1; then
+                local _mstdMount="/Volumes/${_mstdLabel}"
+                if [[ -d ${_mstdMount} ]]; then
+                    _mstdDir=${ withUmask 0077 mktemp -d "${_mstdMount}/tmp.XXXXXX"; }
+                    if [[ -n ${_mstdDir} && -d ${_mstdDir} ]]; then
+                        chmod 700 "${_mstdDir}"
+                        (( ${#_hdiutilSecureDevices[@]} == 0 )) && addExitHandler '_cleanupHdiutilDevices'
+                        _hdiutilSecureDevices+=("${_mstdDevice}")
+                        _mstdRamBacked=1
+                    else
+                        hdiutil detach "${_mstdDevice}" -force > /dev/null 2>&1 || true
+                        _mstdDir=''
+                    fi
+                else
+                    hdiutil detach "${_mstdDevice}" -force > /dev/null 2>&1 || true
+                fi
+            else
+                hdiutil detach "${_mstdDevice}" -force > /dev/null 2>&1 || true
+            fi
+        fi
+    fi
+
+    # Fallback to regular temp directory
+    if [[ -z ${_mstdDir} ]]; then
+        _mstdDir=${ withUmask 0077 mktemp -d; } || fail "could not create temp directory"
+        chmod 700 "${_mstdDir}"
+    fi
+
+    _mstdDirRef="${_mstdDir}"
+    if [[ -n ${2:-} ]]; then
+        local -n _mstdRamRef=$2
+        _mstdRamRef=${_mstdRamBacked}
+    fi
+}
+
+
 # ◇ Outputs the config directory path for the current or specified project, creating it if needed,
 #   optionally joined with fileName.
 #
@@ -1451,6 +1526,7 @@ _init_rayvn_core() {
     declare -gr inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
     declare -g _rayvnExitMessage=''
+    declare -ga _hdiutilSecureDevices=()
 
     # Detect the best available RAM-backed temp storage strategy.
     # linux_shm:   /dev/shm (tmpfs, standard on Linux)
@@ -1718,6 +1794,13 @@ _setFileSystemVar() {
     fi
     local realFile="${ realpath "${file}" 2>/dev/null; }"
     resultVarRef="${realFile}"
+}
+
+_cleanupHdiutilDevices() {
+    local device
+    for device in "${_hdiutilSecureDevices[@]}"; do
+        hdiutil detach "${device}" -force > /dev/null 2>&1 || true
+    done
 }
 
 _ensureRayvnTempDir() {
