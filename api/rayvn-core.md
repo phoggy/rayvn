@@ -95,6 +95,33 @@ Print a styled section header with optional subtitle lines.
 | `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
 
+### commonOptions()
+
+Prints common CLI options, optionally including a debug options section.
+
+
+*Args*
+
+| | |
+|---|---|
+| `col` *(int)* | Column width for option alignment (default: 21). |
+| `includeDebug` *(bool)* | Whether to print the debug options section (default: 'true'). |
+{: .args-table}
+
+### option()
+
+Prints a formatted option line with the option name padded to a description column.
+
+
+*Args*
+
+| | |
+|---|---|
+| `option` *(string)* | The option name or flag to display. |
+| `description` *(string)* | The description text to print after padding. |
+| `descriptionColumn` *(int)* | Column position for the description (default: 21). |
+{: .args-table}
+
 ### warn()
 
 Print a warning message to stderr with a ⚠️ prefix.
@@ -441,7 +468,7 @@ Outputs a string padded to a given width, measuring visible length by stripping 
 |---|---|
 | `string` *(string)* | Target string. |
 | `width` *(int)* | Minimum visible character width. |
-| `position` *(string)* | Padding side: 'after'/'left' (default), 'before'/'right', or 'center'. |
+| `position` *(string)* | Optional padding side: 'after'/'left' (default), 'before'/'right', or 'center'. |
 {: .args-table}
 
 ### stripAnsi()
@@ -580,7 +607,7 @@ Set a random hex character (0–9, a–f) via nameref.
 
 ### randomHexString()
 
-Generate a random hex string of count characters, stored via name-ref.
+Generate a random hex string of count characters, stored via nameref.
 
 
 *Args*
@@ -717,6 +744,32 @@ Create a unique temp directory in the session temp directory, outputting its pat
 | `dirName` *(string)* | Optional; see tempDirPath -r. |
 {: .args-table}
 
+### makeSecureTempDir()
+
+Create a unique temp directory backed by RAM when possible, storing the path in dirRef.
+
+
+*Args*
+
+| | |
+|---|---|
+| `dirRef` *(stringRef)* | Variable to receive the directory path. |
+| `isRamBackedRef` *(stringRef)* | Optional variable name; receives 1 if RAM-backed, 0 if disk-backed (default temp). |
+| `sizeMb` *(int)* | Optional RAM disk size in MB for hdiutil fallback (default: 64). |
+{: .args-table}
+
+*Notes*
+
+
+Strategy, in order of preference:
+  1. Existing tmpfs/shm (set by rayvn-tmp or Linux /dev/shm): zero overhead.
+  2. hdiutil RAM disk (macOS only, no sudo required): ~1–2s overhead to format and mount.
+     An exit handler is registered automatically to detach the disk on exit.
+  3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
+
+Callers that require RAM-backing (e.g. to ensure sensitive data never touches disk) should
+check isRamBackedRef and warn or abort when it is 0.
+
 ### configDirPath()
 
 Outputs the config directory path for the current or specified project, creating it if needed,
@@ -755,6 +808,10 @@ Outputs the directory component of a path, equivalent to dirname.
 ### baseName()
 
 Outputs the final component of a path, equivalent to basename.
+
+### tildePath()
+
+Outputs a path with the home directory prefix replaced by '~'.
 
 ### readFile()
 
@@ -877,10 +934,15 @@ Enable debug mode.
 
 *Usage*
 
-`setDebug [--tty TTY|.] [--noStatus] [--clearLog] [--showLogOnExit]`
+`setDebug [OPTIONS]`
 {: .usage-signature}
 
 | | |
 |---|---|
+| `--debug` | Enable debug, write output to log file and show on exit." |
+| `--debug-new` | Enable debug, clear log file, write output to log file and show on exit." |
+| `--debug-out` | Enable debug, write output to the current terminal." |
+| `--debug-tty` | TTY  Enable debug, write output to the specified TTY (e.g., /dev/ttys001)." |
+| `--debug-tty` | .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file." |
 {: .usage-table}
 

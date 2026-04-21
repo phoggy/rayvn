@@ -8,7 +8,6 @@ nav_order: 10
 # rayvn/namespace
 
 Detect namespace collisions across registered rayvn project libraries.
-Use via: require 'rayvn/namespace'
 
 ## Functions
 

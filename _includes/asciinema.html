@@ -1,14 +1,25 @@
+{% if include.scrollable %}<div style="max-height: {{ include.scrollable }}; overflow-y: auto; border-radius: 0.25rem;">{% endif %}
+{% unless include.autoplay %}<div class="ap-pre-play" id="ap-wrap-{{ include.id }}">{% endunless %}
 <div id="asciinema-{{ include.id }}"></div>
+{% unless include.autoplay %}</div>{% endunless %}
+{% if include.scrollable %}</div>{% endif %}
 <script>
-  AsciinemaPlayer.create(
-    '{{ include.src | relative_url }}',
-    document.getElementById('asciinema-{{ include.id }}'),
-    {
-      {% if include.cols %}cols: {{ include.cols }},{% endif %}
-      {% if include.rows %}rows: {{ include.rows }},{% endif %}
-      autoPlay: {{ include.autoplay | default: false }},
-      theme: '{{ include.theme | default: "asciinema" }}'
-    }
-  );
+  (function() {
+    var player = AsciinemaPlayer.create(
+      '{{ include.src | relative_url }}',
+      document.getElementById('asciinema-{{ include.id }}'),
+      {
+        {% if include.cols %}cols: {{ include.cols }},{% endif %}
+        {% if include.rows %}rows: {{ include.rows }},{% endif %}
+        autoPlay: {{ include.autoplay | default: false }},
+        theme: '{{ include.theme | default: "asciinema" }}'
+      }
+    );
+    {% unless include.autoplay %}
+    player.addEventListener('play', function() {
+      var w = document.getElementById('ap-wrap-{{ include.id }}');
+      if (w) w.classList.remove('ap-pre-play');
+    });
+    {% endunless %}
+  })();
 </script>
-

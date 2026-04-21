@@ -19,6 +19,26 @@ Hide the terminal cursor.
 
 Show the terminal cursor.
 
+### terminalSize()
+
+Read the current terminal size.
+
+
+*Args*
+
+| | |
+|---|---|
+| `rowsVarRef` *(stringRef)* | Receives the 1-based row size. |
+| `colsVarRef` *(stringRef)* | Receives the 1-based column size. |
+{: .args-table}
+
+*Example*
+
+```bash
+terminalSize rows cols
+echo "Terminal is ${rows} rows by ${cols} columns"
+```
+
 ### cursorPosition()
 
 Read the current cursor position.

@@ -1,5 +1,0 @@
-{"version":3,"term":{"cols":80,"rows":24},"timestamp":1775333508,"command":"rayvn build","env":{"SHELL":"/usr/local/bin/bash"}}
-[0.294, "o", "\u001b[H\r\n"]
-[0.000, "o", "\r\n"]
-[0.001, "o", "\u001b[1mrayvn\u001b[0m nix build \u001b[0m  \u001b[2m log at ~/.config/rayvn/tests/rayvn-nix-build.log\u001b[0m\r\n"]
-[0.004, "o", "\u001b[6n"]
