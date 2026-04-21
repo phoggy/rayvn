@@ -11,13 +11,13 @@ rayvn is the command-line tool for managing shared libraries and projects. It ha
 ## Usage
 
 ```
-Manage shared libraries and executables.
+Create and manage rayvn projects, shared libraries, scripts and tests.
 
 Usage: rayvn COMMAND [PROJECT] [PROJECT...] <options>
 
 Commands
 
-    new TYPE NAME    Create a new project, script, library or test with the specified NAME.
+    new TYPE NAME    Create a new project, library script or test with the specified NAME.
     libraries        List libraries.
     functions        List functions.
     test             Run tests.
@@ -32,8 +32,9 @@ Commands
     release          Create a new release.
     register         Stake a claim on a project name, if available.
 
-Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project
-if within one. 'test' falls back to rayvn if not in a project.
+Use COMMAND --help for additional details. PROJECT defaults to the current directory's project
+if within one, otherwise to ${RAYVN_DEFAULT_PROJECT} (default: rayvn). Set to empty to require
+an explicit project name.
 
 Options
 
@@ -47,7 +48,8 @@ Debug Options
     --debug-new      Enable debug, clear log file, write output to log file and show on exit.
     --debug-out      Enable debug, write output to the current terminal.
     --debug-tty TTY  Enable debug, write output to the specified TTY (e.g., /dev/ttys001).
-    --debug-tty .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file.
+    --debug-tty .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file
+
 ```
 
 `PROJECT` defaults to the current directory's project when run from within a rayvn project. Most
