@@ -65,21 +65,21 @@ Create a new project, script, library, or test file from a template.
 rayvn new project|script|library|test NAME [--local]
 ```
 
-**project**
-: creates a full project directory with `bin/`, `lib/`, `tests/`, a `rayvn.pkg`, `flake.nix`,
+`project`
+: Creates a full project directory with `bin/`, `lib/`, `tests/`, a `rayvn.pkg`, `flake.nix`,
   README, and Homebrew formula. Asks if you want to create a GitHub repo and clones it if so.
 
-**script**
-: adds a new executable to the current project's `bin/` directory, pre-populated from the script template.
+`script`
+: Adds a new executable to the current project's `bin/` directory, pre-populated from the script template.
 
-**library**
-: adds a new `.sh` file to the current project's `lib/` directory, pre-populated from the library template.
+`library`
+: Adds a new `.sh` file to the current project's `lib/` directory, pre-populated from the library template.
 
-**test**
-: adds a new test file to the current project's `tests/` directory, pre-populated from the test template.
+`test`
+: Adds a new test file to the current project's `tests/` directory, pre-populated from the test template.
 
 `--local`
-: skip GitHub repo creation; initialize a local git repo only.
+: Skip GitHub repo creation; initialize a local git repo only.
 
 All generated files are automatically staged in git.
 
