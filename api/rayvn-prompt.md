@@ -7,7 +7,7 @@ nav_order: 13
 
 # rayvn/prompt
 
-Interactive user prompts
+Interactive user prompts.
 
 ## Functions
 

@@ -7,7 +7,7 @@ nav_order: 3
 
 # rayvn/config
 
-Configuration file support
+Configuration file support.
 
 ## Functions
 

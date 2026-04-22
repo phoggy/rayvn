@@ -7,7 +7,7 @@ nav_order: 21
 
 # rayvn/typist
 
-Jitter model (log-normal distribution approximation):
+Typing jitter model (log-normal distribution approximation).
 
 ## Functions
 

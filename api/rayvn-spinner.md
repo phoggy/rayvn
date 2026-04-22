@@ -7,7 +7,7 @@ nav_order: 16
 
 # rayvn/spinner
 
-Terminal spinners
+Terminal spinners.
 
 ## Functions
 

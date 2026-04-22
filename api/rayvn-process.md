@@ -7,7 +7,7 @@ nav_order: 12
 
 # rayvn/process
 
-Process management
+Process management.
 
 ## Functions
 

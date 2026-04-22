@@ -7,7 +7,7 @@ nav_order: 14
 
 # rayvn/release
 
-GitHub release workflow
+GitHub release workflow.
 
 ## Functions
 

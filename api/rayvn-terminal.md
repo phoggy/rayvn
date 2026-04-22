@@ -7,7 +7,7 @@ nav_order: 17
 
 # rayvn/terminal
 
-Cursor control and terminal output
+Cursor control and terminal output.
 
 ## Functions
 

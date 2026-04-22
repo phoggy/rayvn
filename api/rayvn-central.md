@@ -7,7 +7,7 @@ nav_order: 2
 
 # rayvn/central
 
-Project registry
+Project registry.
 
 ## Functions
 

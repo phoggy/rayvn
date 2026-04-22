@@ -7,7 +7,7 @@ nav_order: 9
 
 # rayvn/lint
 
-Bash requirement linting
+Bash requirement linting.
 
 ## Functions
 

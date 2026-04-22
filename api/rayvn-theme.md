@@ -7,7 +7,7 @@ nav_order: 20
 
 # rayvn/theme
 
-Color themes
+Color themes.
 
 ## Functions
 

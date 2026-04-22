@@ -7,7 +7,7 @@ nav_order: 5
 
 # rayvn/debug
 
-Debug logging and tracing
+Debug logging and tracing.
 
 ## Functions
 

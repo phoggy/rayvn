@@ -7,7 +7,7 @@ nav_order: 18
 
 # rayvn/test-harness
 
-Test runner
+Test runner.
 
 ## Functions
 

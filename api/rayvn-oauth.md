@@ -7,7 +7,7 @@ nav_order: 11
 
 # rayvn/oauth
 
-OAuth authorization code flow
+OAuth authorization code flow.
 
 ## Functions
 

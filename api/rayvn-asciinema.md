@@ -7,7 +7,7 @@ nav_order: 1
 
 # rayvn/asciinema
 
-Requires: jq, gawk
+Asciinema cast recording and post-processing.
 
 ## Functions
 

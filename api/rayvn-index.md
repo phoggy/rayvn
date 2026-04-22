@@ -7,7 +7,7 @@ nav_order: 8
 
 # rayvn/index
 
-Generate function indexes for AI agent use
+Generate function indexes for AI agent use.
 
 ## Functions
 

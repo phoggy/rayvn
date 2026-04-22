@@ -7,7 +7,7 @@ nav_order: 4
 
 # rayvn/core
 
-Core utilities, assertions, and error handling
+Core utilities, assertions, and error handling.
 
 ## Output & Error Functions
 

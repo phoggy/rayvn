@@ -7,7 +7,7 @@ nav_order: 15
 
 # rayvn/secrets
 
-System keychain credential storage
+System keychain credential storage.
 
 ## Functions
 

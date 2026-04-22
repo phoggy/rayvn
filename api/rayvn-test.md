@@ -7,7 +7,7 @@ nav_order: 19
 
 # rayvn/test
 
-Test assertions
+Test assertions.
 
 ## Assert Functions
 
