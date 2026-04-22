@@ -4,13 +4,13 @@
 
 usage() {
     echo
-    show bold "Manage shared libraries and executables."
+    show bold "Create and manage rayvn projects, shared libraries, scripts and tests."
     echo
     show "Usage:" bold "rayvn" "COMMAND [PROJECT] [PROJECT...] <options>"
     echo
     echo "Commands"
     echo
-    echo "    new TYPE NAME    Create a new project, script, library or test with the specified NAME."
+    echo "    new TYPE NAME    Create a new project, library script or test with the specified NAME."
     echo "    libraries        List libraries."
     echo "    functions        List functions."
     echo "    test             Run tests."
@@ -25,8 +25,9 @@ usage() {
     echo "    release          Create a new release."
     echo "    register         Stake a claim on a project name, if available."
     echo
-    echo "Use COMMAND --help for any additional details. PROJECT defaults to the current directory's project"
-    echo "if within one. 'test' falls back to rayvn if not in a project."
+    echo "Use COMMAND --help for additional details. PROJECT defaults to the current directory's project"
+    show "if within one, otherwise to" italic "\${RAYVN_DEFAULT_PROJECT}" "(default: rayvn). Set to empty to require"
+    echo "an explicit project name."
     echo
     echo "Options"
     echo
@@ -126,7 +127,13 @@ detectCurrentProject() {
         fi
         dir="${dir%/*}"
     done
-    return 0
+    local defaultProject="${RAYVN_DEFAULT_PROJECT-rayvn}"
+    if [[ -n ${defaultProject} ]]; then
+        projects+=( "${defaultProject}" )
+    else
+        show warning "No project specified" "and" italic "RAYVN_DEFAULT_PROJECT" "is explicitly set to empty."
+        show "Specify project name, run from within a project directory or change" italic "RAYVN_DEFAULT_PROJECT" glue "."
+    fi
 }
 
 addIfRayvnExecutable() {
@@ -185,14 +192,14 @@ newCmd() {
     if (( flags['help'] )); then
         echo "rayvn new project|script|library|test NAME [--local]"
         echo
-        echo "  Create a new project, script, library, or test file from a template."
+        echo "  Create a new project, library, script or test from a template."
         echo
         echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
     else
         local type=${args[0]}
         local name=${args[1]}
         local command=
-        [[ -n "${type}" ]] || bye "one of 'project', 'script' 'library' or 'test' required"
+        [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
         case ${type} in
             project | script | library | test) ;;
             *) bye "unknown type: ${type}"
