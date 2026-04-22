@@ -256,8 +256,11 @@ _initSpinnerServer() {
     # TODO: even more spinners, and... intervals: https://raw.githubusercontent.com/sindresorhus/cli-spinners/45cef9dff64ac5e36b46a194c68bccba448899ac/spinners.json
     # TODO: consider progress bars like the one shown here: https://cli.r-lib.org/index.html
 
-    # Add exit handler
+    # Override signal handlers: clear the inherited EXIT trap (we are a background server
+    # and must not restore the terminal or emit output on exit), and handle TERM/INT/HUP
+    # ourselves to cleanly erase any active spinners before exiting.
 
+    trap '' EXIT
     trap "_stopSpinnerServer" TERM INT HUP
 }
 
@@ -324,10 +327,9 @@ _spinnerExit() {
 
 _shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
-        printf '%s' $'1\nstop\n' 1>&${_spinnerClientRequestFd} 2>/dev/null || true
+        kill -TERM "${_spinnerServerPid}" 2>/dev/null
         if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
-            local errMsg="spinner process ${_spinnerServerPid} didn't exit"
-            [[ -n "${inRayvnFail}" ]] && error "${errMsg}" || fail "${errMsg}"
+            error "spinner process ${_spinnerServerPid} didn't exit"
         fi
     fi
     _spinnerServerPid=0

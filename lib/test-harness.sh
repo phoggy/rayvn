@@ -75,9 +75,6 @@ _assertPrerequisites() {
         return 1
     fi
 
-    # Ensure rayvn is in the projects list and set max project name length
-
-    _ensureRayvnProject
     _maxProjectNameLength="${ maxArrayElementLength projects; }"
 }
 
@@ -98,13 +95,6 @@ _assertVarIsDefined() {
     [[ ${ declare -p "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
 }
 
-_ensureRayvnProject() {
-    local project
-    for project in "${projects[@]}"; do
-        [[ ${project} == 'rayvn' ]] && return 0
-    done
-    projects=("rayvn" "${projects[@]}")
-}
 
 _executeTests() {
     rayvnTest_TraceFail=1
@@ -687,10 +677,10 @@ _cancelAllTasks() {
     done
     wait "${_taskPids[@]}" 2> /dev/null
     _taskPids=()
-    if [[ -n ${_testDisplayEndRow} ]]; then
-        cursorTo "${_testDisplayEndRow}" 1
-        echo
-    fi
+    _shutdownSpinnerServer
+    [[ -n ${_testDisplayEndRow} ]] && cursorTo "${_testDisplayEndRow}" 1
+    printf '\n' >&${ttyFd}
+    cursorShow
 }
 
 _readTaskResult() {
