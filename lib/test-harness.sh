@@ -123,7 +123,10 @@ _executeTests() {
     local -A buildTaskIdx=()
 
     if (( flags['nix'] )); then
-        command -v nix > /dev/null 2>&1 || fail "'rayvn test --nix' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
+        if ! command -v nix > /dev/null 2>&1; then
+            show warning "nix is not installed"
+            return 0
+        fi
         _collectBuildTasks buildTaskIdx
         _collectNixTasks buildTaskIdx
     elif (( flags['all'] )); then
@@ -133,7 +136,7 @@ _executeTests() {
                 _collectBuildTasks buildTaskIdx
                 _collectNixTasks buildTaskIdx
             else
-                show muted "(nix not available — skipping nix tasks)"
+                show muted "nix is not installed — skipping nix tasks"
             fi
         else
             _collectLocalTasks

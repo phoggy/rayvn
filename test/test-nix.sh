@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# REQUIRES: nix
 # shellcheck disable=SC2155
 
 # Tests for nix build output structure and nix profile install
@@ -19,12 +20,6 @@ init() {
         esac
         shift
     done
-
-    # Graceful skip if nix is not available
-    if ! command -v nix &> /dev/null; then
-        echo "nix not available, skipping"
-        exit 0
-    fi
 
     declare -grx testProfile="${ tempDirPath; }/nix-test-profile"
 }
