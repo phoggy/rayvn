@@ -666,6 +666,8 @@ _asciinemaFixWidgetPositions() {
 # no blank row between them.
 #
 # Safe to call on casts without a typing prelude (0 pre-CPR \r\n → no-op).
+# No-op when [H (cursor home) appears before the CPR: the home cancels the
+# typing prelude's row offset, so positions are already correct (e.g. rayvn test).
 
 _asciinemaShiftTypingRows() {
     local castFile=$1
@@ -673,15 +675,19 @@ _asciinemaShiftTypingRows() {
     local tmpBody; tmpBody=${ makeTempFile; } || fail "failed to create temp file"
     gawk '/^\[/{found=1} found' "${castFile}" | \
         gawk '
-        BEGIN { cpr_seen = 0; pre_cpr_rows = 0; offset = 0 }
+        BEGIN { cpr_seen = 0; home_seen = 0; pre_cpr_rows = 0; offset = 0 }
         {
             line = $0
             if (!cpr_seen) {
-                tmp = line
-                while (match(tmp, /\\r\\n/)) { pre_cpr_rows++; tmp = substr(tmp, RSTART + RLENGTH) } # lint-ok
+                if (!home_seen && index(line, "\\u001b[H") > 0)
+                    home_seen = 1
+                if (!home_seen) {
+                    tmp = line
+                    while (match(tmp, /\\r\\n/)) { pre_cpr_rows++; tmp = substr(tmp, RSTART + RLENGTH) } # lint-ok
+                }
                 if (index(line, "\\u001b[6n") > 0) {
                     cpr_seen = 1
-                    offset = pre_cpr_rows
+                    offset = home_seen ? 0 : pre_cpr_rows
                 }
             }
             if (cpr_seen && offset > 0) {
