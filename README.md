@@ -164,6 +164,21 @@ rayvn functions rayvn/core --all  # include private functions
 
 Private functions have an underscore prefix and are **always** *subject to change*.
 
+## Namespaces
+
+Bash has a flat namespace: all functions and global variables from loaded libraries share the same scope. Potential collisions can 
+be managed via a mandatory prefix (e.g. `rayvn::`), but this adds development friction and is really only warranted when
+wider adoption is expected.
+
+For now, rayvn takes a best-effort approach:
+
+- **Naming conventions**: Public functions use descriptive, naturally-scoped names (e.g. `addSpinner`, `cursorTo`). Private functions and variables are prefixed with `_` and are always subject to change.
+- **Runtime enforcement**: `rayvn.up` marks all library functions readonly after loading, so a collision causes a hard error rather than a silent clobber, naming the conflicting libraries. This catches function collisions between libraries as they are loaded, but does not cover global variables.
+- **Static analysis**: `rayvn collisions` scans locally-installed project libraries for function and global variable name collisions. It only sees whatever versions happen to be installed, so it is a development-time sanity check rather than a guarantee.
+- **Escape hatches**: A declaration can be annotated with `# namespace-ok` to suppress a specific collision report, or a block can be wrapped in `# namespace-skip-start` / `# namespace-skip-end`.
+
+If wider adoption does occur, a future (breaking) release may introduce mandatory function and global variable prefixes.
+
 ## Debugging rayvn applications
 
 All rayvn applications support debug options via the `rayvn/debug` library. Use debug functions to generate diagnostic output that can be sent to a log file or separate terminal.
