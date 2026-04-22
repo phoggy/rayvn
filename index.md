@@ -43,5 +43,5 @@ See the [README](https://github.com/phoggy/rayvn#readme) for a quick introductio
 
 ## Related Projects
 
-- [valt](/valt) — encrypted file archives using age
-- [wardn](/wardn) — encrypted Bitwarden vault backups
+- valt — encrypted file archives using age *(renovating, coming soon)*
+- wardn — encrypted Bitwarden vault backups *(renovating, coming soon)*
