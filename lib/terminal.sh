@@ -50,6 +50,16 @@ terminalSize() {
 cursorPosition() {
     local -n rowVarRef="$1"
     local -n colVarRef="$2"
+
+    # Allow asciinema recordings to pre-set the row so the CPR query/response
+    # cycle can be skipped, avoiding a non-deterministic race between expect's
+    # injected response and asciinema's own auto-response to \e[6n.
+    if [[ -n ${RAYVN_CURSOR_ROW:-} ]]; then
+        rowVarRef=${RAYVN_CURSOR_ROW}
+        colVarRef=1
+        return 0
+    fi
+
     local response=''
     local c
 

@@ -464,26 +464,12 @@ _asciinemaRecordWithKeys() {
     local script; script=${ makeTempFile; } || return 1
     {
         printf 'log_user 0\n'
-        printf 'spawn asciinema rec --command {%s} --window-size {%s} --idle-time-limit {2} {%s}\n' "${cmd}" "${windowSize}" "${castFile}"
-        # Interactive widgets query the cursor position (CPR: ESC[6n) before painting choices.
-        # Whether asciinema forwards the CPR to its controlling PTY depends on the environment:
-        # in a real terminal it typically does; in a headless PTY (e.g. script(1)) it may not.
-        # Use a short timeout so we send the CPR response quickly in either case. The idle gap
-        # is at most 3 seconds and is compressed further by --idle-time-limit 2 in the player.
-        # Row 2 is correct: the prepended typing occupies row 1; after its \r\n the cursor is
-        # at row 2 where the widget header lands. Transform 8 keeps positions as-is (offset=0),
-        # and transform 9 then shifts them +1 to match the player row layout.
-        # TODO: recordings are non-deterministic — sometimes the CPR response arrives before the
-        # widget reads it (correct layout) and sometimes after (items one row too high). This is
-        # a timing race between expect's send and the widget's tty read. If this becomes a
-        # problem, investigate: (1) whether the actual terminal responds to CPR independently of
-        # expect's send, causing a double-response, or (2) whether a longer pre-CPR sleep or a
-        # synchronisation point would stabilise the result.
-        printf 'set timeout 3\n'
-        printf 'expect {\n'
-        printf '    "\\033\\[6n" { send "\\033\\[2;1R" }\n'
-        printf '    timeout    { send "\\033\\[2;1R" }\n'
-        printf '}\n'
+        # RAYVN_CURSOR_ROW=2 bypasses the CPR query/response cycle in cursorPosition().
+        # Row 2 is correct: the typing prelude occupies row 1; after its \r\n the cursor
+        # is at row 2 where the widget header lands. The env var avoids a non-deterministic
+        # race where asciinema may auto-respond to \e[6n with its internal row before
+        # expect's injected response reaches the widget.
+        printf 'spawn asciinema rec --command {RAYVN_CURSOR_ROW=2 %s} --window-size {%s} --idle-time-limit {2} {%s}\n' "${cmd}" "${windowSize}" "${castFile}"
         printf 'set timeout 30\n'
         printf 'sleep 0.8\n'
         local key
