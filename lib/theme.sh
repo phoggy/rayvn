@@ -7,7 +7,7 @@
 
 showCurrentTheme() {
     [[ -n $1 ]] && echo -n "$1"
-    _displayTheme "${_currentThemeIndex}"
+    _displayTheme "${_currentThemeIndex}" 1
 }
 
 # ◇ Display all available themes with color swatches at the given position, defaulting to 'after'.
