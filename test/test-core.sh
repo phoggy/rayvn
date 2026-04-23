@@ -146,9 +146,9 @@ testAssertCommandStripBrackets() {
 }
 
 testAssertCommandWithEval() {
-    local testFile="${ makeTempFile test-XXXXXX; }"
+    local testFile; testFile=${ makeTempFile test-XXXXXX; }
     assertCommand eval 'echo "hello" | cat > "'"${testFile}"'"'
-    local content="${ cat "${testFile}"; }"
+    local content; content=${ cat "${testFile}"; }
     assertEqual "hello" "${content}" "assertCommand with eval handles pipelines"
 }
 
@@ -331,22 +331,22 @@ testRandomInteger() {
 # ============================================================================
 
 testTempDirPath() {
-    local path="${ tempDirPath; }"
+    local path; path=${ tempDirPath; }
     assertTrue "tempDirPath returns existing directory" test -d "${path}"
 
-    local subpath="${ tempDirPath "subfile"; }"
+    local subpath; subpath=${ tempDirPath "subfile"; }
     assertEqual "${path}/subfile" "${subpath}" "tempDirPath with arg appends"
 }
 
 testMakeTempFile() {
-    local file="${ makeTempFile test-XXXXXX; }"
+    local file; file=${ makeTempFile test-XXXXXX; }
     assertTrue "makeTempFile creates file" test -f "${file}"
     assertContains "test-" "${file}" "makeTempFile uses template"
     rm -f "${file}"
 }
 
 testMakeTempDir() {
-    local dir="${ makeTempDir testdir-XXXXXX; }"
+    local dir; dir=${ makeTempDir testdir-XXXXXX; }
     assertTrue "makeTempDir creates directory" test -d "${dir}"
     assertContains "testdir-" "${dir}" "makeTempDir uses template"
     rmdir "${dir}"

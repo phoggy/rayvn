@@ -337,7 +337,7 @@ EOF
     local customSrc="${rayvnHome}/etc/pages-custom.scss"
     local codeSrc="${rayvnHome}/etc/pages-code.scss"
     if [[ ! -f "${customScss}" || "${customSrc}" -nt "${customScss}" || "${codeSrc}" -nt "${customScss}" ]]; then
-        local customAction=${ [[ -f "${customScss}" ]] && echo 'Updated' || echo 'Created'; }
+        local customAction; customAction=${ [[ -f "${customScss}" ]] && echo 'Updated' || echo 'Created'; }
         ensureDir "${worktreePath}/_sass/custom"
         cat "${customSrc}" "${codeSrc}" > "${customScss}" || fail "could not write custom.scss"
         show "${customAction} _sass/custom/custom.scss"

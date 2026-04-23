@@ -151,7 +151,7 @@ assertEqualIgnoreCase() {
 
 assertNotInPath() {
     local executable="$1"
-    local path="${ command -v ${executable}; }"
+    local path; path=${ command -v ${executable}; }
     [[ ${path} == '' ]] || fail "${executable} was found in PATH at ${path}"
 }
 
@@ -166,10 +166,10 @@ assertNotInPath() {
 assertInPath() {
     local executable="$1"
     local expectedPath="$2"
-    local foundPath="${ command -v ${executable}; }"
+    local foundPath; foundPath=${ command -v ${executable}; }
     [[ -n ${foundPath} ]] || fail "${executable} was not found in PATH"
     assertFile "${foundPath}"
-    local realPath="${ realpath ${foundPath}; }"
+    local realPath; realPath=${ realpath ${foundPath}; }
 
     if [[ -n ${expectedPath} ]]; then
         if [[ ${realPath} == "${foundPath}" ]]; then
@@ -380,7 +380,7 @@ assertHashValue() {
     local expectedValue="$3"
     assertHashKeyIsDefined "${varName}" "${keyName}"
 
-    local actualValue="${ eval echo \$"{${varName}[${keyName}]}"; }" # complexity required to use variables for var and key
+    local actualValue; actualValue=${ eval echo \$"{${varName}[${keyName}]}"; } # complexity required to use variables for var and key
     [[ ${actualValue} == "${expectedValue}" ]] || fail "${varName}[${keyName}]=${actualValue}, expected '${expectedValue}"
 }
 
@@ -549,8 +549,8 @@ benchmark() {
     done
 
     local endTime=${EPOCHREALTIME}
-    local duration=${ gawk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}"; }
-    local opsPerSec=${ gawk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}"; }
+    local duration; duration=${ gawk "BEGIN {printf \"%.6f\", ${endTime} - ${startTime}}"; }
+    local opsPerSec; opsPerSec=${ gawk "BEGIN {printf \"%.2f\", ${iterations} / ${duration}}"; }
 
     printf "%-30s %-15s %10d iterations in %8.4f sec (%10s ops/sec)\n" \
       "${testCase}" "${functionName}" "${iterations}" "${duration}" "${opsPerSec}"

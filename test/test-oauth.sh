@@ -105,7 +105,7 @@ testAssertValidOAuthServiceNullValue() {
 testProviderNameCaseInsensitive() {
     # getOAuthService lowercases the provider name, so the auth/token URL vars
     # should resolve correctly regardless of input case
-    local upperVarName="_${ echo "GOOGLE" | tr '[:upper:]' '[:lower:]'; }AuthUrl"
+    local upperVarName; upperVarName="_${ echo "GOOGLE" | tr '[:upper:]' '[:lower:]'; }AuthUrl"
     assertEqual "${upperVarName}" "_googleAuthUrl" "lowercased provider var name"
     varDefined "${upperVarName}" || fail "lowercased Google auth URL var should be defined"
 }
