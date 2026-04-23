@@ -62,7 +62,7 @@ _checkNamespaces() {
     header 2 "Checking namespace collisions"
     # Ensure all known rayvn-family projects are registered for a comprehensive cross-project check
     local knownProject
-    for knownProject in rayvn valt wardn sandbox; do
+    for knownProject in rayvn valt wardn; do
         [[ -v "_rayvnProjects[${knownProject}${_projectRootSuffix}]" ]] || \
             _addRayvnProject "${knownProject}" 2>/dev/null || true
     done
