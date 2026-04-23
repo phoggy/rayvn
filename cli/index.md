@@ -59,6 +59,23 @@ Note: All examples below assume rayvn as the working directory so omit `PROJECT`
 
 ## Commands
 
+| |                                                             |
+|---|-------------------------------------------------------------|
+| [**new**](#new) | Create a project, script, library, or test from a template. |
+| [**libraries**](#libraries) | List available libraries.                                   |
+| [**functions**](#functions) | List public functions.                                      |
+| [**test**](#test) | Run tests.                                                  |
+| [**theme**](#theme) | Select a color theme.                                       |
+| [**lint**](#lint) | Scan source files for requirement violations.               |
+| [**collisions**](#collisions) | Check for namespace collisions.                             |
+| [**dependencies**](#dependencies) | Verify external command dependencies are declared.          |
+| [**index**](#index) | Generate function indexes for AI agent use.                 |
+| [**docs**](#docs) | Audit or update function documentation.                     |
+| [**pages**](#pages) | Generate, preview, and publish the GitHub Pages site.       |
+| [**build**](#build) | Run nix build.                                              |
+| [**release**](#release) | Create a versioned GitHub release.                          |
+| [**register**](#register) | Stake a claim on a project name.                            |
+
 ### new
 
 Create a new project, script, library, or test file from a template.
