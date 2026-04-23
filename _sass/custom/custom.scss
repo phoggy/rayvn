@@ -77,6 +77,22 @@ td, th {
 .ap-pre-play {
   height: 96px;
   overflow: hidden;
+  position: relative;
+}
+
+// "click to play" hint — visible only in the collapsed pre-play state (class is removed on play)
+.ap-pre-play::after {
+  content: "click to play";
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8em;
+  white-space: nowrap;
+  color: var(--player-button-fill);
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .ap-pre-play .ap-player .ap-overlay-start .ap-play-button {
