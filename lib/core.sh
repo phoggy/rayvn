@@ -450,7 +450,7 @@ exportGlobalMaps() {
     [[ -v _rayvnGlobalMaps ]] || declare -gx _rayvnGlobalMaps=''
 
     while (( $# )); do
-        local declaration="${ declare -p "$1"; }"
+        local declaration; declaration=${ declare -p "$1"; }
         # Normalize to 'declare -gA varname=(...)' — strips extra flags (-r, -x, -i, etc.)
         # so that _restoreGlobalMaps can use a simple fixed-format regex and eval.
         [[ "${declaration}" =~ ^declare[[:space:]]+-[a-zA-Z]*A[a-zA-Z]*([[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*)=(.*) ]] \
@@ -602,7 +602,7 @@ assertCommand() {
         esac
     done
 
-    local stderrFile="${ makeTempFile 'stderr-XXXXXX'; }"
+    local stderrFile; stderrFile=${ makeTempFile 'stderr-XXXXXX'; }
     "$@" 2> "${stderrFile}"
     local result=$?
 
@@ -681,7 +681,7 @@ padString() {
     local width="$2"
     local position="${3:-after}"
 
-    local strippedString="${ stripAnsi "${string}"; }"
+    local strippedString; strippedString=${ stripAnsi "${string}"; }
     local currentLength=${#strippedString}
     local paddingNeeded=$(( width - currentLength ))
 
@@ -1046,7 +1046,7 @@ tempDirPath() {
 #   fileName (string)  Optional; see tempDirPath -r.
 
 makeTempFile() {
-    local filePath="${ tempDirPath -r "$1"; }"
+    local filePath; filePath=${ tempDirPath -r "$1"; }
     touch "${filePath}"
     chmod 600 "${filePath}"
     echo "${filePath}"
@@ -1059,7 +1059,7 @@ makeTempFile() {
 #   fileName (string)  Optional; see tempDirPath -r.
 
 makeTempFifo() {
-    local fifoPath="${ tempDirPath -r "$1"; }"
+    local fifoPath; fifoPath=${ tempDirPath -r "$1"; }
     mkfifo -m 600 "${fifoPath}" || fail "could not create fifo: ${fifoPath}"
     echo "${fifoPath}"
 }
@@ -1072,7 +1072,7 @@ makeTempFifo() {
 
 # shellcheck disable=SC2120
 makeTempDir() {
-    local dirPath="${ tempDirPath -r "$1"; }"
+    local dirPath; dirPath=${ tempDirPath -r "$1"; }
     mkdir "${dirPath}" || fail "could not create directory: ${dirPath}"
     chmod 700 "${dirPath}"
     echo "${dirPath}"

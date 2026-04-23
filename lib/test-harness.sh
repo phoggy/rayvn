@@ -535,7 +535,7 @@ _startLocalTask() {
     if [[ -x "${testFile}" ]]; then
         local exports=()
         if [[ ${testName} == "rayvn-up" ]]; then
-            local testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
+            local testFunctionNames; testFunctionNames=${ grep -E '^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\(\)' "${testFile}" | \
               gawk '{gsub(/\(\)/, "", $1); printf "%s ", $1}'; }
             exports+=(rayvnInstallHome="${rayvnHome}")
             exports+=(rayvnInstallBinary="${rayvnHome}/bin/rayvn")
@@ -727,20 +727,20 @@ _displayPendingTask() {
         local)
             _setPadding _testResultColumn $(( -${#taskName} - 4 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${ tildePath "${testLogFile}"; }"
+            local displayLogFile; displayLogFile=${ tildePath "${testLogFile}"; }
             show bold "${project}" "test" primary "${taskName}" "${_testPadding}" dim "log at ${displayLogFile}"
             ;;
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 8 ))
             local testLogFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${ tildePath "${testLogFile}"; }"
+            local displayLogFile; displayLogFile=${ tildePath "${testLogFile}"; }
             show bold "${project}" "test" primary "${taskName}" muted "nix" "${_testPadding}" dim "log at ${displayLogFile}"
             ;;
         build)
             local projectPad rightPad
             (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${ tildePath "${logFile}"; }"
+            local displayLogFile; displayLogFile=${ tildePath "${logFile}"; }
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
             show bold "${project}" "${projectPad}nix" "build" "${rightPad}" dim " log at ${displayLogFile}"
@@ -760,7 +760,7 @@ _displayTaskResult() {
         local)
             _setPadding _testResultColumn $(( -${#taskName} - 4 ))
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${ tildePath "${logFile}"; }"
+            local displayLogFile; displayLogFile=${ tildePath "${logFile}"; }
             if (( result == 0 )); then
                 show bold "${project}" "test" primary "${taskName}" "${_testPadding}" " ${mark}" dim "log at ${displayLogFile}"
             else
@@ -770,7 +770,7 @@ _displayTaskResult() {
         nix)
             _setPadding _testResultColumn $(( -${#taskName} - 8 ))
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${ tildePath "${logFile}"; }"
+            local displayLogFile; displayLogFile=${ tildePath "${logFile}"; }
             if (( result == 0 )); then
                 show bold "${project}" "test" primary "${taskName}" muted "nix" "${_testPadding}" " ${mark}" dim "log at ${displayLogFile}"
             else
@@ -781,7 +781,7 @@ _displayTaskResult() {
             local projectPad rightPad
             (( ${#project} < _maxProjectNameLength )) && printf -v projectPad '%*s' $(( _maxProjectNameLength - ${#project} )) '' || projectPad=''
             local logFile="${_testLogDir}/${_taskLogFileNames[${i}]}"
-            local displayLogFile="${ tildePath "${logFile}"; }"
+            local displayLogFile; displayLogFile=${ tildePath "${logFile}"; }
             local rightCount=$(( _testResultColumn - _maxProjectNameLength - 10 ))
             (( rightCount > 0 )) && printf -v rightPad '\e[0m%*s' "${rightCount}" '' || rightPad=$'\e[0m'
             if (( result == 0 )); then

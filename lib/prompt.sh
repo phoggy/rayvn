@@ -458,7 +458,7 @@ _preparePromptChoices() {
 
     if (( _promptNumberChoices && _promptMaxChoicesIndex )); then
         local number
-        local places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
+        local places; places=${ numericPlaces $(( _promptMaxChoicesIndex + 1 )) 1; }
         for (( promptIndex=0; promptIndex <= _promptMaxChoicesIndex; promptIndex++ )); do
             number="${ printNumber $(( ${promptIndex} +1 )) ${places} ; }"
             _promptDisplayChoices[${promptIndex}]="${ show dim "${number}." "${_promptDisplayChoices[${promptIndex}]}"; }"
@@ -742,7 +742,7 @@ _choosePaint() {
             (( row++ ))
 
             # Add separator line if needed
-            if [[ ${addSeparator} == true && ${offset} -lt $(( totalVisibleItems - 1 )) ]]; then
+            if [[ ${addSeparator} == true ]] && (( offset < totalVisibleItems - 1 )); then
                 cursorTo ${row} 0
                 eraseToEndOfLine
                 echo -n ""

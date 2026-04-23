@@ -109,58 +109,28 @@ _lintFile() {
     local -a findings=()
     local -a fixes=()
     local shebang; read -r shebang < "${file}"
-    [[ "${shebang}" == '#!'* && "${shebang}" != *bash* ]] && { show bold "  ${relPath}" dim " (skipped: not bash)"; return 0; }
+    [[ "${shebang}" == '#!'* && "${shebang}" != *bash* ]] && { show bold "   ${relPath}" dim " (skipped: not bash)"; return 0; }
 
     if ! bash -n "${file}" 2> /dev/null; then
         (( _lintFileIssuesRef += 1 ))
-        show bold "  ${relPath}" "${errorCrossMark}" error " syntax error (skipping lint)" nl
+        show bold "   ${relPath}" "${errorCrossMark}" error " syntax error (skipping lint)" nl
         echo
         return 0
     fi
 
-    local lintFile="${file}"
-    local filteredFile; filteredFile=${ makeTempFile; }
-    gawk '/# lint-skip-start/{skip=1; print ""; next} /# lint-skip-end/{skip=0; print ""; next} skip{print ""; next} {print}' \
-        "${file}" > "${filteredFile}"
-    [[ -s "${filteredFile}" ]] && lintFile="${filteredFile}"
-
-    # Strip multi-line single-quoted string content (replace interior chars with spaces,
-    # preserving line numbers) so checks don't fire on e.g. gawk programs or test fixtures
-    # that contain bash-operator-like syntax inside string literals.
-    # Track double-quoted strings too so a ' inside "..." does not corrupt the sq state.
-    local strippedFile; strippedFile=${ makeTempFile; }
-    gawk 'BEGIN { sq = 0; dq = 0 }
-    {
-        r = ""
-        for (i = 1; i <= length($0); i++) {
-            c = substr($0, i, 1)
-            if (sq) {
-                if (c == "\047") { sq = 0; r = r c } else r = r " "
-            } else if (dq) {
-                if (c == "\"") { dq = 0; r = r c }
-                else if (c == "\\") { r = r c; i++; if (i <= length($0)) r = r substr($0, i, 1) }
-                else r = r c
-            } else {
-                if      (c == "\047") { sq = 1; r = r c }
-                else if (c == "\"")   { dq = 1; r = r c }
-                else r = r c
-            }
-        }
-        print r
-    }' "${lintFile}" > "${strippedFile}"
-    [[ -s "${strippedFile}" ]] && lintFile="${strippedFile}"
-
+    local lintFile
+    _preprocessLintFile "${file}" lintFile
     _lintRunChecks "${lintFile}" findings fixes
 
     if (( ${#findings[@]} == 0 )); then
-        show bold "  ${relPath}" "${successCheckMark}"
+        show bold "   ${relPath}" "${successCheckMark}"
         return 0
     fi
 
     local -i count=${#findings[@]}
     local pluralize=''; (( count > 1 )) && pluralize='s'
     if [[ "${fixMode}" == ask ]]; then
-        show bold "  ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
+        show bold "   ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
         local finding
         for finding in "${findings[@]}"; do
             echo "${finding}"
@@ -179,7 +149,8 @@ _lintFile() {
             if _fixFile "${file}" fixes; then
                 findings=()
                 fixes=()
-                _lintRunChecks "${file}" findings fixes
+                _preprocessLintFile "${file}" lintFile
+                _lintRunChecks "${lintFile}" findings fixes
                 count=${#findings[@]}
             else
                 show warning "  Fix reverted: bash syntax check failed"
@@ -190,7 +161,8 @@ _lintFile() {
         if _fixFile "${file}" fixes; then
             findings=()
             fixes=()
-            _lintRunChecks "${file}" findings fixes
+            _preprocessLintFile "${file}" lintFile
+            _lintRunChecks "${lintFile}" findings fixes
             count=${#findings[@]}
         else
             show warning "  Fix reverted: bash syntax check failed"
@@ -199,14 +171,14 @@ _lintFile() {
     fi
 
     if (( count == 0 )); then
-        show bold "  ${relPath}" "${successCheckMark}" success " (fixed)"
+        show bold "   ${relPath}" "${successCheckMark}" success " (fixed)"
     else
         (( _lintFileIssuesRef += count ))
         (( _lintFileFixableRef += ${#fixes[@]} ))
         if [[ "${fixMode}" == fix || "${fixMode}" == ask ]]; then
-            show bold "  ${relPath}" "${errorCrossMark}" error "${count} remaining" nl
+            show bold "   ${relPath}" "${errorCrossMark}" error "${count} remaining" nl
         else
-            show bold "  ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
+            show bold "   ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
         fi
         local finding
         for finding in "${findings[@]}"; do
@@ -214,6 +186,51 @@ _lintFile() {
         done
         echo
     fi
+}
+
+_preprocessLintFile() {
+    local file=$1
+    local -n _preprocessResultRef=$2
+
+    local _ppFile="${file}"
+    local _ppFilteredFile; _ppFilteredFile=${ makeTempFile; }
+    gawk '/# lint-skip-start/{skip=1; print ""; next} /# lint-skip-end/{skip=0; print ""; next} skip{print ""; next} {print}' \
+        "${file}" > "${_ppFilteredFile}"
+    [[ -s "${_ppFilteredFile}" ]] && _ppFile="${_ppFilteredFile}"
+
+    # Strip multi-line single-quoted string content (replace interior chars with spaces,
+    # preserving line numbers) so checks don't fire on e.g. gawk programs or test fixtures
+    # that contain bash-operator-like syntax inside string literals.
+    # Track double-quoted strings too so a ' inside "..." does not corrupt the sq state.
+    # Comment lines (starting with #) are passed through unchanged when not inside a string,
+    # so that apostrophes in natural-language doc comments don't corrupt the sq state.
+    # Backslash in normal mode (outside strings) skips the next char (e.g. \' is a literal
+    # apostrophe, not a string-open), matching bash unquoted-context escape semantics.
+    local _ppStrippedFile; _ppStrippedFile=${ makeTempFile; }
+    gawk 'BEGIN { sq = 0; dq = 0 }
+    {
+        if (!sq && !dq && /^[[:space:]]*#/) { print $0; next }
+        r = ""
+        for (i = 1; i <= length($0); i++) {
+            c = substr($0, i, 1)
+            if (sq) {
+                if (c == "\047") { sq = 0; r = r c } else r = r " "
+            } else if (dq) {
+                if (c == "\"") { dq = 0; r = r c }
+                else if (c == "\\") { r = r c; i++; if (i <= length($0)) r = r substr($0, i, 1) }
+                else r = r c
+            } else {
+                if      (c == "\\")   { r = r c; i++; if (i <= length($0)) r = r substr($0, i, 1) }
+                else if (c == "\047") { sq = 1; r = r c }
+                else if (c == "\"")   { dq = 1; r = r c }
+                else r = r c
+            }
+        }
+        print r
+    }' "${_ppFile}" > "${_ppStrippedFile}"
+    [[ -s "${_ppStrippedFile}" ]] && _ppFile="${_ppStrippedFile}"
+
+    _preprocessResultRef="${_ppFile}"
 }
 
 _lintRunChecks() {
@@ -225,7 +242,10 @@ _lintRunChecks() {
     _lintCheck '(?<!\\)\$\{[#@?!*]\}'               "${_lintRunChecksFile}" '${special} param with braces — use $# $@ $* $? $!'  BRACED_SPECIAL        _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '^\s*set\s+(-[a-zA-Z]*[eu]|-o\s+pipefail)' \
                                                     "${_lintRunChecksFile}" 'strict mode not allowed in rayvn scripts'            STRICT_MODE           _lintRunChecksRef _lintRunChecksFixRef
-    _lintCheck '(?<!\\)\$\([^(]'                    "${_lintRunChecksFile}" 'old-style command substitution — use ${ cmd; }'      NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '`'                                   "${_lintRunChecksFile}" 'backtick command substitution — use ${ cmd; }'       NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?<!\\)\$\([^(]'                    "${_lintRunChecksFile}" 'old-style $() command substitution — use ${ cmd; }'   NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?:^|[ \t;])\[(?!\[)[ \t]'         "${_lintRunChecksFile}" 'single-bracket test — use [[ ]]'                      NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '[ \t]-(?:lt|gt|le|ge|eq|ne)[ \t]'  "${_lintRunChecksFile}" 'arithmetic operator in [[ ]] — use (( ))'             NONE                  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\(\([^ ]'                           "${_lintRunChecksFile}" 'missing space after (( operator'                     SPACE_AFTER_DPARENS   _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '[^ ]\)\)'                           "${_lintRunChecksFile}" 'missing space before )) operator'                    SPACE_BEFORE_DPARENS  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '(?:^|[ \t])\[\[[^ :]'              "${_lintRunChecksFile}" 'missing space after [[ operator'                     SPACE_AFTER_DBRACKET  _lintRunChecksRef _lintRunChecksFixRef
@@ -246,6 +266,28 @@ _lintRunChecks() {
                                                     "${_lintRunChecksFile}" 'named var without ${} — use ${varName}'               BARE_NAMED_VAR        _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\[\[\s+\$\{[^}]+\}\s+\]\]'         "${_lintRunChecksFile}" 'bare [[ ${var} ]] — use [[ -n ${var} ]]'             BRACKET_VAR_NONEMPTY  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\[\[\s+!\s+\$\{[^}]+\}\s+\]\]'     "${_lintRunChecksFile}" 'bare [[ ! ${var} ]] — use [[ -z ${var} ]]'           BRACKET_VAR_EMPTY     _lintRunChecksRef _lintRunChecksFixRef
+
+    # Stateful gawk check: local/declare combined with command substitution assignment.
+    # Prefer: local foo; foo=${ cmd; }  so that || fail can be used on the assignment.
+    # Excludes declare -g* (global/readonly) because splitting would create a readonly-empty var.
+    local _localCmdSubScript='
+        NR == FNR { next }
+        /^[[:space:]]*local([[:space:]]+-[a-zA-Z]+)*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*=/ && /\$\{[[:space:]]/ {
+            if (!match($0, /local([[:space:]]+-[a-zA-Z]+)*[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*=/)) next
+            depth = 0; found = 0
+            for (i = RSTART + RLENGTH; i <= length($0); i++) {
+                c = substr($0, i, 1)
+                if (c == "$" && substr($0, i+1, 2) == "{ ") { found = 1; depth++; i += 2 }
+                else if (c == "{")                            { depth++ }
+                else if (c == "}" && depth > 0)              { depth-- }
+                else if (c == ";" && depth == 0)             { break }
+            }
+            if (found) print FNR ":" $0
+        }
+    '
+    _lintGawkCheck "${_localCmdSubScript}" "${_lintRunChecksFile}" \
+        'local+cmd-sub assign — prefer: local foo; foo=${ cmd; }' \
+        _lintRunChecksRef LOCAL_CMD_SUB _lintRunChecksFixRef
 
     # Stateful gawk check: implicit global — assignment inside a function to a variable not
     # declared local/declare in that function. Requires local or declare -g (explicit global).
@@ -376,7 +418,7 @@ _fixLine() {
         BRACED_SPECIAL)
             gsed -i -E "${lineNum}"'{s/\$\{@\}/\$@/g; s/\$\{#\}/\$#/g; s/\$\{\*\}/\$*/g; s/\$\{[?]\}/\$?/g; s/\$\{!\}/\$!/g}' "${file}" ;;
         SPACE_AFTER_DPARENS)
-            gsed -i -E "${lineNum}"'s/\(\(( [^ ])/\(\( \1/g' "${file}" ;;
+            gsed -i -E "${lineNum}"'s/\(\(([^ ])/\(\( \1/g' "${file}" ;;
         SPACE_BEFORE_DPARENS)
             gsed -i -E "${lineNum}"'s/([^ ])\)\)/\1 \)\)/g' "${file}" ;; # lint-ok
         SPACE_AFTER_DBRACKET)
@@ -389,6 +431,14 @@ _fixLine() {
             gsed -i -E "${lineNum}"'s/\[\[ (\$\{[^}]+\}) \]\]/[[ -n \1 ]]/g' "${file}" ;;
         BRACKET_VAR_EMPTY)
             gsed -i -E "${lineNum}"'s/\[\[ ! (\$\{[^}]+\}) \]\]/[[ -z \1 ]]/g' "${file}" ;;
+        LOCAL_CMD_SUB)
+            # Case 1: value is double-quoted cmd sub → drop outer quotes
+            # Uses .* to handle inner " (e.g. "${ cmd "${var}"; }")
+            gsed -i -E "${lineNum}"'s/^([[:space:]]*)(local([[:space:]]+-[a-zA-Z]+)*[[:space:]]+)([a-zA-Z_][a-zA-Z0-9_]*)="(\$\{.*;[[:space:]]*\})"([[:space:]].*)?$/\1\2\4; \4=\5\6/' "${file}"
+            # Case 2: value is unquoted cmd sub
+            gsed -i -E "${lineNum}"'s/^([[:space:]]*)(local([[:space:]]+-[a-zA-Z]+)*[[:space:]]+)([a-zA-Z_][a-zA-Z0-9_]*)=(\$\{[[:space:]].*)$/\1\2\4; \4=\5/' "${file}"
+            # Case 3: value has content around the cmd sub — keep value as-is
+            gsed -i -E "${lineNum}"'s/^([[:space:]]*)(local([[:space:]]+-[a-zA-Z]+)*[[:space:]]+)([a-zA-Z_][a-zA-Z0-9_]*)=(.*\$\{.*;[[:space:]]*\}.*)$/\1\2\4; \4=\5/' "${file}" ;;
     esac
 }
 
@@ -436,12 +486,17 @@ _lintGrep() {
 }
 
 # Run a stateful gawk script against a file and collect findings. The script must output
-# "lineNum:lineContent" for each violation. No auto-fix support — gawk checks require manual fixes.
+# "lineNum:lineContent" for each violation. Optional 5th/6th args enable auto-fix support.
 _lintGawkCheck() {
     local awkScript=$1
     local file=$2
     local message=$3
     local -n _lintGawkFindingsRef=$4
+    local fixType="${5:-NONE}"
+    local _lintGawkFixesVarName="${6:-}"
+    local _hasGawkFixes=0
+    [[ "${fixType}" != NONE && -n "${_lintGawkFixesVarName}" ]] && _hasGawkFixes=1
+    (( _hasGawkFixes )) && local -n _lintGawkFixesRef=${_lintGawkFixesVarName}
     local match lineNum lineContent
 
     while IFS= read -r match; do
@@ -449,5 +504,6 @@ _lintGawkCheck() {
         lineContent="${match#*:}"
         [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
         _lintGawkFindingsRef+=("    line ${lineNum}  ${message}")
+        (( _hasGawkFixes )) && _lintGawkFixesRef+=("${lineNum}:${fixType}")
     done < <(gawk "${awkScript}" "${file}" "${file}")
 }

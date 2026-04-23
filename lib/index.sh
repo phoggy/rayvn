@@ -1117,7 +1117,7 @@ _extractMeaningfulDescription() {
         briefDesc=${ _generateDescriptionFromName "${functionName}"; }
     fi
 
-    if [[ ${#briefDesc} -gt 80 ]]; then
+    if (( ${#briefDesc} > 80 )); then
         briefDesc="${briefDesc:0:77}..."
     fi
 
@@ -1652,7 +1652,7 @@ _checkAndUpdateHashes() {
     _saveHashes
 
     local isFirstRun=false
-    [[ ${#_idxStoredHashes[@]} -eq 0 ]] && isFirstRun=true
+    (( ${#_idxStoredHashes[@]} == 0 )) && isFirstRun=true
 
     if (( ${#_idxChangedFunctions[@]} > 0 )); then
         echo
