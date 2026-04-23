@@ -306,6 +306,7 @@ stackTrace() {
     local caller=${FUNCNAME[1]}
     declare -i start=1
     declare -i depth=${#FUNCNAME[@]}
+    local function line arrow called script
 
     (( ${#message[@]} )) && error "$@"
     if (( depth > 2 )); then
@@ -313,11 +314,11 @@ stackTrace() {
     fi
 
     for (( i = start; i < depth; i++ )); do
-        local function="${FUNCNAME[${i}]}"
-        local line="${ show bold blue "${BASH_LINENO[${i} - 1]}" ;}"
-        local arrow="${ show cyan "->" ;}"
-        local called=${FUNCNAME[${i} - 1]}
-        local script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
+        function="${FUNCNAME[${i}]}"
+        line="${ show bold blue "${BASH_LINENO[${i} - 1]}" ;}"
+        arrow="${ show cyan "->" ;}"
+        called=${FUNCNAME[${i} - 1]}
+        script="${ show dim "${BASH_SOURCE[${i}]}" ;}"
         (( i == start )) && function="${ show red "${function}()" ;}" || function="${ show blue "${function}()" ;}"
         builtin echo "   ${function} ${script}:${line} ${arrow} ${called}()"
     done
@@ -1793,7 +1794,7 @@ _setFileSystemVar() {
     else
         [[ -f ${file} ]] || fail "${file} is not a file"
     fi
-    local realFile="${ realpath "${file}" 2>/dev/null; }"
+    local realFile; realFile="${ realpath "${file}" 2>/dev/null || fail; }"
     resultVarRef="${realFile}"
 }
 

@@ -40,7 +40,7 @@ auditDocs() {
         _collectProjectLibFiles libFiles "${targetProjects[@]}"
     fi
 
-    [[ ${#libFiles[@]} -gt 0 ]] || fail "No library files found"
+    (( ${#libFiles[@]} > 0 )) || fail "No library files found"
 
     _checkAndUpdateHashes --progress "${libFiles[@]}"
 
@@ -121,7 +121,7 @@ updateDocs() {
         _collectProjectLibFiles libFiles "${targetProjects[@]}"
     fi
 
-    [[ ${#libFiles[@]} -gt 0 ]] || fail "No library files found"
+    (( ${#libFiles[@]} > 0 )) || fail "No library files found"
 
     _checkAndUpdateHashes --progress "${libFiles[@]}"
 

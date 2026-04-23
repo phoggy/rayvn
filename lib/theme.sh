@@ -180,9 +180,9 @@ _queryBackgroundColor() {
         local bHex="${BASH_REMATCH[3]:0:2}"
 
         # Handle single digit hex values
-        [[ ${#rHex} -eq 1 ]] && rHex="${rHex}${rHex}"
-        [[ ${#gHex} -eq 1 ]] && gHex="${gHex}${gHex}"
-        [[ ${#bHex} -eq 1 ]] && bHex="${bHex}${bHex}"
+        (( ${#rHex} == 1 )) && rHex="${rHex}${rHex}"
+        (( ${#gHex} == 1 )) && gHex="${gHex}${gHex}"
+        (( ${#bHex} == 1 )) && bHex="${bHex}${bHex}"
 
         local r=$(( 0x${rHex} ))
         local g=$(( 0x${gHex} ))

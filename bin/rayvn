@@ -205,7 +205,7 @@ newCmd() {
             *) bye "unknown type: ${type}"
         esac
         [[ -n "${name}" ]] || bye "name required"
-        local gitRoot=${ git rev-parse --show-toplevel 2>/dev/null; } || gitRoot=''
+        local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2>/dev/null; } || gitRoot=''
         local templateDir="${rayvnHome}/templates"
         args=("${args[@]:3}")
 
@@ -525,7 +525,7 @@ listFunctions() {
     local library="$2"
     local libraryFile="$3"
     local libraryName="${project}/${library}"
-    [[ ${#args[@]} -gt 0 ]] && ! memberOf "${library}" args && return 0
+    (( ${#args[@]} > 0 )) && ! memberOf "${library}" args && return 0
     local functions=()
     local function
     local includePrivate=0
@@ -575,7 +575,7 @@ forEachLibrary() {              # TODO: this pattern is a pain. Replace with get
     [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
     for file in "${libraryRoot}"/*.sh; do
         [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
-        local fileName="${ basename "${file}"; }"
+        local fileName; fileName="${ basename "${file}"; }"
         local library="${fileName%.*}"
         "${command}" "${project}" "${library}" "${file}" "${arguments}"
     done
@@ -769,7 +769,7 @@ getProjectRoot() {
     local _projectRoot="${gitRoot}"
     local packageFile="${_projectRoot}/rayvn.pkg"
     [[ -f "${packageFile}" ]] || bye "${_projectRoot} does not appear to be a rayvn project: no rayvn.pkg file"
-    local _projectName="${ baseName ${_projectRoot}; }"
+    local _projectName; _projectName="${ baseName ${_projectRoot}; }"
     projectRootRef="${_projectRoot}"
     projectNameRef="${_projectName}"
 }
@@ -779,7 +779,7 @@ copyFileAndSubstituteVars() {
     local outputFile=$2
     local varList=("${@:3}")
 
-    [[ -z ${inputFile} || -z ${outputFile} || ${#varList[@]} -eq 0 ]] &&
+    { [[ -z ${inputFile} || -z ${outputFile} ]] || (( ${#varList[@]} == 0 )); } &&
         fail "Usage: substituteVars inputFile outputFile <varName> [<varName> ...]"
 
     local sedExprs=()

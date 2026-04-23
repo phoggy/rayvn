@@ -23,7 +23,7 @@ runIndex() {
     local libFiles=()
     _collectLibFiles libFiles
 
-    if [[ ${#libFiles[@]} -eq 0 ]]; then
+    if (( ${#libFiles[@]} == 0 )); then
         fail "No library files found"
     fi
 

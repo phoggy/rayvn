@@ -117,7 +117,7 @@ testNewProject() {
 
         local commitCount
         commitCount=${ git -C "${projectDir}" rev-list --count HEAD 2>/dev/null; }
-        [[ ${commitCount} -ge 1 ]] || fail "project should have at least one git commit"
+        (( commitCount >= 1 )) || fail "project should have at least one git commit"
 
     ) || exit 1
 }

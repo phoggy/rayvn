@@ -167,7 +167,7 @@ _extractSafeStaticVarsOnly() {
             local openCount="${cleanLine//[^\(]}"
             local closeCount="${cleanLine//[^\)]}"
 
-            if [[ ${#openCount} -eq ${#closeCount} ]]; then
+            if (( ${#openCount} == ${#closeCount} )); then
                 # Single line array
                 if [[ "${cleanLine}" == *'$('* ]] || [[ "${cleanLine}" == *'`'* ]] || [[ "${cleanLine}" == *'${ '* ]]; then # lint-ok
                     continue

@@ -45,7 +45,7 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN rayvn.up PRIVATE ⚠
 
 _loadRayvnLibrary() { # note: relies on local vars set by caller
     local initFunction="_init_${projectName}_${libraryName}"
-    local loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
+    local loadingRayvnCore; loadingRayvnCore=${ [[ ${qualifiedName} == 'rayvn/core' ]] && echo 1 || echo 0; }
     local functionName hasInitFunction=0 sourceOut
     local -A newFunctions preExisting
 

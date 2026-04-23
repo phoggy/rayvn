@@ -174,7 +174,7 @@ choose() {
     local -n choicesArrayRef="${choicesVarName}"
     local itemCount="${#choicesArrayRef[@]}"
     [[ ${addSeparator} == true ]] && rowsPerItem=2 || rowsPerItem=1
-    local extraLines=${ (( rowsPerItem == 1 )) && echo 2 || echo 1; }
+    local extraLines; extraLines=${ (( rowsPerItem == 1 )) && echo 2 || echo 1; }
 
     # Determine totalVisibleItems
 

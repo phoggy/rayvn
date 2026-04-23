@@ -320,7 +320,7 @@ _getOAuthAccessToken() {
     currentTimestamp=${ date +%s; }
     local isExpired=false
 
-    if [[ ${expirationTimestamp} -eq 0 ]] || [[ ${currentTimestamp} -ge ${expirationTimestamp} ]]; then
+    if (( expirationTimestamp == 0 )) || (( currentTimestamp >= expirationTimestamp )); then
         isExpired=true
     fi
 

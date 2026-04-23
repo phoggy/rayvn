@@ -134,7 +134,7 @@ debugVarIsNotSet() {
 debugFile() {
     if (( _debug )); then
         local sourceFile="$1"
-        local fileName="${2:-${ baseName ${sourceFile}; }}"
+        local fileName; fileName="${2:-${ baseName ${sourceFile}; }}"
         local destFile="${_debugDir}/${fileName}"
         cp "${sourceFile}" "${destFile}"
         debug "Added file ${destFile}"
