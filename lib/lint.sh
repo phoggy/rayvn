@@ -121,6 +121,7 @@ _lintFile() {
     local lintFile
     _preprocessLintFile "${file}" lintFile
     _lintRunChecks "${lintFile}" findings fixes
+    _lintStructureCheck "${lintFile}" "${relPath}" findings fixes
 
     if (( ${#findings[@]} == 0 )); then
         show bold "   ${relPath}" "${successCheckMark}"
@@ -151,6 +152,7 @@ _lintFile() {
                 fixes=()
                 _preprocessLintFile "${file}" lintFile
                 _lintRunChecks "${lintFile}" findings fixes
+                _lintStructureCheck "${lintFile}" "${relPath}" findings fixes
                 count=${#findings[@]}
             else
                 show warning "  Fix reverted: bash syntax check failed"
@@ -163,6 +165,7 @@ _lintFile() {
             fixes=()
             _preprocessLintFile "${file}" lintFile
             _lintRunChecks "${lintFile}" findings fixes
+            _lintStructureCheck "${lintFile}" "${relPath}" findings fixes
             count=${#findings[@]}
         else
             show warning "  Fix reverted: bash syntax check failed"
@@ -233,6 +236,101 @@ _preprocessLintFile() {
     _preprocessResultRef="${_ppFile}"
 }
 
+# Dispatch file-type-specific structure checks (lib vs executable).
+_lintStructureCheck() {
+    local _lscFile=$1
+    local _lscRelPath=$2
+    local -n _lscFindingsRef=$3
+    local -n _lscFixesRef=$4
+
+    if [[ "${_lscRelPath}" == lib/* || "${_lscRelPath}" == plugins/* ]]; then
+        _lintLibStructure "${_lscFile}" _lscFindingsRef
+    elif [[ "${_lscRelPath}" == bin/* || "${_lscRelPath}" == test/* || "${_lscRelPath}" == tests/* ]]; then
+        _lintExecStructure "${_lscFile}" _lscFindingsRef
+    fi
+}
+
+# Library check: flag top-level statements that are not function definitions,
+# declarations, or variable assignments.  Such "open code" runs at source time
+# and almost certainly belongs inside a function or an executable instead.
+_lintLibStructure() {
+    local _llsFile=$1
+    local -n _llsFindingsRef=$2
+    local _llsScript='
+        NR == FNR { next }
+        BEGIN { depth = 0; arrDepth = 0 }
+        /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+
+        # Close a multi-line array body
+        arrDepth > 0 && /^[[:space:]]*\)[[:space:]]*(#.*)?$/ { arrDepth--; next }
+        arrDepth > 0 { next }
+
+        # Single-line function: foo() { body }
+        /^[[:space:]]*(function[[:space:]]+)?[a-zA-Z_][a-zA-Z0-9_-]*[[:space:]]*\([^)]*\).*\{.*\}[[:space:]]*(#.*)?$/ { next }
+
+        # Multi-line function start: foo() {
+        /^[[:space:]]*(function[[:space:]]+)?[a-zA-Z_][a-zA-Z0-9_-]*[[:space:]]*\([^)]*\).*\{[[:space:]]*(#.*)?$/ { depth++; next }
+
+        # Function declaration, body on next line: foo()
+        /^[[:space:]]*(function[[:space:]]+)?[a-zA-Z_][a-zA-Z0-9_-]*[[:space:]]*\([^)]*\)[[:space:]]*(#.*)?$/ { next }
+
+        # Standalone opening/closing braces
+        /^[[:space:]]*\{[[:space:]]*(#.*)?$/ { depth++; next }
+        /^[[:space:]]*\}[[:space:]]*(#.*)?$/ { if (depth > 0) depth--; next }
+
+        # Track any mid-line block openers inside function bodies: cmd && {, || {, heredoc {, etc.
+        depth > 0 && /\{[[:space:]]*(#.*)?$/ { depth++; next }
+
+        # Inside a function body
+        depth > 0 { next }
+
+        # Valid at top level: declarations (track unclosed ( for array bodies)
+        /^[[:space:]]*(declare|export|readonly|typeset)[[:space:]]/ {
+            if (/\([^)]*$/) arrDepth++
+            next
+        }
+
+        # Valid at top level: variable assignments (track unclosed ( for array bodies)
+        /^[[:space:]]*[a-zA-Z_][a-zA-Z0-9_]*[+?!]?=/ {
+            if (/\([^)]*$/) arrDepth++
+            next
+        }
+
+        # Everything else at top level is open code
+        { print FNR ":" $0 }
+    '
+    local match lineNum lineContent
+    while IFS= read -r match; do
+        lineNum="${match%%:*}"
+        lineContent="${match#*:}"
+        [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
+        _llsFindingsRef+=("    line ${lineNum}  open code in library — move inside a function")
+    done < <(gawk "${_llsScript}" "${_llsFile}" "${_llsFile}")
+}
+
+# Executable check: flag any non-blank, non-comment line appearing after main "$@".
+# source rayvn.up and main "$@" must be the last statements in an executable.
+_lintExecStructure() {
+    local _lesFile=$1
+    local -n _lesFindingsRef=$2
+    local _lesScript='
+        NR == FNR {
+            if (/^[[:space:]]*main[[:space:]]/) mainLine = NR
+            next
+        }
+        mainLine > 0 && FNR > mainLine && !/^[[:space:]]*$/ && !/^[[:space:]]*#/ {
+            print FNR ":" $0
+        }
+    '
+    local match lineNum lineContent
+    while IFS= read -r match; do
+        lineNum="${match%%:*}"
+        lineContent="${match#*:}"
+        [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
+        _lesFindingsRef+=("    line ${lineNum}  code after main \"\$@\" — source rayvn.up and main must be last")
+    done < <(gawk "${_lesScript}" "${_lesFile}" "${_lesFile}")
+}
+
 _lintRunChecks() {
     local _lintRunChecksFile=$1
     local -n _lintRunChecksRef=$2
@@ -266,6 +364,10 @@ _lintRunChecks() {
                                                     "${_lintRunChecksFile}" 'named var without ${} — use ${varName}'               BARE_NAMED_VAR        _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\[\[\s+\$\{[^}]+\}\s+\]\]'         "${_lintRunChecksFile}" 'bare [[ ${var} ]] — use [[ -n ${var} ]]'             BRACKET_VAR_NONEMPTY  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\[\[\s+!\s+\$\{[^}]+\}\s+\]\]'     "${_lintRunChecksFile}" 'bare [[ ! ${var} ]] — use [[ -z ${var} ]]'           BRACKET_VAR_EMPTY     _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '^\s*(then|do)\s*(#.*)?$'           "${_lintRunChecksFile}" 'standalone then/do — use ; then or ; do on same line'     NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\|\s*while\b'                       "${_lintRunChecksFile}" 'pipe to while — use process substitution: while ... done < <(cmd)' \
+                                                                                                                                        NONE                  _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '\breadarray\b'                      "${_lintRunChecksFile}" 'readarray — use mapfile instead'                          READARRAY             _lintRunChecksRef _lintRunChecksFixRef
 
     # Stateful gawk check: local/declare combined with command substitution assignment.
     # Prefer: local foo; foo=${ cmd; }  so that || fail can be used on the assignment.
@@ -431,6 +533,8 @@ _fixLine() {
             gsed -i -E "${lineNum}"'s/\[\[ (\$\{[^}]+\}) \]\]/[[ -n \1 ]]/g' "${file}" ;;
         BRACKET_VAR_EMPTY)
             gsed -i -E "${lineNum}"'s/\[\[ ! (\$\{[^}]+\}) \]\]/[[ -z \1 ]]/g' "${file}" ;;
+        READARRAY)
+            gsed -i -E "${lineNum}"'s/\breadarray\b/mapfile/g' "${file}" ;;
         LOCAL_CMD_SUB)
             # Case 1: value is double-quoted cmd sub → drop outer quotes
             # Uses .* to handle inner " (e.g. "${ cmd "${var}"; }")

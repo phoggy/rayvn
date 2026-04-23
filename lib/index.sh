@@ -205,25 +205,27 @@ _recordCasts() {
         asciinemaRecord "${castFile}" "${recordArgs[@]}" || fail "recording failed: ${cmds[*]}"
         echo
         asciinemaMarkup "${castFile}"
-    done {castsFd}< <(find "${pagesDir}" -name '*.md' -print0 | while IFS= read -r -d '' mdFile; do
-        gawk '
-            /^[[:space:]]*```/ { in_code = !in_code; next }
-            in_code { next }
-            /<!--[[:space:]]*record/ {
-                buf = $0
-                while (buf !~ /-->/ && (getline line) > 0) { buf = buf " " line }
-                if (buf !~ /cmd=/ || match(buf, /id="([^"]+)"/, a) == 0) next
-                src = ""
-                while ((getline line) > 0) {
-                    if (match(line, /\{%[[:space:]]*include[[:space:]]+asciinema\.html.*src="([^"]+)"/, b) > 0) {
-                        src = b[1]; break
+    done {castsFd}< <(
+        while IFS= read -r -d '' mdFile; do
+            gawk '
+                /^[[:space:]]*```/ { in_code = !in_code; next }
+                in_code { next }
+                /<!--[[:space:]]*record/ {
+                    buf = $0
+                    while (buf !~ /-->/ && (getline line) > 0) { buf = buf " " line }
+                    if (buf !~ /cmd=/ || match(buf, /id="([^"]+)"/, a) == 0) next
+                    src = ""
+                    while ((getline line) > 0) {
+                        if (match(line, /\{%[[:space:]]*include[[:space:]]+asciinema\.html.*src="([^"]+)"/, b) > 0) {
+                            src = b[1]; break
+                        }
+                        if (line ~ /<!--[[:space:]]*record/) break
                     }
-                    if (line ~ /<!--[[:space:]]*record/) break
+                    if (src != "") print buf " src=\"" src "\""
                 }
-                if (src != "") print buf " src=\"" src "\""
-            }
-        ' "${mdFile}"
-    done)
+            ' "${mdFile}"
+        done < <(find "${pagesDir}" -name '*.md' -print0)
+    )
 
     if (( ! found )); then
         if (( ${#filterIds[@]} )); then
