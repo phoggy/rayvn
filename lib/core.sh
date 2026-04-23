@@ -1070,7 +1070,6 @@ makeTempFifo() {
 #
 #   dirName (string)  Optional; see tempDirPath -r.
 
-# shellcheck disable=SC2120
 makeTempDir() {
     local dirPath; dirPath=${ tempDirPath -r "$1"; }
     mkdir "${dirPath}" || fail "could not create directory: ${dirPath}"
