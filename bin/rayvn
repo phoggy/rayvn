@@ -97,6 +97,7 @@ parseArgs() {
             --all) flags+=(['all']=1) ;;
             --fix) flags+=(['fix']=1) ;;
             --ask) flags+=(['ask']=1) ;;
+            --show) flags+=(['show']=1) ;;
             --debug*) setDebug "$@"; shift $? ;;
             --repo) shift; gitHubRepo="$1";;
             --lib)  shift; args+=("--lib" "$1") ;;
@@ -220,12 +221,19 @@ newCmd() {
 
 themeCmd() {
     if (( flags['help'] )); then
-        echo "rayvn theme"
+        echo "rayvn theme [--show]"
         echo
-        echo "  Interactively select a color theme for rayvn output."
+        echo "  Interactively select a color theme for rayvn output or show the current theme."
+        echo
+        echo "  --show  Show current theme."
     else
         require 'rayvn/theme'
-        setTheme
+        if (( flags['show'] )); then
+            header "current theme"
+            showCurrentTheme
+        else
+            setTheme
+        fi
     fi
 }
 
@@ -505,14 +513,14 @@ printProject() {
 printLibraries() {
     local project="$1"
     echo
-    show bold "project ${project}" nl
+    header "${project} libraries"
     forEachLibrary "${project}" printProjectLibrary
 }
 
 printProjectLibrary() {
     local project="$1"
     local library="$2"
-    show primary "    ${project}/${library}"
+    show primary "   ${project}/${library}"
 }
 
 listProjectLibraries() {
@@ -534,15 +542,15 @@ listFunctions() {
     getFunctions "${libraryFile}" functions
 
     echo
-    show bold "${libraryName} functions"
+    header "${libraryName} functions"
     echo
 
     for function in "${functions[@]}"; do
-        [[ ${function} != _* ]] && show primary "    ${function}"
+        [[ ${function} != _* ]] && show primary "   ${function}"
     done
     if (( includePrivate )); then
         for function in "${functions[@]}"; do
-            [[ ${function} == _* ]] && show italic red "    ${function}"
+            [[ ${function} == _* ]] && show italic red "   ${function}"
         done
     fi
 }
