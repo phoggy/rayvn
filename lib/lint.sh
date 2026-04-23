@@ -124,6 +124,32 @@ _lintFile() {
         "${file}" > "${filteredFile}"
     [[ -s "${filteredFile}" ]] && lintFile="${filteredFile}"
 
+    # Strip multi-line single-quoted string content (replace interior chars with spaces,
+    # preserving line numbers) so checks don't fire on e.g. gawk programs or test fixtures
+    # that contain bash-operator-like syntax inside string literals.
+    # Track double-quoted strings too so a ' inside "..." does not corrupt the sq state.
+    local strippedFile; strippedFile=${ makeTempFile; }
+    gawk 'BEGIN { sq = 0; dq = 0 }
+    {
+        r = ""
+        for (i = 1; i <= length($0); i++) {
+            c = substr($0, i, 1)
+            if (sq) {
+                if (c == "\047") { sq = 0; r = r c } else r = r " "
+            } else if (dq) {
+                if (c == "\"") { dq = 0; r = r c }
+                else if (c == "\\") { r = r c; i++; if (i <= length($0)) r = r substr($0, i, 1) }
+                else r = r c
+            } else {
+                if      (c == "\047") { sq = 1; r = r c }
+                else if (c == "\"")   { dq = 1; r = r c }
+                else r = r c
+            }
+        }
+        print r
+    }' "${lintFile}" > "${strippedFile}"
+    [[ -s "${strippedFile}" ]] && lintFile="${strippedFile}"
+
     _lintRunChecks "${lintFile}" findings fixes
 
     if (( ${#findings[@]} == 0 )); then
@@ -381,8 +407,8 @@ _lintCheck() {
         lineContent="${match#*:}"
         [[ "${lineContent}" =~ ^[[:space:]]*\# ]] && continue
         [[ "${lineContent}" =~ '#'[[:space:]]*'lint-ok' ]] && continue
-        # Skip matches inside single-quoted strings (e.g. jq/awk programs passed as args)
-        local strippedContent; strippedContent=${ printf '%s' "${lineContent}" | gsed "s/'[^']*'/ /g"; }
+        # Skip matches inside quoted strings (single or double)
+        local strippedContent; strippedContent=${ printf '%s' "${lineContent}" | gsed -e "s/'[^']*'/ /g" -e 's/"[^"]*"/ /g'; }
         _lintGrep "${pattern}" <<< "${strippedContent}" > /dev/null 2>&1 || continue
         local displayMessage="${message}"
         if [[ -n "${extractPattern}" ]]; then
