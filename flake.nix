@@ -22,11 +22,12 @@
           pkgs.asciinema
           pkgs.bundler
           pkgs.jekyll
+          pkgs.expect
         ];
 
         rayvn = pkgs.stdenv.mkDerivation {
           pname = "rayvn";
-          version = "0.2.5";
+          version = "0.3.0";
           src = self;
 
           nativeBuildInputs = [ pkgs.makeWrapper ];
