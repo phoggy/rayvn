@@ -8,8 +8,6 @@ nav_order: 1
 
 A shared library framework for bash 5.3+.
 
-rayvn lets bash programs use shared libraries — both built-in and from third-party projects — using a simple `require` system. It also provides the `rayvn` CLI for generating and testing projects, etc.
-
 ## Getting Started
 
 See the [README](https://github.com/phoggy/rayvn#readme) for a quick introduction, installation instructions and development setup.
