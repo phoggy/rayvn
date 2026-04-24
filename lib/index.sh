@@ -109,11 +109,11 @@ runPages() {
 
     if [[ ! -d "${dir}" ]]; then
         if (( ! _userSpecifiedDir )); then
-            fail "Pages not set up for ${projectName}." off "Run:" blue "rayvn pages ${projectName} --setup" nl \
-                 off "   Default worktree:" blue "${dir}" off "— use --dir DIR for a different location."
+            fail "Pages not set up for ${projectName}." "Run:" blue "rayvn pages ${projectName} --setup" nl \
+                 "   Default worktree:" blue "${dir}" "— use --dir DIR for a different location."
         else
-            fail "Pages not set up for ${projectName}." off "Run:" blue "rayvn pages ${projectName} --setup" nl \
-                 off "   Worktree location:" blue "${dir}"
+            fail "Pages not set up for ${projectName}." "Run:" blue "rayvn pages ${projectName} --setup" nl \
+                 "   Worktree location:" blue "${dir}"
         fi
     fi
 
