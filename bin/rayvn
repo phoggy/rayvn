@@ -520,7 +520,7 @@ printLibraries() {
 printProjectLibrary() {
     local project="$1"
     local library="$2"
-    show primary "   ${project}/${library}"
+    show primary "  ${project}/${library}"
 }
 
 listProjectLibraries() {
@@ -546,11 +546,11 @@ listFunctions() {
     echo
 
     for function in "${functions[@]}"; do
-        [[ ${function} != _* ]] && show primary "   ${function}"
+        [[ ${function} != _* ]] && show primary "  ${function}"
     done
     if (( includePrivate )); then
         for function in "${functions[@]}"; do
-            [[ ${function} == _* ]] && show italic red "   ${function}"
+            [[ ${function} == _* ]] && show italic red "  ${function}"
         done
     fi
 }

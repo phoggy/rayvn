@@ -58,7 +58,7 @@ _lintProject() {
     [[ -n "${projectRoot}" ]] || fail "project not registered: ${project}"
 
     echo
-    header "project ${project}" primary "linting bash source files"
+    header "project ${project}" "linting bash source files"
 
     local -a sourceFiles=()
     _collectLintFiles "${projectRoot}" sourceFiles
@@ -109,11 +109,11 @@ _lintFile() {
     local -a findings=()
     local -a fixes=()
     local shebang; read -r shebang < "${file}"
-    [[ "${shebang}" == '#!'* && "${shebang}" != *bash* ]] && { show bold "   ${relPath}" dim " (skipped: not bash)"; return 0; }
+    [[ "${shebang}" == '#!'* && "${shebang}" != *bash* ]] && { show bold "  ${relPath}" dim " (skipped: not bash)"; return 0; }
 
     if ! bash -n "${file}" 2> /dev/null; then
         (( _lintFileIssuesRef += 1 ))
-        show bold "   ${relPath}" "${errorCrossMark}" error " syntax error (skipping lint)" nl
+        show bold "  ${relPath}" "${errorCrossMark}" error " syntax error (skipping lint)" nl
         echo
         return 0
     fi
@@ -124,14 +124,14 @@ _lintFile() {
     _lintStructureCheck "${lintFile}" "${relPath}" findings fixes
 
     if (( ${#findings[@]} == 0 )); then
-        show bold "   ${relPath}" "${successCheckMark}"
+        show bold "  ${relPath}" "${successCheckMark}"
         return 0
     fi
 
     local -i count=${#findings[@]}
     local pluralize=''; (( count > 1 )) && pluralize='s'
     if [[ "${fixMode}" == ask ]]; then
-        show bold "   ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
+        show bold "  ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
         local finding
         for finding in "${findings[@]}"; do
             echo "${finding}"
@@ -174,14 +174,14 @@ _lintFile() {
     fi
 
     if (( count == 0 )); then
-        show bold "   ${relPath}" "${successCheckMark}" success " (fixed)"
+        show bold "  ${relPath}" "${successCheckMark}" success " (fixed)"
     else
         (( _lintFileIssuesRef += count ))
         (( _lintFileFixableRef += ${#fixes[@]} ))
         if [[ "${fixMode}" == fix || "${fixMode}" == ask ]]; then
-            show bold "   ${relPath}" "${errorCrossMark}" error "${count} remaining" nl
+            show bold "  ${relPath}" "${errorCrossMark}" error "${count} remaining" nl
         else
-            show bold "   ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
+            show bold "  ${relPath}" "${errorCrossMark}" error "${count} error${pluralize}" nl
         fi
         local finding
         for finding in "${findings[@]}"; do
