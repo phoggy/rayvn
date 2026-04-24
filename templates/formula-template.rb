@@ -1,5 +1,5 @@
 class ${projectNameClass} < Formula
-  desc "${projectName} - A rayvn-based project"
+  desc "${projectName} - ${projectDescription}"
   homepage "https://github.com/phoggy/${projectName}"
   url "{URL}"
   sha256 "{SHA256}"

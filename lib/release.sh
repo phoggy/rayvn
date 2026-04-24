@@ -56,6 +56,7 @@ _init_rayvn_release() {
     require 'rayvn/test-harness'
     require 'rayvn/lint'
     require 'rayvn/namespace'
+    require 'rayvn/config'
 }
 
 _checkNamespaces() {
@@ -353,12 +354,21 @@ _updateBrewFormula() {
     done < <( getBrewDependencies "${project}" "${PWD}" )
     depsBlock="${depsBlock%$'\n'}"  # strip trailing newline
 
+    # Load project metadata from rayvn.pkg
+    local pkgFile='rayvn.pkg'
+    [[ -f "${pkgFile}" ]] || fail "rayvn.pkg not found"
+    sourceConfigFile "${pkgFile}" project
+    local projectNameClass="${project^}"
+
     # Read formula template and substitute markers
     local formulaContent
     formulaContent="${ cat "${templateFile}"; }" || fail "Failed to read template file ${templateFile}"
     formulaContent="${formulaContent//\{URL\}/${url}}"
     formulaContent="${formulaContent//\{SHA256\}/${sha256}}"
     formulaContent="${formulaContent//\{DEPENDS_ON\}/${depsBlock}}"
+    formulaContent="${formulaContent//\$\{projectName\}/${project}}"
+    formulaContent="${formulaContent//\$\{projectDescription\}/${projectDescription}}"
+    formulaContent="${formulaContent//\$\{projectNameClass\}/${projectNameClass}}"
 
     # Push to tap via GitHub API
     local tapApiPath="repos/${brewTapRepo}/contents/Formula/${project}.rb"

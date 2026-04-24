@@ -1,6 +1,6 @@
-class Rayvn < Formula
-  desc "A shared library ecosystem for bash 5.3+."
-  homepage "https://github.com/phoggy/rayvn"
+class ${projectNameClass} < Formula
+  desc "${projectName} - ${projectDescription}"
+  homepage "https://github.com/phoggy/${projectName}"
   url "{URL}"
   sha256 "{SHA256}"
   license "GPL-3.0-only"
