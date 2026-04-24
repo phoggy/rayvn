@@ -173,10 +173,10 @@ When using `--nix` or `--all` the nix tests are blocked until the build complete
 
 ### theme
 
-Interactive theme selector. Launches an arrow-key navigation prompt to choose between available themes.
+Interactive prompt to choose between available themes. Use `--show` to see the current theme.
 
 ```
-rayvn theme
+rayvn theme [--show]
 ```
 
 <!-- record id="theme" pre="cd ~/dev/rayvn" cmd="rayvn theme" -->

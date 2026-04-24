@@ -77,23 +77,29 @@ write to stdout directly (bypasses TTY routing, e.g. when redirecting to another
 
 ### header()
 
-Print a styled section header with optional subtitle lines.
+Print a styled section header with an optional subtitle.
 
 
 *Usage*
 
-`header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]`
+`header [-u] [colorIndex] header [subtitle...]`
 {: .usage-signature}
 
 | | |
 |---|---|
-| `-u` | Convert title to uppercase. |
-| `colorIndex` *(int)* | Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted). |
-| `title` *(string)* | Title text printed in bold. |
-| `[subtitle]` *(string)* | First subtitle arg, printed in the header color. |
-| `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
-| `[TEXT]` *(string)* | Text to print with the preceding format applied. |
+| `-u` | Convert header to uppercase. |
+| `colorIndex` *(int)* | Color index: 0=bold, 1=primary, 2=accent, 3=secondary, 4=success, 5=warning, 6=error, 7=bold info. |
+| `header` *(string)* | Header text printed in index color. |
+| `[subtitle]` *(string)* | Subtitle text/formats printed via show. |
 {: .usage-table}
+
+*Example*
+
+```bash
+header "my header"                         # default bold header, no subtitle
+header -u "${text}" "my subtitle"          # uppercase bold header, plain subtitle
+header 1 "my header" italic "my subtitle"  # primary header, italic subtitle
+```
 
 ### commonOptions()
 
