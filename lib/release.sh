@@ -133,12 +133,15 @@ _updateFlakeVersion() {
 
     header "Updating flake.nix version to ${version}"
 
-    # Update version in flake.nix
     gsed -i "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
 
-    git commit -m "Release v${version} flake.nix update" "${flakeFile}" || fail
-    git push || fail
-    echo "flake.nix version updated to ${version}"
+    if [[ -n ${ git status --porcelain "${flakeFile}"; } ]]; then
+        git commit -m "Release v${version} flake.nix update" "${flakeFile}" || fail
+        git push || fail
+        echo "flake.nix version updated to ${version}"
+    else
+        echo "flake.nix already at ${version}, nothing to commit"
+    fi
 }
 
 _doRelease() {
