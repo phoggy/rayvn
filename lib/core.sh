@@ -127,7 +127,7 @@ echo() {
 #   -u                   Convert header to uppercase.
 #   colorIndex (int)     Color index: 0=bold, 1=primary, 2=accent, 3=secondary, 4=success, 5=warning, 6=error, 7=bold info.
 #   header (string)      Header text printed in index color.
-#   [subtitle] (string)  Subhead text/formats printed via show.
+#   [subtitle] (string)  Subtitle text/formats printed via show.
 #
 # · EXAMPLE
 #
