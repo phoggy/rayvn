@@ -154,9 +154,14 @@ _markPostRelease() {
     gsed -i -e "s/^projectVersion='[^']*'/projectVersion='${version}+'/" \
             -e "s/^projectReleaseDate='[^']*'/projectReleaseDate=''/" \
             "${pkgFile}" || fail
-    git commit -m "Post-release v${version}+ rayvn.pkg update" "${pkgFile}" || fail
-    git push || fail
-    echo "rayvn.pkg updated to ${version}+"
+
+    if [[ -n ${ git status --porcelain "${pkgFile}"; } ]]; then
+        git commit -m "Post-release v${version}+ rayvn.pkg update" "${pkgFile}" || fail
+        git push || fail
+        echo "rayvn.pkg updated to ${version}+"
+    else
+        echo "rayvn.pkg already at ${version}+, nothing to commit"
+    fi
 }
 
 _updateFlakeLock() {
@@ -187,8 +192,6 @@ _verifyNixBuild() {
 
 _deleteRelease() {
     local versionTag="v$1"
-    header "Deleting release ${versionTag}"
-
     gh release delete ${versionTag} --cleanup-tag || fail "failed to delete release ${versionTag}"
 }
 
