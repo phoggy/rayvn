@@ -229,6 +229,10 @@ $ tty > ~/.debug.tty
 $ my-rayvn-app --debug-tty .
 ```
 
+## API/CLI Documentation
+                 
+See [rayvn.ink](https://rayvn.ink/rayvn/)
+
 ## IDE Configuration
 
 ### IntelliJ IDEA
