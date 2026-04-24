@@ -20,7 +20,7 @@ release () {
     [[ -n ${version} ]] || fail "version required"
     command -v nix > /dev/null 2>&1 || fail "'rayvn release' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
 
-    header -u "Releasing ${project} v${version}" off primary "${ghRepo}"
+    header "RELEASING ${project^^} v${version}" primary "${ghRepo}"
 
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
@@ -59,7 +59,7 @@ _init_rayvn_release() {
 }
 
 _checkNamespaces() {
-    header 2 "Checking namespace collisions"
+    header "Checking namespace collisions"
     # Ensure all known rayvn-family projects are registered for a comprehensive cross-project check
     local knownProject
     for knownProject in rayvn valt wardn; do
@@ -71,13 +71,12 @@ _checkNamespaces() {
 
 _runLint() {
     local project="$1"
-    header 2 "Linting ${project}"
     runLint --ask "${project}" || fail "Lint violations found — fix before releasing"
 }
 
 _auditDocs() {
     local project="$1"
-    header 2 "Auditing documentation"
+    header "Auditing documentation"
     auditDocs --release "${project}"
 }
 
@@ -85,7 +84,7 @@ _checkExistingRelease() {
     local ghRepo="$1"
     local version="$2"
     local versionTag="v${version}"
-    header 2 "Checking if release ${versionTag} already exists"
+    header "Checking if release ${versionTag} already exists"
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
@@ -116,14 +115,14 @@ _runTests() {
     local -a args=()
     local -A flags=([all]=1)
 
-    header 2 "Running tests"
+    header "Running tests"
 
     executeTests || fail "Tests failed"
 }
 
 _updateFlakeDeps() {
     local project="$1"
-    header 2 "Checking flake.nix dependencies for ${project}"
+    header "Checking flake.nix dependencies for ${project}"
     findDependencies "${project}"
 }
 
@@ -131,7 +130,7 @@ _updateFlakeVersion() {
     local version="$1"
     local flakeFile='flake.nix'
 
-    header 2 "Updating flake.nix version to ${version}"
+    header "Updating flake.nix version to ${version}"
 
     # Update version in flake.nix
     gsed -i "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
@@ -146,7 +145,7 @@ _doRelease() {
     local version="$2"
     local versionTag="v${version}"
 
-    header 2 "Creating release ${versionTag}"
+    header "Creating release ${versionTag}"
 
     gh --repo ${ghRepo} release create "${versionTag}" --title "Release ${versionTag}" \
         --notes "Improvements and bug fixes for ${versionTag}" || fail "release ${versionTag} failed!"
@@ -157,7 +156,7 @@ _markPostRelease() {
     local version="$1"
     local pkgFile='rayvn.pkg'
 
-    header 2 "Marking post-release version ${version}+"
+    header "Marking post-release version ${version}+"
 
     # Update rayvn.pkg with post-release version (append +) and clear date
     gsed -i -e "s/^projectVersion='[^']*'/projectVersion='${version}+'/" \
@@ -169,7 +168,7 @@ _markPostRelease() {
 }
 
 _updateFlakeLock() {
-    header 2 "Updating flake.lock"
+    header "Updating flake.lock"
 
     # Run nix build to ensure flake.lock is current
     nix build --no-link || fail "nix build failed"
@@ -189,14 +188,14 @@ _updateFlakeLock() {
 _verifyNixBuild() {
     local ghRepo="$1"
     local versionTag="v$2"
-    header 2 "Verifying Nix build for ${versionTag}"
+    header "Verifying Nix build for ${versionTag}"
     nix build "github:${ghRepo}/${versionTag}" --no-link || fail "Nix build failed for ${versionTag}"
     echo "Nix build succeeded."
 }
 
 _deleteRelease() {
     local versionTag="v$1"
-    header 2 "Deleting release ${versionTag}"
+    header "Deleting release ${versionTag}"
 
     gh release delete ${versionTag} --cleanup-tag || fail "failed to delete release ${versionTag}"
 }
@@ -204,7 +203,7 @@ _deleteRelease() {
 _updateExistingTagIfRequired() {
     local ghRepo="$1"
     local versionTag="v$2"
-    header 2 "Updating version tag ${versionTag} if required"
+    header "Updating version tag ${versionTag} if required"
 
     # Ensure the tag exists before trying to move it
 
@@ -222,7 +221,7 @@ _ensureInExpectedRepo() {
     local ghRepo="$1"
     local account="${ghRepo%%/*}"
     local repo="${ghRepo#*/}"
-    header 2 "Ensuring current directory matches ${ghRepo}"
+    header "Ensuring current directory matches ${ghRepo}"
 
     # Ensure we're in a Git repository
 
@@ -254,7 +253,7 @@ _ensureInExpectedRepo() {
 
 _ensureRepoIsReadyForRelease() {
     local versionTag="v$1"
-    header 2 "Ensuring local repo is ready for release ${versionTag}"
+    header "Ensuring local repo is ready for release ${versionTag}"
 
     # Check for uncommitted changes
 
@@ -300,7 +299,7 @@ _ensureRepoIsReadyForRelease() {
 }
 
 _ensureRepoIsUpToDate() {
-    header 2 "Ensuring repo is up to date"
+    header "Ensuring repo is up to date"
 
     branch=${ git rev-parse --abbrev-ref HEAD; }
     localCommit=${ git rev-parse HEAD; }
@@ -333,7 +332,7 @@ _updateBrewFormula() {
     local project="${ghRepo#*/}"
     local brewTapRepo='rayvn-central/homebrew-brew'
 
-    header 2 "Updating Homebrew formula for ${project} v${version}"
+    header "Updating Homebrew formula for ${project} v${version}"
 
     # Verify formula template exists
     local templateFile="formula/${project}.rb"
