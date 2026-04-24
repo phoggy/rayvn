@@ -118,18 +118,22 @@ echo() {
     fi
 }
 
-# ◇ Print a styled section header with optional subtitle lines.
+# ◇ Print a styled section header with an optional subtitle.
 #
 # · USAGE
 #
-#   header [-u] [colorIndex] title [subtitle [FORMAT|TEXT]...]
+#   header [-u] [colorIndex] header [subtitle...]
 #
-#   -u                   Convert title to uppercase.
-#   colorIndex (int)     Color index, clamped to max (0=bold, 1=accent, 2=secondary, 3=warning, 4=success, 5=muted).
-#   title (string)       Title text printed in bold.
-#   [subtitle] (string)  First subtitle arg, printed in the header color.
-#   [FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
-#   [TEXT] (string)      Text to print with the preceding format applied.
+#   -u                   Convert header to uppercase.
+#   colorIndex (int)     Color index: 0=bold, 1=primary, 2=accent, 3=secondary, 4=success, 5=warning, 6=error, 7=bold info.
+#   header (string)      Header text printed in index color.
+#   [subtitle] (string)  Subhead text/formats printed via show.
+#
+# · EXAMPLE
+#
+#   header "my header"                         # default bold header, no subtitle
+#   header -u "${text}" "my subtitle"          # uppercase bold header, plain subtitle
+#   header 1 "my header" italic "my subtitle"  # primary header, italic subtitle
 
 header() {
     local toUpper=0 colorIndex=0
@@ -141,14 +145,12 @@ header() {
         (( colorIndex > maxIndex )) && colorIndex=${maxIndex}
         shift
     fi
+
     local header="$1"
     (( toUpper )) && header="${header^^}"
-    local color="${_headerColors[${colorIndex}]}"
-    echo
-    show primary "┃┃" "${color}" "${header[@]}"
+    show nl dim ${_headerBlock} ${_headerColors[${colorIndex}]} "${header[@]}"
     if (( $# > 1 )); then
-        shift
-        show primary "┃┃" "${color}" "$1" "${@:2}"
+        show dim ${_headerBlock} "${@:2}"
     fi
     echo
 }
@@ -1523,7 +1525,8 @@ _init_rayvn_core() {
     declare -gr _checkMark='✔' # U+2714 Check mark
     declare -gr _crossMark='✘' # U+2718 Heavy ballot X
     declare -gr _hexChars=( '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'a' 'b' 'c' 'd' 'e' 'f' )
-    declare -gar _headerColors=('bold' 'accent' 'secondary' 'warning' 'success' 'muted')
+    declare -gr _headerBlock='▊' # '█' '▉' '▊' '▋' '▌' '▍' '▎' '▏'
+    declare -gar _headerColors=('bold' 'primary' 'accent' 'secondary' 'success' 'warning' 'error' 'bold info' 'muted')
     declare -gr inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
     declare -g _rayvnExitMessage=''
