@@ -2,6 +2,7 @@
 
 projectName='rayvn'
 projectVersion='0.2.5+'
+projectDescription='A shared library ecosystem for bash 5.3+.'
 projectReleaseDate=''
 docsWorktree='../rayvn-pages'
 
