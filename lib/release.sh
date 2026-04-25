@@ -25,6 +25,7 @@ release () {
     _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
+    _validatePkgFile || fail
     _runTests "${project}" || fail
     _runLint "${project}" || fail
     _checkNamespaces || fail
@@ -321,6 +322,17 @@ _ensureRepoIsUpToDate() {
 # Update the Homebrew formula in the tap repo for the given project release.
 # Reads formula template from formula/${project}.rb, substitutes markers, and pushes to tap.
 # Args: ghRepo version
+_validatePkgFile() {
+    local pkgFile='rayvn.pkg'
+    header "Validating rayvn.pkg"
+    assertFile "${pkgFile}"
+    local projectDescription
+    projectDescription=${ gawk -F"'" '/^projectDescription=/{print $2}' "${pkgFile}"; }
+    [[ -n ${projectDescription} ]] || fail "rayvn.pkg projectDescription is not set"
+    [[ ${projectDescription} != 'TODO' ]] || fail "rayvn.pkg projectDescription must be updated from 'TODO'"
+    echo "rayvn.pkg is valid."
+}
+
 _updateBrewFormula() {
     local ghRepo="$1"
     local version="$2"
