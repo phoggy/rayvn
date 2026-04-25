@@ -3,7 +3,7 @@
 # Manages rayvn-central project registration.
 # Use via: require 'rayvn/central'
 
-# ◇ Register a rayvn project on rayvn-central by creating a GitHub issue in the registry repo.
+# ◇ Request registration of a rayvn project name on rayvn-central.
 #
 # · ARGS
 #
@@ -33,8 +33,7 @@ registerProjectOnRayvnCentral() {
     projectUrl="${ git remote get-url origin; }" || fail
     projectUrl="${projectUrl%.git}"
 
-    # Is there an existing commit in the current repo?
-    # TODO: This assumes that PWD is within the repo for project ${projectName}. Verify?
+    assertGitRepo
 
     if git rev-parse --verify HEAD >/dev/null 2>&1; then
 
