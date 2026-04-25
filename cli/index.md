@@ -75,6 +75,7 @@ Note: All examples below assume rayvn as the working directory so omit `PROJECT`
 | [**build**](#build) | Run nix build.                                              |
 | [**release**](#release) | Create a versioned GitHub release.                          |
 | [**register**](#register) | Stake a claim on a project name.                            |
+{: .list-table}
 
 ### new
 
@@ -178,6 +179,8 @@ Interactive prompt to choose between available themes. Use `--show` to see the c
 ```
 rayvn theme [--show]
 ```
+
+**note**: *colors in the asciinema cast below render differently here than in a terminal.*
 
 <!-- record id="theme" pre="cd ~/dev/rayvn" cmd="rayvn theme" -->
 {% include asciinema.html id="theme" src="/assets/casts/theme.cast" autoplay=false %}
