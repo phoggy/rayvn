@@ -1158,14 +1158,16 @@ _wrapCodeInBackticks() {
     echo "${text}"
 }
 
-# Parse library descriptions from the home page's library table into _idxHomePageDescriptions.
+# Parse library descriptions and ordering from the home page's library table.
 # Recognizes table rows of the form: | [project/library](url) | description |
+# Populates _idxHomePageDescriptions (key → description) and _idxHomePageOrder (key → position).
 _loadHomePageDescriptions() {
     declare -gA _idxHomePageDescriptions=()
+    declare -gA _idxHomePageOrder=()
     local indexFile="${_idxDocsDir}/index.md"
     [[ -f "${indexFile}" ]] || return 0
 
-    local line libKey description
+    local line libKey description orderIdx=1
     local tableRowPattern='^\|[[:space:]]*\[([^/]+)/([^]]+)\]\([^)]*\)[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\|' # lint-ok
     while IFS= read -r line; do
         if [[ "${line}" =~ ${tableRowPattern} ]]; then
@@ -1173,6 +1175,8 @@ _loadHomePageDescriptions() {
             description="${BASH_REMATCH[3]}"
             description=${ trim "${description}"; }
             [[ -n "${description}" ]] && _idxHomePageDescriptions["${libKey}"]="${description}"
+            _idxHomePageOrder["${libKey}"]="${orderIdx}"
+            (( orderIdx++ ))
         fi
     done < "${indexFile}"
 }
@@ -1242,6 +1246,66 @@ _updateHomePageLibraryTable() {
     show "Added ${count} new librar${ (( count == 1 )) && echo y || echo ies; } to index.md"
 }
 
+# Update the library table in api/index.md to match the ordering and contents of the home page table.
+# Libraries not in the home page order are appended at the end.
+_updateApiIndexTable() {
+    local filterProject="$1"
+    shift
+    local libFiles=("$@")
+    local apiIndexFile="${_idxDocsDir}/api/index.md"
+    [[ -f "${apiIndexFile}" ]] || return 0
+
+    # Collect entries with their home page order; build key → file map for description fallback
+    local -a entries=()
+    local -A keyToFile=()
+    local libFile projectName libraryName key order
+    for libFile in "${libFiles[@]}"; do
+        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
+        libraryName=${ basename "${libFile}" .sh; }
+        [[ -n "${filterProject}" && "${projectName}" != "${filterProject}" ]] && continue
+        key="${projectName}/${libraryName}"
+        order="${_idxHomePageOrder[${key}]:-9999}"
+        entries+=("${order}:${key}")
+        keyToFile["${key}"]="${libFile}"
+    done
+
+    # Sort by order
+    local -a sortedKeys=()
+    while IFS= read -r entry; do
+        sortedKeys+=("${entry#*:}")
+    done < <(printf '%s\n' "${entries[@]}" | sort -t: -k1 -n)
+
+    # Preserve header lines (everything before the first table row), replace the table
+    local -a headerLines=()
+    local line
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^\| ]] && break
+        headerLines+=("${line}")
+    done < "${apiIndexFile}"
+
+    # Strip trailing blank lines from header
+    while (( ${#headerLines[@]} > 0 )) && [[ -z "${headerLines[-1]}" ]]; do
+        unset 'headerLines[-1]'
+    done
+
+    local tmpFile="${apiIndexFile}.tmp"
+    {
+        for line in "${headerLines[@]}"; do printf '%s\n' "${line}"; done
+        printf '\n'
+        printf '| Library | Description |\n'
+        printf '|---|---|\n'
+        for key in "${sortedKeys[@]}"; do
+            local proj="${key%%/*}"
+            local lib="${key#*/}"
+            local desc="${_idxHomePageDescriptions[${key}]:-}"
+            [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+            [[ -z "${desc}" ]] && desc="TODO: add description"
+            printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
+        done
+    } > "${tmpFile}"
+    mv "${tmpFile}" "${apiIndexFile}"
+}
+
 # Generate Jekyll documentation pages for library files.
 # Args: [--project NAME] libFiles...
 #
@@ -1257,15 +1321,15 @@ _generateDocs() {
     mkdir -p "${_idxDocsDir}/api" "${_idxDocsDir}/cli"
     _loadHomePageDescriptions
     _updateHomePageLibraryTable "${filterProject}" "${libFiles[@]}"
+    _updateApiIndexTable "${filterProject}" "${libFiles[@]}"
 
-    local navOrder=1
-    local libFile projectName libraryName
+    local libFile projectName libraryName navOrder
     for libFile in "${libFiles[@]}"; do
         projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
         libraryName=${ basename "${libFile}" .sh; }
         if [[ -z "${filterProject}" || "${projectName}" == "${filterProject}" ]]; then
+            navOrder="${_idxHomePageOrder[${projectName}/${libraryName}]:-999}"
             _generateLibraryPage "${libFile}" "${projectName}" "${libraryName}" "${navOrder}"
-            (( navOrder += 1 ))
         fi
     done
 
