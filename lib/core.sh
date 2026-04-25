@@ -26,7 +26,7 @@
 #
 #   Available formats:
 #
-#   - **Theme** `success` `error` `warning` `info` `accent` `muted`
+#   - **Theme** `primary` `secondary` `accent` `success` `error` `warning` `info` `muted`
 #   - **Style** `bold` `dim` `italic` `underline` `blink` `reverse` `strikethrough`
 #   - **Foreground** `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` (and `bright-*` variants)
 #   - **Background** `bg-black` `bg-red` `bg-green` `bg-yellow` `bg-blue` `bg-magenta` `bg-cyan` `bg-white` (and `bg-bright-*` variants)
@@ -565,40 +565,31 @@ assertGitRepo() {
     git -C "${dir}" rev-parse --git-dir &> /dev/null || fail "${dir} is not a git repository"
 }
 
-# ◇ Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
+# ◇ Run a command and fail if it exits non-zero or produces any stderr output.
 #
 # · USAGE
 #
-#   assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...
+#   assertCommand [--transform FUNC] [--quiet] [--error MSG] command...
 #
-#   --strip-brackets       Strip lines matching '^\[.*\]$' and trailing blank lines from stderr.
-#   --quiet                Suppress stderr content from the failure message.
-#   --stderr               Also fail if the command produces any stderr output.
-#   --error MSG (string)   Custom failure message (default: stderr output or generic exit code message).
-#   ... (string)           The command and arguments to execute.
-#
-# · EXAMPLE
-#
-#   assertCommand git commit -m "message"
+#   --transform FUNC (string)  Function name called as FUNC "stderr" to transform stderr before use in failure messages.
+#   --quiet                    Suppress stderr content from the failure message.
+#   --error MSG (string)       Custom failure message (default: stderr output or generic exit code message).
+#   ... (string)               The command and arguments to execute.
 #
 # · EXAMPLE
 #
-#   session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
-#
-# · EXAMPLE
+#   session="${ assertCommand --error "Failed to unlock" bw unlock --raw; }"
 #
 #   # For pipelines, wrap in eval:
-#   assertCommand --stderr --error "Failed to encrypt" \
-#       eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
+#   assertCommand --transform myStderrTransform --error "Failed" eval 'cmd1 | cmd2 > "${file}"'
 
 assertCommand() {
-    local stripBrackets=0 quiet=0 noStderr=0 message=""
+    local transformFunc='' quiet=0 message=""
 
     while [[ "$1" == --* ]]; do
         case "$1" in
-            --strip-brackets) stripBrackets=1; shift ;;
+            --transform) transformFunc="$2"; shift 2 ;;
             --quiet) quiet=1; shift ;;
-            --stderr) noStderr=1; shift ;;
             --error) message="$2"; shift 2 ;;
             *) break ;;
         esac
@@ -611,21 +602,10 @@ assertCommand() {
     local stderr=""
     if [[ -s "${stderrFile}" ]]; then
         stderr="${ cat "${stderrFile}"; }"
-        if (( stripBrackets )); then
-            # Remove bracket-only lines and trailing blank lines
-            stderr="${ echo "${stderr}" | grep -v '^\[.*\]$' | gsed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}'; }"
-        fi
+        [[ -n ${transformFunc} ]] && stderr="${ ${transformFunc} "${stderr}"; }"
     fi
 
-    # Fail if command failed, or if --stderr and stderr has content
-    local shouldFail=0
-    if (( result != 0 )); then
-        shouldFail=1
-    elif (( noStderr )) && [[ -n "${stderr}" ]]; then
-        shouldFail=1
-    fi
-
-    if (( shouldFail )); then
+    if (( result != 0 )) || [[ -n "${stderr}" ]]; then
         if [[ -n "${message}" ]]; then
             if (( quiet )) || [[ -z "${stderr}" ]]; then
                 fail "${message}"

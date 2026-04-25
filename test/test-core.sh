@@ -121,13 +121,8 @@ testAssertCommandFailure() {
 }
 
 testAssertCommandStderr() {
-    assertTrue "assertCommand ignores stderr without --stderr flag" \
-        assertCommand bash -c 'echo "error" >&2; exit 0'
-}
-
-testAssertCommandStderrFlag() {
-    assertFalse "assertCommand --stderr fails on stderr output" \
-        eval '( assertCommand --stderr bash -c '\''echo "error" >&2; exit 0'\'' ) 2>/dev/null'
+    assertFalse "assertCommand fails on stderr output" \
+        eval '( assertCommand bash -c '\''echo "error" >&2; exit 0'\'' ) 2>/dev/null'
 }
 
 testAssertCommandCustomError() {
@@ -136,13 +131,14 @@ testAssertCommandCustomError() {
 }
 
 testAssertCommandQuiet() {
-    assertFalse "assertCommand --quiet --stderr fails on stderr" \
-        eval '( assertCommand --stderr --quiet --error "Error" bash -c '\''echo "secret" >&2; exit 0'\'' ) 2>/dev/null'
+    assertFalse "assertCommand --quiet fails on stderr" \
+        eval '( assertCommand --quiet --error "Error" bash -c '\''echo "secret" >&2; exit 0'\'' ) 2>/dev/null'
 }
 
-testAssertCommandStripBrackets() {
-    assertTrue "assertCommand --strip-brackets filters bracket-only lines" \
-        eval '( assertCommand --stderr --strip-brackets bash -c '\''echo "[info]" >&2; exit 0'\'' ) 2>/dev/null'
+testAssertCommandTransform() {
+    _stripBracketLines() { echo "$1" | grep -v '^\[.*\]$'; }
+    assertTrue "assertCommand --transform suppresses transformed stderr" \
+        eval '( assertCommand --transform _stripBracketLines bash -c '\''echo "[info]" >&2; exit 0'\'' ) 2>/dev/null'
 }
 
 testAssertCommandWithEval() {
