@@ -11,7 +11,7 @@ Documentation for all public functions in rayvn's shared libraries.
 
 | Library | Description |
 |---|---|
-| [rayvn/core](/rayvn/api/rayvn-core) | Core utilities, assertions, and error handling. |
+| [rayvn/core](/rayvn/api/rayvn-core) | Core utilities, assertions and error handling. |
 | [rayvn/debug](/rayvn/api/rayvn-debug) | Debug logging and tracing. |
 | [rayvn/prompt](/rayvn/api/rayvn-prompt) | Interactive user prompts. |
 | [rayvn/terminal](/rayvn/api/rayvn-terminal) | Cursor control and terminal output. |
