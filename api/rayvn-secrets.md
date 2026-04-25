@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/secrets"
 parent: API Reference
-nav_order: 15
+nav_order: 6
 ---
 
 # rayvn/secrets
