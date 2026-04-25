@@ -32,7 +32,7 @@ td:first-child, th:first-child {
 }
 
 // Hide header row on args/returns/usage tables (header cells are empty placeholders)
-.args-table thead, .usage-table thead {
+.args-table thead, .usage-table thead .list-table thead {
   display: none;
 }
 
@@ -48,6 +48,12 @@ td, th {
   padding-bottom: 0.15rem;
   vertical-align: top;
 }
+
+// Left align all table header text
+th {
+  text-align: left;
+}
+
 // Override just-the-docs definition list style: size the term column to fit content
 // (instead of a fixed 10em), left-align terms, and remove the auto-appended colon.
 .main-content dl {
@@ -131,16 +137,10 @@ div.highlighter-rouge,
   line-height: 1.3;
 }
 
-// Override just-the-docs 0.75em default
-code {
-  font-size: 0.875em;
-}
-
 // Inline code (backtick spans)
 :not(pre, figure) > code {
   background-color: var(--code-bg);
 }
-
 
 // Rougify Theme 'base16.solarized' --------------------------------
 
