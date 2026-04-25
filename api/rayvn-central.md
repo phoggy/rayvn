@@ -13,7 +13,7 @@ Project registry.
 
 ### registerProjectOnRayvnCentral()
 
-Register a rayvn project on rayvn-central by creating a GitHub issue in the registry repo.
+Request registration of a rayvn project name on rayvn-central.
 
 
 *Args*
@@ -25,13 +25,13 @@ Register a rayvn project on rayvn-central by creating a GitHub issue in the regi
 
 *Side effects*
 
-Creates a GitHub issue in the rayvn-central/registry repo with project name, remote URL,
-and earliest commit date (or current timestamp if no commits exist).
+Creates a GitHub issue in the rayvn-central/registry repo with project name, description,
+remote URL, and earliest commit date (or current timestamp if no commits exist).
 
 *Notes*
 
 
-Assumes PWD is within the repo for the given projectName.
+Assumes PWD is within the repo for the given rayvn project..
 
 ### getProjectRegistryPath()
 

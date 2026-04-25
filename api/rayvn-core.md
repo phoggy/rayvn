@@ -37,7 +37,7 @@ Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 
 Available formats:
 
-- **Theme** `success` `error` `warning` `info` `accent` `muted`
+- **Theme** `primary` `secondary` `accent` `success` `error` `warning` `info` `muted`
 - **Style** `bold` `dim` `italic` `underline` `blink` `reverse` `strikethrough`
 - **Foreground** `black` `red` `green` `yellow` `blue` `magenta` `cyan` `white` (and `bright-*` variants)
 - **Background** `bg-black` `bg-red` `bg-green` `bg-yellow` `bg-blue` `bg-magenta` `bg-cyan` `bg-white` (and `bg-bright-*` variants)
@@ -409,19 +409,18 @@ Fail if the given directory (or PWD) is not within a git repository.
 
 ### assertCommand()
 
-Run a command and fail if it exits non-zero, or if it produces stderr with --stderr.
+Run a command and fail if it exits non-zero or produces any stderr output.
 
 
 *Usage*
 
-`assertCommand [--strip-brackets] [--quiet] [--stderr] [--error MSG] command...`
+`assertCommand [--transform FUNC] [--quiet] [--error MSG] command...`
 {: .usage-signature}
 
 | | |
 |---|---|
-| `--strip-brackets` | Strip lines matching '^\[.*\]$' and trailing blank lines from stderr. |
+| `--transform FUNC` *(string)* | Function name called as FUNC "stderr" to transform stderr before use in failure messages. |
 | `--quiet` | Suppress stderr content from the failure message. |
-| `--stderr` | Also fail if the command produces any stderr output. |
 | `--error MSG` *(string)* | Custom failure message (default: stderr output or generic exit code message). |
 | `...` *(string)* | The command and arguments to execute. |
 {: .usage-table}
@@ -429,21 +428,10 @@ Run a command and fail if it exits non-zero, or if it produces stderr with --std
 *Example*
 
 ```bash
-assertCommand git commit -m "message"
-```
+session="${ assertCommand --error "Failed to unlock" bw unlock --raw; }"
 
-*Example*
-
-```bash
-session="${ assertCommand --stderr --error "Failed to unlock" bw unlock --raw; }"
-```
-
-*Example*
-
-```bash
 # For pipelines, wrap in eval:
-assertCommand --stderr --error "Failed to encrypt" \
-    eval 'tar cz "${dir}" | rage "${recipients[@]}" > "${file}"'
+assertCommand --transform myStderrTransform --error "Failed" eval 'cmd1 | cmd2 > "${file}"'
 ```
 
 ### trim()
