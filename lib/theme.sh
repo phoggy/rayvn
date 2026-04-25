@@ -241,22 +241,22 @@ THEME_DATA="--+-+-----+-++(-++(---++++(---+(  THEME DATA  )+---)++++---)++-)++-+
 # 3. All light theme colors MUST be visible on light backgrounds.
 # 4. Each of the 8 colors within each theme are named and MUST adhere to the following scheme:
 #
+#    primary = CYAN/BLUE (RGB with B and/or G high)
+#    secondary = ORANGE/PEACH (RGB with R > G > B)
+#    accent = PURPLE/MAGENTA (RGB with R ≈ B > G)
 #    success = GREEN (RGB with G > R and G > B)
 #    error = RED (RGB with R > G and R > B)
 #    warning = YELLOW/ORANGE/GOLD (RGB with R ≈ G > B, or R > G > B)
 #    info = BLUE (RGB with B > R and B > G)
-#    muted =     MUST be subdued and dim:
-#                 - Dark themes: RGB total < 360, no component > 150
-#                 - Light themes: RGB components in range 60-180, total 200-480
-#    accent = PURPLE/MAGENTA (RGB with R ≈ B > G)
-#    primary = CYAN/BLUE (RGB with B and/or G high)
-#    secondary = ORANGE/PEACH (RGB with R > G > B)
+#    muted = subdued and dim:
+#            - Dark themes: RGB total < 360, no component > 150
+#            - Light themes: RGB components in range 60-180, total 200-480
 #
 # 5. Official themes SHOULD be adjusted as necessary to follow these requirements.
 
 
 # Theme color names
-declare -grax _themeColors=(success error warning info muted accent primary secondary)
+declare -grax _themeColors=(primary secondary accent success error warning info muted)
 
 # Theme names
 declare -grax _themeBaseNames=(
