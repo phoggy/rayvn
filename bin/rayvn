@@ -480,22 +480,12 @@ releaseCmd() {
 
 registerCmd() {
     if (( flags['help'] )); then
-        echo "rayvn register PROJECT [--remove]"
+        echo "rayvn register PROJECT"
         echo
         echo "  Stake a claim on a project name on rayvn central."
-        echo
-        echo "  --remove  Release the registered name."
     else
-        assertGitRepo
         require 'rayvn/central'
-        local projectName=${args[0]}
-        [[ -n ${projectName} ]] || fail "project name required"
-        local projectUrl repoName
-        projectUrl="${ git remote get-url origin; }" || fail
-        projectUrl="${projectUrl%.git}"
-        repoName=${ baseName ${projectUrl}; }
-        [[ ${projectName} == "${repoName}" ]]
-        registerProjectOnRayvnCentral "${projectName}" || fail
+        registerProjectOnRayvnCentral "${args[0]}" || fail
     fi
 }
 
@@ -697,6 +687,8 @@ newProject() {
         echo "   git push -u origin main"
         echo
     fi
+
+    show "Please update the" primary "projectDescription" "property in the" blue "rayvn.pkg" "file."
     remindIfNotInPath "${binDir}"
 }
 

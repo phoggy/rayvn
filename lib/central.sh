@@ -11,39 +11,60 @@
 #
 # · SIDE EFFECTS
 #
-#   Creates a GitHub issue in the rayvn-central/registry repo with project name, remote URL,
-#   and earliest commit date (or current timestamp if no commits exist).
+#   Creates a GitHub issue in the rayvn-central/registry repo with project name, description,
+#   remote URL, and earliest commit date (or current timestamp if no commits exist).
 #
 # · NOTES
 #
-#   Assumes PWD is within the repo for the given projectName.
+#   Assumes PWD is within the repo for the given rayvn project..
 
 registerProjectOnRayvnCentral() {
-    local registryFile entryFile projectUrl registeredDate title issueUrl
+    local registryFile pkgFile pkgProjectName projectDescription entryFile projectUrl registeredDate title issueUrl
     local projectName="$1"
     [[ -n ${projectName} ]] || fail "project name required"
+
+    # Fail if already registered
+
     registryFile="${ getProjectRegistryPath ${projectName}; }"
     if [[ -f "${registryFile}" ]]; then
         projectUrl=${ cat "${registryFile}" | grep projectUrl | cut -d'=' -f2 | tr -d "'"; }
-        error "project name '${projectName}' is taken, registered to ${projectUrl}"
-        echo
-        bye
+        fail "project name '${projectName}' is taken, registered to ${projectUrl}"
     fi
-    local projectUrl registeredDate
-    projectUrl="${ git remote get-url origin; }" || fail
-    projectUrl="${projectUrl%.git}"
+
+    # Make sure we are in a rayvn project dir
+
+    pkgFile='rayvn.pkg'
+    [[ -f "${pkgFile}" ]] || fail "${PWD} is not a rayvn project"
+
+    # Make sure the PWD is in a git repo with a remote
 
     assertGitRepo
+    projectUrl="${ git remote get-url origin 2> /dev/null; }" || fail "repo must have a remote origin URL"
+    projectUrl="${projectUrl%.git}"
 
-    if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    # Make sure the project name in the rayvn.pkg matches the one specified
 
-        # Yes, so use it for the registered date
+    pkgProjectName=${ gawk -F"'" '/^projectName=/{print $2}' "${pkgFile}"; }
+    [[ "${pkgProjectName}" == "${projectName}" ]] || \
+        fail "rayvn.pkg projectName '${pkgProjectName:-<not found>}' does not match '${projectName}'"
+
+    projectDescription=${ gawk -F"'" '/^projectDescription=/{print $2}' "${pkgFile}"; }
+    [[ -n ${projectDescription} ]] || fail "rayvn.pkg projectDescription is not set"
+    [[ ${projectDescription} != 'TODO' ]] || fail "rayvn.pkg projectDescription must be updated from 'TODO'"
+
+    # OK, we're good to go. Are there any commits?
+
+    if git rev-parse --verify HEAD > /dev/null 2>&1; then
+
+        # Yes, so use the date of the first one for the registered date
 
         registeredDate=${ git log --reverse --format="%at" | head -1; } || fail
         # Platform-agnostic date formatting: try GNU date first, fall back to BSD date
-        registeredDate=${ date -d "@${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z" 2>/dev/null || date -r "${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z"; }
+        registeredDate=${ date -d "@${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z" 2> /dev/null || date -r "${registeredDate}" "+%Y-%m-%d_%H.%M.%S_%Z"; }
+
     else
-        # No, so use current
+
+        # No, so use the current date
 
         registeredDate=${ timeStamp; }
     fi
@@ -51,16 +72,17 @@ registerProjectOnRayvnCentral() {
     # Generate the registry entry for the issue body
 
     entryFile=${ makeTempFile; }
-    (
+    {
         echo '#!/usr/bin/env bash'
         echo
         echo '# Project Registration'
         echo
         echo "projectName=${projectName}"
+        echo "projectDescription='${projectDescription}'"
         echo "projectUrl=${projectUrl}"
         echo "projectRegisteredDate='${registeredDate}'"
 
-    ) > ${entryFile}
+    } > ${entryFile}
 
     # Create the issue in the registry repo
 
