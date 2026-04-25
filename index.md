@@ -18,8 +18,8 @@ See the [README](https://github.com/phoggy/rayvn#readme) for a quick introductio
 |---|------------------------------------------------------------------------|
 | [rayvn/core](/rayvn/api/rayvn-core) | Core utilities, assertions, and error handling.                        |
 | [rayvn/debug](/rayvn/api/rayvn-debug) | Debug logging and tracing.                                             |
-| [rayvn/terminal](/rayvn/api/rayvn-terminal) | Cursor control and terminal output.                                    |
 | [rayvn/prompt](/rayvn/api/rayvn-prompt) | Interactive user prompts.                                              |
+| [rayvn/terminal](/rayvn/api/rayvn-terminal) | Cursor control and terminal output.                                    |
 | [rayvn/spinner](/rayvn/api/rayvn-spinner) | Terminal spinners.                                                     |
 | [rayvn/secrets](/rayvn/api/rayvn-secrets) | System keychain credential storage.                                    |
 | [rayvn/oauth](/rayvn/api/rayvn-oauth) | OAuth authorization code flow.                                         |
