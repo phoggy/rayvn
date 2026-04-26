@@ -18,7 +18,7 @@ Each FORMAT token applies to the immediately following TEXT arg only, then reset
 Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 
 
-*Usage*
+*usage*
 
 `show [-n] [-e|-E] [FORMAT|TEXT]...`
 {: .usage-signature}
@@ -32,7 +32,7 @@ Multiple FORMAT tokens before a TEXT arg accumulate for that one TEXT arg.
 | `[TEXT]` *(string)* | A string to print with accumulated formats applied, then reset. |
 {: .usage-table}
 
-*Notes*
+*notes*
 
 
 Available formats:
@@ -50,7 +50,7 @@ if compatibility is a concern — they automatically fall back to 16-color. Some
 not support strikethrough.
 
 
-*Example*
+*example*
 
 ```bash
 show blue "blue text"
@@ -80,7 +80,7 @@ write to stdout directly (bypasses TTY routing, e.g. when redirecting to another
 Print a styled section header with an optional subtitle.
 
 
-*Usage*
+*usage*
 
 `header [-u] [colorIndex] header [subtitle...]`
 {: .usage-signature}
@@ -93,7 +93,7 @@ Print a styled section header with an optional subtitle.
 | `[subtitle]` *(string)* | Subtitle text/formats printed via show. |
 {: .usage-table}
 
-*Example*
+*example*
 
 ```bash
 header "my header"                         # default bold header, no subtitle
@@ -106,7 +106,7 @@ header 1 "my header" italic "my subtitle"  # primary header, italic subtitle
 Prints common CLI options, optionally including a debug options section.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -119,7 +119,7 @@ Prints common CLI options, optionally including a debug options section.
 Prints a formatted option line with the option name padded to a description column.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -133,7 +133,7 @@ Prints a formatted option line with the option name padded to a description colu
 Print a warning message to stderr with a ⚠️ prefix.
 
 
-*Usage*
+*usage*
 
 `warn message [FORMAT|TEXT]...`
 {: .usage-signature}
@@ -150,7 +150,7 @@ Print a warning message to stderr with a ⚠️ prefix.
 Print an error message to stderr with a 🔺 prefix.
 
 
-*Usage*
+*usage*
 
 `error message [FORMAT|TEXT]...`
 {: .usage-signature}
@@ -167,7 +167,7 @@ Print an error message to stderr with a 🔺 prefix.
 Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 
 
-*Usage*
+*usage*
 
 `invalidArgs message [FORMAT|TEXT]...`
 {: .usage-signature}
@@ -184,7 +184,7 @@ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 Print an error and exit 1, optionally with a stack trace.
 
 
-*Usage*
+*usage*
 
 `fail [--trace] message [FORMAT|TEXT]...`
 {: .usage-signature}
@@ -202,7 +202,7 @@ Print an error and exit 1, optionally with a stack trace.
 Print an optional exit message, show stack if in debug mode, and exit 0.
 
 
-*Usage*
+*usage*
 
 `bye [message [FORMAT|TEXT]...]`
 {: .usage-signature}
@@ -219,7 +219,7 @@ Print an optional exit message, show stack if in debug mode, and exit 0.
 Print a formatted call stack, optionally preceded by a message.
 
 
-*Usage*
+*usage*
 
 `stackTrace [message [FORMAT|TEXT]...]`
 {: .usage-signature}
@@ -236,7 +236,7 @@ Print a formatted call stack, optionally preceded by a message.
 Print each line of a piped stream in error color to stderr.
 
 
-*Example*
+*example*
 
 ```bash
 someCommand 2> >( errorStream )
@@ -249,7 +249,7 @@ someCommand 2> >( errorStream )
 Check if an argument matches an expected value, setting a result var via nameref.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -259,7 +259,7 @@ Check if an argument matches an expected value, setting a result var via nameref
 | `argResultValue` *(string)* | Value to assign on match; defaults to ${argMatch}. |
 {: .args-table}
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -273,7 +273,7 @@ Maps a boolean argument to 1 for true, 0 for false so that it can subsequently b
 Converted to lower case to allow upper or mixed case true/false. An integer value >= 1 is true, <= 0 is false.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -281,7 +281,7 @@ Converted to lower case to allow upper or mixed case true/false. An integer valu
 | `resultRef` *(stringRef)* | Name of var to set result. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 local doX; booleanArgToInt "$1" doX           # Set doX
@@ -301,7 +301,7 @@ Fail if a variable with the given name is not defined.
 Overwrite one or more security sensitive variables with spaces then unset.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -318,14 +318,14 @@ and calls functions that depend on the map. Not needed for subshells (`${ }` and
 which inherit variables automatically. Call from a library _init function.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `varName` *(stringRef)* | Name of an associative array to register; may be repeated. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 # In 'myproject/mylib' _init_myproject_mylib(),  build a lookup table, then register it so that
@@ -349,7 +349,7 @@ Fails if the given path does not exist.
 Fail if the given path does not exist or is not a regular file.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -370,7 +370,7 @@ Fail if the given path already exists.
 Fails if filePath is not located within dirPath, resolving symlinks before checking.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -383,14 +383,14 @@ Fails if filePath is not located within dirPath, resolving symlinks before check
 Fail if name is not a valid cross-platform filename component.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `name` *(string)* | Filename component to validate (not a full path). |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 Rejects: empty string, . .. / control characters <>:"\|?*
@@ -400,7 +400,7 @@ Rejects: empty string, . .. / control characters <>:"\|?*
 Fail if the given directory (or PWD) is not within a git repository.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -412,7 +412,7 @@ Fail if the given directory (or PWD) is not within a git repository.
 Run a command and fail if it exits non-zero or produces any stderr output.
 
 
-*Usage*
+*usage*
 
 `assertCommand [--transform FUNC] [--quiet] [--error MSG] command...`
 {: .usage-signature}
@@ -425,7 +425,7 @@ Run a command and fail if it exits non-zero or produces any stderr output.
 | `...` *(string)* | The command and arguments to execute. |
 {: .usage-table}
 
-*Example*
+*example*
 
 ```bash
 session="${ assertCommand --error "Failed to unlock" bw unlock --raw; }"
@@ -443,7 +443,7 @@ Outputs a string with leading and trailing whitespace removed.
 Outputs a string repeated N times, without a trailing newline.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -456,7 +456,7 @@ Outputs a string repeated N times, without a trailing newline.
 Outputs a string padded to a given width, measuring visible length by stripping ANSI codes.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -478,7 +478,7 @@ Return 0 if a string contains ANSI escape sequences, 1 otherwise.
 Find the index of a matching element in an array, storing the result in resultRef (-1 if not found).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -487,7 +487,7 @@ Find the index of a matching element in an array, storing the result in resultRe
 | `resultRef` *(stringRef)* | Name of the variable to store the found index. |
 {: .args-table}
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -500,7 +500,7 @@ Find the index of a matching element in an array, storing the result in resultRe
 Return 0 if item is a member of an array, 1 otherwise.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -513,7 +513,7 @@ Return 0 if item is a member of an array, 1 otherwise.
 Outputs the length of the longest element in an array.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -525,7 +525,7 @@ Outputs the length of the longest element in an array.
 Copy all key-value pairs from one associative array to another.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -540,7 +540,7 @@ Copy all key-value pairs from one associative array to another.
 Outputs the number of decimal digits needed to represent integers up to maxValue.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -553,7 +553,7 @@ Outputs the number of decimal digits needed to represent integers up to maxValue
 Outputs a number right-aligned within a fixed-width field.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -566,7 +566,7 @@ Outputs a number right-aligned within a fixed-width field.
 Prints a numbered list of items, with right-aligned numbers padded to a consistent width.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -579,7 +579,7 @@ Prints a numbered list of items, with right-aligned numbers padded to a consiste
 Set a variable to a random integer, optionally capped at maxValue (inclusive).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -592,7 +592,7 @@ Set a variable to a random integer, optionally capped at maxValue (inclusive).
 Set a random hex character (0–9, a–f) via nameref.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -604,7 +604,7 @@ Set a random hex character (0–9, a–f) via nameref.
 Generate a random hex string of count characters, stored via nameref.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -617,7 +617,7 @@ Generate a random hex string of count characters, stored via nameref.
 Replace every occurrence of a placeholder character in a string with random hex chars, in-place.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -625,7 +625,7 @@ Replace every occurrence of a placeholder character in a string with random hex 
 | `replaceRef` *(stringRef)* | Name of the variable to modify in-place. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 myStr="XXXX-XXXX"
@@ -647,7 +647,7 @@ Outputs the current epoch time with microsecond precision via EPOCHREALTIME.
 Outputs elapsed seconds since a previously captured EPOCHREALTIME value (6 decimal places).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -665,7 +665,7 @@ Execute a command with umask 0022 (files readable by all, writable only by owner
 Execute a command with a temporary umask, restoring the original afterward.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -678,7 +678,7 @@ Execute a command with a temporary umask, restoring the original afterward.
 Outputs the path to a binary, or fails with an optional custom error message if not found.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -691,7 +691,7 @@ Outputs the path to a binary, or fails with an optional custom error message if 
 Outputs the session temp directory path, optionally appended with a file name. Does not create the file or dir.
 
 
-*Usage*
+*usage*
 
 `tempDirPath [-r] [fileName]`
 {: .usage-signature}
@@ -707,7 +707,7 @@ Outputs the session temp directory path, optionally appended with a file name. D
 Creates a unique temp file in the session temp dir, outputting its path.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -719,7 +719,7 @@ Creates a unique temp file in the session temp dir, outputting its path.
 Creates a unique named pipe (FIFO) in the session temp dir, outputting its path.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -731,7 +731,7 @@ Creates a unique named pipe (FIFO) in the session temp dir, outputting its path.
 Create a unique temp directory in the session temp directory, outputting its path.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -743,7 +743,7 @@ Create a unique temp directory in the session temp directory, outputting its pat
 Create a unique temp directory backed by RAM when possible, storing the path in dirRef.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -752,7 +752,7 @@ Create a unique temp directory backed by RAM when possible, storing the path in 
 | `sizeMb` *(int)* | Optional RAM disk size in MB for hdiutil fallback (default: 64). |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 Strategy, in order of preference:
@@ -770,7 +770,7 @@ Outputs the config directory path for the current or specified project, creating
 optionally joined with fileName.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -787,7 +787,7 @@ Create directory if it does not already exist.
 Create a directory (and any missing parents), outputting the final path.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -813,7 +813,7 @@ Read the entire contents of a file into a variable, without forking a subprocess
 Trailing newlines are stripped, matching command substitution behavior.
 
 
-*Usage*
+*usage*
 
 `readFile [-p] file resultVar`
 {: .usage-signature}
@@ -830,7 +830,7 @@ Trailing newlines are stripped, matching command substitution behavior.
 Set a nameref variable to the realpath of a file, failing if the path is not a regular file.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -844,7 +844,7 @@ Set a nameref variable to the realpath of a file, failing if the path is not a r
 Set a nameref variable to the realpath of a directory, failing if the path is not a directory.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -861,14 +861,14 @@ Push a new value onto the IFS stack and set IFS to that value.
 Use popIFS to restore the previous value.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `newIFS` *(string)* | The new IFS value. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 pushIFS $'\n'
@@ -881,7 +881,7 @@ popIFS
 Pop a previously pushed IFS value, restoring IFS to its prior state.
 
 
-*Example*
+*example*
 
 ```bash
 pushIFS $'\n'
@@ -897,7 +897,7 @@ Register a shell command to be executed at exit, in registration order.
 Outputs the version string for a rayvn project, reading its rayvn.pkg file.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -910,7 +910,7 @@ Outputs the version string for a rayvn project, reading its rayvn.pkg file.
 Open a URL in the default browser (macOS: open, Linux: xdg-open).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -926,7 +926,7 @@ Execute a command with rayvn internal variables unset, simulating a clean enviro
 Enable debug mode.
 
 
-*Usage*
+*usage*
 
 `setDebug [OPTIONS]`
 {: .usage-signature}

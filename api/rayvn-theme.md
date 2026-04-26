@@ -25,7 +25,7 @@ Interactively prompt the user to select and apply a new theme. Note that any cha
 current process, only to new ones.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

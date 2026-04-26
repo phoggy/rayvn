@@ -16,7 +16,7 @@ System keychain credential storage.
 Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@ Store a secret in the system keychain (macOS Keychain or Linux secret-tool).
 Retrieve a secret from the system keychain for the given service and account.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -43,7 +43,7 @@ Retrieve a secret from the system keychain for the given service and account.
 Delete a secret from the system keychain.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -56,7 +56,7 @@ Delete a secret from the system keychain.
 Return 0 if a secret exists in the system keychain for the given service and account.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

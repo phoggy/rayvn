@@ -16,7 +16,7 @@ Generate function indexes for AI agent use.
 Generate verbose and optional compact function indexes for rayvn libraries.
 
 
-*Usage*
+*usage*
 
 `runIndex [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]`
 {: .usage-signature}
@@ -35,7 +35,7 @@ Generate verbose and optional compact function indexes for rayvn libraries.
 Generate Jekyll pages for a single project's gh-pages site.
 
 
-*Usage*
+*usage*
 
 `runPages PROJECT [--dir DIR] [--setup | --record | --publish | --view]`
 {: .usage-signature}
@@ -57,7 +57,7 @@ Confirms external binaries via command -v, maps them to nix package names via ra
 and adds any missing entries to flake.nix. Also delegates npm dependency updates.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

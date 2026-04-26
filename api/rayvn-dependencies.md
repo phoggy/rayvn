@@ -17,14 +17,14 @@ Check that all required dependencies for a project are available in PATH, printi
 any are missing. Silently skips if the project root or flake.nix is not accessible.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `projectName` *(string)* | Name of the rayvn project to check. |
 {: .args-table}
 
-*Env vars (from rayvn.pkg)*
+*env vars (from rayvn.pkg)*
 
 nixBinaryMap    Map of nix pkg name → binary name overrides. [R/W]
 nixBrewMap      Map of nix pkg name → brew formula overrides. [R/W]
@@ -36,7 +36,7 @@ Outputs 'depends_on' formula lines for a project's brew dependencies. Reads flak
 mappings and exclusions from rayvn.pkg.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

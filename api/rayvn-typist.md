@@ -16,7 +16,7 @@ Typing jitter model (log-normal distribution approximation).
 Type TEXT in realtime on the terminal at WPM words per minute with human-like jitter.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -24,7 +24,7 @@ Type TEXT in realtime on the terminal at WPM words per minute with human-like ji
 | `text` *(string)* | The text to type. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 typist 120 "The quick brown fox jumps over the lazy dog."
@@ -35,7 +35,7 @@ typist 120 "The quick brown fox jumps over the lazy dog."
 Collect simulated typing delays, in seconds.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

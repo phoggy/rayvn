@@ -16,7 +16,7 @@ Process management.
 Wait for a process to exit, escalating SIGTERM then SIGKILL if needed.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -26,7 +26,7 @@ Wait for a process to exit, escalating SIGTERM then SIGKILL if needed.
 | `termWaitMs` *(int)* | Milliseconds after first check before sending SIGKILL (default: 1000). |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 SIGTERM is sent after the first check interval if the process is still running.
@@ -34,7 +34,7 @@ SIGKILL is sent once termWaitMs has elapsed. Polling continues until timeoutMs
 is reached regardless of which signals have been sent.
 
 
-*Returns*
+*returns*
 
 | | |
 |---|---|

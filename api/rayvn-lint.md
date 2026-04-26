@@ -16,7 +16,7 @@ Bash requirement linting.
 Scan one or more registered projects for bash requirement violations, optionally fixing them.
 
 
-*Usage*
+*usage*
 
 `runLint [--fix | --ask] [PROJECT...]`
 {: .usage-signature}

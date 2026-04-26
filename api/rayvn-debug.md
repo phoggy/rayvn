@@ -28,7 +28,7 @@ Log the debug output directory path to debug output. No-op if debug is not enabl
 Log a binary string as hex bytes. No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -45,7 +45,7 @@ Log variable declaration(s). Convenience alias for debugVars. No-op if debug is 
 Log declarations of one or more variables. No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -57,7 +57,7 @@ Log declarations of one or more variables. No-op if debug is not enabled.
 Assert and log that a variable is set, logging a stack trace if not. No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -70,7 +70,7 @@ Assert and log that a variable is set, logging a stack trace if not. No-op if de
 Assert and log that a variable is not set, logging a stack trace if it is. No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -83,7 +83,7 @@ Assert and log that a variable is not set, logging a stack trace if it is. No-op
 Copy a file into the debug directory.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -96,7 +96,7 @@ Copy a file into the debug directory.
 Write a variable's JSON content as a file in the debug directory. No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -127,7 +127,7 @@ Log the full process environment (variables and functions) to '<name>.env' in th
 No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -139,7 +139,7 @@ No-op if debug is not enabled.
 Log the open/closed status and mode of one or more file descriptors. No-op if debug is not enabled.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

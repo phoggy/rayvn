@@ -16,7 +16,7 @@ Test assertions.
 Fail if a pattern is found in a file.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -29,7 +29,7 @@ Fail if a pattern is found in a file.
 Fail if a grep pattern is not found in a file.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -42,7 +42,7 @@ Fail if a grep pattern is not found in a file.
 Fails with a message if two strings are not equal.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -56,7 +56,7 @@ Fails with a message if two strings are not equal.
 Fail if expected does not equal actual after stripping ANSI escape codes from actual.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -70,7 +70,7 @@ Fail if expected does not equal actual after stripping ANSI escape codes from ac
 Assert two strings are equal, printing both with cat -v (escape codes visible) on failure.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -84,7 +84,7 @@ Assert two strings are equal, printing both with cat -v (escape codes visible) o
 Fail with msg if a command exits non-zero.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -97,7 +97,7 @@ Fail with msg if a command exits non-zero.
 Fail with msg if a command exits zero.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -110,7 +110,7 @@ Fail with msg if a command exits zero.
 Fail if actual does not contain expected as a substring.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -124,7 +124,7 @@ Fail if actual does not contain expected as a substring.
 Fail if a numeric value is not within the inclusive range [min, max].
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -147,7 +147,7 @@ Fails if an executable is found in PATH.
 Fail if an executable is not found in PATH, or optionally at an unexpected path.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -160,7 +160,7 @@ Fail if an executable is not found in PATH, or optionally at an unexpected path.
 Fail if a function with the given name is currently defined.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -172,7 +172,7 @@ Fail if a function with the given name is currently defined.
 Fail if a variable with the given name is currently defined.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -184,7 +184,7 @@ Fail if a variable with the given name is currently defined.
 Fail if a function with the given name is not currently defined.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -196,7 +196,7 @@ Fail if a function with the given name is not currently defined.
 Fail if a variable with the given name is not currently defined.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -208,7 +208,7 @@ Fail if a variable with the given name is not currently defined.
 Fail if a variable's declare flags do not match the expected set (order-independent).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -221,7 +221,7 @@ Fail if a variable's declare flags do not match the expected set (order-independ
 Fail if a named variable's value does not equal the expected string.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -234,7 +234,7 @@ Fail if a named variable's value does not equal the expected string.
 Fail if the variable named varName does not contain expected as a substring.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -247,7 +247,7 @@ Fail if the variable named varName does not contain expected as a substring.
 Fail if an indexed array's contents do not exactly match the expected values.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -260,7 +260,7 @@ Fail if an indexed array's contents do not exactly match the expected values.
 Fail if a variable is not defined as an associative array (hash table).
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -272,7 +272,7 @@ Fail if a variable is not defined as an associative array (hash table).
 Fail if an associative array variable is currently defined.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -284,7 +284,7 @@ Fail if an associative array variable is currently defined.
 Fail if a key is not present in an associative array.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -297,7 +297,7 @@ Fail if a key is not present in an associative array.
 Fail if a key is present in an associative array.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -310,7 +310,7 @@ Fail if a key is present in an associative array.
 Fail if the value at a key in an associative array does not equal the expected value.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -327,7 +327,7 @@ Prepend a directory to a PATH-style variable, removing any existing occurrence f
 
 Append a directory to a PATH-style variable, removing any existing occurrence first.
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -336,7 +336,7 @@ Append a directory to a PATH-style variable, removing any existing occurrence fi
 {: .args-table}
 Remove all occurrences of a directory from a colon-separated path variable.
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -345,7 +345,7 @@ Remove all occurrences of a directory from a colon-separated path variable.
 {: .args-table}
 Print a PATH-style variable with each directory on its own numbered line.
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -353,7 +353,7 @@ Print a PATH-style variable with each directory on its own numbered line.
 | `pathVariable` *(string)* | Name of the path variable to modify (default: PATH). [R/W] |
 {: .args-table}
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -365,7 +365,7 @@ Print a PATH-style variable with each directory on its own numbered line.
 Register a rayvn project by name and root directory, resolving symlinks via realpath.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -373,7 +373,7 @@ Register a rayvn project by name and root directory, resolving symlinks via real
 | `projectRoot` *(string)* | Path to the project root directory (resolved to real path). |
 {: .args-table}
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -386,7 +386,7 @@ Register a rayvn project by name and root directory, resolving symlinks via real
 Unregister a project previously added with `addRayvnProject()`.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -398,7 +398,7 @@ Unregister a project previously added with `addRayvnProject()`.
 Require a library and assert the failure message contains an expected substring.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -411,7 +411,7 @@ Require a library and assert the failure message contains an expected substring.
 Run a function N times and print timing results including ops/sec.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -450,7 +450,7 @@ Fail if raw (ANSI-encoded) tty capture content does not contain expected as a su
 Use this to assert on escape sequences directly. Use assertTtyContains for visible text.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -463,7 +463,7 @@ Use this to assert on escape sequences directly. Use assertTtyContains for visib
 Fail if captured tty text does not contain expected as a substring.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -476,7 +476,7 @@ Fail if captured tty text does not contain expected as a substring.
 Fail if captured tty text contains expected as a substring.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -493,7 +493,7 @@ containing the given input so prompt functions read from it instead of the
 terminal. Pair with `stopInputSimulation()` to restore.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

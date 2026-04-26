@@ -24,7 +24,7 @@ Show the terminal cursor.
 Read the current terminal size.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -32,7 +32,7 @@ Read the current terminal size.
 | `colsVarRef` *(stringRef)* | Receives the 1-based column size. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 terminalSize rows cols
@@ -44,7 +44,7 @@ echo "Terminal is ${rows} rows by ${cols} columns"
 Read the current cursor position.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -52,7 +52,7 @@ Read the current cursor position.
 | `colVarRef` *(stringRef)* | Receives the 1-based column number. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 cursorPosition row col
@@ -81,7 +81,7 @@ Move cursor up N rows and back to line start (default: 1).
 Move the cursor up N rows and place it at a 1-based column.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -102,7 +102,7 @@ Move the cursor down N rows and to the start of the line (default: 1).
 Move the cursor down N rows then to a 1-based column position.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -115,7 +115,7 @@ Move the cursor down N rows then to a 1-based column position.
 Move the cursor to an absolute terminal position.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -161,7 +161,7 @@ Scroll the terminal to ensure requiredRows are available below the cursor,
 adjusting the cursor position to account for any scrolling that occurred.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

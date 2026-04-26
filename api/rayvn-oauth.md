@@ -17,7 +17,7 @@ Build and populate an OAuth service map for the given provider.
 Credentials resolve in order: caller args → env vars → keychain → interactive prompt.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -33,7 +33,7 @@ Credentials resolve in order: caller args → env vars → keychain → interact
 Run the full OAuth authorization code flow and store tokens in the keychain.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -45,7 +45,7 @@ Run the full OAuth authorization code flow and store tokens in the keychain.
 Outputs a valid access token for the service, refreshing it automatically if expired.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

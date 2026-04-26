@@ -17,7 +17,7 @@ Check for function and global variable name collisions across all (or specified)
 rayvn project libraries. Reports each collision with its sources and returns 1 if any found.
 
 
-*Usage*
+*usage*
 
 `checkNamespaces [PROJECT...]`
 {: .usage-signature}
@@ -27,7 +27,7 @@ rayvn project libraries. Reports each collision with its sources and returns 1 i
 | `[PROJECT...]` | Registered project names to check. Defaults to all registered projects. |
 {: .usage-table}
 
-*Notes*
+*notes*
 
 
 Globals detected: explicit declare -g* declarations (anywhere in the file). This is the

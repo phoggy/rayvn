@@ -16,19 +16,19 @@ Project registry.
 Request registration of a rayvn project name on rayvn-central.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `projectName` *(string)* | Name to register; fails if already taken in the central registry. |
 {: .args-table}
 
-*Side effects*
+*side effects*
 
 Creates a GitHub issue in the rayvn-central/registry repo with project name, description,
 remote URL, and earliest commit date (or current timestamp if no commits exist).
 
-*Notes*
+*notes*
 
 
 Assumes PWD is within the repo for the given rayvn project..

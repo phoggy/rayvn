@@ -22,14 +22,14 @@ The recording PTY is sized to the host terminal so interactive widgets render
 correctly. Falls back to 220x24 if the terminal size cannot be detected.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `castFile` *(string)* | Output path for the cast file. |
 {: .args-table}
 
-*Options*
+*options*
 
 --cmd CMD       Command to record (repeatable; required; each recorded as a
                 separate segment with its own typing prelude, concatenated in order).
@@ -39,7 +39,7 @@ correctly. Falls back to 220x24 if the terminal size cannot be detected.
 --prompt TEXT   Shell prompt text (default: '[COMMAND]$ ').
 --no-trim       Skip trimming terminal dimensions to content.
 
-*Notes*
+*notes*
 
 
 Requires asciinema in PATH. The cast file is overwritten if it exists.
@@ -52,7 +52,7 @@ Uses typistDelays for timing, then formats each character as a JSON event.
 Includes a final Enter key event.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -60,11 +60,11 @@ Includes a final Enter key event.
 | `text` *(string)* | The text to simulate typing. |
 {: .args-table}
 
-*Output*
+*output*
 
 Asciinema event JSON lines, one per character, followed by an Enter event.
 
-*Example*
+*example*
 
 ```bash
 typistAsciinemaEvents 120 "rayvn test" >> typing.cast
@@ -76,7 +76,7 @@ Generate a typing events file for use as a cast prelude.
 Writes a prompt event followed by per-character events for COMMAND.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -86,7 +86,7 @@ Writes a prompt event followed by per-character events for COMMAND.
 | `outputFile` *(string)* | Path to write the events file. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 local typingFile; typingFile=${ makeTempFile; }
@@ -99,7 +99,7 @@ Post-process an asciinema cast file in-place: prepend typing events and optional
 trim the terminal dimensions in the header to fit the actual content.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -108,7 +108,7 @@ trim the terminal dimensions in the header to fit the actual content.
 | `trim` *(int)* | 1 to trim header dimensions to content (default: 1), 0 to skip. |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 Supports both v2 (absolute timestamps) and v3 (relative/delta timestamps).
@@ -122,7 +122,7 @@ Apply a single named post-processing transform to a cast file in-place.
 Run transforms one at a time to inspect the cast between steps.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -130,13 +130,13 @@ Run transforms one at a time to inspect the cast between steps.
 | `castFile` *(string)* | Cast file to transform in-place. |
 {: .args-table}
 
-*Options*
+*options*
 
 --cmd TEXT    Command text shown in typing prelude (required for prepend-typing).
 --prompt TEXT Shell prompt text (default: '[rayvn]$ ').
 --wpm N       Typing speed in words per minute (default: 120).
 
-*Steps*
+*steps*
 
 1  filter-input        Strip "i" events; fold their delta into the next event.
 2  prepend-typing      Insert simulated typing prelude (requires --cmd).
@@ -155,19 +155,19 @@ Walks up from the cast file's directory to find a Jekyll root (_config.yml)
 and computes the web-relative src path automatically.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `castFile` *(string)* | Path to the cast file. |
 {: .args-table}
 
-*Output*
+*output*
 
 A `<!-- record id="..." cmd="..." -->` comment and
 `{% raw %}{% include asciinema.html ... %}{% endraw %}` tag ready to paste into a markdown file.
 
-*Example*
+*example*
 
 ```bash
 asciinemaMarkup /path/to/assets/casts/test.cast

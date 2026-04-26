@@ -16,7 +16,7 @@ Interactive user prompts.
 Read user input into a variable.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -27,13 +27,13 @@ Read user input into a variable.
 | `hide` *(bool)* | Hide input (default: false). |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
 
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -48,7 +48,7 @@ The -n flag suppresses the trailing newline on completion (same semantics as ech
 Read user input without echoing it to the terminal.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -58,13 +58,13 @@ Read user input without echoing it to the terminal.
 | `timeout` *(int)* | Inactivity timeout in seconds (default: 30). Resets on every key press. |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
 
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -79,7 +79,7 @@ The -n flag suppresses the trailing newline on completion (same semantics as ech
 Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -91,7 +91,7 @@ Ask the user to confirm a side-by-side choice, e.g. 'yes' or 'no'.
 | `timeout` *(int)* | Inactivity timeout in seconds (default: 30). Resets on every key press. |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 The -n flag suppresses the trailing newline, as in echo -n.
@@ -100,7 +100,7 @@ For destructive actions, consider defaulting to the safer choice: either put the
 pass true for defaultAnswerTwo.
 
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -114,7 +114,7 @@ pass true for defaultAnswerTwo.
 Choose from a list of options using the arrow keys.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -129,13 +129,13 @@ Choose from a list of options using the arrow keys.
 | `showResult` *(bool)* | Write the selected item after the prompt before returning (default: true). |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 The -n flag suppresses the trailing newline on completion (same semantics as echo -n).
 
 
-*Returns*
+*returns*
 
 | | |
 |---|---|
@@ -144,7 +144,7 @@ The -n flag suppresses the trailing newline on completion (same semantics as ech
 | `130` | user canceled (ESC pressed) |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 choices=("Apple" "Banana" "Cherry")

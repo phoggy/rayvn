@@ -16,14 +16,14 @@ Terminal spinners.
 Populates an array with the names of all available spinner types.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
 | `resultArray` *(arrayRef)* | Array to populate with spinner type names. |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 local types
@@ -36,7 +36,7 @@ echo "Available: ${types[*]}"
 Start a spinner at the current cursor position, storing its assigned ID via nameref.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -46,7 +46,7 @@ Start a spinner at the current cursor position, storing its assigned ID via name
 | `color` *(string)* | Color name (default: 'secondary'). |
 {: .args-table}
 
-*Example*
+*example*
 
 ```bash
 local spinnerId
@@ -60,7 +60,7 @@ stopSpinner spinnerId "Done"
 Stop a spinner, optionally replacing it with the given text.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -68,13 +68,13 @@ Stop a spinner, optionally replacing it with the given text.
 | `replacement` *(string)* | Text to display in place of the spinner (default: space). |
 {: .args-table}
 
-*Notes*
+*notes*
 
 
 The -n flag suppresses the trailing newline, as in echo -n.
 
 
-*Example*
+*example*
 
 ```bash
 stopSpinner spinnerId "Done"
@@ -86,7 +86,7 @@ stopSpinner -n spinnerId
 Add a spinner at a specific terminal position, storing its assigned id via nameref.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -102,7 +102,7 @@ Add a spinner at a specific terminal position, storing its assigned id via namer
 Remove a spinner by id; prefer stopSpinner for typical use.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|

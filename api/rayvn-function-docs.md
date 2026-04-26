@@ -18,7 +18,7 @@ Use via: require 'rayvn/function-docs'
 Audit function doc comment coverage for registered projects, reporting missing or stale docs.
 
 
-*Usage*
+*usage*
 
 `auditDocs [--release] [PROJECT]...`
 {: .usage-signature}
@@ -34,7 +34,7 @@ Audit function doc comment coverage for registered projects, reporting missing o
 Generate or update doc comments for public functions using the Claude API; applies changes directly.
 
 
-*Usage*
+*usage*
 
 `updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]`
 {: .usage-signature}

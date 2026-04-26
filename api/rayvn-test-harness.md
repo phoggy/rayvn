@@ -16,7 +16,7 @@ Test runner.
 Execute tests for one or more rayvn projects, running test files in parallel.
 
 
-*Notes*
+*notes*
 
 
 Reads project list, filter args, and option flags from the caller's environment

@@ -16,7 +16,7 @@ Configuration file support.
 Source only safe, static variable declarations from a config file or string into the current env.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@ Parse a bash config file or string, extracting only safe static variable declara
 Filters out function definitions, function calls, command substitutions, and comments.
 
 
-*Args*
+*args*
 
 | | |
 |---|---|
