@@ -141,6 +141,9 @@ runPages() {
             git -C "${dir}" commit -m "Update docs ${ date '+%Y-%m-%d'; }" || fail "git commit failed"
             git -C "${dir}" push || fail "git push failed"
             show success "${projectName} pages published"
+            echo
+            show bold "build/deploy status"
+            gh run watch
         else
             show success "${projectName} pages unchanged, nothing to push"
         fi
@@ -991,7 +994,7 @@ _flushDocSection() {
     local -n _fdsLinesRef="$2"
     local -n _fdsOutRef="$3"
     local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
-    local sectionTitle="${section,,}"; sectionTitle="${sectionTitle^}"
+    local sectionTitle="${section,,}"
 
     _fdsOutRef+=("" "*${sectionTitle}*" "")
 
