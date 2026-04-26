@@ -166,7 +166,6 @@ runPages() {
                     show warning "Could not find active deployment run — check GitHub Actions manually"
                 fi
             fi
-            show success "${projectName} pages deployed"
         fi
 
     elif (( view )); then
