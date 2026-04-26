@@ -1,11 +1,10 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3/dist/bundle/asciinema-player.min.css">
 <script src="https://cdn.jsdelivr.net/npm/asciinema-player@3/dist/bundle/asciinema-player.min.js"></script>
 
-<!-- Apply saved/system theme before body renders to prevent flash-of-wrong-theme.
-     head_custom.html is injected at the end of <head>, so the stylesheet <link> is
-     already in the DOM when this runs.
-     The compiled default stylesheet is the dark theme (color_scheme: dark in _config.yml),
-     so we only swap when the effective theme is light — avoids any unnecessary fetch. -->
+<!-- Load light stylesheet alongside the default (dark); toggling media avoids a refetch on every page load. -->
+<link rel="stylesheet" href="{{ '/assets/css/just-the-docs-light.css' | prepend: site.baseurl }}" media="not all" id="jtd-light-stylesheet">
+
+<!-- Activate the correct theme before body renders. No href swap — just flip media on the pre-loaded sheets. -->
 <script>
 (function () {
   var KEY = 'rayvn-color-scheme';
@@ -14,10 +13,10 @@
     ? saved
     : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   if (theme === 'light') {
-    var link = document.querySelector('link[rel="stylesheet"]');
-    if (link) {
-      link.setAttribute('href', link.getAttribute('href').replace(/just-the-docs-\w+\.css/, 'just-the-docs-light.css'));
-    }
+    var dark = document.querySelector('link[href*="just-the-docs-default.css"]');
+    var light = document.getElementById('jtd-light-stylesheet');
+    if (dark)  dark.media  = 'not all';
+    if (light) light.media = '';
   }
 })();
 </script>

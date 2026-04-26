@@ -4,26 +4,22 @@
 (function () {
   var KEY = 'rayvn-color-scheme';
 
-  function _themeLink() {
-    return document.querySelector('link[href*="just-the-docs-"]');
-  }
+  function _darkLink()  { return document.querySelector('link[href*="just-the-docs-default.css"]'); }
+  function _lightLink() { return document.getElementById('jtd-light-stylesheet'); }
+  function _isLight()   { var l = _lightLink(); return l && l.media !== 'not all'; }
 
   window._rayvnSync = function () {
-    var link = _themeLink();
-    var isLight = link && /just-the-docs-light\.css/.test(link.getAttribute('href'));
+    var isLight = _isLight();
     document.querySelectorAll('.theme-toggle').forEach(function (b) {
       b.textContent = isLight ? '🌙 Dark' : '☀️ Light';
     });
   };
 
   window._rayvnToggle = function () {
-    var link = _themeLink();
-    if (!link) return;
-    var href = link.getAttribute('href');
-    var goLight = !/just-the-docs-light\.css/.test(href);
-    link.setAttribute('href', goLight
-      ? href.replace(/just-the-docs-\w+\.css/, 'just-the-docs-light.css')
-      : href.replace('just-the-docs-light.css', 'just-the-docs-default.css'));
+    var goLight = !_isLight();
+    var dark = _darkLink(), light = _lightLink();
+    if (dark)  dark.media  = goLight ? 'not all' : '';
+    if (light) light.media = goLight ? ''         : 'not all';
     localStorage.setItem(KEY, goLight ? 'light' : 'dark');
     window._rayvnSync();
   };
