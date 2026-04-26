@@ -70,6 +70,7 @@ runPages() {
     local view=0
     local _userSpecifiedDir=0
     local -a recordIds=()
+    local pushed=0
 
     while (( $# )); do
         case $1 in
@@ -140,13 +141,34 @@ runPages() {
             git -C "${dir}" add -A || fail "git add failed"
             git -C "${dir}" commit -m "Update docs ${ date '+%Y-%m-%d'; }" || fail "git commit failed"
             git -C "${dir}" push || fail "git push failed"
+            pushed=1
             show success "${projectName} pages published"
-            echo
-            show bold "build/deploy status"
-            gh run watch
-        else
+        elif (( ! pushed )); then
             show success "${projectName} pages unchanged, nothing to push"
         fi
+        if (( pushed )); then
+            local remoteUrl ghRepo
+            remoteUrl=${ git -C "${dir}" remote get-url origin 2>/dev/null; }
+            if [[ "${remoteUrl}" =~ github\.com[:/]([^/]+)/([^/]+) ]]; then
+                ghRepo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]%.git}"
+                show "Watching GitHub Pages deployment..."
+                local runId='' attempt=0
+                while [[ -z "${runId}" ]] && (( attempt++ < 15 )); do
+                    sleep 2
+                    runId=${ gh run list --repo "${ghRepo}" --workflow deploy-pages.yml \
+                             --limit 1 --json databaseId,status \
+                             --jq '.[] | select(.status != "completed") | .databaseId' 2>/dev/null; }
+                done
+                if [[ -n "${runId}" ]]; then
+                    gh run watch "${runId}" --repo "${ghRepo}" --exit-status || \
+                        fail "GitHub Pages deployment failed"
+                else
+                    show warning "Could not find active deployment run — check GitHub Actions manually"
+                fi
+            fi
+            show success "${projectName} pages deployed"
+        fi
+
     elif (( view )); then
         show bold "Starting Jekyll server in ${ tildePath "${dir}"; }"
         cd "${dir}" || fail "could not cd to ${dir}"
@@ -380,6 +402,7 @@ EOF
             git -C "${worktreePath}" add -A || fail "git add failed"
             git -C "${worktreePath}" commit -m "Initialize pages scaffolding" || fail "commit failed"
             git -C "${worktreePath}" push || fail "git push failed"
+            pushed=1
             show success "Pages scaffolding committed and pushed"
         fi
     fi
