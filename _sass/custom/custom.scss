@@ -32,7 +32,7 @@ td:first-child, th:first-child {
 }
 
 // Hide header row on args/returns/usage tables (header cells are empty placeholders)
-.args-table thead, .usage-table thead .list-table thead {
+.args-table thead, .usage-table thead, .list-table thead {
   display: none;
 }
 
@@ -67,13 +67,18 @@ th {
 
 :root {
   @if $color-scheme == dark {
-    --code-bg: #27262b;                       // just the docs dark
-    --player-bg: #2b2b30;                     // my dark terminal background
-    --player-button-fill: #7253ed;
+    // material dark: https://m2.material.io/design/color/dark-theme.html#ui-application
+    --primary: #bb86fc;                       // material dark primary
+    --primary-variant: #3700bc;               // material dark primary variant
+    --scondary: #03daa6;                      // material dark secondary
+    --terminal: #2b2b30;                      // my dark terminal background
+    --code-bg: var(--terminal);
+    --player-bg: var(--terminal);
+    --player-button-fill: var(--primary);
   } @else {
     --code-bg: #{$code-background-color};     // just the docs light ($white)
     --player-bg: #{$sidebar-color};           // slightly off-white ($grey-lt-000)
-    --player-button-fill: #7253ed;
+    --player-button-fill: #var(--primary);
   }
 }
 
