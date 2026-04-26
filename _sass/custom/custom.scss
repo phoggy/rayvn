@@ -20,7 +20,7 @@
     --player-bg: var(--terminal);
     --player-button-fill: var(--dark-primary);
   } @else {
-    --heading: var(--light-primary-variant);
+    --heading: #{$link-color};
     --em: var(--light-primary-variant);
     --code-em: var(--light-primary-variant);
     --code-bg: #{$code-background-color};     // just the docs light ($white)
