@@ -848,7 +848,7 @@ _extractFunctions() {
     local inPreamble=1  # 1 until first # ◇ line or function is seen
 
     while IFS= read -r line; do
-        if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
+        if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{ ]]; then
             local newFunctionName="${BASH_REMATCH[1]}"
             if [[ "${newFunctionName}" =~ ^_ ]]; then
                 functionDoc=''
@@ -923,7 +923,7 @@ _extractFunctionsCompact() {
     local prevFunctionName='' prevFunctionDoc=''
 
     while IFS= read -r line; do
-        if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
+        if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{ ]]; then
             local newFunctionName="${BASH_REMATCH[1]}"
             if [[ "${newFunctionName}" =~ ^_ ]]; then
                 functionDoc=''
@@ -1426,7 +1426,7 @@ _extractLibraryDescription() {
     while IFS= read -r line; do
         [[ "${line}" =~ ^#! ]] && continue
         [[ "${line}" =~ ^#[[:space:]]*shellcheck ]] && continue
-        [[ "${line}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*\(\)[[:space:]]*\{ ]] && break
+        [[ "${line}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\)[[:space:]]*\{ ]] && break
         [[ "${line}" =~ ^#[[:space:]]◇ ]] && break
         if [[ "${line}" =~ ^[[:space:]]*$ ]] || [[ "${line}" == '#' ]]; then
             [[ -n "${currentBlock}" ]] && description="${currentBlock}"
@@ -1880,7 +1880,7 @@ _findDepsLoadFunctions() {
     if [[ -n "${rayvnUp}" && -f "${rayvnUp}" ]]; then
         local line
         while IFS= read -r line; do
-            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
+            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{ ]]; then
                 _fdFnRef["${BASH_REMATCH[1]}"]=1
             fi
         done < "${rayvnUp}"
@@ -1891,7 +1891,7 @@ _findDepsLoadFunctions() {
     for f in "${projectRoot}/bin"/* "${projectRoot}/lib"/*.sh; do
         [[ -f "${f}" ]] || continue
         while IFS= read -r line; do
-            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)\(\)[[:space:]]*\{ ]]; then
+            if [[ "${line}" =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)[[:space:]]*\{ ]]; then
                 _fdFnRef["${BASH_REMATCH[1]}"]=1
             fi
         done < "${f}"
