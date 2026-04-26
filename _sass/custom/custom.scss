@@ -1,6 +1,46 @@
+// Colors
+:root {
+  --terminal: #2b2b30;   // my dark terminal background
+
+  // Material Design: https://m2.material.io/design/color/the-color-system.html
+
+  --dark-primary: #bb86fc;            // material dark primary
+  --dark-primary-variant: #3700bc;    // material dark primary variant
+  --dark-secondary: #03daa6;          // material dark secondary
+
+  --light-primary: #6200ee;           // material light primary
+  --light-primary-variant: #3700bc;   // material light primary variant
+  --light-secondary: #bb86fc;         // material light secondary
+
+  @if $color-scheme == dark {
+    --heading: var(--dark-primary);
+    --em: var(--dark-primary);
+    --code-em: var(--dark-gray);
+    --code-bg: var(--terminal);
+    --player-bg: var(--terminal);
+    --player-button-fill: var(--dark-primary);
+  } @else {
+    --heading: var(--light-primary-variant);
+    --em: var(--light-primary-variant);
+    --code-em: var(--light-primary-variant);
+    --code-bg: #{$code-background-color};     // just the docs light ($white)
+    --player-bg: #{$sidebar-color};           // slightly off-white ($grey-lt-000)
+    --player-button-fill: var(--light-primary);
+  }
+}
+
+
 // Increase the content pane width cap (default is 50rem)
 .main {
   max-width: 80rem;
+}
+
+// Pin the search bar (and aux nav) to the top of the content pane
+.main-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: $body-background-color;
 }
 
 // Left-align table header cells (just-the-docs centers them by default)
@@ -10,8 +50,20 @@ th {
 
 // Style function/command name headings to match link color, with extra space below
 h3 {
-  color: $link-color;
+  color: var(--heading);  // was $link-color;
+  font-weight: bold;
   margin-bottom: 1rem;
+}
+
+em {
+  color: var(--em);
+}
+
+.args-table em, .usage-table em, .list-table em {
+  color: $body-text-color;
+  font-family: "SFMono-Regular", menlo, consolas, monospace;
+  font-size: 0.75em;
+  line-height: 1.4;
 }
 
 // Remove border from code blocks
@@ -63,23 +115,6 @@ th {
 .main-content dt {
   text-align: left;
   &::after { content: ""; }
-}
-
-:root {
-  @if $color-scheme == dark {
-    // material dark: https://m2.material.io/design/color/dark-theme.html#ui-application
-    --primary: #bb86fc;                       // material dark primary
-    --primary-variant: #3700bc;               // material dark primary variant
-    --scondary: #03daa6;                      // material dark secondary
-    --terminal: #2b2b30;                      // my dark terminal background
-    --code-bg: var(--terminal);
-    --player-bg: var(--terminal);
-    --player-button-fill: var(--primary);
-  } @else {
-    --code-bg: #{$code-background-color};     // just the docs light ($white)
-    --player-bg: #{$sidebar-color};           // slightly off-white ($grey-lt-000)
-    --player-button-fill: #var(--primary);
-  }
 }
 
 // Collapse asciinema players before play to minimize initial page height.
