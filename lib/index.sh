@@ -1186,24 +1186,36 @@ _wrapCodeInBackticks() {
     echo "${text}"
 }
 
-# Parse library descriptions and ordering from the home page's library table.
-# Recognizes table rows of the form: | [project/library](url) | description |
-# Populates _idxHomePageDescriptions (key → description) and _idxHomePageOrder (key → position).
+# Parse library descriptions, ordering, and categories from the home page's library table.
+# Recognizes ### headings as category names and table rows of the form: | [project/library](url) | description |
+# Populates _idxHomePageDescriptions (key → description), _idxHomePageOrder (key → position),
+# _idxHomePageCategories (key → category name), and _idxHomeCategoryList (ordered unique category names).
 _loadHomePageDescriptions() {
     declare -gA _idxHomePageDescriptions=()
     declare -gA _idxHomePageOrder=()
+    declare -gA _idxHomePageCategories=()
+    declare -ga _idxHomeCategoryList=()
     local indexFile="${_idxDocsDir}/index.md"
     [[ -f "${indexFile}" ]] || return 0
 
-    local line libKey description orderIdx=1
+    local line libKey description orderIdx=1 currentCategory=''
     local tableRowPattern='^\|[[:space:]]*\[([^/]+)/([^]]+)\]\([^)]*\)[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\|' # lint-ok
     while IFS= read -r line; do
-        if [[ "${line}" =~ ${tableRowPattern} ]]; then
+        if [[ "${line}" =~ ^###[[:space:]]+(.+)$ ]]; then
+            currentCategory="${BASH_REMATCH[1]}"
+            local alreadyListed=0
+            local cat
+            for cat in "${_idxHomeCategoryList[@]}"; do
+                [[ "${cat}" == "${currentCategory}" ]] && alreadyListed=1 && break
+            done
+            (( alreadyListed )) || _idxHomeCategoryList+=("${currentCategory}")
+        elif [[ "${line}" =~ ${tableRowPattern} ]]; then
             libKey="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
             description="${BASH_REMATCH[3]}"
             description=${ trim "${description}"; }
             [[ -n "${description}" ]] && _idxHomePageDescriptions["${libKey}"]="${description}"
             _idxHomePageOrder["${libKey}"]="${orderIdx}"
+            [[ -n "${currentCategory}" ]] && _idxHomePageCategories["${libKey}"]="${currentCategory}"
             (( orderIdx++ ))
         fi
     done < "${indexFile}"
@@ -1275,6 +1287,7 @@ _updateHomePageLibraryTable() {
 }
 
 # Update the library table in api/index.md to match the ordering and contents of the home page table.
+# If categories are defined, groups output under ### headings matching the home page.
 # Libraries not in the home page order are appended at the end.
 _updateApiIndexTable() {
     local filterProject="$1"
@@ -1303,11 +1316,11 @@ _updateApiIndexTable() {
         sortedKeys+=("${entry#*:}")
     done < <(printf '%s\n' "${entries[@]}" | sort -t: -k1 -n)
 
-    # Preserve header lines (everything before the first table row), replace the table
+    # Preserve header lines (everything before first table row or ### heading), replace the rest
     local -a headerLines=()
     local line
     while IFS= read -r line; do
-        [[ "${line}" =~ ^\| ]] && break
+        [[ "${line}" =~ ^### || "${line}" =~ ^\| ]] && break
         headerLines+=("${line}")
     done < "${apiIndexFile}"
 
@@ -1319,17 +1332,62 @@ _updateApiIndexTable() {
     local tmpFile="${apiIndexFile}.tmp"
     {
         for line in "${headerLines[@]}"; do printf '%s\n' "${line}"; done
-        printf '\n'
-        printf '| Library | Description |\n'
-        printf '|---|---|\n'
-        for key in "${sortedKeys[@]}"; do
-            local proj="${key%%/*}"
-            local lib="${key#*/}"
-            local desc="${_idxHomePageDescriptions[${key}]:-}"
-            [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
-            [[ -z "${desc}" ]] && desc="TODO: add description"
-            printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
-        done
+
+        if (( ${#_idxHomeCategoryList[@]} > 0 )); then
+            # Grouped output: one ### section per category, then uncategorized
+            local -A emittedKeys=()
+            local cat
+            for cat in "${_idxHomeCategoryList[@]}"; do
+                local -a catKeys=()
+                for key in "${sortedKeys[@]}"; do
+                    [[ "${_idxHomePageCategories[${key}]:-}" == "${cat}" ]] && catKeys+=("${key}")
+                done
+                (( ${#catKeys[@]} == 0 )) && continue
+                printf '\n### %s\n\n' "${cat}"
+                printf '| Library | Description |\n'
+                printf '|---|---|\n'
+                for key in "${catKeys[@]}"; do
+                    local proj="${key%%/*}"
+                    local lib="${key#*/}"
+                    local desc="${_idxHomePageDescriptions[${key}]:-}"
+                    [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+                    [[ -z "${desc}" ]] && desc="TODO: add description"
+                    printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
+                    emittedKeys["${key}"]=1
+                done
+            done
+            # Append uncategorized libraries (order 9999 fallback)
+            local -a uncatKeys=()
+            for key in "${sortedKeys[@]}"; do
+                [[ -z "${emittedKeys[${key}]:-}" ]] && uncatKeys+=("${key}")
+            done
+            if (( ${#uncatKeys[@]} > 0 )); then
+                printf '\n'
+                printf '| Library | Description |\n'
+                printf '|---|---|\n'
+                for key in "${uncatKeys[@]}"; do
+                    local proj="${key%%/*}"
+                    local lib="${key#*/}"
+                    local desc="${_idxHomePageDescriptions[${key}]:-}"
+                    [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+                    [[ -z "${desc}" ]] && desc="TODO: add description"
+                    printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
+                done
+            fi
+        else
+            # Flat output
+            printf '\n'
+            printf '| Library | Description |\n'
+            printf '|---|---|\n'
+            for key in "${sortedKeys[@]}"; do
+                local proj="${key%%/*}"
+                local lib="${key#*/}"
+                local desc="${_idxHomePageDescriptions[${key}]:-}"
+                [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+                [[ -z "${desc}" ]] && desc="TODO: add description"
+                printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
+            done
+        fi
     } > "${tmpFile}"
     mv "${tmpFile}" "${apiIndexFile}"
 }
