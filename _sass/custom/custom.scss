@@ -4,12 +4,12 @@
 
   //--bright-green: #66FF00;         // nice
   //--harlequin-green: #3FFF00;      // nice
-  --lawn-green: #7CFC00;           // nice
+  //--lawn-green: #7CFC00;           // nice
   //--neon-green: #0FFF50;           // nice
   //--neon-green-2: #39FF14;         // good
   //--spring-green: #00FF7F;         // nice
   //--lime-green: #32CD32;           // good, less bright
-  --mint-green: #98FB98;           // nice
+  //--mint-green: #98FB98;           // nice
   //
   //--chartreuse: #DFFF00;
   //--dark-cyan: #008B8B;
@@ -19,6 +19,9 @@
   //--seafoam-green: #9FE2BF;
   //--pastel-green: #C1E1C1;
 
+
+  --lawn-green: #7CFC00;
+  --mint-green: #98FB98;
 
   // Material Design: https://m2.material.io/design/color/the-color-system.html
 
@@ -32,7 +35,7 @@
 
   @if $color-scheme == dark {
 
-    --heading: var(--lawn-green);
+    --heading: var(--dark-primary);
     --em: var(--mint-green);
     --code-bg: var(--terminal);
     --code-em: var(--dark-primary);
@@ -42,7 +45,9 @@
     --nav-category-separator: #{rgba(white, 0.1)};
     --nav-active-color: #f5f6fa; //var(--lawn-green); // #{darken($link-color, 5%)};
     --nav-active-bg: #{darken($sidebar-color, 3%)};
+
   } @else {
+
     --heading: #{$link-color};
     --em: var(--light-primary-variant);
     --code-em: var(--dark-primary);
@@ -99,6 +104,10 @@ h3 {
 
 em {
   color: var(--em);
+}
+
+code {
+  font-size: 0.8em;
 }
 
 .args-table em, .usage-table em, .list-table em {
