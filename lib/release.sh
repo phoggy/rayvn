@@ -11,7 +11,7 @@
 #   ghRepo (string)   GitHub repo in 'account/repo' format.
 #   version (string)  Version string to release (e.g. '1.2.3').
 
-release () {
+release() {
     local ghRepo="$1"
     local version="$2"
     local project="${ghRepo#*/}"
