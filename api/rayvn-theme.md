@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "rayvn/theme"
-parent: API Reference
+parent: "Scripting"
+grand_parent: API Reference
 nav_order: 8
 ---
 
