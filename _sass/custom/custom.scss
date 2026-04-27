@@ -2,6 +2,24 @@
 :root {
   --terminal: #2b2b30;                // my dark terminal background
 
+  //--bright-green: #66FF00;         // nice
+  //--harlequin-green: #3FFF00;      // nice
+  //--lawn-green: #7CFC00;           // nice
+  //--neon-green: #0FFF50;           // nice
+  //--neon-green-2: #39FF14;         // good
+  //--spring-green: #00FF7F;         // nice
+  //--lime-green: #32CD32;           // good, less bright
+  //--mint-green: #98FB98;           // nice
+  //
+  //--chartreuse: #DFFF00;
+  //--dark-cyan: #008B8B;
+  //--eagles-green: #004953;
+  //--kc-royals: #004687;
+  //--emerald-green: #50C878;
+  //--seafoam-green: #9FE2BF;
+  //--pastel-green: #C1E1C1;
+
+
   // Material Design: https://m2.material.io/design/color/the-color-system.html
 
   --dark-primary: #bb86fc;            // material dark primary
@@ -13,19 +31,29 @@
   --light-secondary: #bb86fc;         // material light secondary
 
   @if $color-scheme == dark {
-    --heading: var(--dark-primary);
-    --em: var(--dark-primary);
-    --code-em: var(--dark-gray);
+
+    --heading: var(--lawn-green);
+    --em: var(--mint-green);
     --code-bg: var(--terminal);
+    --code-em: var(--dark-primary);
     --player-bg: var(--terminal);
     --player-button-fill: var(--dark-primary);
+    --nav-category-color: var(--dark-primary);
+    --nav-category-separator: #{rgba(white, 0.1)};
+    --nav-active-color: #f5f6fa; //var(--lawn-green); // #{darken($link-color, 5%)};
+    --nav-active-bg: #{darken($sidebar-color, 3%)};
   } @else {
     --heading: #{$link-color};
     --em: var(--light-primary-variant);
-    --code-em: var(--light-primary-variant);
+    --code-em: var(--dark-primary);
     --code-bg: #{$code-background-color};     // just the docs light ($white)
     --player-bg: #{$sidebar-color};           // slightly off-white ($grey-lt-000)
     --player-button-fill: var(--light-primary);
+
+    --nav-category-color: var(--light-primary-variant); //#{rgba($link-color, 0.55)};
+    --nav-category-separator: #{rgba(black, 0.12)};
+    --nav-active-color: #27262b; // #{darken($link-color, 5%)};
+    --nav-active-bg: #{darken($sidebar-color, 3%)};
   }
 }
 
@@ -41,6 +69,20 @@
   top: 0;
   z-index: 10;
   background-color: $body-background-color;
+}
+
+
+// Active nav item color and highlight background.
+// Must beat the gray-child rule (0,4,0): .nav-list .nav-list-item > .nav-list .nav-list-item .nav-list-link
+// Adding .active raises it to (0,5,0).
+.nav-list .nav-list-item > .nav-list .nav-list-item .nav-list-link.active {
+  color: var(--nav-active-color);
+  background-image: linear-gradient(
+    -90deg,
+    var(--nav-active-bg) 0%,
+    color-mix(in srgb, var(--nav-active-bg), transparent 20%) 80%,
+    transparent 100%
+  );
 }
 
 // Left-align table header cells (just-the-docs centers them by default)
@@ -60,7 +102,7 @@ em {
 }
 
 .args-table em, .usage-table em, .list-table em {
-  color: $body-text-color;
+  color: var(--dark-primary); // $body-text-color;
   font-family: "SFMono-Regular", menlo, consolas, monospace;
   font-size: 0.75em;
   line-height: 1.4;
@@ -273,4 +315,24 @@ div.highlighter-rouge,
 }
 .highlight .ss {
   color: #859900;
+}
+
+// Nav category headers (Scripting, Testing, Project Tooling).
+// Targets depth-2 nav items that have children (identified by the expander button),
+// distinguishing them from depth-3 library items which have no children.
+$_nav-category-selector: ".nav-list > .nav-list-item > .nav-list > .nav-list-item:has(> .nav-list-expander)";
+
+#{$_nav-category-selector} > .nav-list-link {
+  color: var(--nav-category-color);
+  font-size: 0.9em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-top: 1px solid var(--nav-category-separator);
+  padding-top: 0.6rem;
+}
+
+#{$_nav-category-selector}:first-child > .nav-list-link {
+  border-top: none;
+  padding-top: $sp-1;
 }
