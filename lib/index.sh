@@ -1408,6 +1408,7 @@ _generateDocs() {
     _loadHomePageDescriptions
     _updateHomePageLibraryTable "${filterProject}" "${libFiles[@]}"
     _updateApiIndexTable "${filterProject}" "${libFiles[@]}"
+    _generateCategoryPages
 
     local libFile projectName libraryName navOrder
     for libFile in "${libFiles[@]}"; do
@@ -1424,6 +1425,28 @@ _generateDocs() {
     fi
 
     show success "Docs written to ${ tildePath "${_idxDocsDir}"; }"
+}
+
+# Generate nav category pages (e.g. api/scripting.md) for each category in _idxHomeCategoryList.
+# Each page has parent: API Reference and has_children: true, making it a collapsible nav group.
+_generateCategoryPages() {
+    (( ${#_idxHomeCategoryList[@]} == 0 )) && return 0
+    local category slug outFile catOrder=1
+    for category in "${_idxHomeCategoryList[@]}"; do
+        slug="${category,,}"
+        slug="${slug// /-}"
+        outFile="${_idxDocsDir}/api/${slug}.md"
+        {
+            printf '%s\n' '---'
+            printf 'layout: default\n'
+            printf 'title: "%s"\n' "${category}"
+            printf 'parent: API Reference\n'
+            printf 'nav_order: %d\n' "${catOrder}"
+            printf 'has_children: true\n'
+            printf '%s\n' '---'
+        } > "${outFile}"
+        (( catOrder++ ))
+    done
 }
 
 # Generate a single per-library Jekyll documentation page
@@ -1443,11 +1466,18 @@ _generateLibraryPage() {
     fi
     notesBlock=${ _extractDocBlock "${libFile}" "notes"; }
 
+    local category="${_idxHomePageCategories[${projectName}/${libraryName}]:-}"
+
     {
         printf '%s\n' '---'
         printf 'layout: default\n'
         printf 'title: "%s/%s"\n' "${projectName}" "${libraryName}"
-        printf 'parent: API Reference\n'
+        if [[ -n "${category}" ]]; then
+            printf 'parent: "%s"\n' "${category}"
+            printf 'grand_parent: API Reference\n'
+        else
+            printf 'parent: API Reference\n'
+        fi
         printf 'nav_order: %d\n' "${navOrder}"
         printf '%s\n\n' '---'
 
