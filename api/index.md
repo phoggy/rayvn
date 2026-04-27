@@ -9,6 +9,8 @@ has_children: true
 
 Documentation for all public functions in rayvn's shared libraries.
 
+### Scripting
+
 | Library | Description |
 |---|---|
 | [rayvn/core](/rayvn/api/rayvn-core) | Core utilities, assertions and error handling. |
@@ -18,12 +20,22 @@ Documentation for all public functions in rayvn's shared libraries.
 | [rayvn/spinner](/rayvn/api/rayvn-spinner) | Terminal spinners. |
 | [rayvn/secrets](/rayvn/api/rayvn-secrets) | System keychain credential storage. |
 | [rayvn/oauth](/rayvn/api/rayvn-oauth) | OAuth authorization code flow. |
-| [rayvn/test](/rayvn/api/rayvn-test) | Test assertions. |
 | [rayvn/theme](/rayvn/api/rayvn-theme) | Color themes. |
 | [rayvn/config](/rayvn/api/rayvn-config) | Configuration file support. |
 | [rayvn/process](/rayvn/api/rayvn-process) | Process management. |
-| [rayvn/release](/rayvn/api/rayvn-release) | GitHub release workflow. |
+
+### Testing
+
+| Library | Description |
+|---|---|
+| [rayvn/test](/rayvn/api/rayvn-test) | Test assertions. |
 | [rayvn/test-harness](/rayvn/api/rayvn-test-harness) | Test runner. |
+
+### Project Tooling
+
+| Library | Description |
+|---|---|
+| [rayvn/release](/rayvn/api/rayvn-release) | GitHub release workflow. |
 | [rayvn/central](/rayvn/api/rayvn-central) | Project registry. |
 | [rayvn/dependencies](/rayvn/api/rayvn-dependencies) | Dependency checking and Homebrew formula generation. |
 | [rayvn/function-docs](/rayvn/api/rayvn-function-docs) | Audit and update function doc comments. |

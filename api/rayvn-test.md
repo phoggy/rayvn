@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/test"
 parent: API Reference
-nav_order: 8
+nav_order: 11
 ---
 
 # rayvn/test
@@ -321,11 +321,10 @@ Fail if the value at a key in an associative array does not equal the expected v
 
 ## Path Functions
 
-### printPath()
+### prependPath()
 
 Prepend a directory to a PATH-style variable, removing any existing occurrence first.
 
-Append a directory to a PATH-style variable, removing any existing occurrence first.
 
 *args*
 
@@ -334,7 +333,11 @@ Append a directory to a PATH-style variable, removing any existing occurrence fi
 | `path` *(string)* | Name of the directory to prepend. |
 | `pathVariable` *(string)* | Name of the colon-separated path variable (default: PATH). |
 {: .args-table}
-Remove all occurrences of a directory from a colon-separated path variable.
+
+### appendPath()
+
+Append a directory to a PATH-style variable, removing any existing occurrence first.
+
 
 *args*
 
@@ -343,7 +346,11 @@ Remove all occurrences of a directory from a colon-separated path variable.
 | `path` *(string)* | Name of directory to append. |
 | `pathVariable` *(string)* | Name of the colon-separated path variable (default: PATH). |
 {: .args-table}
-Print a PATH-style variable with each directory on its own numbered line.
+
+### removePath()
+
+Remove all occurrences of a directory from a colon-separated path variable.
+
 
 *args*
 
@@ -352,6 +359,11 @@ Print a PATH-style variable with each directory on its own numbered line.
 | `removePath` *(string)* | Directory path to remove. |
 | `pathVariable` *(string)* | Name of the path variable to modify (default: PATH). [R/W] |
 {: .args-table}
+
+### printPath()
+
+Print a PATH-style variable with each directory on its own numbered line.
+
 
 *args*
 

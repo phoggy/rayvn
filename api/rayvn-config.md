@@ -2,7 +2,7 @@
 layout: default
 title: "rayvn/config"
 parent: API Reference
-nav_order: 10
+nav_order: 9
 ---
 
 # rayvn/config
