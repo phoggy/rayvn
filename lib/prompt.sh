@@ -143,9 +143,10 @@ confirm() {
 #
 # · EXAMPLE
 #
-#   choices=("Apple" "Banana" "Cherry")
-#   choose "Pick a fruit:" choices selectedIndex
-#   echo "You picked index: ${selectedIndex}"
+#   local choices=("Apple" "Banana" "Cherry")
+#   local chosenIndex
+#   choose "Pick a fruit:" choices chosenIndex
+#   echo "You picked index: ${chosenIndex}"
 
 choose() {
     parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
@@ -157,7 +158,7 @@ choose() {
     local numberChoices="${6:-0}"
     local maxVisibleItems="${7:-0}"
     local timeout="${8:-${_defaultPromptTimeout}}"
-    local show; booleanArgToInt ${9:-'true'} show
+    local show; booleanAsInteger ${9:-'true'} show
     local totalVisibleItems
     local rowsPerItem
     local cursorRow

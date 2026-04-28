@@ -34,9 +34,9 @@
 #   - **true-color** `RGB` \<R:G:B\>
 #   - **Special** `nl` (insert newline), `glue` (suppress space before next arg)
 #
-#   While most modern terminals support 256-color or true-color (24 bit), stick to theme colors
-#   if compatibility is a concern — they automatically fall back to 16-color. Some terminals may
-#   not support strikethrough.
+#   While most modern terminals support 256-color or true-color (24 bit), stick to theme colors if
+#   compatibility is a concern — they automatically fall back to 16-color. Also be aware that some terminals
+#   do not support strikethrough.
 #
 # · EXAMPLE
 #
@@ -239,7 +239,8 @@ invalidArgs() {
     fail --trace "$@"
 }
 
-# ◇ Print an error and exit 1, optionally with a stack trace.
+# ◇ Print an error and exit 1, optionally with a stack trace if in debug mode
+#   or explicitly with --trace.
 #
 # · USAGE
 #
@@ -374,24 +375,22 @@ parseOptionalArg() {
 }
 
 # ◇ Maps a boolean argument to 1 for true, 0 for false so that it can subsequently be tested using (( flag )).
-#   Converted to lower case to allow upper or mixed case true/false. An integer value >= 1 is true, <= 0 is false.
 #
 # · ARGS
 #
-#   arg (bool)            The boolean argument.
+#   arg (bool)            The boolean argument: 'true' or 'false' (case in-sensitive), 1 or 0.
 #   resultRef (stringRef) Name of var to set result.
 #
 # · EXAMPLE
 #
-#   local doX; booleanArgToInt "$1" doX           # Set doX
-#   local doY; booleanArgToInt "${1:-true}" doY   # Set doY with default value.
+#   local doX; booleanAsInteger "$1" doX           # Set doX
+#   local doY; booleanAsInteger "${1:-true}" doY   # Set doY with default value.
 
-booleanArgToInt() {
-    local arg="${1,,}"
+booleanAsInteger() {
     local -n resultRef=$2
-    if [[ ${arg} == 'true' ]] || [[ ${arg} =~ ^[1-9][0-9]*$ ]]; then
+    if [[ $1 == 1 || ${1,,} == true ]]; then
         resultRef=1
-    elif [[ ${arg} == 'false' ]] || [[ ${arg} =~ ^-?[0-9]+$ ]]; then
+    elif [[ $1 == 0 || ${1,,} == false ]]; then
         resultRef=0
     else
         fail "boolean argument required, got: $1"
