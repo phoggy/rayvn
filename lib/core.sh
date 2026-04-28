@@ -378,8 +378,8 @@ parseOptionalArg() {
 #
 # · ARGS
 #
-#   arg (bool)            The boolean argument: 'true' or 'false' (case in-sensitive), 1 or 0.
-#   resultRef (stringRef) Name of var to set result.
+#   arg (bool)             The boolean argument: 'true' or 'false' (case in-sensitive), 1 or 0.
+#   resultRef (stringRef)  Name of var to set result.
 #
 # · EXAMPLE
 #
