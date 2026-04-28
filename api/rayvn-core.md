@@ -269,25 +269,24 @@ Check if an argument matches an expected value, setting a result var via nameref
 | `1` | not matched |
 {: .args-table}
 
-### booleanArgToInt()
+### booleanAsInteger()
 
 Maps a boolean argument to 1 for true, 0 for false so that it can subsequently be tested using (( flag )).
-Converted to lower case to allow upper or mixed case true/false. An integer value >= 1 is true, <= 0 is false.
 
 
 *args*
 
 | | |
 |---|---|
-| `arg` *(bool)* | The boolean argument. |
+| `arg` *(bool)* | The boolean argument: 'true' or 'false' (case in-sensitive), 1 or 0. |
 | `resultRef` *(stringRef)* | Name of var to set result. |
 {: .args-table}
 
 *example*
 
 ```bash
-local doX; booleanArgToInt "$1" doX           # Set doX
-local doY; booleanArgToInt "${1:-true}" doY   # Set doY with default value.
+local doX; booleanAsInteger "$1" doX           # Set doX
+local doY; booleanAsInteger "${1:-true}" doY   # Set doY with default value.
 ```
 
 ### varDefined()

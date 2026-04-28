@@ -1,3 +1,8 @@
+// Syntax highlighting
+// See https://numist.github.io/highlight-css/
+
+@import 'syntax-one-dark';
+
 // Variables
 
 :root {
@@ -7,17 +12,17 @@
   --body-font-stack: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --code-font-stack: "Fira Mono", "SFMono-Regular", Menlo, Consolas, Monospace;
 
-  --terminal: #2b2b30;                // my dark terminal background
+  // Colors
 
-  //--bright-green: #66FF00;         // nice
-  //--harlequin-green: #3FFF00;      // nice
-  //--lawn-green: #7CFC00;           // nice
-  //--neon-green: #0FFF50;           // nice
-  //--neon-green-2: #39FF14;         // good
-  //--spring-green: #00FF7F;         // nice
-  //--lime-green: #32CD32;           // good, less bright
-  //--mint-green: #98FB98;           // nice
-  //
+
+  //--bright-green: #66FF00;
+  //--harlequin-green: #3FFF00;
+  //--lawn-green: #7CFC00;
+  //--neon-green: #0FFF50;
+  //--neon-green-2: #39FF14;
+  //--spring-green: #00FF7F;
+  //--lime-green: #32CD32;
+  //--mint-green: #98FB98;
   //--chartreuse: #DFFF00;
   //--dark-cyan: #008B8B;
   //--eagles-green: #004953;
@@ -26,7 +31,7 @@
   //--seafoam-green: #9FE2BF;
   //--pastel-green: #C1E1C1;
 
-
+  --terminal: #2b2b30;                // my dark terminal background
   --mint-green: #98FB98;
 
   // Material Design: https://m2.material.io/design/color/the-color-system.html
@@ -246,8 +251,6 @@ div.ap-wrapper div.ap-player {
   --term-color-background: #2b2b30;
 }
 
-// My Changes
-
 // Fenced code block outer container and inner highlight
 div.highlighter-rouge,
 .highlight,
@@ -262,98 +265,6 @@ div.highlighter-rouge,
   background-color: var(--code-bg);
 }
 
-// Rougify Theme 'base16.solarized' --------------------------------
-
-.highlight table td { padding: 5px; }
-.highlight table pre { margin: 0; }
-.highlight, .highlight .w {
-  color: #586e75;
-}
-.highlight .err {
-  color: #002b36;
-  background-color: #dc322f;
-}
-.highlight .c, .highlight .ch, .highlight .cd, .highlight .cm, .highlight .cpf, .highlight .c1, .highlight .cs {
-  color: #657b83;
-}
-.highlight .cp {
-  color: #b58900;
-}
-.highlight .nt {
-  color: #b58900;
-}
-.highlight .o, .highlight .ow {
-  color: #93a1a1;
-}
-.highlight .p, .highlight .pi {
-  color: #93a1a1;
-}
-.highlight .gi {
-  color: #859900;
-}
-.highlight .gd {
-  color: #dc322f;
-}
-.highlight .gh {
-  color: #268bd2;
-  background-color: #002b36;
-  font-weight: bold;
-}
-.highlight .ge {
-  font-style: italic;
-}
-.highlight .ges {
-  font-weight: bold;
-  font-style: italic;
-}
-.highlight .gs {
-  font-weight: bold;
-}
-.highlight .k, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kv {
-  color: #6c71c4;
-}
-.highlight .kc {
-  color: #cb4b16;
-}
-.highlight .kt {
-  color: #cb4b16;
-}
-.highlight .kd {
-  color: #cb4b16;
-}
-.highlight .s, .highlight .sb, .highlight .sc, .highlight .dl, .highlight .sd, .highlight .s2, .highlight .sh, .highlight .sx, .highlight .s1 {
-  color: #6aab73; // #859900;
-}
-.highlight .sa {
-  color: #6c71c4;
-}
-.highlight .sr {
-  color: #2aa198;
-}
-.highlight .si {
-  color: #d33682;
-}
-.highlight .se {
-  color: #d33682;
-}
-.highlight .nn {
-  color: #b58900;
-}
-.highlight .nc {
-  color: #b58900;
-}
-.highlight .no {
-  color: #b58900;
-}
-.highlight .na {
-  color: #268bd2;
-}
-.highlight .m, .highlight .mb, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .il, .highlight .mo, .highlight .mx {
-  color: #859900;
-}
-.highlight .ss {
-  color: #859900;
-}
 
 // Nav category headers (Scripting, Testing, Project Tooling).
 // Targets depth-2 nav items that have children (identified by the expander button),
@@ -374,3 +285,4 @@ $_nav-category-selector: ".nav-list > .nav-list-item > .nav-list > .nav-list-ite
   border-top: none;
   padding-top: $sp-1;
 }
+

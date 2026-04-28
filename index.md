@@ -8,9 +8,47 @@ nav_order: 1
 
 A shared library framework for bash 5.3+.
 
-## Getting Started
+## First Look
 
-See the [README](https://github.com/phoggy/rayvn#readme) for a quick introduction, installation instructions and development setup.
+A minimal rayvn script:
+
+```bash
+#!/usr/bin/env rayvn-bash
+
+usage() {
+    show "Usage:" bold "greet" italic "NAME"
+    bye "$@"
+}
+
+main() {
+    init "$@"
+    show primary "Hey ${name}!"
+}
+
+init() {
+    declare -g name
+    while (( $# )); do
+        case "$1" in
+            -h | --help) usage ;;
+            -* | --*) usage "unknown option: $1" ;;
+            *) name="${1^}" ;;
+        esac
+        shift
+    done
+    [[ -n ${name} ]] || usage "NAME is required"
+}
+
+source rayvn.up
+main "$@"
+```
+
+- `#!/usr/bin/env rayvn-bash` ensures bash 5.3+ if available, regardless of system defaults.
+- `source rayvn.up` bootstraps rayvn and loads the [rayvn/core](/rayvn/api/rayvn-core) library automatically.
+- The `show` function is in [rayvn/core](/rayvn/api/rayvn-core) and supports colored/styled text output.
+- All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
+- Pass library names to load additional libraries: `source rayvn.up 'rayvn/spinner' 'rayvn/prompt'`.
+
+For installation, IDE setup, and development guidance, see the [README](https://github.com/phoggy/rayvn#readme).
 
 ## Libraries
 

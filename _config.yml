@@ -4,6 +4,7 @@ theme: just-the-docs
 color_scheme: dark
 url: https://rayvn.ink
 baseurl: /rayvn
+highlighter: rouge
 
 nav_external_links:
   - title: GitHub
