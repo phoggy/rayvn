@@ -46,9 +46,9 @@ Available formats:
 - **true-color** `RGB` \<R:G:B\>
 - **Special** `nl` (insert newline), `glue` (suppress space before next arg)
 
-While most modern terminals support 256-color or true-color (24 bit), stick to theme colors
-if compatibility is a concern — they automatically fall back to 16-color. Some terminals may
-not support strikethrough.
+While most modern terminals support 256-color or true-color (24 bit), stick to theme colors if
+compatibility is a concern — they automatically fall back to 16-color. Also be aware that some terminals
+do not support strikethrough.
 
 
 *example*
@@ -182,7 +182,8 @@ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 
 ### fail()
 
-Print an error and exit 1, optionally with a stack trace.
+Print an error and exit 1, optionally with a stack trace if in debug mode
+or explicitly with --trace.
 
 
 *usage*

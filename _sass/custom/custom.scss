@@ -1,5 +1,12 @@
-// Colors
+// Variables
+
 :root {
+
+  // Common vars
+
+  --body-font-stack: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --code-font-stack: "Fira Mono", "SFMono-Regular", Menlo, Consolas, Monospace;
+
   --terminal: #2b2b30;                // my dark terminal background
 
   //--bright-green: #66FF00;         // nice
@@ -20,7 +27,6 @@
   //--pastel-green: #C1E1C1;
 
 
-  --lawn-green: #7CFC00;
   --mint-green: #98FB98;
 
   // Material Design: https://m2.material.io/design/color/the-color-system.html
@@ -33,20 +39,26 @@
   --light-primary-variant: #3700bc;   // material light primary variant
   --light-secondary: #bb86fc;         // material light secondary
 
+  --code-size: 0.95em;
+
   @if $color-scheme == dark {
 
-    --heading: var(--dark-primary);
-    --em: var(--mint-green);
+    // Dark scheme vars
+
+    --heading: var(--mint-green);
+    --em: var(--dark-primary);
     --code-bg: var(--terminal);
     --code-em: var(--dark-primary);
     --player-bg: var(--terminal);
     --player-button-fill: var(--dark-primary);
     --nav-category-color: var(--dark-primary);
     --nav-category-separator: #{rgba(white, 0.1)};
-    --nav-active-color: #f5f6fa; //var(--lawn-green); // #{darken($link-color, 5%)};
+    --nav-active-color: #f5f6fa;
     --nav-active-bg: #{darken($sidebar-color, 3%)};
 
   } @else {
+
+    // Light scheme vars
 
     --heading: #{$link-color};
     --em: var(--light-primary-variant);
@@ -60,6 +72,64 @@
     --nav-active-color: #27262b; // #{darken($link-color, 5%)};
     --nav-active-bg: #{darken($sidebar-color, 3%)};
   }
+}
+
+body {
+  font-family: var(--body-font-stack);
+}
+
+// <weight>: Use a value from 100 to 900
+// <uniquifier>: Use a unique and descriptive class name
+
+//.montserrat-<uniquifier> {
+//  font-family: "Montserrat", sans-serif;
+//  font-optical-sizing: auto;
+//  font-weight: <weight>;
+//  font-style: normal;
+//}
+
+// Style function/command name headings to match link color, with extra space below
+h3 {
+  color: var(--heading);  // was $link-color;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+em {
+  color: var(--em);
+}
+
+code {
+  font-family: var(--code-font-stack);
+  font-size: var(--code-size);
+}
+
+// Remove row/column lines from tables
+table, th, td {
+  border: none;
+}
+
+// Shrink first column to fit its content
+td:first-child, th:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+// Tighter row height for tables; top-align so wrapped descriptions don't center the arg name
+td, th {
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+  vertical-align: top;
+}
+
+// Left align all table header text
+th {
+  text-align: left;
+}
+
+// Left-align table header cells (just-the-docs centers them by default)
+th {
+  text-align: left;
 }
 
 
@@ -83,37 +153,17 @@
 .nav-list .nav-list-item > .nav-list .nav-list-item .nav-list-link.active {
   color: var(--nav-active-color);
   background-image: linear-gradient(
-    -90deg,
-    var(--nav-active-bg) 0%,
-    color-mix(in srgb, var(--nav-active-bg), transparent 20%) 80%,
-    transparent 100%
+          -90deg,
+          var(--nav-active-bg) 0%,
+          color-mix(in srgb, var(--nav-active-bg), transparent 20%) 80%,
+          transparent 100%
   );
-}
-
-// Left-align table header cells (just-the-docs centers them by default)
-th {
-  text-align: left;
-}
-
-// Style function/command name headings to match link color, with extra space below
-h3 {
-  color: var(--heading);  // was $link-color;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-em {
-  color: var(--em);
-}
-
-code {
-  font-size: 0.8em;
 }
 
 .args-table em, .usage-table em, .list-table em {
   color: var(--dark-primary); // $body-text-color;
   font-family: "SFMono-Regular", menlo, consolas, monospace;
-  font-size: 0.75em;
+  font-size: var(--code-size);
   line-height: 1.4;
 }
 
@@ -123,16 +173,6 @@ div.highlighter-rouge div.highlight {
   border: none;
 }
 
-// Remove row/column lines from tables
-table, th, td {
-  border: none;
-}
-
-// Shrink first column to fit its content
-td:first-child, th:first-child {
-  width: 1%;
-  white-space: nowrap;
-}
 
 // Hide header row on args/returns/usage tables (header cells are empty placeholders)
 .args-table thead, .usage-table thead, .list-table thead {
@@ -145,17 +185,6 @@ td:first-child, th:first-child {
   margin-bottom: 0.25rem;
 }
 
-// Tighter row height for tables; top-align so wrapped descriptions don't center the arg name
-td, th {
-  padding-top: 0.15rem;
-  padding-bottom: 0.15rem;
-  vertical-align: top;
-}
-
-// Left align all table header text
-th {
-  text-align: left;
-}
 
 // Override just-the-docs definition list style: size the term column to fit content
 // (instead of a fixed 10em), left-align terms, and remove the auto-appended colon.
@@ -184,7 +213,7 @@ th {
   top: 60px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.8em;
+  font-size: var(--code-size);
   white-space: nowrap;
   color: var(--player-button-fill);
   opacity: 0.8;
@@ -293,7 +322,7 @@ div.highlighter-rouge,
   color: #cb4b16;
 }
 .highlight .s, .highlight .sb, .highlight .sc, .highlight .dl, .highlight .sd, .highlight .s2, .highlight .sh, .highlight .sx, .highlight .s1 {
-  color: #859900;
+  color: #6aab73; // #859900;
 }
 .highlight .sa {
   color: #6c71c4;
