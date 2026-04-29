@@ -1,7 +1,7 @@
 // Syntax highlighting
 // See https://numist.github.io/highlight-css/
 
-@import 'syntax-one-dark';
+@import 'syntax';
 
 // Variables
 
@@ -54,6 +54,7 @@
     --em: var(--dark-primary);
     --code-bg: var(--terminal);
     --code-em: var(--dark-primary);
+    --list-bullet: var(--dark-primary);
     --player-bg: var(--terminal);
     --player-button-fill: var(--dark-primary);
     --nav-category-color: var(--dark-primary);
@@ -68,6 +69,7 @@
     --heading: #{$link-color};
     --em: var(--light-primary-variant);
     --code-em: var(--dark-primary);
+    --list-bullet: var(--dark-primary);
     --code-bg: #{$code-background-color};     // just the docs light ($white)
     --player-bg: #{$sidebar-color};           // slightly off-white ($grey-lt-000)
     --player-button-fill: var(--light-primary);
@@ -137,6 +139,13 @@ th {
   text-align: left;
 }
 
+.main-content ul > li::before {
+  content: "";
+}
+
+.main-content ul {
+  list-style-type: square;
+}
 
 // Increase the content pane width cap (default is 50rem)
 .main {
