@@ -325,6 +325,7 @@ traceUpInit() {
 # bashsupport disable=BP3002
 configure() {
     [[ -v _rayvnProjects ]] || declare -gA _rayvnProjects=()
+    declare -gr scriptName="${0##*/}"
     declare -gAi _rayvnRequireCounts=()
     declare -gr _projectRootSuffix='::project'
     declare -gr _libraryRootSuffix='::library'

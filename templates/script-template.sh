@@ -21,8 +21,6 @@ main() {
 
 # shellcheck disable=SC2155
 init() {
-    declare -r scriptName="${0##*/}"
-
     while (( $# )); do
         case "$1" in
             -h | --help) usage ;;

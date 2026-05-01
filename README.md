@@ -13,7 +13,7 @@ A minimal rayvn script:
 #!/usr/bin/env rayvn-bash
 
 usage() {
-    show "Usage:" bold "greet" italic "NAME"
+    show "Usage:" bold blue "${scriptName}" italic "NAME"
     bye "$@"
 }
 
@@ -40,7 +40,7 @@ main "$@"
 ```
 
 - `#!/usr/bin/env rayvn-bash` ensures bash 5.3+ if available, regardless of system defaults.
-- `source rayvn.up` bootstraps rayvn; `rayvn/core` library is always loaded automatically.
+- `source rayvn.up` bootstraps rayvn, loads the `rayvn/core` library and sets `scriptName`. 
 - The `show` function is in `rayvn/core` and supports colored/styled text output.
 - All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
 - Pass library names to load additional libraries: `source rayvn.up 'rayvn/spinner' 'rayvn/prompt'`.

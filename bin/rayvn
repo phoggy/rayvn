@@ -6,7 +6,7 @@ usage() {
     echo
     show bold "Create and manage rayvn projects, shared libraries, scripts and tests."
     echo
-    show "Usage:" bold "rayvn" "COMMAND [PROJECT] [PROJECT...] <options>"
+    show "Usage:" bold blue "${scriptName}" "COMMAND [PROJECT] [PROJECT...] <options>"
     echo
     echo "Commands"
     echo
@@ -27,7 +27,7 @@ usage() {
     echo
     echo "Use COMMAND --help for additional details. PROJECT defaults to the current directory's project"
     show "if within one, otherwise to" italic "\${RAYVN_DEFAULT_PROJECT}" "(default: rayvn). Set to empty to require"
-    echo "an explicit project name."
+    echo "an explicit project name. Most commands accept multiple project names."
     echo
     echo "Options"
     echo
