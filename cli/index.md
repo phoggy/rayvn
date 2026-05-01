@@ -34,7 +34,7 @@ Commands
 
 Use COMMAND --help for additional details. PROJECT defaults to the current directory's project
 if within one, otherwise to ${RAYVN_DEFAULT_PROJECT} (default: rayvn). Set to empty to require
-an explicit project name.
+an explicit project name. Most commands accept multiple project names.
 
 Options
 
@@ -48,12 +48,8 @@ Debug Options
     --debug-new      Enable debug, clear log file, write output to log file and show on exit.
     --debug-out      Enable debug, write output to the current terminal.
     --debug-tty TTY  Enable debug, write output to the specified TTY (e.g., /dev/ttys001).
-    --debug-tty .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file
-
+    --debug-tty .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file.
 ```
-
-`PROJECT` defaults to the current directory's project when run from within a rayvn project. Most
-commands accept multiple project names to operate on several at once.
 
 Note: All examples below assume rayvn as the working directory so omit `PROJECT`.
 
