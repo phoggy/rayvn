@@ -171,11 +171,9 @@ runPages() {
     elif (( view )); then
         show bold "Starting Jekyll server in ${ tildePath "${dir}"; }"
         cd "${dir}" || fail "could not cd to ${dir}"
-        bundle check 2>/dev/null || bundle install 2>/dev/null || {
-            show "Installing bundler..."
-            gem install bundler || fail "gem install bundler failed"
-            bundle install || fail "bundle install failed"
-        }
+        require 'rayvn/dependencies'
+        checkGemDependencies 'rayvn'
+        bundle check 2>/dev/null || bundle install || fail "bundle install failed"
         bundle exec jekyll serve
     fi
 }

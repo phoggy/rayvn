@@ -15,6 +15,7 @@
 #   nixBinaryMap    Map of nix pkg name → binary name overrides. [R/W]
 #   nixBrewMap      Map of nix pkg name → brew formula overrides. [R/W]
 #   nixBrewExclude  Array of nix pkg names to skip brew checks for. [R/W]
+#   gemDeps         Map of gem name → binary name for Ruby gem dependencies. [R/W]
 
 checkProjectDependencies() {
     local projectName="$1"
@@ -25,7 +26,7 @@ checkProjectDependencies() {
 
     # Load overrides from rayvn.pkg (nixBinaryMap for correct binary names, nixBrewMap for install hints)
     local pkgFile="${projectRoot}/rayvn.pkg"
-    unset nixBinaryMap nixBrewMap nixBrewExclude
+    unset nixBinaryMap nixBrewMap nixBrewExclude gemDeps
     [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
 
     # Check each dep
@@ -53,10 +54,10 @@ checkProjectDependencies() {
             nixN="${entry%%:*}"
             binN="${entry##*:}"
             formula="${nixBrewMap[${nixN}]:-${nixN}}"
-            if [[ ${binX} == "${nixX}" ]]; then
-                show bold "${projectName}" "missing required dependency:" primary ${binN} >&2
+            if [[ ${binN} == "${nixN}" ]]; then
+                show bold "${projectName}" "missing required dependency:" primary "${binN}" >&2
             else
-                show bold "${projectName}" "missing required dependency:" primary ${binN} "(${nixN} for nix)" >&2
+                show bold "${projectName}" "missing required dependency:" primary "${binN}" "(${nixN} for nix)" >&2
             fi
             echo
             show "  brew envs:" primary "brew install ${formula}" >&2
@@ -64,6 +65,62 @@ checkProjectDependencies() {
             echo
         done
         fail "required dependencies not found"
+    fi
+
+    checkGemDependencies "${projectName}" "${projectRoot}"
+}
+
+# ◇ Check that all Ruby gem dependencies for a project are available in PATH, printing install hints and failing
+#   if any are missing. Reads gemDeps from rayvn.pkg. Silently succeeds if no gemDeps are declared.
+#
+# · ARGS
+#
+#   projectName (string)  Name of the rayvn project to check.
+#   projectRoot (string)  Root path of the project; defaults to ${projectName}Home or PWD.
+#
+# · ENV VARS (from rayvn.pkg)
+#
+#   gemDeps  Map of gem package name → binary name (e.g. [bundler]='bundle'). [R/W]
+
+checkGemDependencies() {
+    local projectName="$1"
+    local projectRoot="${2:-}"
+
+    if [[ -z ${projectRoot} ]]; then
+        local homeVar="${projectName//-/_}Home"
+        projectRoot="${!homeVar:-${PWD}}"
+    fi
+
+    local pkgFile="${projectRoot}/rayvn.pkg"
+    [[ -f "${pkgFile}" ]] || return 0
+
+    unset gemDeps
+    sourceConfigFile "${pkgFile}"
+    (( ${#gemDeps[@]} )) || return 0
+
+    local missing=() gemName binName
+    for gemName in "${!gemDeps[@]}"; do
+        binName="${gemDeps[${gemName}]}"
+        command -v "${binName}" &>/dev/null || missing+=("${gemName}:${binName}")
+    done
+
+    if (( ${#missing[@]} )); then
+        local entry gemAvailable=0
+        command -v gem &>/dev/null && gemAvailable=1
+        for entry in "${missing[@]}"; do
+            gemName="${entry%%:*}"
+            binName="${entry##*:}"
+            show bold "${projectName}" "missing required dependency:" primary "${binName}" >&2
+            echo
+            if (( gemAvailable )); then
+                show "  brew envs:" primary "gem install ${gemName}" >&2
+            else
+                show "  brew envs:" primary "brew install ruby" dim "(then: gem install ${gemName})" >&2
+            fi
+            show "   nix envs:" primary "nix profile install github:phoggy/${projectName}" >&2
+            echo
+        done
+        fail "required gem dependencies not found"
     fi
 }
 

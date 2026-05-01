@@ -7,6 +7,7 @@ projectReleaseDate=''
 docsWorktree='../rayvn-pages'
 
 # Brew formula metadata (used by rayvn/dependencies for formula generation and runtime dep checks)
-declare -A nixBrewMap=([gnused]='gnu-sed')  # nix pkg name → homebrew formula name when they differ
-declare -A nixBinaryMap=([gnused]='gsed' [bundler]='bundle')   # nix pkg name → binary name when they differ
-declare -a nixBrewExclude=()  # nothing to exclude; gawk→gawk and gh→gh are 1:1
+declare -A nixBrewMap=([gnused]='gnu-sed')                      # nix pkg name → homebrew formula name when they differ
+declare -A nixBinaryMap=([gnused]='gsed' [bundler]='bundle')    # nix pkg name → binary name when they differ
+declare -a nixBrewExclude=('bundler' 'jekyll')                  # excluded from brew formula (managed via gemDeps instead)
+declare -A gemDeps=([bundler]='bundle')                         # gem name → binary name; jekyll is managed by bundler via Gemfile
