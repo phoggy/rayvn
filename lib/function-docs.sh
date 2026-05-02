@@ -124,6 +124,7 @@ updateDocs() {
     (( ${#libFiles[@]} > 0 )) || fail "No library files found"
 
     _checkAndUpdateHashes --progress "${libFiles[@]}"
+    _saveHashes
 
     # Build list of functions to process
     local -a targets=()

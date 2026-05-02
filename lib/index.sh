@@ -42,6 +42,7 @@ runIndex() {
     # Check for changed functions and update hashes
     if (( _idxDoHash )); then
         _checkAndUpdateHashes "${libFiles[@]}"
+        _saveHashes
     fi
 }
 
@@ -1830,8 +1831,6 @@ _checkAndUpdateHashes() {
             fi
         fi
     done
-
-    _saveHashes
 
     local isFirstRun=false
     (( ${#_idxStoredHashes[@]} == 0 )) && isFirstRun=true
