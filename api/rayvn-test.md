@@ -52,6 +52,20 @@ Fails with a message if two strings are not equal.
 | `message` *(string)* | Optional custom failure message. |
 {: .args-table}
 
+### assertNotEqual()
+
+Fails with a message if two strings are equal.
+
+
+*args*
+
+| | |
+|---|---|
+| `unexpected` *(string)* | Value that actual should not equal. |
+| `actual` *(string)* | Actual value. |
+| `message` *(string)* | Optional custom failure message. |
+{: .args-table}
+
 ### assertEqualStripped()
 
 Fail if expected does not equal actual after stripping ANSI escape codes from actual.

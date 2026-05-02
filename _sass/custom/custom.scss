@@ -44,6 +44,7 @@
   --light-primary-variant: #3700bc;   // material light primary variant
   --light-secondary: #bb86fc;         // material light secondary
 
+  --body-size: 0.95em;
   --code-size: 0.95em;
 
   @if $color-scheme == dark {
@@ -83,6 +84,7 @@
 
 body {
   font-family: var(--body-font-stack);
+  font-size: var(--body-size);
 }
 
 // <weight>: Use a value from 100 to 900
@@ -196,6 +198,7 @@ div.highlighter-rouge div.highlight {
 // Style the usage signature paragraph (rendered above the usage table)
 .usage-signature {
   font-weight: bold;
+  font-size: var(--code-size);
   margin-bottom: 0.25rem;
 }
 
