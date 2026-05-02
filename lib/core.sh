@@ -516,8 +516,8 @@ assertPathWithinDirectory() {
     local filePath=$1
     local dirPath=$2
     local absoluteFile absoluteDir
-    absoluteFile=${ realpath "${filePath}" 2>/dev/null;} || fail
-    absoluteDir=${ realpath "${dirPath}" 2>/dev/null;} || fail
+    absoluteFile=${ realpath "${filePath}" 2> /dev/null;} || fail
+    absoluteDir=${ realpath "${dirPath}" 2> /dev/null;} || fail
     [[ "${absoluteFile}" == ${absoluteDir}/* ]] || fail "${filePath} is not within ${dirPath}"
 }
 
@@ -1093,7 +1093,7 @@ makeSecureTempDir() {
         # hdiutil RAM disk — ~1–2s overhead to format and mount; no sudo required
         local _diskSectors=$(( _dirSizeMb * 2048 ))
         local _diskDevice
-        _diskDevice=${ hdiutil attach -nomount "ram://${_diskSectors}" 2>/dev/null; }
+        _diskDevice=${ hdiutil attach -nomount "ram://${_diskSectors}" 2> /dev/null; }
         _diskDevice="${_diskDevice// /}"
         if [[ -n ${_diskDevice} ]]; then
             local _diskLabel="rayvn-s-$$-${#_hdiutilSecureDevices[@]}"
@@ -1165,7 +1165,7 @@ configDirPath() {
 ensureDir() {
     local dir="$1"
     if [[ ! -d ${dir} ]]; then
-        makeDir "${dir}" >/dev/null
+        makeDir "${dir}" > /dev/null
     fi
 }
 
@@ -1843,6 +1843,6 @@ _onRayvnExit() {
     # Delete temp dir if we created it
 
     if [[ -n ${_rayvnTempDir} ]] && (( BASHPID == _rayvnTempDirOwner )); then
-        rm -rf -- "${_rayvnTempDir}" &>/dev/null
+        rm -rf -- "${_rayvnTempDir}" &> /dev/null
     fi
 }

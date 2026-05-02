@@ -61,52 +61,52 @@ testLintCleanFile() {
     local val="$1"
     [[ -n "${val}" ]] && echo "${val}"
 }' > /dev/null
-    assertTrue "runLint passes on clean file" runLint "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint passes on clean file" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsBracedPositional() {
     _writeLintFixture "braced-pos.sh" 'myFunc() { echo ${1}; }' > /dev/null
-    assertFalse "runLint detects \${1} braced positional param" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects \${1} braced positional param" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsBracedSpecial() {
     _writeLintFixture "braced-special.sh" 'myFunc() { echo ${@}; }' > /dev/null
-    assertFalse "runLint detects \${@} braced special param" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects \${@} braced special param" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsStrictMode() {
     _writeLintFixture "strict.sh" 'set -e' > /dev/null
-    assertFalse "runLint detects set -e strict mode" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects set -e strict mode" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsOldStyleCommandSub() {
     _writeLintFixture "oldsub.sh" 'myFunc() { local x=$(echo hi); }' > /dev/null
-    assertFalse "runLint detects old-style \$(cmd) command substitution" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects old-style \$(cmd) command substitution" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsMissingSpaces() {
     _writeLintFixture "spaces.sh" 'myFunc() { if [[ ! -z "$1" ]]; then echo hi; fi; }' > /dev/null
-    assertFalse "runLint detects missing space after [[ " runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects missing space after [[ " runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsNonCamelCase() {
     _writeLintFixture "snake.sh" 'my_func() { echo hi; }' > /dev/null
-    assertFalse "runLint detects snake_case function name" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects snake_case function name" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsNonCamelCaseVar() {
     _writeLintFixture "snake-var.sh" $'myFunc() {\n    local my_var="x"\n}' > /dev/null
-    assertFalse "runLint detects snake_case variable name" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects snake_case variable name" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsNonRefNameref() {
     _writeLintFixture "nameref.sh" $'myFunc() {\n    local -n target=$1\n}' > /dev/null
-    assertFalse "runLint detects nameref not ending in Ref" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects nameref not ending in Ref" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintDetectsBareNamedVar() {
     _writeLintFixture "bare-var.sh" 'myFunc() { local foo=1; echo $foo; }' > /dev/null
-    assertFalse "runLint detects bare named var without \${}" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects bare named var without \${}" runLint "${lintTestProject}" 2> /dev/null
 }
 
 # ============================================================================
@@ -116,7 +116,7 @@ testLintDetectsBareNamedVar() {
 testLintFixesBracedPositional() {
     rm -f "${lintTestRoot}"/lib/*.sh
     local file; file=${ _writeLintFixture "fix-pos.sh" 'myFunc() { echo ${1}; }'; }
-    assertTrue "runLint --fix corrects \${1}" runLint --fix "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint --fix corrects \${1}" runLint --fix "${lintTestProject}" 2> /dev/null
     assertInFile '$1' "${file}"
     assertNotInFile '${1}' "${file}"
 }
@@ -125,13 +125,13 @@ testLintFixesSpacing() {
     rm -f "${lintTestRoot}"/lib/*.sh
     local file; file=${ _writeLintFixture "fix-space.sh" 'myFunc() { (( x=1 )); }'; }
     # lint-ok
-    assertTrue "runLint --fix corrects (( spacing" runLint --fix "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint --fix corrects (( spacing" runLint --fix "${lintTestProject}" 2> /dev/null
 }
 
 testLintFixesStrictMode() {
     rm -f "${lintTestRoot}"/lib/*.sh
     local file; file=${ _writeLintFixture "fix-strict.sh" $'set -e\nmyFunc() { echo hi; }'; }
-    assertTrue "runLint --fix removes strict mode line" runLint --fix "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint --fix removes strict mode line" runLint --fix "${lintTestProject}" 2> /dev/null
     assertNotInFile 'set -e' "${file}"
 }
 
@@ -153,7 +153,7 @@ testLintDetectsImplicitGlobal() {
     _writeLintFixture "implicit-global.sh" 'publicFunc() {
     implicitVar="hello"
 }' > /dev/null
-    assertFalse "runLint detects implicit global in public function" runLint "${lintTestProject}" 2>/dev/null
+    assertFalse "runLint detects implicit global in public function" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintAllowsDeclareGlobal() {
@@ -164,7 +164,7 @@ testLintAllowsDeclareGlobal() {
 publicFunc() {
     myGlobal="hello"
 }' > /dev/null
-    assertTrue "runLint allows assignment to declared -g global" runLint "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint allows assignment to declared -g global" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintAllowsLocalVar() {
@@ -173,7 +173,7 @@ testLintAllowsLocalVar() {
     local myVar
     myVar="hello"
 }' > /dev/null
-    assertTrue "runLint allows assignment to declared local variable" runLint "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint allows assignment to declared local variable" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintAllowsPrivateFunction() {
@@ -181,7 +181,7 @@ testLintAllowsPrivateFunction() {
     _writeLintFixture "private-func.sh" '_privateFunc() {
     bareVar="hello"
 }' > /dev/null
-    assertTrue "runLint allows bare assignment in private (_) function" runLint "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint allows bare assignment in private (_) function" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintAllowsInitFunction() {
@@ -189,7 +189,7 @@ testLintAllowsInitFunction() {
     _writeLintFixture "init-func.sh" 'init() {
     bareVar="hello"
 }' > /dev/null
-    assertTrue "runLint allows bare assignment in init() function" runLint "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint allows bare assignment in init() function" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintAllowsPathAssignment() {
@@ -197,7 +197,7 @@ testLintAllowsPathAssignment() {
     _writeLintFixture "path-var.sh" 'publicFunc() {
     PATH="/usr/bin:${PATH}"
 }' > /dev/null
-    assertTrue "runLint allows PATH assignment (special shell variable)" runLint "${lintTestProject}" 2>/dev/null
+    assertTrue "runLint allows PATH assignment (special shell variable)" runLint "${lintTestProject}" 2> /dev/null
 }
 
 testLintImplicitGlobalLintOk() {

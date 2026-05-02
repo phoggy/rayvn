@@ -48,6 +48,19 @@ assertEqual() {
     [[ $1 == "$2" ]] || fail "${msg}"
 }
 
+# ◇ Fails with a message if two strings are equal.
+#
+# · ARGS
+#
+#   unexpected (string)  Value that actual should not equal.
+#   actual (string)      Actual value.
+#   message (string)     Optional custom failure message.
+
+assertNotEqual() {
+    local msg="${3:-"assert '$1' != '$2' failed"}"
+    [[ $1 != "$2" ]] || fail "${msg}"
+}
+
 # ◇ Fail if expected does not equal actual after stripping ANSI escape codes from actual.
 #
 # · ARGS
@@ -324,7 +337,7 @@ assertArrayEquals() {
 assertHashTableIsDefined() {
     local varName=$1
     assertVarIsDefined ${varName}
-    [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
+    [[ "${ declare -p ${varName} 2> /dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
 }
 
 # ◇ Fail if an associative array variable is currently defined.

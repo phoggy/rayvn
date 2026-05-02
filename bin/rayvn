@@ -206,7 +206,7 @@ newCmd() {
             *) bye "unknown type: ${type}"
         esac
         [[ -n "${name}" ]] || bye "name required"
-        local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2>/dev/null; } || gitRoot=''
+        local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
         local templateDir="${rayvnHome}/templates"
         args=("${args[@]:3}")
 
@@ -550,7 +550,7 @@ getFunctions() {
     local -n arrayRef="$2"
     local _functions
     assertFile "${sourcePath}"
-    _functions=${ bash --norc --noprofile -c "source '${sourcePath}' 2>/dev/null; compgen -A function;"; } || return 1
+    _functions=${ bash --norc --noprofile -c "source '${sourcePath}' 2> /dev/null; compgen -A function;"; } || return 1
     _functions=(${ printf '%s\n' "${_functions[@]}" | sort; })
     arrayRef=("${_functions[@]}")
 }

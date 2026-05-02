@@ -57,15 +57,15 @@ checkBashVersion() {
     [ -x "${bashPath}" ] || return 1
 
     # Get version info (e.g., "5.3.0(1)-release")
-    version=$("${bashPath}" -c 'echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"' 2>/dev/null) || return 1
+    version=$("${bashPath}" -c 'echo "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}"' 2> /dev/null) || return 1
 
     major="${version%%.*}"
     minor="${version#*.}"
 
     # Check version: major > minMajor, or major == minMajor and minor >= minMinor
-    if [ "${major}" -gt "${minMajor}" ] 2>/dev/null; then
+    if [ "${major}" -gt "${minMajor}" ] 2> /dev/null; then
         return 0
-    elif [ "${major}" -eq "${minMajor}" ] 2>/dev/null && [ "${minor}" -ge "${minMinor}" ] 2>/dev/null; then
+    elif [ "${major}" -eq "${minMajor}" ] 2> /dev/null && [ "${minor}" -ge "${minMinor}" ] 2> /dev/null; then
         return 0
     fi
     return 1
@@ -117,8 +117,8 @@ findBash() {
 
 # Cache the found bash path
 cacheBash() {
-    mkdir -p "${cacheDir}" 2>/dev/null
-    echo "$1" > "${cacheFile}" 2>/dev/null
+    mkdir -p "${cacheDir}" 2> /dev/null
+    echo "$1" > "${cacheFile}" 2> /dev/null
 }
 
 main "$@"

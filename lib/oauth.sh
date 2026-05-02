@@ -389,6 +389,7 @@ _findFreePort() {
 }
 
 _oAuthSuccessHtml() {
+    # lint-skip-start
     cat <<'EOF'
 <!DOCTYPE html>
 <html>
@@ -447,4 +448,5 @@ _oAuthSuccessHtml() {
 </body>
 </html>
 EOF
+    # lint-skip-end
 }

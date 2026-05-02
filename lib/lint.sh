@@ -368,6 +368,9 @@ _lintRunChecks() {
     _lintCheck '\|\s*while\b'                       "${_lintRunChecksFile}" 'pipe to while — use process substitution: while ... done < <(cmd)' \
                                                                                                                                         NONE                  _lintRunChecksRef _lintRunChecksFixRef
     _lintCheck '\breadarray\b'                      "${_lintRunChecksFile}" 'readarray — use mapfile instead'                          READARRAY             _lintRunChecksRef _lintRunChecksFixRef
+    _lintCheck '(?:<<<(?!\s)|<>(?!\s)|[0-9]*(?:>>(?!\s)|(?<!\\)>(?![>&=\s])|(?<!<)(?<!\\)<(?![<>&(=\s]))|&>>(?!\s)|&>(?![>\s]))' \
+                                                    "${_lintRunChecksFile}" 'redirect operator without space — e.g. 2> /dev/null not 2>/dev/null' \
+                                                                                                                                        REDIRECT_NO_SPACE     _lintRunChecksRef _lintRunChecksFixRef
 
     # Stateful gawk check: local/declare combined with command substitution assignment.
     # Prefer: local foo; foo=${ cmd; }  so that || fail can be used on the assignment.
@@ -535,6 +538,13 @@ _fixLine() {
             gsed -i -E "${lineNum}"'s/\[\[ ! (\$\{[^}]+\}) \]\]/[[ -z \1 ]]/g' "${file}" ;;
         READARRAY)
             gsed -i -E "${lineNum}"'s/\breadarray\b/mapfile/g' "${file}" ;;
+        REDIRECT_NO_SPACE)
+            gsed -i -E "${lineNum}"'s/<<<([^ \t])/<<< \1/g' "${file}"
+            gsed -i -E "${lineNum}"'s/<>([^ \t])/<> \1/g' "${file}"
+            gsed -i -E "${lineNum}"'s/([0-9]*|&)(>>)([^ \t])/\1\2 \3/g' "${file}"
+            gsed -i -E "${lineNum}"'s/(&>)([^ \t>])/\1 \2/g' "${file}"
+            gsed -i -E "${lineNum}"'s/([0-9]*)>([^ \t>&=])/\1> \2/g' "${file}"
+            gsed -i -E "${lineNum}"'s/([0-9]*)<([^ \t<>&(=])/\1< \2/g' "${file}" ;;
         LOCAL_CMD_SUB)
             # Case 1: value is double-quoted cmd sub → drop outer quotes
             # Uses .* to handle inner " (e.g. "${ cmd "${var}"; }")

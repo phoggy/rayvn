@@ -66,7 +66,7 @@ _checkNamespaces() {
     local knownProject
     for knownProject in rayvn valt wardn; do
         [[ -v "_rayvnProjects[${knownProject}${_projectRootSuffix}]" ]] || \
-            _addRayvnProject "${knownProject}" 2>/dev/null || true
+            _addRayvnProject "${knownProject}" 2> /dev/null || true
     done
     checkNamespaces || fail "Namespace collisions found — fix before releasing"
 }

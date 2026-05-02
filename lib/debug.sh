@@ -235,7 +235,7 @@ debugFileDescriptors() {
             description="fd ${fd} in $1 (pid ${BASHPID})"
         fi
 
-        mode=${ lsof -a -p ${BASHPID} -d ${fd} -F a 2>/dev/null; }
+        mode=${ lsof -a -p ${BASHPID} -d ${fd} -F a 2> /dev/null; }
         mode=${ echo ${mode} | cut -d' ' -f3; }
 
         if [[ -z "${mode}" ]]; then

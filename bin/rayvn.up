@@ -453,7 +453,7 @@ if ! (( rayvnTest_DeferCore )); then
         echo -e "\033[0;31m🔺 rayvn requires gawk (GNU awk). Install via 'brew install gawk' or your package manager.\033[0m"; exit 1
     fi
     if ! command -v gsed &> /dev/null; then
-        if sed --version 2>/dev/null | grep -q 'GNU sed'; then
+        if sed --version 2> /dev/null | grep -q 'GNU sed'; then
             gsed() { sed "$@"; }
         else
             echo -e "\033[0;31m🔺 rayvn requires GNU sed. Install via 'brew install gnu-sed' (macOS) or your package manager.\033[0m"; exit 1

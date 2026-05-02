@@ -81,13 +81,13 @@ _assertPrerequisites() {
 _assertArrayIsDefined() {
     local varName=$1
     _assertVarIsDefined ${varName}
-    [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -a" ]] || fail "${varName} is not an array"
+    [[ "${ declare -p ${varName} 2> /dev/null; }" =~ "declare -a" ]] || fail "${varName} is not an array"
 }
 
 _assertHashTableIsDefined() {
     local varName=$1
     _assertVarIsDefined ${varName}
-    [[ "${ declare -p ${varName} 2>/dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
+    [[ "${ declare -p ${varName} 2> /dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
 }
 
 _assertVarIsDefined() {

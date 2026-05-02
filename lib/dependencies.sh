@@ -101,12 +101,12 @@ checkGemDependencies() {
     local missing=() gemName binName
     for gemName in "${!gemDeps[@]}"; do
         binName="${gemDeps[${gemName}]}"
-        command -v "${binName}" &>/dev/null || missing+=("${gemName}:${binName}")
+        command -v "${binName}" &> /dev/null || missing+=("${gemName}:${binName}")
     done
 
     if (( ${#missing[@]} )); then
         local entry gemAvailable=0
-        command -v gem &>/dev/null && gemAvailable=1
+        command -v gem &> /dev/null && gemAvailable=1
         for entry in "${missing[@]}"; do
             gemName="${entry%%:*}"
             binName="${entry##*:}"

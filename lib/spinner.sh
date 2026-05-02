@@ -142,8 +142,8 @@ removeSpinner() {
 
 spinnerCloseInheritedFds() {
     (( _spinnerFirstRequest )) && return  # Not initialized; nothing to close
-    exec {_spinnerClientRequestFd}>&- 2>/dev/null
-    exec {_spinnerClientResponseFd}<&- 2>/dev/null
+    exec {_spinnerClientRequestFd}>&- 2> /dev/null
+    exec {_spinnerClientResponseFd}<&- 2> /dev/null
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/spinner' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -194,8 +194,8 @@ _initSpinnerClient() {
     declare -g _spinnerClientRequestFd=
     declare -g _spinnerClientResponseFd=
 
-    exec {_spinnerClientRequestFd}>${_spinnerRequestFifo}
-    exec {_spinnerClientResponseFd}<${_spinnerResponseFifo}
+    exec {_spinnerClientRequestFd}> ${_spinnerRequestFifo}
+    exec {_spinnerClientResponseFd}< ${_spinnerResponseFifo}
 
     # Normal response wait seconds
 
@@ -220,8 +220,8 @@ _initSpinnerServer() {
     declare -g _spinnerServerRequestFd
     declare -g _spinnerServerResponseFd
 
-    exec {_spinnerServerRequestFd}<${_spinnerRequestFifo}
-    exec {_spinnerServerResponseFd}>${_spinnerResponseFifo}
+    exec {_spinnerServerRequestFd}< ${_spinnerRequestFifo}
+    exec {_spinnerServerResponseFd}> ${_spinnerResponseFifo}
 
     # Spinner state
 
@@ -327,7 +327,7 @@ _spinnerExit() {
 
 _shutdownSpinnerServer() {
     if (( _spinnerServerPid )); then
-        kill -TERM "${_spinnerServerPid}" 2>/dev/null
+        kill -TERM "${_spinnerServerPid}" 2> /dev/null
         if ! waitForProcessExit "${_spinnerServerPid}" 4000 10 500; then
             error "spinner process ${_spinnerServerPid} didn't exit"
         fi

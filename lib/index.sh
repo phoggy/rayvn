@@ -99,7 +99,7 @@ runPages() {
 
     if [[ -z "${dir}" ]]; then
         dir=${ _getDocsWorktree "${projectName}" "${projectRoot}"; }
-        dir=${ realpath "${dir}" 2>/dev/null || echo "${dir}"; }
+        dir=${ realpath "${dir}" 2> /dev/null || echo "${dir}"; }
     fi
 
     if (( setup )); then
@@ -148,7 +148,7 @@ runPages() {
         fi
         if (( pushed )); then
             local remoteUrl ghRepo
-            remoteUrl=${ git -C "${dir}" remote get-url origin 2>/dev/null; }
+            remoteUrl=${ git -C "${dir}" remote get-url origin 2> /dev/null; }
             if [[ "${remoteUrl}" =~ github\.com[:/]([^/]+)/([^/]+) ]]; then
                 ghRepo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]%.git}"
                 show "Watching GitHub Pages deployment..."
@@ -157,7 +157,7 @@ runPages() {
                     sleep 2
                     runId=${ gh run list --repo "${ghRepo}" --workflow deploy-pages.yml \
                              --limit 1 --json databaseId,status \
-                             --jq '.[] | select(.status != "completed") | .databaseId' 2>/dev/null; }
+                             --jq '.[] | select(.status != "completed") | .databaseId' 2> /dev/null; }
                 done
                 if [[ -n "${runId}" ]]; then
                     gh run watch "${runId}" --repo "${ghRepo}" --exit-status || \
@@ -173,7 +173,7 @@ runPages() {
         cd "${dir}" || fail "could not cd to ${dir}"
         require 'rayvn/dependencies'
         checkGemDependencies 'rayvn'
-        bundle check 2>/dev/null || bundle install || fail "bundle install failed"
+        bundle check 2> /dev/null || bundle install || fail "bundle install failed"
         bundle exec jekyll serve
     fi
 }
@@ -302,7 +302,7 @@ _ensurePagesFiles() {
     local worktreePath="$3"
     local publish=${4:-0}
 
-    local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
+    local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2> /dev/null; }
     local githubUser; githubUser=${ echo "${remoteUrl}" | gsed -E 's|.*github\.com[:/]([^/]+)/.*|\1|'; }
 
     local gemfile="${worktreePath}/Gemfile"
@@ -329,6 +329,7 @@ _ensurePagesFiles() {
     local footerFile="${includesDir}/nav_footer_custom.html"
     if [[ ! -f "${footerFile}" ]]; then
         ensureDir "${includesDir}"
+        # lint-skip-start
         cat > "${footerFile}" << 'EOF'
 <button id="theme-toggle" class="btn"></button>
 
@@ -354,6 +355,7 @@ _ensurePagesFiles() {
   })();
 </script>
 EOF
+        # lint-skip-end
         show "Created _includes/nav_footer_custom.html"
     fi
 
@@ -491,7 +493,7 @@ EOF
 _showPagesSetupInstructions() {
     local projectName="$1"
     local projectRoot="$2"
-    local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2>/dev/null; }
+    local remoteUrl; remoteUrl=${ git -C "${projectRoot}" remote get-url origin 2> /dev/null; }
     local repoUrl="${remoteUrl%.git}"
 
     echo
@@ -565,7 +567,7 @@ findDependencies() {
     local -a confirmedBins=()
     local cmdPath
     for word in "${externalCmds[@]}"; do
-        cmdPath=${ command -v "${word}" 2>/dev/null; }
+        cmdPath=${ command -v "${word}" 2> /dev/null; }
         # Only accept absolute paths — shell functions/aliases don't return a path
         [[ "${cmdPath}" == /* ]] && confirmedBins+=("${word}")
     done
@@ -779,7 +781,7 @@ _getDocsWorktree() {
     if [[ -f "${pkgFile}" ]]; then
         docsWorktree=${ (
             local docsWorktree=''
-            source "${pkgFile}" 2>/dev/null
+            source "${pkgFile}" 2> /dev/null
             echo "${docsWorktree}"
         ); }
     fi
@@ -1568,7 +1570,7 @@ _extractDocBlock() {
 # If the file already exists, only adds sections for commands not yet documented.
 _generateCliPage() {
     local outFile="${_idxDocsDir}/cli/index.md"
-    local rayvnBin; rayvnBin=${ command -v rayvn 2>/dev/null; }
+    local rayvnBin; rayvnBin=${ command -v rayvn 2> /dev/null; }
 
     if [[ -z "${rayvnBin}" ]]; then
         warn "rayvn not found in PATH, skipping CLI page"
@@ -1962,7 +1964,7 @@ _findDepsLoadFunctions() {
     fi
 
     # From rayvn.up (defines bootstrap functions like require, fail, configure)
-    local rayvnUp; rayvnUp=${ command -v rayvn.up 2>/dev/null; }
+    local rayvnUp; rayvnUp=${ command -v rayvn.up 2> /dev/null; }
     if [[ -n "${rayvnUp}" && -f "${rayvnUp}" ]]; then
         local line
         while IFS= read -r line; do

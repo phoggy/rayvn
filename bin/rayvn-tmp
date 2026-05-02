@@ -104,6 +104,7 @@ install() {
     local plistDest='/Library/LaunchDaemons/org.rayvn.shm.plist'
     local plistFile; plistFile="${ makeTempFile 'rayvn-shm-plist-XXXXXX'; }"
 
+    # lint-skip-start
     cat > "${plistFile}" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -122,6 +123,7 @@ install() {
 </dict>
 </plist>
 EOF
+    # lint-skip-end
 
     echo
     show "Installing LaunchDaemon to" bold "${plistDest}"
@@ -148,7 +150,7 @@ uninstall() {
         show "Removing LaunchDaemon" bold "${plistDest}"
         show muted "(sudo required)"
         echo
-        sudo launchctl unload "${plistDest}" 2>/dev/null || true
+        sudo launchctl unload "${plistDest}" 2> /dev/null || true
         sudo rm "${plistDest}" || fail "failed to remove plist"
         show success "LaunchDaemon removed."
     else
@@ -166,7 +168,7 @@ uninstall() {
 _isMacOSSupportedVersion() {
     local major minor
     IFS='.' read -r major minor _ < <(sw_vers -productVersion)
-    (( major > 10 || (major == 10 && minor >= 15) ))
+    (( major > 10 || (major == 10 && minor > = 15) ))
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/prompt' || exit

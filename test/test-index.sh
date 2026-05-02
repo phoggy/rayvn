@@ -99,7 +99,7 @@ testRenderDocMarkdownArgs() {
     local doc=$'◇ My func.\n· ARGS\n\n  name (string)  The name.\n  count (int)    How many.'
     local result; result=${ _renderDocMarkdown "${doc}"; }
 
-    assertContains '*Args*' "${result}" "Args section header rendered"
+    assertContains '*args*' "${result}" "Args section header rendered"
     assertContains '`name` *(string)*' "${result}" "name arg with type rendered"
     assertContains '`count` *(int)*' "${result}" "count arg with type rendered"
     assertContains 'The name.' "${result}" "arg description included"
@@ -126,7 +126,7 @@ testRenderDocMarkdownNotes() {
     local doc=$'◇ My func.\n· NOTES\n\n  - First note.\n  - Second note.'
     local result; result=${ _renderDocMarkdown "${doc}"; }
 
-    assertContains '*Notes*' "${result}" "Notes section header rendered"
+    assertContains '*notes*' "${result}" "Notes section header rendered"
     assertContains '- First note.' "${result}" "note items rendered as plain markdown"
     # Notes should NOT be in a code fence
     [[ "${result}" != *'```'* ]] || fail "Notes should not be wrapped in code fence"

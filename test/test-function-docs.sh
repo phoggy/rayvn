@@ -52,8 +52,8 @@ testParseDuration() {
     result=${ _parseDuration '10m'; }
     assertEqual '600' "${result}" "_parseDuration: 10m = 600s"
 
-    assertFalse "_parseDuration fails on invalid format" _parseDuration 'bad' 2>/dev/null
-    assertFalse "_parseDuration fails on missing unit" _parseDuration '30' 2>/dev/null
+    assertFalse "_parseDuration fails on invalid format" _parseDuration 'bad' 2> /dev/null
+    assertFalse "_parseDuration fails on missing unit" _parseDuration '30' 2> /dev/null
 }
 
 # ============================================================================

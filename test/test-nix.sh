@@ -27,7 +27,7 @@ init() {
 testNixBuild() {
     echo "nix build path:${rayvnHome}"
     local storePath
-    storePath=${ nix build "path:${rayvnHome}" --no-link --print-out-paths 2>/dev/null; }
+    storePath=${ nix build "path:${rayvnHome}" --no-link --print-out-paths 2> /dev/null; }
     [[ -n "${storePath}" ]] || fail "nix build should produce a store path"
     echo "store path: ${storePath}"
 
@@ -43,7 +43,7 @@ testNixBuild() {
 
 testNixProfileInstall() {
     echo "nix profile install path:${rayvnHome} --profile ${testProfile}"
-    nix profile install "path:${rayvnHome}" --profile "${testProfile}" 2>/dev/null \
+    nix profile install "path:${rayvnHome}" --profile "${testProfile}" 2> /dev/null \
         || fail "nix profile install should succeed"
 
     assertFileExists "${testProfile}/bin/rayvn"
