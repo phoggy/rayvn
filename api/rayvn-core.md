@@ -934,10 +934,10 @@ Enable debug mode.
 
 | | |
 |---|---|
-| `--debug` | Enable debug, write output to log file and show on exit." |
-| `--debug-new` | Enable debug, clear log file, write output to log file and show on exit." |
-| `--debug-out` | Enable debug, write output to the current terminal." |
-| `--debug-tty` | TTY  Enable debug, write output to the specified TTY (e.g., /dev/ttys001)." |
-| `--debug-tty` | .    Enable debug, write output to the TTY path read from the '~/.debug.tty' file." |
+| `--debug` | Enable debug, write output to log file and show on exit. |
+| `--debug-new` | Enable debug, clear log file, write output to log file and show on exit. |
+| `--debug-out` | Enable debug, write output to the current terminal. |
+| `--debug-tty TTY` *(string)* | Enable debug, write output to the specified TTY (e.g., /dev/ttys001). |
+| `--debug-tty .  ` *(string)* | Enable debug, write output to the TTY path read from ~/.debug.tty. |
 {: .usage-table}
 
