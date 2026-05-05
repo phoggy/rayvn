@@ -55,20 +55,20 @@ auditDocs() {
     return 0
 }
 
-# ◇ Generate or update doc comments for public functions using the Claude API; applies changes directly.
+# ◇ Generate or update doc comments for public functions using the Claude API.
 #
 # · USAGE
 #
 #   updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
 #
-#   --dry-run                   Print proposed docs without writing any changes.
-#   --regen                     Regenerate docs for all public functions, not just missing/stale.
-#   --missing-only              Only process functions missing a ◇ doc comment.
-#   --stale-only                Only process functions with potentially stale docs.
-#   --lib NAME (string)         Limit to a single library by name.
-#   --since DURATION (string)   Skip functions updated within this duration (e.g. '30m', '2h', '1d'). Ignored when --regen is set.
-#   --delay SECS (int)          Seconds to sleep between API calls to avoid rate limits (default: 5).
-#   PROJECT (string)            One or more project names (default: all loaded projects).
+#   --dry-run                   Print proposed docs without writing changes.
+#   --regen                     Regenerate docs for all public functions, not just missing or stale.
+#   --missing-only              Only process functions with no doc comment.
+#   --stale-only                Only process functions with stale docs.
+#   --lib NAME (string)         Limit processing to a single library by name.
+#   --since DURATION (string)   Skip functions updated within this duration (e.g. '30m', '2h', '1d'); ignored with --regen.
+#   --delay SECS (int)          Seconds to sleep between API calls (default: 5).
+#   [PROJECT] (string)          One or more project names to limit scope (default: all loaded projects).
 
 updateDocs() {
     local doDryRun=0
