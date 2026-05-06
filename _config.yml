@@ -1,6 +1,7 @@
 title: rayvn
 description: A bash shared library framework
 theme: just-the-docs
+favicon_ico: "/assets/images/favicon.ico"
 color_scheme: dark
 url: https://rayvn.ink
 baseurl: /rayvn
