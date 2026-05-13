@@ -350,26 +350,32 @@ errorStream() {
 #
 # · ARGS
 #
-#   argMatch (string)         Expected argument value to match against (e.g. -n).
-#   argValue (string)         Actual argument value to test.
-#   argResultRef (stringRef)  Name of var to set to argResultValue on match, or '' if not.
-#   argResultValue (string)   Value to assign on match; defaults to ${argMatch}.
+#   argMatch (string)               Expected argument value to match against (e.g. -n).
+#   argValue (string)               Actual argument value to test.
+#   argResultRef (stringRef)        Name of var to set to result value on match.
+#   argMatchResultValue (string)    Value to assign on match; defaults to ${argMatch}.
+#   argNoMatchResultValue (string)  Value to assign on no match; defaults to ''.
 #
 # · RETURNS
 #
 #   0  matched
 #   1  not matched
+#
+# · EXAMPLE
+#
+#   local flag; parseOptionalArg '-n' "$1" 1 0 && shift   # sets flag to 1 or 0, shifts if match
 
 parseOptionalArg() {
     local _argMatch=$1
     local _argValue=$2
     local -n _argResultRef=$3
-    local _argResultValue="${4:-${_argMatch}}"
+    local _argMatchResultValue="${4:-${_argMatch}}"
+    local _argNoMatchResultValue="${5:-''}"
     if [[ ${_argValue} == "${_argMatch}" ]]; then
-        _argResultRef=${_argResultValue}
+        _argResultRef="${_argMatchResultValue}"
         return 0
     else
-        _argResultRef=''
+        _argResultRef="${_argNoMatchResultValue}"
         return 1
     fi
 }
@@ -768,6 +774,7 @@ maxArrayElementLength() {
 copyMap() {
     local -n srcRef="$1"
     local -n destRef="$2"
+    local key
     for key in "${!srcRef[@]}"; do
         destRef[${key}]="${srcRef[${key}]}"
     done
