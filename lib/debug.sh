@@ -124,20 +124,29 @@ debugVarIsNotSet() {
     fi
 }
 
-# ◇ Copy a file into the debug directory.
+# ◇ Copy a file into the debug directory or log it's contents.
 #
 # · ARGS
 #
+#   -l                   Log content instead of copying file.
 #   sourceFile (string)  Path to the source file.
 #   fileName (string)    Optional filename (default: basename of sourceFile).
 
 debugFile() {
     if (( _debug )); then
-        local sourceFile="$1"
-        local fileName; fileName="${2:-${ baseName ${sourceFile}; }}"
-        local destFile="${_debugDir}/${fileName}"
-        cp "${sourceFile}" "${destFile}"
-        debug "Added file ${destFile}"
+        local sourceFile
+        if [[ $1 == '-l' ]]; then
+            sourceFile="$2"
+            debug "BEGIN File ${sourceFile} content -------------"
+            cat "${sourceFile}" >&${_debugFd}
+            debug "  END File ${sourceFile} content -------------"
+        else
+            sourceFile="$1"
+            local fileName; fileName="${2:-${ baseName ${sourceFile}; }}"
+            local destFile="${_debugDir}/${fileName}"
+            cp "${sourceFile}" "${destFile}"
+            debug "Added file ${destFile}"
+        fi
     fi
 }
 
