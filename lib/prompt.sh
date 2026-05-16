@@ -25,7 +25,7 @@
 #   130  user canceled (ESC)
 
 request() {
-    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
+    parseOptionalArg '-n' "$1" _promptFinalizeArg '' '-n' && shift
     local prompt="$1"
     local resultVarName="$2"
     local cancelOnEmpty="${3:-true}"
@@ -69,7 +69,7 @@ request() {
 #   130  user canceled (ESC pressed)
 
 secureRequest() {
-    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
+    parseOptionalArg '-n' "$1" _promptFinalizeArg '' '-n' && shift
     request "$1" "$2" "${3:-true}" "${4:-${_defaultPromptTimeout}}" true
 }
 
@@ -99,7 +99,7 @@ secureRequest() {
 #   130  user canceled (ESC pressed)
 
 confirm() {
-    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
+    parseOptionalArg '-n' "$1" _promptFinalizeArg '' '-n' && shift
     local prompt="$1"
     local promptChoices=("$2" "$3")
     local resultVarName="$4"
@@ -146,7 +146,7 @@ confirm() {
 #   echo "You picked index: ${chosenIndex}"
 
 choose() {
-    parseOptionalArg '-n' "$1" _promptFinalizeArg && shift
+    parseOptionalArg '-n' "$1" _promptFinalizeArg '' '-n' && shift
     local prompt="$1"
     local choicesVarName="$2"
     local resultVarName="$3"

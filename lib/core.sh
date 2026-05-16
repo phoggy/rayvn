@@ -138,7 +138,7 @@ echo() {
 header() {
     local toUpper=0 colorIndex=0
     local maxIndex=$(( ${#_headerColors[@]} - 1 ))
-    parseOptionalArg '-u' "$1" toUpper 1 && shift
+    parseOptionalArg '-u' "$1" toUpper 0 1 && shift
 
     if [[ -z "${1//[0-9]/}" ]]; then
         colorIndex="$1"
@@ -353,8 +353,8 @@ errorStream() {
 #   argMatch (string)               Expected argument value to match against (e.g. -n).
 #   argValue (string)               Actual argument value to test.
 #   argResultRef (stringRef)        Name of var to set to result value on match.
-#   argMatchResultValue (string)    Value to assign on match; defaults to ${argMatch}.
-#   argNoMatchResultValue (string)  Value to assign on no match; defaults to ''.
+#   argNoMatchResultValue (string)  Value to assign when no match.
+#   argMatchResultValue (string)    Value to assign when match.
 #
 # · RETURNS
 #
@@ -363,14 +363,15 @@ errorStream() {
 #
 # · EXAMPLE
 #
-#   local flag; parseOptionalArg '-n' "$1" 1 0 && shift   # sets flag to 1 or 0, shifts if match
+#   local flag; parseOptionalArg '-n' "$1" flag 0 1 && shift          # sets flag to 1 and shifts on match, else sets to 0
+#   local bool; parseOptionalArg '-n' "$1" bool false true && shift   # sets bool to 'true' and shifts on match, else sets to 'false'
 
 parseOptionalArg() {
     local _argMatch=$1
     local _argValue=$2
     local -n _argResultRef=$3
-    local _argMatchResultValue="${4:-${_argMatch}}"
-    local _argNoMatchResultValue="${5:-''}"
+    local _argNoMatchResultValue="${4}"
+    local _argMatchResultValue="${5}"
     if [[ ${_argValue} == "${_argMatch}" ]]; then
         _argResultRef="${_argMatchResultValue}"
         return 0

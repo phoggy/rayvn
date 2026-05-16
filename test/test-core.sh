@@ -7,10 +7,9 @@ main() {
     testAssertCommandSuccess
     testAssertCommandFailure
     testAssertCommandStderr
-    testAssertCommandStderrFlag
     testAssertCommandCustomError
     testAssertCommandQuiet
-    testAssertCommandStripBrackets
+    testAssertCommandTransform
     testAssertCommandWithEval
     testAssertCommandCaptureStdout
     testTrim
@@ -430,30 +429,26 @@ testOutputFunctions() {
 }
 
 testHeader() {
-    local result
+    local output
 
-    # Basic header contains title
-    result=${ header "My Title"; }
-    assertContains "My Title" "${ stripAnsi "${result}"; }" "header includes title"
+    output=${ header "My Title"; }
+    assertContains "My Title" "${output}" "header includes title"
 
-    # -u flag uppercases title
-    result=${ header -u "lowercase title"; }
-    assertContains "LOWERCASE TITLE" "${ stripAnsi "${result}"; }" "header -u uppercases title"
+    output=${ header -u "lowercase title"; }
+    assertContains "LOWERCASE TITLE" "${output}" "header -u uppercases title"
 
-    # Subtitle appears below title
-    result=${ header "Title" "Subtitle line"; }
-    assertContains "Subtitle line" "${ stripAnsi "${result}"; }" "header includes subtitle"
+    output=${ header "Title" "Subtitle line"; }
+    assertContains "Subtitle line" "${output}" "header includes subtitle"
 
-    # Subtitle show format args: additional text args after first subtitle are passed to show
-    result=${ header "Title" "plain" bold "styled"; }
-    assertContains "plain" "${ stripAnsi "${result}"; }" "header subtitle first arg present"
-    assertContains "styled" "${ stripAnsi "${result}"; }" "header subtitle passes remaining args to show"
+    output=${ header "Title" "plain" bold "styled"; }
+    assertContains "plain" "${output}" "header subtitle first arg present"
+    assertContains "styled" "${output}" "header subtitle passes remaining args to show"
 
-    # colorIndex selects from available colors (clamped)
-    result=${ header 0 "colored header"; }
-    assertContains "colored header" "${ stripAnsi "${result}"; }" "header with colorIndex 0"
-    result=${ header 99 "clamped header"; }
-    assertContains "clamped header" "${ stripAnsi "${result}"; }" "header with out-of-range colorIndex is clamped"
+    output=${ header 0 "colored header"; }
+    assertContains "colored header" "${output}" "header with colorIndex 0"
+
+    output=${ header 99 "clamped header"; }
+    assertContains "clamped header" "${output}" "header with out-of-range colorIndex is clamped"
 }
 
 # ============================================================================
@@ -1061,14 +1056,39 @@ testBooleanAsInteger() {
 testParseOptionalArg() {
     local result
 
-    assertTrue "parseOptionalArg returns 0 on match" parseOptionalArg '--flag' '--flag' result
-    assertEqual '--flag' "${result}" "parseOptionalArg sets result to arg on match"
+    assertTrue "parseOptionalArg returns 0 on match" parseOptionalArg '--flag' '--flag' result '' '--flag'
+    assertEqual '--flag' "${result}" "parseOptionalArg sets match value on match"
 
-    assertFalse "parseOptionalArg returns 1 on non-match" parseOptionalArg '--flag' '--other' result
-    assertEqual '' "${result}" "parseOptionalArg clears result on non-match"
+    assertFalse "parseOptionalArg returns 1 on non-match" parseOptionalArg '--flag' '--other' result '' '--flag'
+    assertEqual '' "${result}" "parseOptionalArg sets no-match value on non-match"
 
-    parseOptionalArg '--flag' '--flag' result 'custom'
-    assertEqual 'custom' "${result}" "parseOptionalArg uses custom result value"
+    parseOptionalArg '--flag' '--flag' result 'default' 'custom'
+    assertEqual 'custom' "${result}" "parseOptionalArg uses custom match value"
+
+    parseOptionalArg '--flag' '--other' result 'default' 'custom'
+    assertEqual 'default' "${result}" "parseOptionalArg uses no-match value on non-match"
+
+    # EXAMPLE 1: local flag; parseOptionalArg '-n' "$1" flag 0 1 && shift
+
+    local flag
+    arg=''; parseOptionalArg '-n' "${arg}" flag 0 1; result=$?
+    assertEqual "${flag}" 0 "flag is not 0"
+    assertEqual "${result}" 1 "result is not 1, would shift!"
+
+    arg='-n'; parseOptionalArg '-n' "${arg}" flag 0 1; result=$?
+    assertEqual "${flag}" 1 "flag is not 1"
+    assertEqual "${result}" 0 "result is not 0; would NOT shift!"
+
+    # EXAMPLE 2: local bool; parseOptionalArg '-n' "$1" bool false true && shift
+
+    local bool
+    arg=''; parseOptionalArg '-n' "${arg}" bool false true; result=$?
+    assertEqual "${bool}" false "bool is not false"
+    assertEqual "${result}" 1 "result is not 1, would shift!"
+
+    arg='-n'; parseOptionalArg '-n' "${arg}" bool false true; result=$?
+    assertEqual "${bool}" true "bool is not true"
+    assertEqual "${result}" 0 "result is not 0; would NOT shift!"
 }
 
 testCopyMap() {
