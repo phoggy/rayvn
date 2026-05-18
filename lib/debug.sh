@@ -137,9 +137,9 @@ debugFile() {
         local sourceFile
         if [[ $1 == '-l' ]]; then
             sourceFile="$2"
-            debug "BEGIN File ${sourceFile} content -------------"
+            debug "${ show accent "BEGIN File ${sourceFile} content -------------"; }"
             cat "${sourceFile}" >&${_debugFd}
-            debug "  END File ${sourceFile} content -------------"
+            debug "${ show accent "  END File ${sourceFile} content -------------"; }"
         else
             sourceFile="$1"
             local fileName; fileName="${2:-${ baseName ${sourceFile}; }}"
