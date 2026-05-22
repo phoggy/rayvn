@@ -417,19 +417,36 @@ assertVarDefined() {
 }
 
 # ◇ Overwrite one or more security sensitive variables with spaces then unset.
+#   Handles scalar variables, indexed arrays, and associative arrays (maps).
 #
 # · ARGS
 #
 #   varName (stringRef)  Name of a variable to erase; may be repeated, silently ignored if unset.
 
 eraseVars() {
-    local varName value length
+    local varName declLine flags i k elemLen value
     while (( $# > 0 )); do
         varName="$1"
-        if [[ -n ${!varName+x} ]]; then
-            value="${!varName}"
-            length="${#value}"
-            printf -v "${varName}" '%*s' "${length}" ''
+        if declare -p "${varName}" &> /dev/null; then
+            declLine=${ declare -p "${varName}"; }
+            flags="${declLine#declare -}"
+            flags="${flags%% *}"
+            if [[ ${flags} == *a* ]]; then
+                local -n eraseVarRef="${varName}"
+                for i in "${!eraseVarRef[@]}"; do
+                    elemLen="${#eraseVarRef[$i]}"
+                    printf -v "${varName}[$i]" '%*s' "${elemLen}" ''
+                done
+            elif [[ ${flags} == *A* ]]; then
+                local -n eraseVarRef="${varName}"
+                for k in "${!eraseVarRef[@]}"; do
+                    elemLen="${#eraseVarRef[$k]}"
+                    eraseVarRef["${k}"]=${ printf '%*s' "${elemLen}" ''; }
+                done
+            else
+                value="${!varName}"
+                printf -v "${varName}" '%*s' "${#value}" ''
+            fi
             unset "${varName}"
         fi
         shift

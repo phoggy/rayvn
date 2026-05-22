@@ -1219,11 +1219,33 @@ testExecuteClean() {
 }
 
 testEraseVars() {
-    declare -g _testEraseTarget="secret-value"
-    assertTrue "var exists before eraseVars" test -v _testEraseTarget
+    # Scalar variable
+    declare -g _testEraseScalar="secret-value"
+    assertTrue "scalar exists before eraseVars" varDefined _testEraseScalar
+    eraseVars _testEraseScalar
+    assertFalse "eraseVars unsets scalar" varDefined _testEraseScalar
 
-    eraseVars _testEraseTarget
-    assertFalse "eraseVars unsets variable" test -v _testEraseTarget
+    # Indexed array
+    declare -g -a _testEraseArr=("secret1" "secret2" "secret3")
+    assertEqual 3 "${#_testEraseArr[@]}" "indexed array has 3 elements before erase"
+    eraseVars _testEraseArr
+    assertFalse "eraseVars unsets indexed array" varDefined _testEraseArr
+
+    # Associative array (map)
+    declare -g -A _testEraseMap=([key1]="secret1" [key2]="secret2")
+    assertEqual 2 "${#_testEraseMap[@]}" "map has 2 entries before erase"
+    eraseVars _testEraseMap
+    assertFalse "eraseVars unsets associative array" varDefined _testEraseMap
+
+    # Multiple variables erased in one call (mixed types)
+    declare -g _testEraseA="value-a"
+    declare -g -a _testEraseMixed=("elem1" "elem2")
+    eraseVars _testEraseA _testEraseMixed
+    assertFalse "eraseVars unsets first of multiple" varDefined _testEraseA
+    assertFalse "eraseVars unsets second of multiple" varDefined _testEraseMixed
+
+    # Silently ignores unset variable
+    assertTrue "eraseVars silently ignores unset var" eraseVars _testEraseNeverDefined
 }
 
 testErrorStream() {
