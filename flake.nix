@@ -53,6 +53,9 @@
             mkdir -p "$out/share/rayvn/etc"
             cp -r etc/* "$out/share/rayvn/etc/"
 
+            # Install bash completion
+            install -Dm644 completions/rayvn.bash "$out/share/bash-completion/completions/rayvn"
+
             # Install rayvn.pkg with version metadata
             # Remove existing version properties, then append current values from flake
             sed '/^projectVersion=/d; /^projectReleaseDate=/d; /^projectFlake=/d; /^projectBuildRev=/d; /^projectNixpkgsRev=/d' \

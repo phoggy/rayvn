@@ -14,6 +14,7 @@ class ${projectNameClass} < Formula
     (share/"rayvn"/"templates").install Dir["templates/*"]
     (share/"rayvn"/"etc").install Dir["etc/*"]
     (share/"rayvn").install "rayvn.pkg"
+    bash_completion.install "completions/rayvn.bash" => "rayvn"
   end
 
   test do
