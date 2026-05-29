@@ -78,6 +78,18 @@ To run without installing:
 nix run github:phoggy/rayvn
 ```
 
+## Shell Completions
+
+Homebrew and Nix installations include bash completions automatically. To activate them,
+ensure [bash-completion](https://github.com/scop/bash-completion) is configured in your shell
+(typically via your package manager).
+
+If you cloned the repo, add to `~/.bash_profile`:
+
+```bash
+source /path/to/rayvn/completions/rayvn.bash
+```
+
 ## Optional: RAM-backed Temp Storage
 
 By default, rayvn uses a mode-600 temp directory for secure temporary files. For improved security,
