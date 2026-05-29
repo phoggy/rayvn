@@ -935,9 +935,13 @@ replaceRandomHex() {
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ◇ Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
+#
+# · ARGS
+#
+#   timeZone (string)  Optional timezone name (default: UTC).
 
 timeStamp() {
-    date "+%Y-%m-%d_%H.%M.%S_%Z"
+    TZ="${1:-UTC}" date "+%Y-%m-%d_%H.%M.%S_%Z"
 }
 
 # ◇ Outputs the current epoch time with microsecond precision via EPOCHREALTIME.
@@ -1845,6 +1849,7 @@ _onRayvnHup() {
 }
 
 _onRayvnInt() {
+    printf '\n' >&${ttyFd}
     _restoreTerminal
     [[ -v rayvnNoExitOnCtrlC ]] && return
     _rayvnExitMessage="${ show italic red "🔺 exiting (ctrl-c)" ;}"
