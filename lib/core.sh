@@ -1868,7 +1868,7 @@ _onRayvnExit() {
     # Add a line and any deferred signal message after exit tasks have repositioned the cursor
 
     (( rayvnTest_NoEchoOnExit )) || echo
-    [[ -n ${_rayvnExitMessage} ]] && echo "${_rayvnExitMessage}"
+    [[ -n ${_rayvnExitMessage} ]] && show "${_rayvnExitMessage}" >&${ttyFd}
 
     # Delete temp dir if we created it
 
