@@ -666,7 +666,7 @@ _confirmInit() {
 
 _confirmPaint() {
     cursorTo "${_promptRow}" "${_promptCol}"
-    echo -n "${display[${_promptChoiceIndex}]} " >&${ttyFd}
+    builtin echo -n "${display[${_promptChoiceIndex}]} " >&${ttyFd}
 }
 
 _confirmLeft() {
