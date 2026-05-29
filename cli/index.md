@@ -53,6 +53,21 @@ Debug Options
 
 Note: All examples below assume rayvn as the working directory so omit `PROJECT`.
 
+## Shell Completions
+
+Bash completions for all commands, subcommands, flags, and project names are included.
+Homebrew and Nix installs activate them automatically once
+[bash-completion](https://github.com/scop/bash-completion) is configured in your shell.
+For a development install, add to `~/.bash_profile`:
+
+```bash
+source ~/dev/rayvn/completions/rayvn.bash
+```
+
+Project names are discovered dynamically by scanning `PATH` for `rayvn.pkg` files, so any
+rayvn project in your `PATH` is completed automatically. The `functions` command also
+completes `project/library` pairs on `/`.
+
 ## Commands
 
 | |                                                             |
