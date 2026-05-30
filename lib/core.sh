@@ -1114,9 +1114,13 @@ makeSecureTempDir() {
     local _resultDir='' _isRamBacked=0
 
     if [[ -n ${_secureTempBase} ]]; then
-        # Existing tmpfs/shm — zero overhead; session temp dir is already RAM-backed
-        _resultDir=${ makeTempDir; }
-        _isRamBacked=1
+        # Existing tmpfs/shm — use it if it has enough space for the requested size
+        local _availMb; _availMb=${ df -m "${_secureTempBase}" | gawk 'NR==2 {print $4}'; }
+        if (( _availMb >= _dirSizeMb )); then
+            _resultDir=${ makeTempDir; }
+            _isRamBacked=1
+        fi
+        # else fall through to hdiutil or disk
 
     elif (( onMacOS )); then
         # hdiutil RAM disk — ~1–2s overhead to format and mount; no sudo required
@@ -1545,15 +1549,17 @@ _init_rayvn_core() {
     # macos_tmpfs: user-mounted tmpfs (mount_tmpfs, macOS 10.15+)
     # secure_temp: regular mktemp with mode 600 (fallback)
 
-    local _shmBase
     if (( onLinux )) && [[ -d /dev/shm && -w /dev/shm ]]; then
         declare -gr _secureTempStrategy='linux_shm'
         declare -gr _secureTempBase='/dev/shm'
     elif (( onMacOS )); then
-        _shmBase="${RAYVN_SHM_PATH:-/private/var/rayvn-shm-${UID}}"
-        if [[ -d "${_shmBase}" ]] && mount | grep -q " on ${_shmBase} (tmpfs"; then
+        local _tmpBase
+        _tmpBase="${RAYVN_TMP_PATH:-/private/var/rayvn-tmp}"
+        if [[ -d "${_tmpBase}" ]] && mount | grep -q " on ${_tmpBase} (tmpfs"; then
             declare -gr _secureTempStrategy='macos_tmpfs'
-            declare -gr _secureTempBase="${_shmBase}"
+            local _userTmpDir="${_tmpBase}/${UID}"
+            [[ -d ${_userTmpDir} ]] || withUmask 0077 mkdir "${_userTmpDir}"
+            declare -gr _secureTempBase="${_userTmpDir}"
         else
             declare -gr _secureTempStrategy='secure_temp'
             declare -gr _secureTempBase=''
@@ -1562,6 +1568,10 @@ _init_rayvn_core() {
         declare -gr _secureTempStrategy='secure_temp'
         declare -gr _secureTempBase=''
     fi
+
+    # Clean up any orphaned session temp dirs left by processes that were SIGKILL'd or crashed.
+
+    _cleanupOrphanedTempDirs
 
     # Ensure system and rayvn config dirs set to valid directories
 
@@ -1826,7 +1836,24 @@ _ensureRayvnTempDir() {
         declare -gr _rayvnTempDir="${dir}"
         declare -gr _rayvnTempDirOwner=${BASHPID}
         chmod 700 "${_rayvnTempDir}" || fail "chmod failed on temp dir"
+        builtin echo ${BASHPID} > "${_rayvnTempDir}/.pid"
     fi
+}
+
+_cleanupOrphanedTempDirs() {
+    [[ -n ${_secureTempBase} && -d ${_secureTempBase} ]] || return 0
+    local dir pid
+    for dir in "${_secureTempBase}"/rayvn-*; do
+        [[ -d ${dir} ]] || continue
+        read -r pid < "${dir}/.pid" 2> /dev/null || pid=''
+        if [[ -n ${pid} ]]; then
+            kill -0 "${pid}" 2> /dev/null && continue  # process still alive
+        else
+            # No .pid file; only remove if old enough to avoid racing a concurrent init
+            [[ -n ${ find "${dir}" -maxdepth 0 -mmin +60 2> /dev/null; } ]] || continue
+        fi
+        rm -rf -- "${dir}" 2> /dev/null
+    done
 }
 
 _restoreTerminal() {
