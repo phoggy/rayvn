@@ -62,8 +62,8 @@ status() {
             show warning "Active:" "disk-backed temp (mode 600, secure but not RAM-backed)"
             echo
             if (( onMacOS )); then
-                local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-tmp}"
-                local shmSize="${RAYVN_SHM_SIZE:-512m}"
+                local tmpPath="${RAYVN_TMP_PATH:-/private/var/rayvn-tmp}"
+                local tmpSize="${RAYVN_TMP_SIZE:-1g}"
                 if _isMacOSSupportedVersion; then
                     show "macOS 10.15+ detected — RAM-backed tmpfs is available and is even more secure."
                     echo
@@ -75,19 +75,19 @@ status() {
                     if (( answerIndex == 0 )); then
                         show "OK. You will be asked to enter your login password" muted "(sudo required)"
                         echo
-                        sudo mkdir -p "${shmPath}" || fail
-                        sudo /sbin/mount_tmpfs -s "${shmSize}" "${shmPath}" || fail
-                        sudo chmod 1777 "${shmPath}" || fail
-                        mkdir -p "${shmPath}/${UID}" && chmod 700 "${shmPath}/${UID}" || fail
-                        show success "Done. tmpfs at" blue "${shmPath}" muted "(${shmSize} capacity)"
+                        sudo mkdir -p "${tmpPath}" || fail
+                        sudo /sbin/mount_tmpfs -s "${tmpSize}" "${tmpPath}" || fail
+                        sudo chmod 1777 "${tmpPath}" || fail
+                        mkdir -p "${tmpPath}/${UID}" && chmod 700 "${tmpPath}/${UID}" || fail
+                        show success "Done. tmpfs at" blue "${tmpPath}" muted "(${tmpSize} capacity)"
                     else
                         echo
                         show "Ok. If you would like to do it yourself, run the following commands:"
                         echo
-                        echo "    sudo mkdir -p ${shmPath}"
-                        echo "    sudo /sbin/mount_tmpfs -o nobrowse -s ${shmSize} ${shmPath}"
-                        echo "    sudo chmod 1777 ${shmPath}"
-                        echo "    mkdir -p ${shmPath}/\${UID} && chmod 700 ${shmPath}/\${UID}"
+                        echo "    sudo mkdir -p ${tmpPath}"
+                        echo "    sudo /sbin/mount_tmpfs -o nobrowse -s ${tmpSize} ${tmpPath}"
+                        echo "    sudo chmod 1777 ${tmpPath}"
+                        echo "    mkdir -p ${tmpPath}/\${UID} && chmod 700 ${tmpPath}/\${UID}"
                     fi
                 else
                     show muted "RAM-backed tmpfs not available on this macOS version (requires 10.15+)."
@@ -103,14 +103,14 @@ install() {
     _isMacOSSupportedVersion || fail "macOS 10.15+ required for tmpfs support"
 
     local realUid="${SUDO_UID:-${UID}}"
-    local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-tmp}"
-    local shmSize="${RAYVN_SHM_SIZE:-512m}"
-    local userDir="${shmPath}/${realUid}"
-    local plistDest='/Library/LaunchDaemons/org.rayvn.shm.plist'
+    local tmpPath="${RAYVN_TMP_PATH:-/private/var/rayvn-tmp}"
+    local tmpSize="${RAYVN_TMP_SIZE:-1g}"
+    local userDir="${tmpPath}/${realUid}"
+    local plistDest='/Library/LaunchDaemons/org.rayvn.tmp.plist'
 
     echo
     if [[ ! -f "${plistDest}" ]]; then
-        local plistFile; plistFile="${ makeTempFile 'rayvn-shm-plist-XXXXXX'; }"
+        local plistFile; plistFile="${ makeTempFile 'rayvn-tmp-plist-XXXXXX'; }"
 
         # lint-skip-start
         cat > "${plistFile}" <<EOF
@@ -119,14 +119,14 @@ install() {
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>org.rayvn.shm</string>
+    <string>org.rayvn.tmp</string>
     <key>RunAtLoad</key>
     <true/>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/sh</string>
         <string>-c</string>
-        <string>mkdir -p ${shmPath} &amp;&amp; /sbin/mount_tmpfs -o nobrowse -s ${shmSize} ${shmPath} &amp;&amp; chmod 1777 ${shmPath}</string>
+        <string>mkdir -p ${tmpPath} &amp;&amp; /sbin/mount_tmpfs -o nobrowse -s ${tmpSize} ${tmpPath} &amp;&amp; chmod 1777 ${tmpPath}</string>
     </array>
 </dict>
 </plist>
@@ -138,18 +138,18 @@ EOF
         echo
         sudo cp "${plistFile}" "${plistDest}" || fail "failed to install plist"
         sudo launchctl load "${plistDest}" || fail "failed to load LaunchDaemon"
-        show success "Installed." "tmpfs will be mounted at" bold "${shmPath}" "on every boot" muted "(${shmSize} capacity)"
+        show success "Installed." "tmpfs will be mounted at" bold "${tmpPath}" "on every boot" muted "(${tmpSize} capacity)"
     else
         show muted "LaunchDaemon already installed."
     fi
 
-    if ! mount | grep -q " on ${shmPath} (tmpfs"; then
+    if ! mount | grep -q " on ${tmpPath} (tmpfs"; then
         show "Mounting now..."
-        sudo mkdir -p "${shmPath}" && sudo /sbin/mount_tmpfs -s "${shmSize}" "${shmPath}" && sudo chmod 1777 "${shmPath}" || fail "failed to mount tmpfs"
-        show success "Mounted at" bold "${shmPath}"
+        sudo mkdir -p "${tmpPath}" && sudo /sbin/mount_tmpfs -s "${tmpSize}" "${tmpPath}" && sudo chmod 1777 "${tmpPath}" || fail "failed to mount tmpfs"
+        show success "Mounted at" bold "${tmpPath}"
     fi
 
-    mkdir -p "${userDir}" && chmod 700 "${userDir}" || fail "failed to create user temp dir"
+    mkdir -p "${userDir}" && chown "${realUid}" "${userDir}" && chmod 700 "${userDir}" || fail "failed to create user temp dir"
     show success "User temp dir ready:" bold "${userDir}"
     echo
 }
@@ -157,8 +157,8 @@ EOF
 uninstall() {
     (( onMacOS )) || fail "LaunchDaemon uninstall is macOS-only"
 
-    local shmPath="${RAYVN_SHM_PATH:-/private/var/rayvn-tmp}"
-    local plistDest='/Library/LaunchDaemons/org.rayvn.shm.plist'
+    local tmpPath="${RAYVN_TMP_PATH:-/private/var/rayvn-tmp}"
+    local plistDest='/Library/LaunchDaemons/org.rayvn.tmp.plist'
 
     echo
     if [[ -f "${plistDest}" ]]; then
@@ -172,9 +172,9 @@ uninstall() {
         show muted "LaunchDaemon not installed."
     fi
 
-    if mount | grep -q " on ${shmPath} (tmpfs"; then
-        show "Unmounting ${shmPath}..."
-        sudo umount "${shmPath}" || fail "failed to unmount"
+    if mount | grep -q " on ${tmpPath} (tmpfs"; then
+        show "Unmounting ${tmpPath}..."
+        sudo umount "${tmpPath}" || fail "failed to unmount"
         show success "Unmounted."
     fi
     echo
