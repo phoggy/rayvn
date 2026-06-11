@@ -35,6 +35,7 @@ runLint() {
             else
                 show primary "All remaining issues require hand editing."
             fi
+            show dim "Use # lint-skip-start / # lint-skip-end to suppress false positives."
         fi
         return 1
     else
