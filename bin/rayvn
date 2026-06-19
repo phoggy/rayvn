@@ -31,7 +31,7 @@ usage() {
     echo
     echo "Options"
     echo
-    commonOptions 21
+    commonOptions 21 true true rayvnEnvVars
     bye "$@"
 }
 
@@ -48,6 +48,9 @@ init() {
     declare -g args=()
     declare -g gitHubRepo
     declare -gAi flags=()
+    declare -gAr rayvnEnvVars=(
+        ['RAYVN_DEFAULT_PROJECT']="Default project name (default: rayvn)."
+    )
 
     # process arguments
 

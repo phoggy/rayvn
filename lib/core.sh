@@ -155,29 +155,76 @@ header() {
     echo
 }
 
-# ◇ Prints common CLI options, optionally including a debug options section.
+# ◇ Prints common CLI options, optionally including debug and environment variables section.
 #
 # · ARGS
 #
-#   col (int)            Column width for option alignment (default: 21).
-#   includeDebug (bool)  Whether to print the debug options section (default: 'true').
+#   col (int)              Column width for option alignment (default: 21).
+#   includeDebug (bool)    Whether to print the debug options section (default: 'true').
+#   includeEnvVars (bool)  Whether to print the environment variables section (default: 'true').
+#   envMap (mapRef)        Optional additional env vars map.
 
 commonOptions() {
-    local col=${1:-21}
+    local column=${1:-21}
     local includeDebug="${2:-true}"
-    option "-v"               "Print the version." ${col}
-    option "--version"        "Print the version and release date." ${col}
-    option "-h, --help"       "Print this help message." ${col}
-    if [[ ${includeDebug} == true ]]; then
-        echo
-        echo "Debug Options"
-        echo
-        option "--debug"          "Enable debug, write output to log file and show on exit." ${col}
-        option "--debug-new"      "Enable debug, clear log file, write output to log file and show on exit." ${col}
-        option "--debug-out"      "Enable debug, write output to the current terminal." ${col}
-        option "--debug-tty TTY"  "Enable debug, write output to the specified TTY (e.g., /dev/ttys001)." ${col}
-        option "--debug-tty ."    "Enable debug, write output to the TTY path read from the '~/.debug.tty' file" ${col}
+    local includeEnvVars="${3:-true}"
+    local envVarsMapName="${4:-}"
+    option "-v"               "Print the version." ${column}
+    option "--version"        "Print the version and release date." ${column}
+    option "-h, --help"       "Print this help message." ${column}
+    [[ ${includeDebug} == true ]] && debugOptions ${column}
+    [[ ${includeEnvVars} == true ]] && envVarOptions ${column} "${envVarsMapName}"
+}
+
+# ◇ Prints debug options section.
+#
+# · ARGS
+#
+#   col (int)  Column width for option alignment (default: 21).
+
+debugOptions() {
+    local column=${1:-21}
+    echo
+    echo "Debug Options"
+    echo
+    option "--debug"          "Enable debug, write output to log file and show on exit." ${column}
+    option "--debug-new"      "Enable debug, clear log file, write output to log file and show on exit." ${column}
+    option "--debug-out"      "Enable debug, write output to the current terminal." ${column}
+    option "--debug-tty TTY"  "Enable debug, write output to the specified TTY (e.g., /dev/ttys001)." ${column}
+    option "--debug-tty ."    "Enable debug, write output to the TTY path read from the '~/.debug.tty' file" ${column}
+}
+
+# ◇ Prints environment variables section.
+#
+# · ARGS
+#
+#   col (int)        Column width for option alignment (default: 21).
+#   envMap (mapRef)  Optional additional env vars map.
+
+envVarOptions() {
+    local column=${1:-21}
+    local _envVarsMapName="$2"
+    declare -A _envVars=(); copyMap _rayvnEnvVars _envVars
+    local keys=("${!_rayvnEnvVars[@]}")
+    local key
+    echo
+    echo "Environment Variables"
+    echo
+    if [[ -n ${_envVarsMapName} ]]; then
+        local -n ref=${_envVarsMapName}
+    debugVar ref
+        for key in "${!ref[@]}"; do
+            keys+=("${key}")
+            _envVars["${key}"]="${ref["${key}"]}"
+        done
+        keys=( ${ printf '%s\n' "${keys[@]}" | sort; } )
     fi
+
+    local maxLen; maxLen=$(( ${ maxArrayElementLength keys; } + 4 ))
+    (( maxLen >= column+1 )) && column="$(( maxLen + 2 ))"
+    for key in "${keys[@]}"; do
+        option "${key}" "${_envVars["${key}"]}" "${column}"
+    done
 }
 
 # ◇ Prints a formatted option line with the option name padded to a description column.
@@ -1543,6 +1590,9 @@ _init_rayvn_core() {
     declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
     declare -g _rayvnExitMessage=''
     declare -ga _hdiutilSecureDevices=()
+    declare -gAr _rayvnEnvVars=(
+        ['RAYVN_PROMPT_TIMEOUT']="Default prompt timeout seconds (default: 30)."
+    )
 
     # Detect the best available RAM-backed temp storage strategy.
     # linux_shm:   /dev/shm (tmpfs, standard on Linux)

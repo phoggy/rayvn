@@ -236,7 +236,7 @@ _init_rayvn_prompt() {
     declare -gr _promptCanceledOnEmptyError=1
     declare -gr _promptCanceledOnTimeoutError=124
     declare -gr _promptCanceledOnEscError=130
-    declare -gr _defaultPromptTimeout=30
+    declare -gr _defaultPromptTimeout=${RAYVN_PROMPT_TIMEOUT:-30}
 
     # Shared global state (safe since bash is single threaded!).
     # Only valid during execution of a public function.
