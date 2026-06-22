@@ -164,7 +164,7 @@ header() {
 #   includeEnvVars (bool)  Whether to print the environment variables section (default: 'true').
 #   envMap (mapRef)        Optional additional env vars map.
 
-commonOptions() {
+showCommonOptions() {
     local column=${1:-21}
     local includeDebug="${2:-true}"
     local includeEnvVars="${3:-true}"
@@ -172,8 +172,8 @@ commonOptions() {
     option "-v"               "Print the version." ${column}
     option "--version"        "Print the version and release date." ${column}
     option "-h, --help"       "Print this help message." ${column}
-    [[ ${includeDebug} == true ]] && debugOptions ${column}
-    [[ ${includeEnvVars} == true ]] && envVarOptions ${column} "${envVarsMapName}"
+    [[ ${includeDebug} == true ]] && showDebugOptions ${column}
+    [[ ${includeEnvVars} == true ]] && showEnvVarOptions ${column} "${envVarsMapName}"
 }
 
 # ◇ Prints debug options section.
@@ -182,7 +182,7 @@ commonOptions() {
 #
 #   col (int)  Column width for option alignment (default: 21).
 
-debugOptions() {
+showDebugOptions() {
     local column=${1:-21}
     echo
     echo "Debug Options"
@@ -201,7 +201,7 @@ debugOptions() {
 #   col (int)        Column width for option alignment (default: 21).
 #   envMap (mapRef)  Optional additional env vars map.
 
-envVarOptions() {
+showEnvVarOptions() {
     local column=${1:-21}
     local _envVarsMapName="$2"
     declare -A _envVars=(); copyMap _rayvnEnvVars _envVars

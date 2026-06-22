@@ -21,7 +21,7 @@ usage() {
     echo
     echo "Options"
     echo
-    commonOptions 17 false
+    showCommonOptions 17 false
     bye "$@"
 }
 
