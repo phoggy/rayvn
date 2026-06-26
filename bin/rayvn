@@ -54,6 +54,7 @@ init() {
 
     # process arguments
 
+    parseCommonOptions rayvn "$@"; shift $?
     while (( $# )) && [[ -z ${command} ]]; do
         case "$1" in
             test) parseArgs true testCmd "${@:2}" ;;
@@ -71,10 +72,6 @@ init() {
             lint) parseArgs true lintCmd "${@:2}" ;;
             collisions) parseArgs true collisionsCmd "${@:2}" ;;
             deps|dependencies) parseArgs true dependenciesCmd "${@:2}" ;;
-            -v) printVersion; exit 0 ;;
-            --version) printVersion true; exit 0 ;;
-            --debug*) setDebug "$@"; shift $? ;;
-            -h | --help | help) command='usage' ;;
             -*) command='usage'; args=("Unknown option:" "$1") ;;
             *) command='usage'; [[ -n $1 ]] && args=("Unknown command:" "$1");;
         esac
