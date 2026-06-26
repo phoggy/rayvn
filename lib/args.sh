@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Command parsing.
-# Use via: require 'rayvn/command'
+# Use via: require 'rayvn/args'
 
 
 # Argument Specification
@@ -30,6 +30,7 @@
 #
 # Functions are accepted only for the command pattern.
 
+# TODO: add function to generate a parseArgs() function that has *filled* locals for spec vars and can be pasted in to script!
 
 # ◇ Parse arguments
 #
@@ -107,9 +108,9 @@ echo; echo "PARSING SPEC: $*"; echo
 }
 
 
-PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/command' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
+PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
-_init_rayvn_command() {
+_init_rayvn_args() {
     declare -gAr _typeValidators=( ['str']='any' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
                                    ['file']=assertFile ['dir']=assertDirectory )
     declare -gA _optionNames
