@@ -41,7 +41,6 @@
 parseArguments() {
     _optionNames=()
     _optionTypes=()
-    _aliases=()
     _argumentTypes=()
     _anyArgIndex=1024
     _parsedOptions=()
@@ -49,31 +48,22 @@ parseArguments() {
 
 echo; echo "PARSING SPEC: $*"; echo
     _parseArgumentSpec "$1"; shift
-    declare -p _optionNames _optionTypes _aliases _argumentTypes _anyArgIndex
+    declare -p _optionNames _optionTypes _argumentTypes _anyArgIndex
+
  echo; echo "PARSING: $*"; echo
     local option type validator argIndex=0 alias value
     while (( $# > 0 )); do
-        if [[ $1 == -* && -v _optionNames[$1] ]]; then
+        option=${_optionNames[$1]}
+        if [[ -n ${option} ]]; then
 
-            # Option or flag. First get the type, checking alias if needed.
+            # Option or flag. Do we have a type?
 
-            option=$1
             type="${_optionTypes[${option}]}"
-            if [[ -z  ${type} ]]; then
-                alias=${_aliases[${option}]}
-                if [[ -n ${alias} ]]; then
-                    option=${alias}
-                    type="${_optionTypes[${option}]}"
-                fi
-            fi
-
-            # Do we have a type?
-
             if [[ -n ${type} ]]; then
 
                 # Yes, so option: validate the type of the arg and store it
 
-                value=$1
+                value=$2
                 validator=${_typeValidators[${type}]}
                 [[ ${validator} != 'any' ]] && ${validator} ${value}
                 [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
@@ -124,7 +114,6 @@ _init_rayvn_command() {
                                    ['file']=assertFile ['dir']=assertDirectory )
     declare -gA _optionNames
     declare -gA _optionTypes
-    declare -gA _aliases
     declare -ga _argumentTypes
     declare -g _anyArgIndex
     declare -gA _parsedOptions
@@ -147,11 +136,8 @@ _parseArgumentSpec() {
                 _isKnownType
                 _optionTypes+=([${option}]=${_type})
             fi
-            _optionNames+=([${option}]='')
-            if [[ -n ${alias} ]]; then
-                _aliases+=([${alias}]=${option})      # TODO get rid of alias map, just use _optionNames by
-                _optionNames+=([${alias}]='')         #      setting value to option!
-            fi
+            _optionNames+=([${option}]="${option}")
+            [[ -n ${alias} ]] && _optionNames+=([${alias}]="${option}")
 
         else
 
