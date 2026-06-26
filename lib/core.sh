@@ -155,6 +155,34 @@ header() {
     echo
 }
 
+# ◇ Parse and handle common CLI options: help, version and debug. Help and version will not return. Calls your usage() function
+#   for help (which is assumed to exit). Returns the number of remaining args, so call shift $? immediately on return
+#
+# · ARGS
+#
+#   projectName (string)  The project name, used to show version.
+#
+# · EXAMPLE
+#
+#   parseCommonOptions myProject "$@; shift $?
+
+parseCommonOptions() {
+    local projectName=$1; shift
+    (( $# )) || usage
+    local _argCount=$#
+    while (( $# > 0 )); do
+        case "$1" in
+            -h | --help) usage ;;
+            -v) projectVersion "${projectName}"; exit 0 ;;
+            --version) projectVersion "${projectName}" true; exit 0 ;;
+            --debug*) setDebug "$@"; shift $(( $? + 1 ));;
+            *) break ;;
+        esac
+    done
+    (( $# )) || usage
+    return $(( _argCount - $# ))
+}
+
 # ◇ Prints common CLI options, optionally including debug and environment variables section.
 #
 # · ARGS
@@ -201,6 +229,7 @@ showDebugOptions() {
 #   col (int)        Column width for option alignment (default: 21).
 #   envMap (mapRef)  Optional additional env vars map.
 
+# shellcheck disable=SC2207
 showEnvVarOptions() {
     local column=${1:-21}
     local _envVarsMapName="$2"
@@ -211,11 +240,10 @@ showEnvVarOptions() {
     echo "Environment Variables"
     echo
     if [[ -n ${_envVarsMapName} ]]; then
-        local -n ref=${_envVarsMapName}
-    debugVar ref
-        for key in "${!ref[@]}"; do
+        local -n mapRef=${_envVarsMapName}
+        for key in "${!mapRef[@]}"; do
             keys+=("${key}")
-            _envVars["${key}"]="${ref["${key}"]}"
+            _envVars["${key}"]="${mapRef["${key}"]}"
         done
         keys=( ${ printf '%s\n' "${keys[@]}" | sort; } )
     fi
@@ -541,6 +569,25 @@ exportGlobalMaps() {
 
 assertIsInteractive() {
     (( isInteractive )) || fail "must be run interactively"
+}
+
+# ◇ Fail if the given argument is not a positive integer.
+
+# ◇ Fail if the given argument is not a positive or negative integer.
+
+assertInt() {
+    [[ $1 =~ ^-?[0-9]+$ ]] || fail "$1 must be a positive or negative integer"
+}
+
+assertPositiveInt() {
+    [[ -z "${1//[0-9]/}" ]] || fail "$1 must be a positive integer"
+}
+
+
+# ◇ Fail if the given argument is not "true", "false", 1 or 0.
+
+assertBool() {
+    [[ $1 == true || $1 == false || $1 == 1 || $1 == 0 ]] || fail "$1 must be boolean: true|false|1|0"
 }
 
 # ◇ Fails if the given path does not exist.
