@@ -1582,16 +1582,18 @@ _init_rayvn_core() {
         # Determine the # of bits of color supported
 
         local bits=0
-        if [[ "${COLORTERM}" == "truecolor" ]] || [[ "${COLORTERM}" == "24bit" ]]; then
-            bits=24
-        elif [[ "${TERM_PROGRAM}" =~ ^(iTerm\.app|vscode|Hyper|WezTerm|Alacritty|Kitty)$ ]]; then
-            bits=24
-        elif [[ "${TERM}" =~ 256col ]]; then
-            bits=8
-        elif [[ "${TERM_PROGRAM}" == "Apple_Terminal" ]]; then
-            bits=8
-        elif [[ "${TERM}" =~ color ]]; then
-            bits=4
+        if [[ -z "${NO_COLOR}" ]]; then
+            if [[ "${COLORTERM}" == "truecolor" ]] || [[ "${COLORTERM}" == "24bit" ]]; then
+                bits=24
+            elif [[ "${TERM_PROGRAM}" =~ ^(iTerm\.app|vscode|Hyper|WezTerm|Alacritty|Kitty)$ ]]; then
+                bits=24
+            elif [[ "${TERM}" =~ 256col ]]; then
+                bits=8
+            elif [[ "${TERM_PROGRAM}" == "Apple_Terminal" ]]; then
+                bits=8
+            elif [[ "${TERM}" =~ color ]]; then
+                bits=4
+            fi
         fi
         declare -gri terminalColorBits=${bits}
 
