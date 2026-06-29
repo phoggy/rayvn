@@ -172,14 +172,14 @@ _parseArguments() {
                 validator=${_typeValidators[${type}]}
                 [[ ${validator} != 'any' ]] && ${validator} ${value}
                 [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                _parsedOptions+=([${option}]=${value})
+                _parsedOptions+=([${option}]=${value})   # TODO: strip - prefix??
                 shift 2
 
             else
 
                 # No, it's a flag so just store it
 
-                _parsedOptions+=([${option}]="")
+                _parsedOptions+=([${option}]="")         # TODO: strip - prefix??
                 shift
             fi
 
