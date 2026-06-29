@@ -31,81 +31,62 @@
 # Functions are accepted only for the command pattern.
 
 # TODO: add function to generate a parseArgs() function that has *filled* locals for spec vars and can be pasted in to script!
+#        prompt at rayvn new for parser style
+#
+#        Arg Parser Styles
+#
+#        local (imperative)
+#        shared (declarative: args spec)
+#        shared CLI (declarative: cmd spec)
+#
+#        Local template parse function uses parseCommonArgs.
+#
+#        Canonical spec name in init()
+#
+#        declare -gr _argSpec OR
+#        declare -gAr _cmdSpec
+#
+#
+#        rayvn args PATH: gen/regen
+#
+#
+#        Gen cmd handler funcs if missing, add TODO for remove or update existing and list them in output
+#
+#        Gen per cmd parser funcs, in own section:
+#
+#        _parseFooArgs() {
+#            locals for all spec state
+#            parseArguments spec
+#        }
+#
+#        For non CLI
+#
+#        _parseArgs() {
+#            locals for all spec state
+#            parseArguments spec
+#        }
+#
+#        To track changes, gen/regen _isParserStale() function with local SHA(s). Map for cmd, constant for script.
 
-# ◇ Parse arguments
+
+
+# ◇ Parse argument specification and arguments
 #
 # · ARGS
 #
-#   argsSpec (arrayRef)  Arguments specification.
-#   args (array)         The arguments
+#   argsSpec (arrayRef)     Arguments specification.
+#   args (array)            The arguments to parse.
 
-parseArguments() {
-    _optionNames=()
-    _optionTypes=()
-    _argumentTypes=()
-    _anyArgIndex=1024
-    _parsedOptions=()
-    _parsedArguments=()
+parseSpecAndArguments() {
+ declare -p _typeValidators
+    declare -gA _optionNames    # Can be in a parse stub
+    declare -gA _optionTypes    # Can be in a parse stub
+    declare -ga _argumentTypes  # Can be in a parse stub
 
-echo; echo "PARSING SPEC: $*"; echo
     _parseArgumentSpec "$1"; shift
-    declare -p _optionNames _optionTypes _argumentTypes _anyArgIndex
-
- echo; echo "PARSING: $*"; echo
-    local option type validator argIndex=0 alias value
-    while (( $# > 0 )); do
-        option=${_optionNames[$1]}
-        if [[ -n ${option} ]]; then
-
-            # Option or flag. Do we have a type?
-
-            type="${_optionTypes[${option}]}"
-            if [[ -n ${type} ]]; then
-
-                # Yes, so option: validate the type of the arg and store it
-
-                value=$2
-                validator=${_typeValidators[${type}]}
-                [[ ${validator} != 'any' ]] && ${validator} ${value}
-                [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                _parsedOptions+=([${option}]=${value})
-                shift 2
-
-            else
-
-                # No, it's a flag so just store it
-
-                _parsedOptions+=([${option}]="")
-                shift
-            fi
-
-        elif (( argIndex < _anyArgIndex )); then
-
-            # Typed argument so validate and store
-
-            value=$1
-            type=${_argumentTypes[argIndex]}
-            validator=${_typeValidators[${type}]}
-            [[ ${validator} != 'any' ]] && ${validator} ${value}
-            [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-            _parsedArguments+=("${value}")
-            (( argIndex++ ))
-            shift
-
-        else
-
-            # Untyped argument, just store it
-
-            _parsedArguments+=("$1")
-            (( argIndex++ ))
-            shift
-        fi
-    done
-
-    set +x; echo "DONE PARSING"
-    declare -p _parsedOptions _parsedArguments
-
+    _parseArguments "$@"
 }
+
 
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -113,17 +94,18 @@ PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE
 _init_rayvn_args() {
     declare -gAr _typeValidators=( ['str']='any' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
                                    ['file']=assertFile ['dir']=assertDirectory )
-    declare -gA _optionNames
-    declare -gA _optionTypes
-    declare -ga _argumentTypes
-    declare -g _anyArgIndex
     declare -gA _parsedOptions
     declare -ga _parsedArguments
 }
 
 _parseArgumentSpec() {
     local -n _specRef="$1"
+ echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
     local _spec _type _argIndex=0
+    _optionNames=()
+    _optionTypes=()
+    _argumentTypes=()
+
     for _spec in "${_specRef[@]}"; do
         if [[ ${_spec} == -* ]]; then
 
@@ -154,10 +136,83 @@ _parseArgumentSpec() {
             (( _argIndex++ ))
         fi
     done
+
+    set +x; echo "DONE PARSING SPEC"; echo
+    declare -p _optionNames _optionTypes _argumentTypes
 }
 
 _isKnownType() {
     local validator="${_typeValidators[${_type}]}"
     [[ -n ${validator} ]] || invalidArgs "${_spec} has unknown type: ${_type}"
 }
+
+_parseArguments() {
+    echo; echo "PARSING ARGS: $*"; echo
+    declare -p _optionNames _optionTypes _argumentTypes
+
+    local maxIndex=${#_argumentTypes[@]}
+    local _anyArgIndex=1024
+    _parsedOptions=()
+    _parsedArguments=()
+
+    local option type validator argIndex=0 value
+    while (( $# > 0 )); do
+        option=${_optionNames[$1]}
+        if [[ -n ${option} ]]; then
+
+            # Option or flag. Do we have a type?
+
+            type="${_optionTypes[${option}]}"
+            if [[ -n ${type} ]]; then
+
+                # Yes, so option: validate the type of the arg and store it
+
+                [[ -z "$2" || -n ${_optionNames[$2]} ]] && fail "missing value for ${option}"
+                value=$2
+                validator=${_typeValidators[${type}]}
+                [[ ${validator} != 'any' ]] && ${validator} ${value}
+                [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                _parsedOptions+=([${option}]=${value})
+                shift 2
+
+            else
+
+                # No, it's a flag so just store it
+
+                _parsedOptions+=([${option}]="")
+                shift
+            fi
+
+        elif (( argIndex < maxIndex )); then
+
+            if (( argIndex < _anyArgIndex )); then
+
+                # Typed argument so validate and store
+
+                value=$1
+                type=${_argumentTypes[${argIndex}]}
+                validator=${_typeValidators[${type}]}
+                [[ ${validator} != 'any' ]] && ${validator} ${value}
+                [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                _parsedArguments+=("${value}")
+                (( argIndex++ ))
+                shift
+
+            else
+
+                # Untyped argument, just store it
+
+                _parsedArguments+=("$1")
+                (( argIndex++ ))
+                shift
+            fi
+        else
+            fail "unknown argument: $1"
+        fi
+    done
+
+    set +x; echo; echo "DONE PARSING"; echo
+    declare -p _parsedOptions _parsedArguments
+}
+
 
