@@ -69,6 +69,21 @@
 #        To track changes, gen/regen _isParserStale() function with local SHA(s). Map for cmd, constant for script.
 
 
+# ◇ Parse argument specifications. Assumes that the following variables are already available (usually in a generated stub):
+#
+#   declare -A _argsOptionNames
+#   declare -A _argsOptionTypes
+#   declare -a _argsArgumentTypes
+#
+# · ARGS
+#
+#   argsSpec (arrayRef)     Arguments specification.
+
+parseArgumentSpec() {
+    [[ -n $1 ]] || invalidArgs "arguments specification required"
+    _parseArgumentSpec "$1"
+}
+
 
 # ◇ Parse argument specification and arguments
 #
@@ -78,10 +93,9 @@
 #   args (array)            The arguments to parse.
 
 parseSpecAndArguments() {
- declare -p _typeValidators
-    declare -gA _optionNames    # Can be in a parse stub
-    declare -gA _optionTypes    # Can be in a parse stub
-    declare -ga _argumentTypes  # Can be in a parse stub
+    declare -A _argsOptionNames    # Add to generated parse stub
+    declare -A _argsOptionTypes    # Add to generated parse stub
+    declare -a _argsArgumentTypes  # Add to generated parse stub
 
     _parseArgumentSpec "$1"; shift
     _parseArguments "$@"
@@ -101,10 +115,11 @@ _init_rayvn_args() {
 _parseArgumentSpec() {
     local -n _specRef="$1"
  echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
-    local _spec _type _argIndex=0
-    _optionNames=()
-    _optionTypes=()
-    _argumentTypes=()
+    local _spec _type _argIndex=0 _anyArgIndex=1024
+
+    _argsOptionNames=()
+    _argsOptionTypes=()
+    _argsArgumentTypes=()
 
     for _spec in "${_specRef[@]}"; do
         if [[ ${_spec} == -* ]]; then
@@ -117,10 +132,10 @@ _parseArgumentSpec() {
             if [[ ${_spec} == *:* ]]; then
                 _type="${_spec##*:}"
                 _isKnownType
-                _optionTypes+=([${option}]=${_type})
+                _argsOptionTypes+=([${option}]=${_type})
             fi
-            _optionNames+=([${option}]="${option}")
-            [[ -n ${alias} ]] && _optionNames+=([${alias}]="${option}")
+            _argsOptionNames+=([${option}]="${option}")
+            [[ -n ${alias} ]] && _argsOptionNames+=([${alias}]="${option}")
 
         else
 
@@ -128,17 +143,19 @@ _parseArgumentSpec() {
 
             _type="${_spec}"
             if [[ ${_type} == '*' ]]; then
-                _anyArgIndex="${#_argumentTypes[@]}"
+                _anyArgIndex="${#_argsArgumentTypes[@]}"
+                _argsArgumentTypes+=("any")
+#                _argsArgumentTypes+=("${_type}")
             elif (( _argIndex < _anyArgIndex )); then
                 _isKnownType
-                _argumentTypes+=("${_type}")
+                _argsArgumentTypes+=("${_type}")
             fi
             (( _argIndex++ ))
         fi
     done
 
     set +x; echo "DONE PARSING SPEC"; echo
-    declare -p _optionNames _optionTypes _argumentTypes
+    declare -p _argsOptionNames _argsOptionTypes _argsArgumentTypes
 }
 
 _isKnownType() {
@@ -148,64 +165,66 @@ _isKnownType() {
 
 _parseArguments() {
     echo; echo "PARSING ARGS: $*"; echo
-    declare -p _optionNames _optionTypes _argumentTypes
-
-    local maxIndex=${#_argumentTypes[@]}
-    local _anyArgIndex=1024
+    declare -p _argsOptionNames _argsOptionTypes _argsArgumentTypes
     _parsedOptions=()
     _parsedArguments=()
 
-    local option type validator argIndex=0 value
+    local maxIndex=${#_argsArgumentTypes[@]}
+    local argIndex=0 typedArg=1
+    local option type validator value
+
     while (( $# > 0 )); do
-        option=${_optionNames[$1]}
+        option=${_argsOptionNames[$1]}
         if [[ -n ${option} ]]; then
 
             # Option or flag. Do we have a type?
 
-            type="${_optionTypes[${option}]}"
+            type="${_argsOptionTypes[${option}]}"
             if [[ -n ${type} ]]; then
 
                 # Yes, so option: validate the type of the arg and store it
 
-                [[ -z "$2" || -n ${_optionNames[$2]} ]] && fail "missing value for ${option}"
+                [[ -z "$2" || -n ${_argsOptionNames[$2]} ]] && fail "missing value for ${option}"
                 value=$2
                 validator=${_typeValidators[${type}]}
                 [[ ${validator} != 'any' ]] && ${validator} ${value}
                 [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                _parsedOptions+=([${option}]=${value})   # TODO: strip - prefix??
+                _parsedOptions+=([${option##*-}]=${value})   # TODO: leave- prefix??
                 shift 2
 
             else
 
                 # No, it's a flag so just store it
 
-                _parsedOptions+=([${option}]="")         # TODO: strip - prefix??
+                _parsedOptions+=([${option##*-}]="")         # TODO: leave - prefix??
                 shift
             fi
 
-        elif (( argIndex < maxIndex )); then
+        elif (( typedArg == 0 || argIndex < maxIndex )); then
 
-            if (( argIndex < _anyArgIndex )); then
+            value=$1
 
-                # Typed argument so validate and store
+            if (( typedArg )); then
 
-                value=$1
-                type=${_argumentTypes[${argIndex}]}
-                validator=${_typeValidators[${type}]}
-                [[ ${validator} != 'any' ]] && ${validator} ${value}
-                [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                _parsedArguments+=("${value}")
-                (( argIndex++ ))
-                shift
+                type=${_argsArgumentTypes[${argIndex}]}
+                if [[ ${type} == any ]]; then
 
-            else
+                    # Any type, so treat further args as untyped
 
-                # Untyped argument, just store it
+                    typedArg=0
+                else
 
-                _parsedArguments+=("$1")
-                (( argIndex++ ))
-                shift
+                    # Validate and convert bool if needed
+
+                    validator=${_typeValidators[${type}]}
+                    [[ ${validator} != 'any' ]] && ${validator} ${value}
+                    [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                fi
             fi
+
+            _parsedArguments+=("${value}")
+            (( argIndex++ ))
+            shift
         else
             fail "unknown argument: $1"
         fi
