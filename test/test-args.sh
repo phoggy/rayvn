@@ -5,6 +5,7 @@ main() {
 
     testDefaultSpec
     testCustomSpec
+    testGenArgumentParser
 
     return 0
 }
@@ -40,9 +41,23 @@ testCustomSpec() {
     local passArgs=(-f --name barf --count 29 true foo bar)  # should pass, 'barf' is 4 characters
 
     declare -A expectedOptions=([count]="29" [force]="1" [name]="barf" )
-    declare -a expectedArguments=([0]="true" [1]="foo" [2]="bar")
+    declare -a expectedArguments=(true foo bar)
     assertParse spec expectedOptions expectedArguments "${passArgs[@]}"
+}
 
+testGenArgumentParser() {
+    local spec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
+    local parser; parser="${ genArgumentParser spec; }"
+    eval "${parser}" # should instantiate _parseArgs() function
+
+    local args=(-f --name Bob --count 29 true foo bar)
+    _parseArgs "${args[@]}"
+
+    declare -p _argsParsedOptions _argsParsedArguments
+
+    declare -A expectedOptions=([count]="29" [force]="1" [name]="Bob" )
+    declare -a expectedArguments=(true foo bar)
+    assertExpectedParse expectedOptions expectedArguments
 }
 
 assertParse() {
@@ -68,7 +83,7 @@ assertExpectedParse() {
     local -n expectedOptionsRef="$1"
     local -n expectedArgsRef="$2"
     local expectedOptionsCount=${#expectedOptionsRef[@]}
-    local expectedArgCount=${#expectedArgsRef[@]}
+    local expectedArgsCount=${#expectedArgsRef[@]}
     local option i expectedValue value
 
     # Assert lengths
@@ -76,7 +91,7 @@ assertExpectedParse() {
     if (( ${#_argsParsedOptions[@]} != expectedOptionsCount )); then
         fail "expected ${ declare -p "$1"; }, got ${ declare -p "${_argsParsedOptions}"; }"
     fi
-    if (( ${#_argsParsedArguments[@]} != expectedArgCount )); then
+    if (( ${#_argsParsedArguments[@]} != expectedArgsCount )); then
         fail "expected ${ declare -p "$2"; }, got ${ declare -p "${_argsParsedArguments}"; }"
     fi
 
@@ -85,7 +100,7 @@ assertExpectedParse() {
     for option in "${!expectedOptionsRef[@]}"; do
         local expectedValue=${expectedOptionsRef["${option}"]}
         local value=${_argsParsedOptions["${option}"]}
-        assertEqual "${value}" "${expectedValue}" "for option '${option}'"
+        assertEqual "${value}" "${expectedValue}" "option '${option}': expected '${expectedValue}', got '${value}'"
     done
 
     # Assert args
@@ -93,7 +108,7 @@ assertExpectedParse() {
     for (( i = 0; i < expectedArgCount; i++ )); do
         local expectedValue=${expectedArgsRef[i]}
         local value=${_argsParsedArguments[i]}
-        assertEqual "${value}" "${expectedValue}" "for argument '$i'"
+        assertEqual "${value}" "${expectedValue}" "argument '$i': expected '${expectedValue}', got '${value}'"
     done
 }
 

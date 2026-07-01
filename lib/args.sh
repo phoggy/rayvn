@@ -77,7 +77,7 @@
 #            parseArguments spec
 #        }
 #
-#        For non CLI, just name function "_parseMainArgs"
+#        For non CLI, just name function "_parseArgs"
 #
 #        To track changes, gen/regen _isParserStale() function with local SHA(s). Map for cmd, constant for script.
 
@@ -97,6 +97,21 @@ parseArgumentSpec() {
     _parseArgumentSpec "$1"
 }
 
+genArgumentParser() {
+    [[ -n $1 ]] || invalidArgs "arguments specification required"
+    declare -A _argsOptionNames
+    declare -A _argsOptionTypes
+    declare -a _argsArgumentTypes
+    _parseArgumentSpec "$1"
+    {
+        echo "_parseArgs() {"
+        echo "    ${ declare -p _argsOptionNames; }"
+        echo "    ${ declare -p _argsOptionTypes; }"
+        echo "    ${ declare -p _argsArgumentTypes; }"
+        echo '    _parseArguments "$@"'
+        echo '}'
+    }
+}
 
 # ◇ Parse argument specification and arguments.
 #
@@ -106,9 +121,9 @@ parseArgumentSpec() {
 #   args (array)            The arguments to parse.
 
 parseSpecAndArguments() {
-    declare -A _argsOptionNames    # Add to generated parse stub as -Ar
-    declare -A _argsOptionTypes    # Add to generated parse stub as -Ar
-    declare -a _argsArgumentTypes  # Add to generated parse stub as -ar
+    declare -A _argsOptionNames
+    declare -A _argsOptionTypes
+    declare -a _argsArgumentTypes
 
     _parseArgumentSpec "$1"; shift
     _parseArguments "$@"
@@ -132,7 +147,7 @@ _parseArgumentSpec() {
     local -n _typeMap="${argsTypeMap}"
     local -n _specRef="$1"
 
- echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
+#   echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
     local _spec _type _argIndex=0 _starArgIndex=1024
 
     _argsOptionNames=()
@@ -171,8 +186,7 @@ _parseArgumentSpec() {
         fi
     done
 
-    set +x; echo "DONE PARSING SPEC"; echo
-    declare -p _argsOptionNames _argsOptionTypes _argsArgumentTypes
+  #  set +x; echo "DONE PARSING SPEC"; echo; declare -p _argsOptionNames _argsOptionTypes _argsArgumentTypes
 }
 
 _isKnownType() {
@@ -182,8 +196,7 @@ _isKnownType() {
 
 _parseArguments() {
     local -n _typeMap="${argsTypeMap}"
-    echo; echo "PARSING ARGS: $*"; echo
-    declare -p _typeMap _argsOptionNames _argsOptionTypes _argsArgumentTypes
+#    echo; echo "PARSING ARGS: $*"; echo; declare -p _typeMap _argsOptionNames _argsOptionTypes _argsArgumentTypes
 
     local maxIndex=${#_argsArgumentTypes[@]}
     local argIndex=0 typedArg=1
@@ -248,8 +261,7 @@ _parseArguments() {
         fi
     done
 
-    set +x; echo; echo "DONE PARSING"; echo
-    declare -p _argsParsedOptions _argsParsedArguments
+#    set +x; echo; echo "DONE PARSING"; echo; declare -p _argsParsedOptions _argsParsedArguments
 }
 
 
