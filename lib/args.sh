@@ -23,12 +23,28 @@
 # The bool type accepts true|1 false|0 as input and maps it to 1 or 0 for simpler tests (( myFlag )). Flags are
 # implicitly bool.
 #
-# Options and flags accept optional names as aliases; each must be prefixed with one or more '-'.
+# Options and flags accept an optional name as alias and each must be prefixed with one or more '-'.
 #
 # An empty spec means no arguments are allowed. A "*" in a spec must be the last item and means that all remaining
 # arguments are allowed and are untyped.
 #
-# Functions are accepted only for the command pattern.
+# Type checking is performed via a map of types to a type check function (single arg). A '*' type is unchecked. The default
+# map is:
+#
+#    declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
+#                                       ['file']=assertFile ['dir']=assertDirectory )
+#
+# Custom types can be supported by creating a custom map and setting argsTypeMap to the name of the custom map var:
+#
+#    declare -gAr myTypeMap=( ['str']=assertMyString ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
+#                             ['file']=assertFile ['dir']=assertDirectory )
+#    argsTypeMap=myTypeMap
+#
+#    assertMyString() {
+#       (( ${#1} > 3 )) || fail "$1 must be 4 characters or longer" # or whatever
+#    }
+#
+# Function specs are accepted only for the command pattern.
 
 # TODO: add function to generate a parseArgs() function that has *filled* locals for spec vars and can be pasted in to script!
 #        prompt at rayvn new for parser style
@@ -47,7 +63,7 @@
 #        declare -gAr _cmdSpec
 #
 #
-#        rayvn args PATH: gen/regen
+#        Add: rayvn args SCRIPT_PATH: gen/regen
 #
 #
 #        Gen cmd handler funcs if missing, add TODO for remove or update existing and list them in output
@@ -55,16 +71,13 @@
 #        Gen per cmd parser funcs, in own section:
 #
 #        _parseFooArgs() {
-#            locals for all spec state
+#            declare -Ar _argsOptionNames=([--count]="--count" [-f]="--force" [-n]="--name" [--name]="--name" [--force]="--force" )
+#            declare -Ar _argsOptionTypes=([--count]="+int" [--name]="str" )
+#            declare -ar _argsArgumentTypes=([0]="bool" [1]="*")
 #            parseArguments spec
 #        }
 #
-#        For non CLI
-#
-#        _parseArgs() {
-#            locals for all spec state
-#            parseArguments spec
-#        }
+#        For non CLI, just name function "_parseMainArgs"
 #
 #        To track changes, gen/regen _isParserStale() function with local SHA(s). Map for cmd, constant for script.
 
@@ -85,7 +98,7 @@ parseArgumentSpec() {
 }
 
 
-# ◇ Parse argument specification and arguments
+# ◇ Parse argument specification and arguments.
 #
 # · ARGS
 #
@@ -93,29 +106,34 @@ parseArgumentSpec() {
 #   args (array)            The arguments to parse.
 
 parseSpecAndArguments() {
-    declare -A _argsOptionNames    # Add to generated parse stub
-    declare -A _argsOptionTypes    # Add to generated parse stub
-    declare -a _argsArgumentTypes  # Add to generated parse stub
+    declare -A _argsOptionNames    # Add to generated parse stub as -Ar
+    declare -A _argsOptionTypes    # Add to generated parse stub as -Ar
+    declare -a _argsArgumentTypes  # Add to generated parse stub as -ar
 
     _parseArgumentSpec "$1"; shift
     _parseArguments "$@"
 }
 
-
-
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_args() {
-    declare -gAr _typeValidators=( ['str']='any' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
-                                   ['file']=assertFile ['dir']=assertDirectory )
-    declare -gA _parsedOptions
-    declare -ga _parsedArguments
+    declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
+                                       ['file']=assertFile ['dir']=assertDirectory )
+
+    # User can set this to a custom type map
+    declare -g argsTypeMap=_argsDefaultTypeMap # TODO document
+
+    # Parse results
+    declare -gA _argsParsedOptions
+    declare -ga _argsParsedArguments
 }
 
 _parseArgumentSpec() {
+    local -n _typeMap="${argsTypeMap}"
     local -n _specRef="$1"
+
  echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
-    local _spec _type _argIndex=0 _anyArgIndex=1024
+    local _spec _type _argIndex=0 _starArgIndex=1024
 
     _argsOptionNames=()
     _argsOptionTypes=()
@@ -143,10 +161,9 @@ _parseArgumentSpec() {
 
             _type="${_spec}"
             if [[ ${_type} == '*' ]]; then
-                _anyArgIndex="${#_argsArgumentTypes[@]}"
-                _argsArgumentTypes+=("any")
-#                _argsArgumentTypes+=("${_type}")
-            elif (( _argIndex < _anyArgIndex )); then
+                _starArgIndex="${#_argsArgumentTypes[@]}"
+                _argsArgumentTypes+=("*")
+            elif (( _argIndex < _starArgIndex )); then
                 _isKnownType
                 _argsArgumentTypes+=("${_type}")
             fi
@@ -159,19 +176,20 @@ _parseArgumentSpec() {
 }
 
 _isKnownType() {
-    local validator="${_typeValidators[${_type}]}"
-    [[ -n ${validator} ]] || invalidArgs "${_spec} has unknown type: ${_type}"
+    local typeChecker="${_typeMap[${_type}]}"
+    [[ -n ${typeChecker} ]] || invalidArgs "${_spec} has unknown type: ${_type}"
 }
 
 _parseArguments() {
+    local -n _typeMap="${argsTypeMap}"
     echo; echo "PARSING ARGS: $*"; echo
-    declare -p _argsOptionNames _argsOptionTypes _argsArgumentTypes
-    _parsedOptions=()
-    _parsedArguments=()
+    declare -p _typeMap _argsOptionNames _argsOptionTypes _argsArgumentTypes
 
     local maxIndex=${#_argsArgumentTypes[@]}
     local argIndex=0 typedArg=1
-    local option type validator value
+    local option type typeChecker value
+    _argsParsedOptions=()
+    _argsParsedArguments=()
 
     while (( $# > 0 )); do
         option=${_argsOptionNames[$1]}
@@ -186,17 +204,17 @@ _parseArguments() {
 
                 [[ -z "$2" || -n ${_argsOptionNames[$2]} ]] && fail "missing value for ${option}"
                 value=$2
-                validator=${_typeValidators[${type}]}
-                [[ ${validator} != 'any' ]] && ${validator} ${value}
+                typeChecker=${_typeMap[${type}]}
+                [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
                 [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                _parsedOptions+=([${option##*-}]=${value})   # TODO: leave- prefix??
+                _argsParsedOptions+=([${option##*-}]=${value})
                 shift 2
 
             else
 
                 # No, it's a flag so just store it
 
-                _parsedOptions+=([${option##*-}]="")         # TODO: leave - prefix??
+                _argsParsedOptions+=([${option##*-}]='1')
                 shift
             fi
 
@@ -207,7 +225,7 @@ _parseArguments() {
             if (( typedArg )); then
 
                 type=${_argsArgumentTypes[${argIndex}]}
-                if [[ ${type} == any ]]; then
+                if [[ ${type} == * ]]; then
 
                     # Any type, so treat further args as untyped
 
@@ -216,13 +234,13 @@ _parseArguments() {
 
                     # Validate and convert bool if needed
 
-                    validator=${_typeValidators[${type}]}
-                    [[ ${validator} != 'any' ]] && ${validator} ${value}
+                    typeChecker=${_typeMap[${type}]}
+                    [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
                     [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
                 fi
             fi
 
-            _parsedArguments+=("${value}")
+            _argsParsedArguments+=("${value}")
             (( argIndex++ ))
             shift
         else
@@ -231,7 +249,7 @@ _parseArguments() {
     done
 
     set +x; echo; echo "DONE PARSING"; echo
-    declare -p _parsedOptions _parsedArguments
+    declare -p _argsParsedOptions _argsParsedArguments
 }
 
 

@@ -571,8 +571,6 @@ assertIsInteractive() {
     (( isInteractive )) || fail "must be run interactively"
 }
 
-# ◇ Fail if the given argument is not a positive integer.
-
 # ◇ Fail if the given argument is not a positive or negative integer.
 
 assertInt() {
@@ -582,7 +580,6 @@ assertInt() {
 assertPositiveInt() {
     [[ -z "${1//[0-9]/}" ]] || fail "$1 must be a positive integer"
 }
-
 
 # ◇ Fail if the given argument is not "true", "false", 1 or 0.
 
