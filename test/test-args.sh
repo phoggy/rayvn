@@ -6,6 +6,7 @@ main() {
     testDefaultSpec
     testCustomSpec
     testGenArgumentParser
+    testGenCommandParser
 
     return 0
 }
@@ -25,7 +26,7 @@ init() {
 testDefaultSpec() {
     local spec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
     local args=(-f --name bar --count 29 true foo bar)
-    parseSpecAndArguments spec "${args[@]}"
+    parseArgumentSpecAndArgs spec "${args[@]}"
 }
 
 testCustomSpec() {
@@ -47,7 +48,7 @@ testCustomSpec() {
 
 testGenArgumentParser() {
     local spec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
-    local parser; parser="${ generateParser spec; }"
+    local parser; parser="${ generateParser rayvn spec; }"
     eval "${parser}" # should instantiate _parseArgs() function
 
     local args=(-f --name Bob --count 29 true foo bar)
@@ -60,9 +61,9 @@ testGenArgumentParser() {
     assertExpectedParse expectedOptions expectedArguments
 }
 
-# TODO
-#testGenCommandParser() {
-#}
+testGenCommandParser() {
+    : # TODO
+}
 
 
 assertParse() {
@@ -70,7 +71,7 @@ assertParse() {
     local expectedOptionsVar="$2"
     local expectedArgsVar="$3"
     shift 3
-    parseSpecAndArguments "${specVarName}" "$@"
+    parseArgumentSpecAndArgs "${specVarName}" "$@"
     assertExpectedParse "${expectedOptionsVar}" "${expectedArgsVar}"
 }
 
@@ -79,7 +80,7 @@ assertParseFailed() {
     local expectedError="$2"
     shift 2
     local checked=0 error
-    parseSpecAndArguments "${specVarName}" "$@"
+    parseArgumentSpecAndArgs "${specVarName}" "$@"
     (( checked )) || fail "not checked!"
     assertEqual "${error}" "${expectedError}"
 }

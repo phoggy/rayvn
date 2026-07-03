@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
 
-# Command parsing.
+# Argument parsing.
 # Use via: require 'rayvn/args'
 
 
 # Argument Specification
 #
-# An argument spec is a string declaring named/typed options (e.g. --count 5 --file /etc/passwd), named/boolean flags (e.g. -f)
+# An argument spec is an array declaring named/typed options (e.g. --count 5 --file /etc/passwd), named/boolean flags (e.g. -f)
 # and typed or untyped positional arguments. Parsed options and flags are accessed by name, arguments by position.
+#
+# For example:
+#
+#     local argSpec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
 #
 # The * wildcard positional argument allows any number of untyped values to follow. This is intended to support cases like
 # that of tar args with -C dir interspersed and requires the caller to validate them.
 #
 #      type: str | int | +int | bool | file | dir
-#    option: --name[|alias]:type                    TODO: multiple aliases??
+#    option: --name[|alias]:type                    TODO: allow multiple aliases??
 #      flag: --name[|alias]
 #      spec: [option | flag | type]... [*]
-#        fn: fnName( spec )
 #
 # The int type accepts both positive and negative values; use the +int type to accept only positive integers.
 #
@@ -27,6 +30,8 @@
 #
 # An empty spec means no arguments are allowed. A "*" in a spec must be the last item and means that all remaining
 # arguments are allowed and are untyped.
+#
+# An argument spec can be processed at runtime or once
 #
 # Type checking is performed via a map of types to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
@@ -44,42 +49,34 @@
 #       (( ${#1} > 3 )) || fail "$1 must be 4 characters or longer" # or whatever
 #    }
 #
-# Function specs are accepted only for the command pattern.
 
-# TODO: add function to generate a parseArgs() function that has *filled* locals for spec vars and can be pasted in to script!
-#        prompt at rayvn new for parser style
+
+# CLI Specification
 #
-#        Arg Parser Styles
+# A map of command args to handler functions, where the function is defined as a handler function name followed by
+# it's argument spec in parens:
 #
-#        local (imperative)
-#        shared (declarative: args spec)
-#        shared CLI (declarative: cmd spec)
+#   handlerFnName( spec )
 #
-#        Local template parse function uses parseCommonArgs.
+# For example:
 #
-#        Canonical spec name in init()
+#    declare -A cliSpec=(
+#        ['passphrase']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
+#        ['password']="newPassword(--length|-l:+int)"
+#    )
 #
-#        declare -gr _argSpec OR
-#        declare -gAr _cmdSpec
+# CLI specifications can only be processed
+
+
+# Arg Parser Styles
 #
+# Support three templates
 #
-#        Add: rayvn args SCRIPT_PATH: gen/regen
+#    local (imperative) EXISTS
+#    shared (declarative: args spec) CREATE
+#    shared CLI (declarative: cmd spec) CREATE
 #
-#
-#        Gen cmd handler funcs if missing, add TODO for remove or update existing and list them in output
-#
-#        Gen per cmd parser funcs, in own section:
-#
-#        _parseFooArgs() {
-#            declare -Ar _argsOptionNames=([--count]="--count" [-f]="--force" [-n]="--name" [--name]="--name" [--force]="--force" )
-#            declare -Ar _argsOptionTypes=([--count]="+int" [--name]="str" )
-#            declare -ar _argsArgumentTypes=([0]="bool" [1]="*")
-#            parseArguments spec
-#        }
-#
-#        For non CLI, just name function "_parseArgs"
-#
-#        To track changes, gen/regen _isParserStale() function with local SHA(s). Map for cmd, constant for script.
+# TODO Add: rayvn args SCRIPT_PATH: gen/regen
 
 
 # ◇ Parse argument specifications. Assumes that the following variables are already available (usually in a generated stub):
@@ -93,39 +90,10 @@
 #   argsSpec (arrayRef)     Arguments specification.
 
 parseArgumentSpec() {
-    [[ -n $1 ]] || invalidArgs "arguments specification required"
-    _parseArgumentSpec "$1"
-}
-
-
-
-# TODO: document ${command}Usage() function requirement
-
-generateParser() {      # TODO:!! insert or replace in script!!
-    local generator
-    [[ -n $1 ]] || invalidArgs "parser specification required"
-    local specType; specType="${ declare -p "$1" 2> /dev/null | cut -d' ' -f2; }"
-    if [[ -z "${specType}" ]]; then
-        fail "$1 var is not defined"
-    elif [[ ${specType} == -a* ]]; then
-        generator="_genArgumentParser"
-    elif [[ ${specType} == -A* ]]; then
-        generator="_genCommandParser"
-    else
-        fail "parser spec must either be an array or a map"
-    fi
-
-    # Gen begin delimiter
-
-    echo "${_beginParseSection}"; echo
-
-    # Gen parser
-
-    ${generator} "$1"
-
-    # Gen end delimiter
-
-    echo; echo "${_endParseSection}"; echo
+    local specVar=$1
+    local specType; specType=${ _getSpecType; }
+    [[ ${specType} == argument ]] || fail "CLI specification not supported"
+    _parseArgumentSpec "${specVar}"; shift
 }
 
 # ◇ Parse argument specification and arguments.
@@ -135,13 +103,42 @@ generateParser() {      # TODO:!! insert or replace in script!!
 #   argsSpec (arrayRef)     Arguments specification.
 #   args (array)            The arguments to parse.
 
-parseSpecAndArguments() {
+parseArgumentSpecAndArgs() {
+    local specVar=$1
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
 
-    _parseArgumentSpec "$1"; shift
+    parseArgumentSpec "${specVar}"; shift
     _parseArguments "$@"
+}
+
+# ◇ Generate a parser for either an argument or CLI spec. Both assume a usage() function exists
+#   to handle the -h and --help arguments. CLI specs also assume the existence of ${handler}Usage
+#   functions to support command help.
+#
+# · ARGS
+#
+#   project (string)    The project name, used to handle the -v and --version arguments.
+#   specVar (arrayRef)  The name of the arguments specification array or CLI specification map.
+
+generateParser() {
+    local project=$1
+    local specVar=$2
+    local specType; specType=${ _getSpecType true; }
+    local generator; [[ ${specType} == argument ]] && generator=_genArgumentParser || generator=_genCommandParser
+
+    # Gen begin delimiter
+
+    echo "${_beginParseSection}"; echo
+
+    # Gen parser
+
+    ${generator} "${project}" "${specVar}"
+
+    # Gen end delimiter
+
+    echo; echo "${_endParseSection}"; echo
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -150,8 +147,8 @@ _init_rayvn_args() {
 
     # Generated code delimiters
 
-    declare -gr _beginParseSection="PARSE_BEGIN=\"--+-+-----+-++(-++(---++++(---+( 🚫 GENERATED PARSER BEGIN 🚫 )+---)++++---)++-)++-+------+-+--\""
-    declare -gr   _endParseSection="PARSE_END=\"+---+-+-----+-++(-++(---++++(---+(  🚫 GENERATED PARSER END 🚫  )+---)++++---)++-)++-+------+-+--\""
+    declare -gr _beginParseSection="ARGS_PARSER_BEGIN=\"━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔽 BEGIN generated code: DO NOT EDIT 🔽 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━\""
+    declare -gr   _endParseSection="ARGS_PARSER_END=\"━━━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔼 END generated code: DO NOT EDIT 🔼 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━\""
 
     # Default type map
 
@@ -168,6 +165,20 @@ _init_rayvn_args() {
     declare -ga _argsParsedArguments
 }
 
+_getSpecType() {
+    [[ -n ${specVar} ]] || invalidArgs "parser specification required"
+    local _type; _type="${ declare -p "${specVar}" 2> /dev/null | cut -d' ' -f2; }"
+    if [[ -z "${_type}" ]]; then
+        fail "${specVar} var is not defined"
+    elif [[ ${_type} == -a* ]]; then
+        echo "argument"
+    elif [[ ${_type} == -A* ]]; then
+        echo "CLI"
+    else
+        fail "unsupported parser specification type: ${specVar}"
+    fi
+}
+
 _genArgumentParser() {
 
     # Gen parser function
@@ -175,11 +186,12 @@ _genArgumentParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
-    _genParseFunction "$1"
+    _genParseFunction "$2"
 }
 
 _genCommandParser() {
-    local -n _commandSpec="$1"
+    local project="$1"
+    local -n _commandSpec="$2"
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
@@ -189,8 +201,8 @@ _genCommandParser() {
     # Gen main parser function
 
     echo "parseCommand() {"
-    echo "    parseCommonOptions rayvn \"\$@\"; shift $?"
-    echo "    while (( $# )); do"
+    echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
+    echo "    while (( \$# )); do"
     echo "        case \"\$1\" in"
     for command in "${!_commandSpec[@]}"; do
         fnSpec="${_commandSpec[${command}]}"
@@ -200,7 +212,7 @@ _genCommandParser() {
         echo "            ${command}) shift; ${handler} \"\$@\" ;;"
     done
     echo "            -h | --help) \"${usage}\" ;;"
-    echo "            *) usage \"Unknown command: \"\$1\" ;;"
+    echo "            *) usage \"unknown command: \"\$1\" ;;"
     echo "        esac"
     echo "    done"
     echo "}"
