@@ -47,11 +47,11 @@ testCustomSpec() {
 
 testGenArgumentParser() {
     local spec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
-    local parser; parser="${ genArgumentParser spec; }"
+    local parser; parser="${ generateParser spec; }"
     eval "${parser}" # should instantiate _parseArgs() function
 
     local args=(-f --name Bob --count 29 true foo bar)
-    _parseArgs "${args[@]}"
+    parseArgs "${args[@]}"
 
     declare -p _argsParsedOptions _argsParsedArguments
 
@@ -59,6 +59,11 @@ testGenArgumentParser() {
     declare -a expectedArguments=(true foo bar)
     assertExpectedParse expectedOptions expectedArguments
 }
+
+# TODO
+#testGenCommandParser() {
+#}
+
 
 assertParse() {
     local specVarName="$1"

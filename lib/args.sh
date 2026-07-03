@@ -97,20 +97,35 @@ parseArgumentSpec() {
     _parseArgumentSpec "$1"
 }
 
-genArgumentParser() {
-    [[ -n $1 ]] || invalidArgs "arguments specification required"
-    declare -A _argsOptionNames
-    declare -A _argsOptionTypes
-    declare -a _argsArgumentTypes
-    _parseArgumentSpec "$1"
-    {
-        echo "_parseArgs() {"
-        echo "    ${ declare -p _argsOptionNames; }"
-        echo "    ${ declare -p _argsOptionTypes; }"
-        echo "    ${ declare -p _argsArgumentTypes; }"
-        echo '    _parseArguments "$@"'
-        echo '}'
-    }
+
+
+# TODO: document ${command}Usage() function requirement
+
+generateParser() {      # TODO:!! insert or replace in script!!
+    local generator
+    [[ -n $1 ]] || invalidArgs "parser specification required"
+    local specType; specType="${ declare -p "$1" 2> /dev/null | cut -d' ' -f2; }"
+    if [[ -z "${specType}" ]]; then
+        fail "$1 var is not defined"
+    elif [[ ${specType} == -a* ]]; then
+        generator="_genArgumentParser"
+    elif [[ ${specType} == -A* ]]; then
+        generator="_genCommandParser"
+    else
+        fail "parser spec must either be an array or a map"
+    fi
+
+    # Gen begin delimiter
+
+    echo "${_beginParseSection}"; echo
+
+    # Gen parser
+
+    ${generator} "$1"
+
+    # Gen end delimiter
+
+    echo; echo "${_endParseSection}"; echo
 }
 
 # ◇ Parse argument specification and arguments.
@@ -132,15 +147,90 @@ parseSpecAndArguments() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_args() {
+
+    # Generated code delimiters
+
+    declare -gr _beginParseSection="PARSE_BEGIN=\"--+-+-----+-++(-++(---++++(---+( 🚫 GENERATED PARSER BEGIN 🚫 )+---)++++---)++-)++-+------+-+--\""
+    declare -gr   _endParseSection="PARSE_END=\"+---+-+-----+-++(-++(---++++(---+(  🚫 GENERATED PARSER END 🚫  )+---)++++---)++-)++-+------+-+--\""
+
+    # Default type map
+
     declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
                                        ['file']=assertFile ['dir']=assertDirectory )
 
-    # User can set this to a custom type map
-    declare -g argsTypeMap=_argsDefaultTypeMap # TODO document
+    # Selected type map. User can override
+
+    declare -g argsTypeMap=_argsDefaultTypeMap
 
     # Parse results
+
     declare -gA _argsParsedOptions
     declare -ga _argsParsedArguments
+}
+
+_genArgumentParser() {
+
+    # Gen parser function
+
+    declare -A _argsOptionNames
+    declare -A _argsOptionTypes
+    declare -a _argsArgumentTypes
+    _genParseFunction "$1"
+}
+
+_genCommandParser() {
+    local -n _commandSpec="$1"
+    declare -A _argsOptionNames
+    declare -A _argsOptionTypes
+    declare -a _argsArgumentTypes
+    declare -A handlers=()
+    local command handler usage fnSpec tmpSpec argsSpec=()
+
+    # Gen main parser function
+
+    echo "parseCommand() {"
+    echo "    parseCommonOptions rayvn \"\$@\"; shift $?"
+    echo "    while (( $# )); do"
+    echo "        case \"\$1\" in"
+    for command in "${!_commandSpec[@]}"; do
+        fnSpec="${_commandSpec[${command}]}"
+        handler="${fnSpec%(*}"
+        usage="${handler}Usage"
+        handler="parse${handler^}Args"
+        echo "            ${command}) shift; ${handler} \"\$@\" ;;"
+    done
+    echo "            -h | --help) \"${usage}\" ;;"
+    echo "            *) usage \"Unknown command: \"\$1\" ;;"
+    echo "        esac"
+    echo "    done"
+    echo "}"
+    echo
+
+    # Gen command parser functions
+
+    for command in "${!_commandSpec[@]}"; do
+        fnSpec="${_commandSpec[${command}]}"
+        handler="${fnSpec%(*}"
+        tmpSpec="${fnSpec#*(}"
+        argsSpec+=("${tmpSpec%*)}")
+        _genParseFunction argsSpec "${handler}"
+        echo
+    done
+}
+
+_genParseFunction() {
+    [[ -n $1 ]] || invalidArgs "arguments specification required"
+    local specVar="$1"
+    local name="${2:-}"
+    _parseArgumentSpec "${specVar}"
+    {
+        echo "parse${name^}Args() {"
+        echo "    ${ declare -p _argsOptionNames; }"
+        echo "    ${ declare -p _argsOptionTypes; }"
+        echo "    ${ declare -p _argsArgumentTypes; }"
+        echo '    _parseArguments "$@"'
+        echo '}'
+    }
 }
 
 _parseArgumentSpec() {
