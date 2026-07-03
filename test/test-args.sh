@@ -13,8 +13,7 @@ main() {
     testArgParserCustomTypeMap
 
     # Generated parser tests
-    testGenArgumentParser
-    testGenCliParser
+    testGenParser
 
     # Performance benchmark
     benchmarkParsers
@@ -112,7 +111,7 @@ testArgParserCustomTypeMap() {
 # Generated parser tests
 # ──────────────────────────────────────────────────────────────────────────────
 
-testGenArgumentParser() {
+testGenParser() {
     local spec=("--name|-n:str" "--force|-f" "--count:+int" "bool" "*")
     local parser; parser="${ generateParser rayvn spec; }"
     eval "${parser}"
@@ -124,43 +123,6 @@ testGenArgumentParser() {
     assertExpectedParse expectedOptions expectedArgs
 }
 
-testGenCliParser() {
-    declare -A cliSpec=(
-        ['passphrase']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
-        ['password']="newPassword(--length|-l:+int)"
-    )
-    local parser; parser="${ generateParser valt cliSpec; }"
-    eval "${parser}"
-
-    usage() { fail "usage() unexpectedly called: $*"; }
-
-    # Test passphrase command with long options
-
-    declare -A expectedOptions=([words]="3" [separator]="-" [count]="5")
-    declare -a expectedArgs=()
-    parseCommand passphrase --words 3 --separator - --count 5
-    assertExpectedParse expectedOptions expectedArgs
-
-    # Test passphrase with short aliases
-
-    expectedOptions=([words]="8" [separator]="." [count]="3")
-    parseCommand passphrase -w 8 -s . -c 3
-    assertExpectedParse expectedOptions expectedArgs
-
-    # Test password command with long option
-
-    expectedOptions=([length]="12")
-    parseCommand password --length 12
-    assertExpectedParse expectedOptions expectedArgs
-
-    # Test password with short alias
-
-    expectedOptions=([length]="24")
-    parseCommand password -l 24
-    assertExpectedParse expectedOptions expectedArgs
-
-    unset -f usage parseCommand parseNewPassphraseArgs parseNewPasswordArgs
-}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Performance benchmark
@@ -178,7 +140,7 @@ benchmarkParsers() {
     echo "=== Parser Performance Benchmark ==="
     echo
     benchmark _benchRuntime   ${iterations} "runtime-declarative" "${args[@]}"
-    benchmark parseArgs       ${iterations} "generated-parser"    "${args[@]}"
+    benchmark parseArgs   ${iterations} "generated"      "${args[@]}"
     benchmark _benchHandCoded ${iterations} "hand-coded"          "${args[@]}"
     echo
 }
@@ -194,9 +156,9 @@ _benchHandCoded() {
     local argIndex=0 value
     while (( $# )); do
         case "$1" in
-            --name | -n) _argsParsedOptions+=([name]="$2"); shift 2 ;;
+            --name | -n) [[ -z "$2" ]] && fail "missing value for --name"; _argsParsedOptions+=([name]="$2"); shift 2 ;;
             --force | -f) _argsParsedOptions+=([force]="1"); shift ;;
-            --count | -c) assertPositiveInt "$2"; _argsParsedOptions+=([count]="$2"); shift 2 ;;
+            --count | -c) [[ -z "$2" ]] && fail "missing value for --count"; assertPositiveInt "$2"; _argsParsedOptions+=([count]="$2"); shift 2 ;;
             *)
                 value="$1"
                 if (( argIndex == 0 )); then

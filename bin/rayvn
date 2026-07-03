@@ -15,6 +15,7 @@ usage() {
     echo "    functions        List functions."
     echo "    test             Run tests."
     echo "    theme            Select theme."
+    echo "    args             Regenerate the argument parser in a script from its spec."
     echo "    lint             Scan source files for requirement violations."
     echo "    collisions       Check for namespace collisions within and across projects."
     echo "    dependencies     Scan source files and ensure dependency tracking is up to date."
@@ -57,6 +58,7 @@ init() {
     parseCommonOptions rayvn "$@"; shift $?
     while (( $# )) && [[ -z ${command} ]]; do
         case "$1" in
+            args) parseArgs false argsCmd "${@:2}" ;;
             test) parseArgs true testCmd "${@:2}" ;;
             build) parseArgs true buildCmd "${@:2}" ;;
             theme) parseArgs false themeCmd "${@:2}" ;;
@@ -234,6 +236,25 @@ themeCmd() {
         else
             setTheme
         fi
+    fi
+}
+
+argsCmd() {
+    if (( flags['help'] )); then
+        echo "rayvn args SCRIPT"
+        echo
+        echo "  Regenerate the parser block in SCRIPT from its spec. The script must contain"
+        echo "  one of the following annotations and the ARGS_PARSER_BEGIN/END markers:"
+        echo
+        echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
+        echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
+        echo
+        echo "  The spec variable must be defined at global scope (not inside a function)."
+    else
+        local scriptFile="${args[0]}"
+        [[ -n "${scriptFile}" ]] || fail "script file required"
+        require 'rayvn/args'
+        updateParser "${scriptFile}"
     fi
 }
 

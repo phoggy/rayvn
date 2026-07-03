@@ -50,44 +50,6 @@
 #
 
 
-# CLI Specification
-#
-# A map of command args to handler functions, where the function is defined as a handler function name followed by
-# its argument spec in parens:
-#
-#   handlerFnName( spec )
-#
-# For example:
-#
-#    declare -A cliSpec=(
-#        ['passphrase']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
-#        ['password']="newPassword(--length|-l:+int)"
-#    )
-#
-# CLI specifications can only be processed by generateParser().
-#
-# Note that if there are command aliases, they can be added as a copy, e.g. to support 'pass' as an alias for
-# 'passphrase':
-#
-#    declare -A cliSpec=(
-#        ['passphrase']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
-#        ['pass']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
-#        ['password']="newPassword(--length|-l:+int)"
-#    )
-
-
-
-# Arg Parser Styles
-#
-# Support three templates
-#
-#    local (imperative) EXISTS
-#    shared (declarative: args spec) CREATE
-#    shared CLI (declarative: cmd spec) CREATE
-#
-# TODO Add: rayvn args SCRIPT_PATH: gen/regen
-
-
 # ◇ Parse argument specifications. Assumes that the following variables are defined and will fill them:
 #
 #   declare -A _argsOptionNames
@@ -122,32 +84,91 @@ parseArgumentSpecAndArgs() {
     _parseArguments "$@"
 }
 
-# ◇ Generate a parser for either an argument or CLI spec. Both assume a usage() function exists
-#   to handle the -h and --help arguments. CLI specs also assume the existence of ${handler}Usage
-#   functions to support command help.
+# ◇ Generate a parser from an argument or CLI spec. Use 'rayvn args SCRIPT' to regenerate in-place
+#   when the spec changes. For argument specs, generates parse${name^}Args(). For CLI specs, generates
+#   parseCommand() plus a parse${Handler^}Args() for each subcommand.
 #
 # · ARGS
 #
 #   project (string)    The project name, used to handle the -v and --version arguments.
 #   specVar (arrayRef)  The name of the arguments specification array or CLI specification map.
+#   name (string)       Optional function name infix for argument specs (default: parseArgs).
 
 generateParser() {
     local project=$1
     local specVar=$2
+    local name="${3:-}"
     local specType; specType=${ _getSpecType true; }
     local generator; [[ ${specType} == argument ]] && generator=_genArgumentParser || generator=_genCommandParser
 
-    # Gen begin delimiter
-
     echo "${_beginParseSection}"; echo
-
-    # Gen parser
-
-    ${generator} "${project}" "${specVar}"
-
-    # Gen end delimiter
-
+    ${generator} "${project}" "${specVar}" "${name}"
     echo; echo "${_endParseSection}"; echo
+}
+
+# ◇ Regenerate parser block in a script file in-place. Reads either a '# rayvn:args specVar [funcName]'
+#   or '# rayvn:cli specVar' annotation and the named spec definition from the file, generates a new
+#   parser, and replaces the content between the ARGS_PARSER_BEGIN and ARGS_PARSER_END markers.
+#
+#   The spec must be defined at global scope in the script (not inside a function).
+#
+#   Annotation formats:
+#     # rayvn:args specVar [funcName]   argument spec array  → parse${funcName^}Args() (default: parseArgs)
+#     # rayvn:cli  specVar              CLI spec map         → parseCommand() + per-command parsers
+#
+# · ARGS
+#
+#   scriptFile (file)  Path to the script to update.
+
+updateParser() {
+    local scriptFile="$1"
+    assertFile "${scriptFile}"
+
+    # Find annotation (either rayvn:args or rayvn:cli)
+    local annotation; annotation=${ gawk '/^#[[:space:]]*(rayvn:args|rayvn:cli)[[:space:]]/{print; exit}' "${scriptFile}"; }
+    [[ -n "${annotation}" ]] || fail "${scriptFile}: no '# rayvn:args specVar [funcName]' or '# rayvn:cli specVar' annotation found"
+
+    local annotationType specVar funcName
+    read -r _ annotationType specVar funcName <<< "${annotation}"
+    [[ -n "${specVar}" ]] || fail "${scriptFile}: specVar missing from ${annotationType} annotation"
+    [[ "${annotationType}" == 'rayvn:cli' ]] && funcName=
+
+    # Verify block markers exist
+    grep -q '^ARGS_PARSER_BEGIN=' "${scriptFile}" || fail "${scriptFile}: no ARGS_PARSER_BEGIN marker found"
+
+    # Detect project from rayvn.pkg
+    local project; project=${ _argsDetectProject "${scriptFile}"; }
+
+    # Extract spec array definition via static parsing
+    local specDef; specDef=${ gawk -v spec="${specVar}" '
+        BEGIN { pattern = "^(declare[^=]* )?" spec "=" }
+        $0 ~ pattern { in_spec=1 }
+        in_spec { print }
+        in_spec && /\)[[:space:]]*$/ { in_spec=0; exit }
+    ' "${scriptFile}"; }
+    [[ -n "${specDef}" ]] || fail "${scriptFile}: spec array '${specVar}' not found at global scope"
+
+    # Load spec into current shell
+    eval "${specDef}" || fail "${scriptFile}: failed to eval spec '${specVar}'"
+
+    # Generate new parser and write to temp file
+    local contentFile; contentFile=${ makeTempFile; }
+    generateParser "${project}" "${specVar}" "${funcName:-}" > "${contentFile}" || fail "parser generation failed"
+
+    # Replace block in-place using temp file
+    local tmpFile; tmpFile=${ makeTempFile; }
+    gawk -v contentFile="${contentFile}" '
+        /^ARGS_PARSER_BEGIN=/ {
+            while ((getline line < contentFile) > 0) print line
+            close(contentFile)
+            skip=1; next
+        }
+        /^ARGS_PARSER_END=/ { skip=0; next }
+        !skip { print }
+    ' "${scriptFile}" > "${tmpFile}" || fail "failed to rewrite ${scriptFile}"
+
+    cp "${tmpFile}" "${scriptFile}" || fail "failed to write updated ${scriptFile}"
+    show "Updated parser in" blue "${ tildePath "${scriptFile}"; }"
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -174,6 +195,20 @@ _init_rayvn_args() {
     declare -ga _argsParsedArguments
 }
 
+_argsDetectProject() {
+    local scriptFile="$1"
+    local dir; dir=${ dirName "${scriptFile}"; }
+    dir=${ realpath "${dir}"; }
+    while [[ -n "${dir}" && "${dir}" != '/' ]]; do
+        if [[ -f "${dir}/rayvn.pkg" ]]; then
+            gawk -F"'" '/^projectName=/{print $2; exit}' "${dir}/rayvn.pkg"
+            return 0
+        fi
+        dir="${dir%/*}"
+    done
+    echo "unknown"
+}
+
 _getSpecType() {
     [[ -n ${specVar} ]] || invalidArgs "parser specification required"
     local _type; _type="${ declare -p "${specVar}" 2> /dev/null | cut -d' ' -f2; }"
@@ -189,13 +224,10 @@ _getSpecType() {
 }
 
 _genArgumentParser() {
-
-    # Gen parser function
-
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
-    _genParseFunction "$2"
+    _genParseFunction "$2" "$3"
 }
 
 _genCommandParser() {
@@ -207,7 +239,7 @@ _genCommandParser() {
     local command handler fnSpec tmpSpec
     local -a argsSpec
 
-    # Gen main parser function
+    # Gen main dispatcher
 
     echo "parseCommand() {"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
@@ -226,7 +258,7 @@ _genCommandParser() {
     echo "}"
     echo
 
-    # Gen command parser functions
+    # Gen per-command parsers
 
     for command in "${!_commandSpec[@]}"; do
         fnSpec="${_commandSpec[${command}]}"
@@ -243,13 +275,110 @@ _genParseFunction() {
     local specVar="$1"
     local name="${2:-}"
     _parseArgumentSpec "${specVar}"
+
+    # Group option aliases by canonical: long opts first, then short, joined with ' | '
+    declare -A _longOpt   # canonical → "--long"
+    declare -A _shortOpts # canonical → "-a | -b ..."
+    local alias canonical
+    for alias in "${!_argsOptionNames[@]}"; do
+        canonical="${_argsOptionNames[${alias}]}"
+        if [[ ${alias} == --* ]]; then
+            _longOpt[${canonical}]="${alias}"
+        elif [[ -n "${_shortOpts[${canonical}]+x}" ]]; then
+            _shortOpts[${canonical}]+=" | ${alias}"
+        else
+            _shortOpts[${canonical}]="${alias}"
+        fi
+    done
+
+    local hasWildcard=0 i argType
+    for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+        [[ "${_argsArgumentTypes[i]}" == '*' ]] && hasWildcard=1
+    done
+
     {
         echo "parse${name^}Args() {"
-        echo "    ${ declare -p _argsOptionNames; }"
-        echo "    ${ declare -p _argsOptionTypes; }"
-        echo "    ${ declare -p _argsArgumentTypes; }"
-        echo '    _parseArguments "$@"'
-        echo '}'
+        echo "    _argsParsedOptions=()"
+        echo "    _argsParsedArguments=()"
+        echo "    local _argIndex=0 _typedArg=1 _value"
+        echo "    while (( \$# > 0 )); do"
+        echo "        case \"\$1\" in"
+
+        # Option and flag cases
+        for canonical in "${!_longOpt[@]}"; do
+            local pattern="${_longOpt[${canonical}]}"
+            [[ -n "${_shortOpts[${canonical}]+x}" ]] && pattern+=" | ${_shortOpts[${canonical}]}"
+            local type="${_argsOptionTypes[${canonical}]:-}"
+            local shortName="${canonical##*-}"
+            if [[ -n "${type}" ]]; then
+                local check=""
+                case "${type}" in
+                    int)  check="assertInt \"\$2\"; " ;;
+                    +int) check="assertPositiveInt \"\$2\"; " ;;
+                    bool) check="assertBool \"\$2\"; " ;;
+                    file) check="assertFile \"\$2\"; " ;;
+                    dir)  check="assertDirectory \"\$2\"; " ;;
+                esac
+                if [[ "${type}" == 'bool' ]]; then
+                    echo "            ${pattern}) [[ -z \"\$2\" ]] && fail \"missing value for ${canonical}\"; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _argsParsedOptions+=([${shortName}]=\"\${_value}\"); shift 2 ;;"
+                else
+                    echo "            ${pattern}) [[ -z \"\$2\" ]] && fail \"missing value for ${canonical}\"; ${check}_argsParsedOptions+=([${shortName}]=\"\$2\"); shift 2 ;;"
+                fi
+            else
+                echo "            ${pattern}) _argsParsedOptions+=([${shortName}]=\"1\"); shift ;;"
+            fi
+        done
+
+        # Positional arg case
+        if (( ${#_argsArgumentTypes[@]} > 0 )); then
+            echo "            *)"
+            echo "                _value=\"\$1\""
+            if (( hasWildcard )); then
+                echo "                if (( _typedArg )); then"
+                echo "                    case \${_argIndex} in"
+                for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+                    argType="${_argsArgumentTypes[i]}"
+                    if [[ "${argType}" == '*' ]]; then echo "                        *) _typedArg=0 ;;"; break; fi
+                    local argCheck=""
+                    case "${argType}" in
+                        int)  argCheck="assertInt \"\${_value}\"; " ;;
+                        +int) argCheck="assertPositiveInt \"\${_value}\"; " ;;
+                        bool) argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value; " ;;
+                        file) argCheck="assertFile \"\${_value}\"; " ;;
+                        dir)  argCheck="assertDirectory \"\${_value}\"; " ;;
+                    esac
+                    echo "                        ${i}) ${argCheck};;"
+                done
+                echo "                    esac"
+                echo "                fi"
+            else
+                echo "                case \${_argIndex} in"
+                for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+                    argType="${_argsArgumentTypes[i]}"
+                    local argCheck=""
+                    case "${argType}" in
+                        int)  argCheck="assertInt \"\${_value}\"; " ;;
+                        +int) argCheck="assertPositiveInt \"\${_value}\"; " ;;
+                        bool) argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value; " ;;
+                        file) argCheck="assertFile \"\${_value}\"; " ;;
+                        dir)  argCheck="assertDirectory \"\${_value}\"; " ;;
+                    esac
+                    echo "                    ${i}) ${argCheck};;"
+                done
+                echo "                    *) fail \"unknown argument: \$1\" ;;"
+                echo "                esac"
+            fi
+            echo "                _argsParsedArguments+=(\"\${_value}\")"
+            echo "                (( _argIndex++ ))"
+            echo "                shift"
+            echo "                ;;"
+        else
+            echo "            *) fail \"unknown argument: \$1\" ;;"
+        fi
+
+        echo "        esac"
+        echo "    done"
+        echo "}"
     }
 }
 

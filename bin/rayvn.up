@@ -371,7 +371,7 @@ configure() {
     while (( $# > 0 )); do
         case "$1" in
             -a | --add) shift; IFS=',' read -r -a split <<< "$1"; projects+=("${split[@]}") ;;
-            */*) { [[ "$1" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("$1") ;;
+            */*) [[ "${1:0:1}" != '/' ]] && { [[ "$1" != 'rayvn/core' ]] || (( rayvnTest_DeferCore )); } && _required+=("$1") ;;
         esac
         shift
     done
