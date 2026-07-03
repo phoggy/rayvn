@@ -3,7 +3,6 @@
 # Argument parsing.
 # Use via: require 'rayvn/args'
 
-
 # Argument Specification
 #
 # An argument spec is an array declaring named/typed options (e.g. --count 5 --file /etc/passwd), named/boolean flags (e.g. -f)
