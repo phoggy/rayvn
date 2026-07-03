@@ -53,7 +53,7 @@
 # CLI Specification
 #
 # A map of command args to handler functions, where the function is defined as a handler function name followed by
-# it's argument spec in parens:
+# its argument spec in parens:
 #
 #   handlerFnName( spec )
 #
@@ -64,7 +64,17 @@
 #        ['password']="newPassword(--length|-l:+int)"
 #    )
 #
-# CLI specifications can only be processed
+# CLI specifications can only be processed by generateParser().
+#
+# Note that if there are command aliases, they can be added as a copy, e.g. to support 'pass' as an alias for
+# 'passphrase':
+#
+#    declare -A cliSpec=(
+#        ['passphrase']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
+#        ['pass']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
+#        ['password']="newPassword(--length|-l:+int)"
+#    )
+
 
 
 # Arg Parser Styles
@@ -78,7 +88,7 @@
 # TODO Add: rayvn args SCRIPT_PATH: gen/regen
 
 
-# ◇ Parse argument specifications. Assumes that the following variables are already available (usually in a generated stub):
+# ◇ Parse argument specifications. Assumes that the following variables are defined and will fill them:
 #
 #   declare -A _argsOptionNames
 #   declare -A _argsOptionTypes
