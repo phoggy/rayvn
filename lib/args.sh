@@ -204,8 +204,8 @@ _genCommandParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
-    declare -A handlers=()
-    local command handler usage fnSpec tmpSpec argsSpec=()
+    local command handler fnSpec tmpSpec
+    local -a argsSpec
 
     # Gen main parser function
 
@@ -216,12 +216,11 @@ _genCommandParser() {
     for command in "${!_commandSpec[@]}"; do
         fnSpec="${_commandSpec[${command}]}"
         handler="${fnSpec%(*}"
-        usage="${handler}Usage"
         handler="parse${handler^}Args"
-        echo "            ${command}) shift; ${handler} \"\$@\" ;;"
+        echo "            ${command}) shift; ${handler} \"\$@\"; return ;;"
     done
-    echo "            -h | --help) \"${usage}\" ;;"
-    echo "            *) usage \"unknown command: \"\$1\" ;;"
+    echo "            -h | --help) usage ;;"
+    echo "            *) usage \"unknown command: \$1\" ;;"
     echo "        esac"
     echo "    done"
     echo "}"
@@ -233,7 +232,7 @@ _genCommandParser() {
         fnSpec="${_commandSpec[${command}]}"
         handler="${fnSpec%(*}"
         tmpSpec="${fnSpec#*(}"
-        argsSpec+=("${tmpSpec%*)}")
+        IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
         _genParseFunction argsSpec "${handler}"
         echo
     done
@@ -349,7 +348,7 @@ _parseArguments() {
             if (( typedArg )); then
 
                 type=${_argsArgumentTypes[${argIndex}]}
-                if [[ ${type} == * ]]; then
+                if [[ ${type} == '*' ]]; then
 
                     # Any type, so treat further args as untyped
 

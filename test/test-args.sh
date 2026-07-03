@@ -3,18 +3,24 @@
 main() {
     init "$@"
 
-    testDefaultSpec
-    testCustomSpec
-    testGenArgumentParser
-    testGenCommandParser
+    # Argument spec + runtime parser tests
+    testArgParserBasic
+    testArgParserAliases
+    testArgParserBoolConversion
+    testArgParserEmptySpec
+    testArgParserWildcard
+    testArgParserTypeRejection
+    testArgParserCustomTypeMap
 
-    return 0
+    # Generated parser tests
+    testGenArgumentParser
+    testGenCliParser
+
+    # Performance benchmark
+    benchmarkParsers
 }
 
 init() {
-
-    # Process args
-
     while (( $# )); do
         case "$1" in
             --debug*) setDebug "$@"; shift $? ;;
@@ -23,48 +29,191 @@ init() {
     done
 }
 
-testDefaultSpec() {
-    local spec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
-    local args=(-f --name bar --count 29 true foo bar)
-    parseArgumentSpecAndArgs spec "${args[@]}"
+# ──────────────────────────────────────────────────────────────────────────────
+# Argument spec + runtime parser tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+testArgParserBasic() {
+    local spec=("--name|-n:str" "--force|-f" "--count:+int" "bool" "*")
+    declare -A expectedOptions=([name]="bar" [force]="1" [count]="29")
+    declare -a expectedArgs=("1" "foo" "bar")
+    assertParse spec expectedOptions expectedArgs -f --name bar --count 29 true foo bar
 }
 
-testCustomSpec() {
-    declare -A _customTypeMap=( ['str4']=_minStringLength4 ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt
-                                ['bool']=assertBool ['file']=assertFile ['dir']=assertDirectory )
-    local argsTypeMap=_customTypeMap
-    local spec=( "--name|-n:str4" "--force|-f"  "--count:+int"  "bool" '*' )
+testArgParserAliases() {
+    local spec=("--name|-n:str" "--force|-f" "--count|-c:+int")
+    declare -A expectedOptions=([name]="Bob" [force]="1" [count]="5")
+    declare -a expectedArgs=()
+    assertParse spec expectedOptions expectedArgs -n Bob -f -c 5
+}
 
-    local failArgs=(-f --name bar --count 29 true foo bar)   # should fail, 'bar' is too short
+testArgParserBoolConversion() {
+    local spec=("--verbose|-v:bool")
+    declare -A expected
+
+    expected=([verbose]="1"); assertParseOptions spec expected --verbose true
+    expected=([verbose]="0"); assertParseOptions spec expected --verbose false
+    expected=([verbose]="1"); assertParseOptions spec expected --verbose 1
+    expected=([verbose]="0"); assertParseOptions spec expected -v 0
+}
+
+testArgParserEmptySpec() {
+    local spec=()
+    assertParseFailsWith spec "unknown argument: foo" foo
+}
+
+testArgParserWildcard() {
+    local spec=("*")
+    declare -A expectedOptions=()
+    declare -a expectedArgs=("foo" "bar" "baz")
+    assertParse spec expectedOptions expectedArgs foo bar baz
+}
+
+testArgParserTypeRejection() {
+    local spec
+
+    spec=("--count:+int")
+    assertParseFailsWith spec "must be a positive integer" --count -5
+    assertParseFailsWith spec "must be a positive integer" --count abc
+
+    spec=("--n:int")
+    assertParseFailsWith spec "must be a positive or negative integer" --n 3.14
+
+    spec=("--name:str")
+    assertParseFailsWith spec "missing value for --name" --name
+
+    spec=("str")
+    assertParseFailsWith spec "unknown argument: bar" foo bar
+
+    spec=("--flag:bool")
+    assertParseFailsWith spec "must be boolean" --flag maybe
+
+    spec=("--name:str")
+    assertParseFailsWith spec "unknown argument: --bad" --name foo --bad
+}
+
+testArgParserCustomTypeMap() {
+    declare -Ar _customTypeMap=(['str4']=_minStringLength4 ['str']='*' ['int']=assertInt
+                                ['+int']=assertPositiveInt ['bool']=assertBool
+                                ['file']=assertFile ['dir']=assertDirectory)
+    local argsTypeMap=_customTypeMap
+    local spec=("--name|-n:str4" "--force|-f" "--count:+int" "bool" "*")
+
+    local failArgs=(-f --name bar --count 29 true foo bar)
     assertParseFailed spec "bar must be 4 characters or longer" "${failArgs[@]}"
 
-
-    local passArgs=(-f --name barf --count 29 true foo bar)  # should pass, 'barf' is 4 characters
-
-    declare -A expectedOptions=([count]="29" [force]="1" [name]="barf" )
-    declare -a expectedArguments=(true foo bar)
-    assertParse spec expectedOptions expectedArguments "${passArgs[@]}"
+    local passArgs=(-f --name barf --count 29 true foo bar)
+    declare -A expectedOptions=([count]="29" [force]="1" [name]="barf")
+    declare -a expectedArgs=("1" "foo" "bar")
+    assertParse spec expectedOptions expectedArgs "${passArgs[@]}"
 }
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Generated parser tests
+# ──────────────────────────────────────────────────────────────────────────────
 
 testGenArgumentParser() {
-    local spec=( "--name|-n:str" "--force|-f"  "--count:+int"  "bool" '*' )
+    local spec=("--name|-n:str" "--force|-f" "--count:+int" "bool" "*")
     local parser; parser="${ generateParser rayvn spec; }"
-    eval "${parser}" # should instantiate _parseArgs() function
+    eval "${parser}"
 
-    local args=(-f --name Bob --count 29 true foo bar)
-    parseArgs "${args[@]}"
+    declare -A expectedOptions=([count]="29" [force]="1" [name]="Bob")
+    declare -a expectedArgs=("1" "foo" "bar")
 
-    declare -p _argsParsedOptions _argsParsedArguments
-
-    declare -A expectedOptions=([count]="29" [force]="1" [name]="Bob" )
-    declare -a expectedArguments=(true foo bar)
-    assertExpectedParse expectedOptions expectedArguments
+    parseArgs -f --name Bob --count 29 true foo bar
+    assertExpectedParse expectedOptions expectedArgs
 }
 
-testGenCommandParser() {
-    : # TODO
+testGenCliParser() {
+    declare -A cliSpec=(
+        ['passphrase']="newPassphrase(--words|-w:+int --separator|-s:str --count|-c:+int)"
+        ['password']="newPassword(--length|-l:+int)"
+    )
+    local parser; parser="${ generateParser valt cliSpec; }"
+    eval "${parser}"
+
+    usage() { fail "usage() unexpectedly called: $*"; }
+
+    # Test passphrase command with long options
+
+    declare -A expectedOptions=([words]="3" [separator]="-" [count]="5")
+    declare -a expectedArgs=()
+    parseCommand passphrase --words 3 --separator - --count 5
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Test passphrase with short aliases
+
+    expectedOptions=([words]="8" [separator]="." [count]="3")
+    parseCommand passphrase -w 8 -s . -c 3
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Test password command with long option
+
+    expectedOptions=([length]="12")
+    parseCommand password --length 12
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Test password with short alias
+
+    expectedOptions=([length]="24")
+    parseCommand password -l 24
+    assertExpectedParse expectedOptions expectedArgs
+
+    unset -f usage parseCommand parseNewPassphraseArgs parseNewPasswordArgs
 }
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Performance benchmark
+# ──────────────────────────────────────────────────────────────────────────────
+
+benchmarkParsers() {
+    local spec=("--name|-n:str" "--force|-f" "--count|-c:+int" "bool" "*")
+    local parser; parser="${ generateParser rayvn spec; }"
+    eval "${parser}"
+
+    local iterations=500
+    local args=(--force --name Bob --count 29 true foo bar)
+
+    echo
+    echo "=== Parser Performance Benchmark ==="
+    echo
+    benchmark _benchRuntime   ${iterations} "runtime-declarative" "${args[@]}"
+    benchmark parseArgs       ${iterations} "generated-parser"    "${args[@]}"
+    benchmark _benchHandCoded ${iterations} "hand-coded"          "${args[@]}"
+    echo
+}
+
+_benchRuntime() {
+    local spec=("--name|-n:str" "--force|-f" "--count|-c:+int" "bool" "*")
+    parseArgumentSpecAndArgs spec "$@"
+}
+
+_benchHandCoded() {
+    _argsParsedOptions=()
+    _argsParsedArguments=()
+    local argIndex=0 value
+    while (( $# )); do
+        case "$1" in
+            --name | -n) _argsParsedOptions+=([name]="$2"); shift 2 ;;
+            --force | -f) _argsParsedOptions+=([force]="1"); shift ;;
+            --count | -c) assertPositiveInt "$2"; _argsParsedOptions+=([count]="$2"); shift 2 ;;
+            *)
+                value="$1"
+                if (( argIndex == 0 )); then
+                    assertBool "${value}"
+                    booleanAsInteger "${value}" value
+                fi
+                _argsParsedArguments+=("${value}")
+                (( argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────────────────────────────────────
 
 assertParse() {
     local specVarName="$1"
@@ -75,33 +224,45 @@ assertParse() {
     assertExpectedParse "${expectedOptionsVar}" "${expectedArgsVar}"
 }
 
+assertParseOptions() {
+    local specVarName="$1"
+    local expectedOptionsVar="$2"
+    shift 2
+    local -a _emptyArgs=()
+    parseArgumentSpecAndArgs "${specVarName}" "$@"
+    assertExpectedParse "${expectedOptionsVar}" _emptyArgs
+}
+
 assertParseFailed() {
     local specVarName="$1"
     local expectedError="$2"
     shift 2
     local checked=0 error
     parseArgumentSpecAndArgs "${specVarName}" "$@"
-    (( checked )) || fail "not checked!"
+    (( checked )) || fail "type checker not called"
     assertEqual "${error}" "${expectedError}"
+}
+
+assertParseFailsWith() {
+    local specVarName="$1"
+    local expectedError="$2"
+    shift 2
+    local err
+    err=${ ( parseArgumentSpecAndArgs "${specVarName}" "$@" ) 2>&1; }
+    [[ -n "${err}" ]] || fail "parse should have failed but produced no error"
+    assertContains "${expectedError}" "${err}"
 }
 
 assertExpectedParse() {
     local -n expectedOptionsRef="$1"
     local -n expectedArgsRef="$2"
-    local expectedOptionsCount=${#expectedOptionsRef[@]}
-    local expectedArgsCount=${#expectedArgsRef[@]}
-    local option i expectedValue value
+    local option i
 
-    # Assert lengths
+    (( ${#_argsParsedOptions[@]} == ${#expectedOptionsRef[@]} )) || \
+        fail "expected ${#expectedOptionsRef[@]} options, got ${#_argsParsedOptions[@]}: ${ declare -p _argsParsedOptions; }"
 
-    if (( ${#_argsParsedOptions[@]} != expectedOptionsCount )); then
-        fail "expected ${ declare -p "$1"; }, got ${ declare -p "${_argsParsedOptions}"; }"
-    fi
-    if (( ${#_argsParsedArguments[@]} != expectedArgsCount )); then
-        fail "expected ${ declare -p "$2"; }, got ${ declare -p "${_argsParsedArguments}"; }"
-    fi
-
-    # Assert options
+    (( ${#_argsParsedArguments[@]} == ${#expectedArgsRef[@]} )) || \
+        fail "expected ${#expectedArgsRef[@]} args, got ${#_argsParsedArguments[@]}: ${ declare -p _argsParsedArguments; }"
 
     for option in "${!expectedOptionsRef[@]}"; do
         local expectedValue=${expectedOptionsRef["${option}"]}
@@ -109,12 +270,10 @@ assertExpectedParse() {
         assertEqual "${value}" "${expectedValue}" "option '${option}': expected '${expectedValue}', got '${value}'"
     done
 
-    # Assert args
-
-    for (( i = 0; i < expectedArgCount; i++ )); do
+    for (( i = 0; i < ${#expectedArgsRef[@]}; i++ )); do
         local expectedValue=${expectedArgsRef[i]}
         local value=${_argsParsedArguments[i]}
-        assertEqual "${value}" "${expectedValue}" "argument '$i': expected '${expectedValue}', got '${value}'"
+        assertEqual "${value}" "${expectedValue}" "argument '${i}': expected '${expectedValue}', got '${value}'"
     done
 }
 
