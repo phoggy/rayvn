@@ -236,22 +236,23 @@ _genCommandParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
-    local command handler fnSpec tmpSpec
+    local command handler cmdName fnSpec tmpSpec
     local -a argsSpec
 
     # Gen main dispatcher
 
     echo "parseCommand() {"
+    echo "    _argsParsedOptions=()"
+    echo "    _argsParsedArguments=()"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
     echo "    while (( \$# )); do"
     echo "        case \"\$1\" in"
     for command in "${!_commandSpec[@]}"; do
         fnSpec="${_commandSpec[${command}]}"
-        handler="${fnSpec%(*}"
-        handler="parse${handler^}Args"
-        echo "            ${command}) shift; ${handler} \"\$@\"; return ;;"
+        cmdName="${fnSpec%(*}"
+        handler="parse${cmdName^}Args"
+        echo "            ${command}) shift; ${handler} \"\$@\"; ${cmdName}Cmd; return ;;"
     done
-    echo "            -h | --help) usage ;;"
     echo "            *) usage \"unknown command: \$1\" ;;"
     echo "        esac"
     echo "    done"
@@ -265,7 +266,7 @@ _genCommandParser() {
         handler="${fnSpec%(*}"
         tmpSpec="${fnSpec#*(}"
         IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
-        _genParseFunction argsSpec "${handler}"
+        _genParseFunction argsSpec "${handler}" false
         echo
     done
 }
@@ -274,6 +275,7 @@ _genParseFunction() {
     [[ -n $1 ]] || invalidArgs "arguments specification required"
     local specVar="$1"
     local name="${2:-}"
+    local includeResets="${3:-true}"
     _parseArgumentSpec "${specVar}"
 
     # Group option aliases by canonical: long opts first, then short, joined with ' | '
@@ -298,8 +300,7 @@ _genParseFunction() {
 
     {
         echo "parse${name^}Args() {"
-        echo "    _argsParsedOptions=()"
-        echo "    _argsParsedArguments=()"
+        [[ ${includeResets} != false ]] && { echo "    _argsParsedOptions=()"; echo "    _argsParsedArguments=()"; }
         echo "    local _argIndex=0 _typedArg=1 _value"
         echo "    while (( \$# > 0 )); do"
         echo "        case \"\$1\" in"
