@@ -37,82 +37,50 @@ usage() {
 }
 
 main() {
-    init "$@"
-    local result=0
-    ${command} "${args[@]}" || result=$?
-    return ${result}
+    init
+    parseCommand "$@"
 }
 
 init() {
-    declare -g command=
     declare -g projects=()
     declare -g args=()
-    declare -g gitHubRepo
     declare -gAi flags=()
+    declare -gA _argsParsedOptions=()
+    declare -ga _argsParsedArguments=()
     declare -gAr rayvnEnvVars=(
         ['RAYVN_DEFAULT_PROJECT']="Default project name (default: rayvn)."
     )
-
-    # process arguments
-
-    parseCommonOptions rayvn "$@"; shift $?
-    while (( $# )) && [[ -z ${command} ]]; do
-        case "$1" in
-            args) parseArgs false argsCmd "${@:2}" ;;
-            test) parseArgs true testCmd "${@:2}" ;;
-            build) parseArgs true buildCmd "${@:2}" ;;
-            theme) parseArgs false themeCmd "${@:2}" ;;
-            new | create) parseArgs false newCmd "${@:2}" ;;
-            projects) parseArgs true projectsCmd "${@:2}" ;;
-            libraries) parseArgs true librariesCmd "${@:2}" ;;
-            functions) parseArgs true functionsCmd "${@:2}" ;;
-            register) parseArgs false registerCmd "${@:2}" ;;
-            release) parseArgs true releaseCmd "${@:2}" ;;
-            index) parseArgs true indexCmd "${@:2}" ;;
-            pages) parseArgs true pagesCmd "${@:2}" ;;
-            docs) parseArgs true docsCmd "${@:2}" ;;
-            lint) parseArgs true lintCmd "${@:2}" ;;
-            collisions) parseArgs true collisionsCmd "${@:2}" ;;
-            deps|dependencies) parseArgs true dependenciesCmd "${@:2}" ;;
-            -*) command='usage'; args=("Unknown option:" "$1") ;;
-            *) command='usage'; [[ -n $1 ]] && args=("Unknown command:" "$1");;
-        esac
-        shift
-    done
-
-    [[ -n ${command} ]] || usage
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
 
-parseArgs() {
-    local add="$1"
-    command="$2"
-    shift 2
-    while (( $# > 0 )); do
-        case "$1" in
-            -h | --help) flags+=(['help']=1) ;;
-            -q | --quiet) flags+=(['quiet']=1) ;;
-            --assert) flags+=(['assert']=1) ;;
-            --local) flags+=(['local']=1) ;;
-            --nix) flags+=(['nix']=1) ;;
-            --all) flags+=(['all']=1) ;;
-            --fix) flags+=(['fix']=1) ;;
-            --ask) flags+=(['ask']=1) ;;
-            --show) flags+=(['show']=1) ;;
-            --debug*) setDebug "$@"; shift $? ;;
-            --repo) shift; gitHubRepo="$1";;
-            --lib)  shift; args+=("--lib" "$1") ;;
-            -*) args+=("$1") ;;
-            *)  if [[ ${add} == true ]]; then
-                addIfRayvnExecutable "$1" || args+=("$1")
-            else
-                args+=("$1")
-            fi ;;
-        esac
-        shift
+# rayvn:cli cliSpec
+declare -gA cliSpec=(
+    ['new | create']='new(str str --local --help|-h)'
+    ['args']='args(file --help|-h)'
+    ['theme']='theme(--show --help|-h)'
+    ['test']='test(--nix --all --help|-h *)'
+    ['build']='build(--help|-h *)'
+    ['projects']='projects(--help|-h *)'
+    ['libraries']='libraries(--help|-h *)'
+    ['functions']='functions(--all --help|-h *)'
+    ['lint']='lint(--fix --ask --help|-h *)'
+    ['collisions']='collisions(--help|-h *)'
+    ['deps | dependencies']='dependencies(--fix --help|-h *)'
+    ['index']='index(--help|-h *)'
+    ['pages']='pages(--help|-h *)'
+    ['docs']='docs(--help|-h *)'
+    ['release']='release(--repo:str --help|-h *)'
+    ['register']='register(str --help|-h)'
+)
+
+resolveProjectsFromArgs() {
+    args=()
+    local arg
+    for arg in "${_argsParsedArguments[@]}"; do
+        addIfRayvnExecutable "${arg}" || args+=("${arg}")
     done
-    [[ ${add} == true ]] && (( ${#projects[@]} == 0 )) && detectCurrentProject
+    (( ${#projects[@]} > 0 )) || detectCurrentProject
 }
 
 detectCurrentProject() {
@@ -140,7 +108,6 @@ detectCurrentProject() {
 }
 
 addIfRayvnExecutable() {
-    [[ ${command} == 'newCmd' ]] && return 1
     local name="$1"
     local path root rayvnPkgFile
     path="${ type -P "${name}"; }"
@@ -186,22 +153,16 @@ assertProjectsSpecified() {
 
 SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
 
-printUsage() {
-    usage
-}
-
-
 newCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn new project|script|library|test NAME [--local]"
         echo
         echo "  Create a new project, library, script or test from a template."
         echo
         echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
     else
-        local type=${args[0]}
-        local name=${args[1]}
-        local command=
+        local type=${_argsParsedArguments[0]}
+        local name=${_argsParsedArguments[1]}
         [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
         case ${type} in
             project | script | library | test) ;;
@@ -210,7 +171,6 @@ newCmd() {
         [[ -n "${name}" ]] || bye "name required"
         local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
         local templateDir="${rayvnHome}/templates"
-        args=("${args[@]:3}")
 
         case ${type} in
             project) newProject;;
@@ -222,7 +182,7 @@ newCmd() {
 }
 
 themeCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn theme [--show]"
         echo
         echo "  Interactively select a color theme for rayvn output or show the current theme."
@@ -230,7 +190,7 @@ themeCmd() {
         echo "  --show  Show current theme."
     else
         require 'rayvn/theme'
-        if (( flags['show'] )); then
+        if (( _argsParsedOptions['show'] )); then
             header "current theme"
             showCurrentTheme
         else
@@ -240,7 +200,7 @@ themeCmd() {
 }
 
 argsCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn args SCRIPT"
         echo
         echo "  Regenerate the parser block in SCRIPT from its spec. The script must contain"
@@ -251,7 +211,7 @@ argsCmd() {
         echo
         echo "  The spec variable must be defined at global scope (not inside a function)."
     else
-        local scriptFile="${args[0]}"
+        local scriptFile="${_argsParsedArguments[0]}"
         [[ -n "${scriptFile}" ]] || fail "script file required"
         require 'rayvn/args'
         updateParser "${scriptFile}"
@@ -259,38 +219,41 @@ argsCmd() {
 }
 
 projectsCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn projects [PROJECT...]"
         echo
         echo "  Show info for one or more projects."
     else
+        resolveProjectsFromArgs
         echo
-        forEachProject printProject "${args[@]}"
+        forEachProject printProject
     fi
 }
 
 librariesCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn libraries [PROJECT...]"
         echo
         echo "  List all libraries for one or more projects."
     else
-        forEachProject printLibraries "$1"
+        resolveProjectsFromArgs
+        forEachProject printLibraries
     fi
 }
 
 functionsCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn functions [PROJECT/LIBRARY... | PROJECT... [LIBRARY]] [--all]"
         echo
         echo "  List public functions for project libraries."
         echo
         echo "  --all  Also list private (_-prefixed) functions."
     else
-        if [[ -n ${args[0]:-} && ${args[0]} == */* ]]; then
+        flags['all']="${_argsParsedOptions['all']:-0}"
+        if [[ -n ${_argsParsedArguments[0]:-} && ${_argsParsedArguments[0]} == */* ]]; then
             local qualifiedLib project library
             local -a libNames=() libProjects=()
-            for qualifiedLib in "${args[@]}"; do
+            for qualifiedLib in "${_argsParsedArguments[@]}"; do
                 project="${qualifiedLib%%/*}"
                 library="${qualifiedLib##*/}"
                 libNames+=("${library}")
@@ -301,13 +264,14 @@ functionsCmd() {
                 listProjectLibraries "${project}"
             done
         else
-            forEachProject listProjectLibraries "$1"
+            resolveProjectsFromArgs
+            forEachProject listProjectLibraries
         fi
     fi
 }
 
 testCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
         echo
         echo "  Run tests for one or more projects."
@@ -315,36 +279,41 @@ testCmd() {
         echo "  --nix  Run tests inside a nix develop shell."
         echo "  --all  Run tests locally and then again inside nix."
     else
+        flags['nix']="${_argsParsedOptions['nix']:-0}"
+        flags['all']="${_argsParsedOptions['all']:-0}"
+        resolveProjectsFromArgs
         require 'rayvn/test-harness'
         executeTests
     fi
 }
 
 buildCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn build [PROJECT...]"
         echo
         echo "  Run nix build for one or more projects."
     else
+        resolveProjectsFromArgs
         require 'rayvn/test-harness'
         executeNixBuild
     fi
 }
 
 indexCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
         echo
         echo "  Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
         echo "  Run after adding or modifying library functions to keep the indexes current."
     else
+        resolveProjectsFromArgs
         require 'rayvn/index'
         runIndex "${args[@]}"
     fi
 }
 
 pagesCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record [ID...] | --publish | --view]"
         echo
         echo "  PROJECT defaults to the current directory's project; only one may be specified."
@@ -369,6 +338,7 @@ pagesCmd() {
         echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
         echo
     else
+        resolveProjectsFromArgs
         assertProjectsSpecified
         (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
         require 'rayvn/index'
@@ -377,7 +347,7 @@ pagesCmd() {
 }
 
 lintCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn lint [PROJECT...] [--fix] [--ask]"
         echo
         echo "  Scan project source files for violations of rayvn's bash requirements."
@@ -388,22 +358,24 @@ lintCmd() {
         echo "  Note: The old \$( cmd ) command substitution syntax is detected but not auto-fixed." # lint-ok
         echo "        The current \${ cmd; } syntax is significantly more efficient."
     else
+        resolveProjectsFromArgs
         assertProjectsSpecified
         (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
         local fixMode=
-        (( flags['fix'] )) && fixMode='--fix'
-        (( flags['ask'] )) && fixMode='--ask'
+        (( _argsParsedOptions['fix'] )) && fixMode='--fix'
+        (( _argsParsedOptions['ask'] )) && fixMode='--ask'
         require 'rayvn/lint'
         runLint ${fixMode} "${projects[@]}"
     fi
 }
 
 collisionsCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn collisions [PROJECT...]"
         echo
         echo "  Check for function and global variable name collisions across project libraries."
     else
+        resolveProjectsFromArgs
         require 'rayvn/namespace'
         if (( ${#projects[@]} > 0 )); then
             checkNamespaces "${projects[@]}"
@@ -414,7 +386,8 @@ collisionsCmd() {
 }
 
 dependenciesCmd() {
-    if (( flags['help'] )) || (( ${#projects[@]} == 0 )); then
+    resolveProjectsFromArgs
+    if (( _argsParsedOptions['help'] )) || (( ${#projects[@]} == 0 )); then
         echo "rayvn dependencies [--fix] [PROJECT...]"
         echo
         echo "  Scan source files for external command dependencies and verify they are"
@@ -423,7 +396,7 @@ dependenciesCmd() {
         echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability."
     else
         require 'rayvn/index'
-        local fixMode=; (( flags['fix'] )) && fixMode=fix
+        local fixMode=; (( _argsParsedOptions['fix'] )) && fixMode=fix
         local project result=0
         for project in "${projects[@]}"; do
             findDependencies "${project}" "${fixMode}" || result=1
@@ -433,7 +406,7 @@ dependenciesCmd() {
 }
 
 docsCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn docs audit | update [PROJECT...] [OPTIONS]"
         echo
         echo "  audit [OPTIONS]    Report missing/stale ◇ doc comments."
@@ -451,18 +424,24 @@ docsCmd() {
         echo "  --delay SECS       Seconds to sleep between API calls to avoid rate limits (default: 5)."
     else
         require 'rayvn/function-docs'
-        local subcommand="${args[0]}"
-        local subArgs=("${args[@]:1}")
+        local subcommand="${_argsParsedArguments[0]}"
+        local remaining=("${_argsParsedArguments[@]:1}")
+        args=()
+        local arg
+        for arg in "${remaining[@]}"; do
+            addIfRayvnExecutable "${arg}" || args+=("${arg}")
+        done
+        (( ${#projects[@]} > 0 )) || detectCurrentProject
         case "${subcommand}" in
-            audit)  auditDocs  "${subArgs[@]}" ;;
-            update) updateDocs "${subArgs[@]}" ;;
+            audit)  auditDocs  "${args[@]}" ;;
+            update) updateDocs "${args[@]}" ;;
             *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
         esac
     fi
 }
 
 releaseCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION"
         echo
         echo "  Create a versioned GitHub release for a project."
@@ -470,6 +449,7 @@ releaseCmd() {
         echo "  --repo ACCOUNT/REPO  Specify the GitHub repository explicitly."
     else
         local version=
+        resolveProjectsFromArgs
         if (( ${#projects[@]} )); then
             assertSingleProject
             version="${args[0]}"
@@ -483,7 +463,7 @@ releaseCmd() {
 
         [[ -n ${version} ]] || fail "version required"
 
-        local ghRepo="${gitHubRepo}"
+        local ghRepo="${_argsParsedOptions['repo']:-}"
         if [[ -z ${ghRepo} ]]; then
             local project="${projects[0]}"
             case "${project}" in
@@ -500,19 +480,17 @@ releaseCmd() {
 }
 
 registerCmd() {
-    if (( flags['help'] )); then
+    if (( _argsParsedOptions['help'] )); then
         echo "rayvn register PROJECT"
         echo
         echo "  Stake a claim on a project name on rayvn central."
     else
         require 'rayvn/central'
-        registerProjectOnRayvnCentral "${args[0]}" || fail
+        registerProjectOnRayvnCentral "${_argsParsedArguments[0]}" || fail
     fi
 }
 
-
 SECTION="--+-+-----+-++(-++(---++++(---+( IMPLEMENTATION )+---)++++---)++-)++-+------+-+--"
-
 
 printProject() {
     local projectName="$1"
@@ -634,7 +612,7 @@ newProject() {
     declare -i createdRepo=0
     local choiceIndex formulaFile repoUrl
 
-    if (( flags['local'] )); then
+    if (( _argsParsedOptions['local'] )); then
         # --local flag: skip GitHub, just create local git repo
         makeDir "${projectRoot}" > /dev/null
         cd "${projectRoot}" || fail
@@ -815,6 +793,357 @@ copyFileAndSubstituteVars() {
 
     gsed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
+
+ARGS_PARSER_BEGIN="━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔽 BEGIN generated code: DO NOT EDIT 🔽 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"
+
+parseCommand() {
+    _argsParsedOptions=()
+    _argsParsedArguments=()
+    parseCommonOptions rayvn "$@"; shift $?
+    while (( $# )); do
+        case "$1" in
+            register) shift; parseRegisterArgs "$@"; registerCmd; return ;;
+            index) shift; parseIndexArgs "$@"; indexCmd; return ;;
+            docs) shift; parseDocsArgs "$@"; docsCmd; return ;;
+            collisions) shift; parseCollisionsArgs "$@"; collisionsCmd; return ;;
+            args) shift; parseArgsArgs "$@"; argsCmd; return ;;
+            functions) shift; parseFunctionsArgs "$@"; functionsCmd; return ;;
+            new | create) shift; parseNewArgs "$@"; newCmd; return ;;
+            projects) shift; parseProjectsArgs "$@"; projectsCmd; return ;;
+            deps | dependencies) shift; parseDependenciesArgs "$@"; dependenciesCmd; return ;;
+            pages) shift; parsePagesArgs "$@"; pagesCmd; return ;;
+            build) shift; parseBuildArgs "$@"; buildCmd; return ;;
+            release) shift; parseReleaseArgs "$@"; releaseCmd; return ;;
+            theme) shift; parseThemeArgs "$@"; themeCmd; return ;;
+            lint) shift; parseLintArgs "$@"; lintCmd; return ;;
+            libraries) shift; parseLibrariesArgs "$@"; librariesCmd; return ;;
+            test) shift; parseTestArgs "$@"; testCmd; return ;;
+            *) usage "unknown command: $1" ;;
+        esac
+    done
+}
+
+parseRegisterArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                case ${_argIndex} in
+                    0) ;;
+                    *) fail "unknown argument: $1" ;;
+                esac
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseIndexArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseDocsArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseCollisionsArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseArgsArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                case ${_argIndex} in
+                    0) assertFile "${_value}"; ;;
+                    *) fail "unknown argument: $1" ;;
+                esac
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseFunctionsArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            --all) _argsParsedOptions+=([all]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseNewArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --local) _argsParsedOptions+=([local]="1"); shift ;;
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                case ${_argIndex} in
+                    0) ;;
+                    1) ;;
+                    *) fail "unknown argument: $1" ;;
+                esac
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseProjectsArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseDependenciesArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --fix) _argsParsedOptions+=([fix]="1"); shift ;;
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parsePagesArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseBuildArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseReleaseArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --repo) [[ -z "$2" ]] && fail "missing value for --repo"; _argsParsedOptions+=([repo]="$2"); shift 2 ;;
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseThemeArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --show) _argsParsedOptions+=([show]="1"); shift ;;
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *) fail "unknown argument: $1" ;;
+        esac
+    done
+}
+
+parseLintArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --fix) _argsParsedOptions+=([fix]="1"); shift ;;
+            --ask) _argsParsedOptions+=([ask]="1"); shift ;;
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseLibrariesArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+parseTestArgs() {
+    local _argIndex=0 _typedArg=1 _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --nix) _argsParsedOptions+=([nix]="1"); shift ;;
+            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            --all) _argsParsedOptions+=([all]="1"); shift ;;
+            *)
+                _value="$1"
+                if (( _typedArg )); then
+                    case ${_argIndex} in
+                        *) _typedArg=0 ;;
+                    esac
+                fi
+                _argsParsedArguments+=("${_value}")
+                (( _argIndex++ ))
+                shift
+                ;;
+        esac
+    done
+}
+
+
+ARGS_PARSER_END="━━━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔼 END generated code: DO NOT EDIT 🔼 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"
+
+
 
 source rayvn.up
 main "$@"
