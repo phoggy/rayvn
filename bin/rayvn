@@ -824,326 +824,162 @@ parseCommand() {
 }
 
 parseRegisterArgs() {
-    local _argIndex=0 _typedArg=1 _value
+    local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                case ${_argIndex} in
-                    0) ;;
-                    *) fail "unknown argument: $1" ;;
-                esac
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) (( _argIndex == 0 )) || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
 }
 
 parseIndexArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseDocsArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseCollisionsArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseArgsArgs() {
-    local _argIndex=0 _typedArg=1 _value
+    local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                case ${_argIndex} in
-                    0) assertFile "${_value}"; ;;
-                    *) fail "unknown argument: $1" ;;
-                esac
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
 }
 
 parseFunctionsArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
             --all) _argsParsedOptions+=([all]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseNewArgs() {
-    local _argIndex=0 _typedArg=1 _value
+    local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
             --local) _argsParsedOptions+=([local]="1"); shift ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                case ${_argIndex} in
-                    0) ;;
-                    1) ;;
-                    *) fail "unknown argument: $1" ;;
-                esac
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) (( _argIndex < 2 )) || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
 }
 
 parseProjectsArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseDependenciesArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --fix) _argsParsedOptions+=([fix]="1"); shift ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parsePagesArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseBuildArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseReleaseArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --repo) [[ -z "$2" ]] && fail "missing value for --repo"; _argsParsedOptions+=([repo]="$2"); shift 2 ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseThemeArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --show) _argsParsedOptions+=([show]="1"); shift ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) fail "unknown argument: $1" ;;
+            *) unknownArg "$1" ;;
         esac
     done
 }
 
 parseLintArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --fix) _argsParsedOptions+=([fix]="1"); shift ;;
             --ask) _argsParsedOptions+=([ask]="1"); shift ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseLibrariesArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
 parseTestArgs() {
-    local _argIndex=0 _typedArg=1 _value
     while (( $# > 0 )); do
         case "$1" in
             --nix) _argsParsedOptions+=([nix]="1"); shift ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
             --all) _argsParsedOptions+=([all]="1"); shift ;;
-            *)
-                _value="$1"
-                if (( _typedArg )); then
-                    case ${_argIndex} in
-                        *) _typedArg=0 ;;
-                    esac
-                fi
-                _argsParsedArguments+=("${_value}")
-                (( _argIndex++ ))
-                shift
-                ;;
+            *) _argsParsedArguments+=("$1"); shift ;;
         esac
     done
 }
 
-
 ARGS_PARSER_END="━━━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔼 END generated code: DO NOT EDIT 🔼 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"
-
-
 
 source rayvn.up
 main "$@"

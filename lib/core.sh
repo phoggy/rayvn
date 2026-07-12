@@ -353,6 +353,16 @@ fail() {
     exit 1
 }
 
+# ◇ Fail with "unknown argument: ARG".
+#
+# · ARGS
+#
+#   arg (string)  The unrecognized argument value.
+
+unknownArg() {
+    fail "unknown argument: $1"
+}
+
 # ◇ Print an optional exit message, show stack if in debug mode, and exit 0.
 #
 # · USAGE

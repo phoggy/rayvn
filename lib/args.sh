@@ -103,7 +103,7 @@ generateParser() {
 
     echo "${_beginParseSection}"; echo
     ${generator} "${project}" "${specVar}" "${name}"
-    echo; echo "${_endParseSection}"; echo
+    echo "${_endParseSection}"
 }
 
 # ◇ Regenerate parser block in a script file in-place. Reads either a '# rayvn:args specVar [funcName]'
@@ -133,9 +133,6 @@ updateParser() {
     [[ -n "${specVar}" ]] || fail "${scriptFile}: specVar missing from ${annotationType} annotation"
     [[ "${annotationType}" == 'rayvn:cli' ]] && funcName=
 
-    # Verify block markers exist
-    grep -q '^ARGS_PARSER_BEGIN=' "${scriptFile}" || fail "${scriptFile}: no ARGS_PARSER_BEGIN marker found"
-
     # Detect project from rayvn.pkg
     local project; project=${ _argsDetectProject "${scriptFile}"; }
 
@@ -157,15 +154,29 @@ updateParser() {
 
     # Replace block in-place using temp file
     local tmpFile; tmpFile=${ makeTempFile; }
-    gawk -v contentFile="${contentFile}" '
-        /^ARGS_PARSER_BEGIN=/ {
-            while ((getline line < contentFile) > 0) print line
-            close(contentFile)
-            skip=1; next
-        }
-        /^ARGS_PARSER_END=/ { skip=0; next }
-        !skip { print }
-    ' "${scriptFile}" > "${tmpFile}" || fail "failed to rewrite ${scriptFile}"
+    if grep -q '^ARGS_PARSER_BEGIN=' "${scriptFile}"; then
+        grep -q '^ARGS_PARSER_END=' "${scriptFile}" || fail "${scriptFile}: ARGS_PARSER_BEGIN found but no ARGS_PARSER_END marker"
+        gawk -v contentFile="${contentFile}" '
+            /^ARGS_PARSER_BEGIN=/ {
+                while ((getline line < contentFile) > 0) print line
+                close(contentFile)
+                skip=1; next
+            }
+            /^ARGS_PARSER_END=/ { skip=0; next }
+            !skip { print }
+        ' "${scriptFile}" > "${tmpFile}" || fail "failed to rewrite ${scriptFile}"
+    else
+        local insertAfter; insertAfter=${ gawk -v spec="${specVar}" '
+            BEGIN { pattern = "^(declare[^=]* )?" spec "=" }
+            $0 ~ pattern { in_spec=1 }
+            in_spec && /\)[[:space:]]*$/ { print NR; exit }
+        ' "${scriptFile}"; }
+        [[ -n "${insertAfter}" ]] || fail "${scriptFile}: could not locate end of spec '${specVar}'"
+        gawk -v n="${insertAfter}" -v contentFile="${contentFile}" '
+            NR == n { print; print ""; while ((getline line < contentFile) > 0) print line; close(contentFile); next }
+            { print }
+        ' "${scriptFile}" > "${tmpFile}" || fail "failed to rewrite ${scriptFile}"
+    fi
 
     cp "${tmpFile}" "${scriptFile}" || fail "failed to write updated ${scriptFile}"
     show "Updated parser in" blue "${ tildePath "${scriptFile}"; }"
@@ -293,15 +304,25 @@ _genParseFunction() {
         fi
     done
 
-    local hasWildcard=0 i argType
+    local hasWildcard=0 pureWildcard=0 hasBoolPositional=0 needsValue=0 i argType
     for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
         [[ "${_argsArgumentTypes[i]}" == '*' ]] && hasWildcard=1
+        [[ "${_argsArgumentTypes[i]}" == 'bool' ]] && hasBoolPositional=1
+    done
+    [[ ${hasWildcard} == 1 && ${#_argsArgumentTypes[@]} == 1 ]] && pureWildcard=1
+    (( hasBoolPositional )) && needsValue=1
+    local opt; for opt in "${!_argsOptionTypes[@]}"; do
+        [[ "${_argsOptionTypes[$opt]}" == 'bool' ]] && { needsValue=1; break; }
     done
 
     {
         echo "parse${name^}Args() {"
         [[ ${includeResets} != false ]] && { echo "    _argsParsedOptions=()"; echo "    _argsParsedArguments=()"; }
-        echo "    local _argIndex=0 _typedArg=1 _value"
+        if (( pureWildcard || ${#_argsArgumentTypes[@]} == 0 )); then
+            (( needsValue )) && echo "    local _value"
+        else
+            (( needsValue )) && echo "    local _argIndex=0 _value" || echo "    local _argIndex=0"
+        fi
         echo "    while (( \$# > 0 )); do"
         echo "        case \"\$1\" in"
 
@@ -331,50 +352,56 @@ _genParseFunction() {
         done
 
         # Positional arg case
-        if (( ${#_argsArgumentTypes[@]} > 0 )); then
-            echo "            *)"
-            echo "                _value=\"\$1\""
-            if (( hasWildcard )); then
-                echo "                if (( _typedArg )); then"
-                echo "                    case \${_argIndex} in"
-                for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
-                    argType="${_argsArgumentTypes[i]}"
-                    if [[ "${argType}" == '*' ]]; then echo "                        *) _typedArg=0 ;;"; break; fi
-                    local argCheck=""
-                    case "${argType}" in
-                        int)  argCheck="assertInt \"\${_value}\"; " ;;
-                        +int) argCheck="assertPositiveInt \"\${_value}\"; " ;;
-                        bool) argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value; " ;;
-                        file) argCheck="assertFile \"\${_value}\"; " ;;
-                        dir)  argCheck="assertDirectory \"\${_value}\"; " ;;
-                    esac
-                    echo "                        ${i}) ${argCheck};;"
-                done
-                echo "                    esac"
-                echo "                fi"
+        if (( pureWildcard )); then
+            echo "            *) _argsParsedArguments+=(\"\$1\"); shift ;;"
+        elif (( ${#_argsArgumentTypes[@]} > 0 )); then
+            local nTyped=0
+            for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+                [[ "${_argsArgumentTypes[i]}" == '*' ]] && break
+                (( nTyped++ ))
+            done
+            local -a _checks=()
+            for (( i = 0; i < nTyped; i++ )); do
+                argType="${_argsArgumentTypes[i]}"
+                local argCheck=""
+                case "${argType}" in
+                    int)  argCheck="assertInt \"\$1\"" ;;
+                    +int) argCheck="assertPositiveInt \"\$1\"" ;;
+                    bool) argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value" ;;
+                    file) argCheck="assertFile \"\$1\"" ;;
+                    dir)  argCheck="assertDirectory \"\$1\"" ;;
+                esac
+                _checks+=("${argCheck}")
+            done
+            _wrapCheck() { [[ "$1" == *";"* ]] && echo "{ $1; }" || echo "$1"; }
+
+            # Build prefix lines (everything before the consolidated append/increment/shift)
+            local -a _prefix=()
+            (( hasBoolPositional )) && _prefix+=("_value=\"\$1\"")
+            if (( nTyped == 1 && ! hasWildcard )); then
+                [[ -n "${_checks[0]}" ]] \
+                    && _prefix+=("(( _argIndex == 0 )) && ${ _wrapCheck "${_checks[0]}"; } || unknownArg \"\$1\"") \
+                    || _prefix+=("(( _argIndex == 0 )) || unknownArg \"\$1\"")
             else
-                echo "                case \${_argIndex} in"
-                for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
-                    argType="${_argsArgumentTypes[i]}"
-                    local argCheck=""
-                    case "${argType}" in
-                        int)  argCheck="assertInt \"\${_value}\"; " ;;
-                        +int) argCheck="assertPositiveInt \"\${_value}\"; " ;;
-                        bool) argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value; " ;;
-                        file) argCheck="assertFile \"\${_value}\"; " ;;
-                        dir)  argCheck="assertDirectory \"\${_value}\"; " ;;
-                    esac
-                    echo "                    ${i}) ${argCheck};;"
+                (( ! hasWildcard && nTyped > 0 )) && _prefix+=("(( _argIndex < ${nTyped} )) || unknownArg \"\$1\"")
+                for (( i = 0; i < nTyped; i++ )); do
+                    [[ -n "${_checks[i]}" ]] && _prefix+=("(( _argIndex == ${i} )) && ${ _wrapCheck "${_checks[i]}"; }")
                 done
-                echo "                    *) fail \"unknown argument: \$1\" ;;"
-                echo "                esac"
             fi
-            echo "                _argsParsedArguments+=(\"\${_value}\")"
-            echo "                (( _argIndex++ ))"
-            echo "                shift"
-            echo "                ;;"
+
+            local appendVar="\$1"; (( hasBoolPositional )) && appendVar="\${_value}"
+            local tail="_argsParsedArguments+=(\"${appendVar}\"); (( _argIndex++ )); shift ;;"
+            if (( ${#_prefix[@]} == 0 )); then
+                echo "            *) ${tail}"
+            elif (( ${#_prefix[@]} == 1 )); then
+                echo "            *) ${_prefix[0]}; ${tail}"
+            else
+                echo "            *)"
+                local line; for line in "${_prefix[@]}"; do echo "                ${line}"; done
+                echo "                ${tail}"
+            fi
         else
-            echo "            *) fail \"unknown argument: \$1\" ;;"
+            echo "            *) unknownArg \"\$1\" ;;"
         fi
 
         echo "        esac"
