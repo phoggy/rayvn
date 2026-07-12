@@ -256,17 +256,15 @@ _genCommandParser() {
     echo "    _argsParsedOptions=()"
     echo "    _argsParsedArguments=()"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
-    echo "    while (( \$# )); do"
-    echo "        case \"\$1\" in"
+    echo "    case \"\$1\" in"
     for command in "${!_commandSpec[@]}"; do
         fnSpec="${_commandSpec[${command}]}"
         cmdName="${fnSpec%(*}"
         handler="parse${cmdName^}Args"
-        echo "            ${command}) shift; ${handler} \"\$@\"; ${cmdName}Cmd; return ;;"
+        echo "        ${command}) shift; ${handler} \"\$@\"; (( _argsParsedOptions['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
     done
-    echo "            *) usage \"unknown command: \$1\" ;;"
-    echo "        esac"
-    echo "    done"
+    echo "        *) usage \"unknown command: \$1\" ;;"
+    echo "    esac"
     echo "}"
     echo
 

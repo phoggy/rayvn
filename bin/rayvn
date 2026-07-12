@@ -153,341 +153,353 @@ assertProjectsSpecified() {
 
 SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
 
-newCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn new project|script|library|test NAME [--local]"
-        echo
-        echo "  Create a new project, library, script or test from a template."
-        echo
-        echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
-    else
-        local type=${_argsParsedArguments[0]}
-        local name=${_argsParsedArguments[1]}
-        [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
-        case ${type} in
-            project | script | library | test) ;;
-            *) bye "unknown type: ${type}"
-        esac
-        [[ -n "${name}" ]] || bye "name required"
-        local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
-        local templateDir="${rayvnHome}/templates"
+newCmdUsage() {
+    echo "rayvn new project|script|library|test NAME [--local]"
+    echo
+    echo "Create a new project, library, script or test from a template."
+    echo
+    echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
+    bye "$@"
+}
 
-        case ${type} in
-            project) newProject;;
-            script) newScript ;;
-            library) newLibrary ;;
-            test) newTest ;;
-        esac
-    fi
+newCmd() {
+    local type=${_argsParsedArguments[0]}
+    local name=${_argsParsedArguments[1]}
+    [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
+    case ${type} in
+        project | script | library | test) ;;
+        *) bye "unknown type: ${type}"
+    esac
+    [[ -n "${name}" ]] || bye "name required"
+    local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
+    local templateDir="${rayvnHome}/templates"
+    case ${type} in
+        project) newProject ;;
+        script)  newScript ;;
+        library) newLibrary ;;
+        test)    newTest ;;
+    esac
+}
+
+themeCmdUsage() {
+    echo "rayvn theme [--show]"
+    echo
+    echo "Interactively select a color theme for rayvn output or show the current theme."
+    echo
+    echo "  --show  Show current theme."
+    bye "$@"
 }
 
 themeCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn theme [--show]"
-        echo
-        echo "  Interactively select a color theme for rayvn output or show the current theme."
-        echo
-        echo "  --show  Show current theme."
+    require 'rayvn/theme'
+    if (( _argsParsedOptions['show'] )); then
+        header "current theme"
+        showCurrentTheme
     else
-        require 'rayvn/theme'
-        if (( _argsParsedOptions['show'] )); then
-            header "current theme"
-            showCurrentTheme
-        else
-            setTheme
-        fi
+        setTheme
     fi
+}
+
+argsCmdUsage() {
+    echo "rayvn args SCRIPT"
+    echo
+    echo "Regenerate the parser block in SCRIPT from its spec. The script must contain"
+    echo "one of the following annotations and the ARGS_PARSER_BEGIN/END markers:"
+    echo
+    echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
+    echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
+    echo
+    echo "The spec variable must be defined at global scope (not inside a function)."
+    bye "$@"
 }
 
 argsCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn args SCRIPT"
-        echo
-        echo "  Regenerate the parser block in SCRIPT from its spec. The script must contain"
-        echo "  one of the following annotations and the ARGS_PARSER_BEGIN/END markers:"
-        echo
-        echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
-        echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
-        echo
-        echo "  The spec variable must be defined at global scope (not inside a function)."
-    else
-        local scriptFile="${_argsParsedArguments[0]}"
-        [[ -n "${scriptFile}" ]] || fail "script file required"
-        require 'rayvn/args'
-        updateParser "${scriptFile}"
-    fi
+    local scriptFile="${_argsParsedArguments[0]}"
+    [[ -n "${scriptFile}" ]] || argsCmdUsage "script file required"
+    require 'rayvn/args'
+    updateParser "${scriptFile}"
+}
+
+projectsCmdUsage() {
+    echo "rayvn projects [PROJECT...]"
+    echo
+    echo "Show info for one or more projects."
+    bye "$@"
 }
 
 projectsCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn projects [PROJECT...]"
-        echo
-        echo "  Show info for one or more projects."
-    else
-        resolveProjectsFromArgs
-        echo
-        forEachProject printProject
-    fi
+    resolveProjectsFromArgs
+    echo
+    forEachProject printProject
+}
+
+librariesCmdUsage() {
+    echo "rayvn libraries [PROJECT...]"
+    echo
+    echo "List all libraries for one or more projects."
+    bye "$@"
 }
 
 librariesCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn libraries [PROJECT...]"
-        echo
-        echo "  List all libraries for one or more projects."
-    else
-        resolveProjectsFromArgs
-        forEachProject printLibraries
-    fi
+    resolveProjectsFromArgs
+    forEachProject printLibraries
+}
+
+functionsCmdUsage() {
+    echo "rayvn functions [PROJECT/LIBRARY... | PROJECT... [LIBRARY]] [--all]"
+    echo
+    echo "List public functions for project libraries."
+    echo
+    echo "  --all  Also list private (_-prefixed) functions."
+    bye "$@"
 }
 
 functionsCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn functions [PROJECT/LIBRARY... | PROJECT... [LIBRARY]] [--all]"
-        echo
-        echo "  List public functions for project libraries."
-        echo
-        echo "  --all  Also list private (_-prefixed) functions."
+    flags['all']="${_argsParsedOptions['all']:-0}"
+    if [[ -n ${_argsParsedArguments[0]:-} && ${_argsParsedArguments[0]} == */* ]]; then
+        local qualifiedLib project library
+        local -a libNames=() libProjects=()
+        for qualifiedLib in "${_argsParsedArguments[@]}"; do
+            project="${qualifiedLib%%/*}"
+            library="${qualifiedLib##*/}"
+            libNames+=("${library}")
+            memberOf "${project}" libProjects || libProjects+=("${project}")
+        done
+        args=("${libNames[@]}")
+        for project in "${libProjects[@]}"; do
+            listProjectLibraries "${project}"
+        done
     else
-        flags['all']="${_argsParsedOptions['all']:-0}"
-        if [[ -n ${_argsParsedArguments[0]:-} && ${_argsParsedArguments[0]} == */* ]]; then
-            local qualifiedLib project library
-            local -a libNames=() libProjects=()
-            for qualifiedLib in "${_argsParsedArguments[@]}"; do
-                project="${qualifiedLib%%/*}"
-                library="${qualifiedLib##*/}"
-                libNames+=("${library}")
-                memberOf "${project}" libProjects || libProjects+=("${project}")
-            done
-            args=("${libNames[@]}")
-            for project in "${libProjects[@]}"; do
-                listProjectLibraries "${project}"
-            done
-        else
-            resolveProjectsFromArgs
-            forEachProject listProjectLibraries
-        fi
+        resolveProjectsFromArgs
+        forEachProject listProjectLibraries
     fi
+}
+
+testCmdUsage() {
+    echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
+    echo
+    echo "Run tests for one or more projects."
+    echo
+    echo "  --nix  Run tests inside a nix develop shell."
+    echo "  --all  Run tests locally and then again inside nix."
+    bye "$@"
 }
 
 testCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
-        echo
-        echo "  Run tests for one or more projects."
-        echo
-        echo "  --nix  Run tests inside a nix develop shell."
-        echo "  --all  Run tests locally and then again inside nix."
-    else
-        flags['nix']="${_argsParsedOptions['nix']:-0}"
-        flags['all']="${_argsParsedOptions['all']:-0}"
-        resolveProjectsFromArgs
-        require 'rayvn/test-harness'
-        executeTests
-    fi
+    flags['nix']="${_argsParsedOptions['nix']:-0}"
+    flags['all']="${_argsParsedOptions['all']:-0}"
+    resolveProjectsFromArgs
+    require 'rayvn/test-harness'
+    executeTests
+}
+
+buildCmdUsage() {
+    echo "rayvn build [PROJECT...]"
+    echo
+    echo "  Run nix build for one or more projects."
+    bye "$@"
 }
 
 buildCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn build [PROJECT...]"
-        echo
-        echo "  Run nix build for one or more projects."
-    else
-        resolveProjectsFromArgs
-        require 'rayvn/test-harness'
-        executeNixBuild
-    fi
+    resolveProjectsFromArgs
+    require 'rayvn/test-harness'
+    executeNixBuild
+}
+
+indexCmdUsage() {
+    echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
+    echo
+    echo "Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
+    echo "Run after adding or modifying library functions to keep the indexes current."
+    bye "$@"
 }
 
 indexCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
-        echo
-        echo "  Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
-        echo "  Run after adding or modifying library functions to keep the indexes current."
-    else
-        resolveProjectsFromArgs
-        require 'rayvn/index'
-        runIndex "${args[@]}"
-    fi
+    resolveProjectsFromArgs
+    require 'rayvn/index'
+    runIndex "${args[@]}"
+}
+
+pagesCmdUsage() {
+    echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record [ID...] | --publish | --view]"
+    echo
+    echo "PROJECT defaults to the current directory's project; only one may be specified."
+    echo
+    echo "  --setup          First-time setup: create gh-pages branch, worktree, and workflow."
+    echo "  --record [ID...] Re-record asciinema casts. Optionally filter by cast ID(s)."
+    echo "  --dir DIR        Output directory (default: project's configured worktree)."
+    echo "  --publish        Generate pages, then commit and push to gh-pages."
+    echo "  --view           Generate pages, then serve locally with Jekyll."
+    echo
+    echo "Record markup (in any .md file in the pages dir):"
+    echo
+    echo "  <!-- record id=\"NAME\" cmd=\"COMMAND\" [cmd=\"COMMAND\" ...] [pre=\"CMD\"] [post=\"CMD\"] [prompt=\"PS1\"] -->"
+    echo "  {% include asciinema.html id=\"NAME\" src=\"...\" %}"
+    echo
+    echo "  Each <!-- record --> comment must be paired with a matching {% include asciinema.html %} tag."
+    echo
+    echo "  id=      Cast identifier (must match the include tag's id= attribute)."
+    echo "  cmd=     Command to record. Repeatable; commands are recorded sequentially."
+    echo "  pre=     Optional setup command run before recording (not captured)."
+    echo "  post=    Optional cleanup command run after recording (not captured)."
+    echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
+    echo
+    bye "$@"
 }
 
 pagesCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record [ID...] | --publish | --view]"
-        echo
-        echo "  PROJECT defaults to the current directory's project; only one may be specified."
-        echo
-        echo "  --setup          First-time setup: create gh-pages branch, worktree, and workflow."
-        echo "  --record [ID...] Re-record asciinema casts. Optionally filter by cast ID(s)."
-        echo "  --dir DIR        Output directory (default: project's configured worktree)."
-        echo "  --publish        Generate pages, then commit and push to gh-pages."
-        echo "  --view           Generate pages, then serve locally with Jekyll."
-        echo
-        echo "Record markup (in any .md file in the pages dir):"
-        echo
-        echo "  <!-- record id=\"NAME\" cmd=\"COMMAND\" [cmd=\"COMMAND\" ...] [pre=\"CMD\"] [post=\"CMD\"] [prompt=\"PS1\"] -->"
-        echo "  {% include asciinema.html id=\"NAME\" src=\"...\" %}"
-        echo
-        echo "  Each <!-- record --> comment must be paired with a matching {% include asciinema.html %} tag."
-        echo
-        echo "  id=      Cast identifier (must match the include tag's id= attribute)."
-        echo "  cmd=     Command to record. Repeatable; commands are recorded sequentially."
-        echo "  pre=     Optional setup command run before recording (not captured)."
-        echo "  post=    Optional cleanup command run after recording (not captured)."
-        echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
-        echo
-    else
-        resolveProjectsFromArgs
-        assertProjectsSpecified
-        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
-        require 'rayvn/index'
-        runPages "${projects[0]}" "${args[@]}"
-    fi
+    resolveProjectsFromArgs
+    assertProjectsSpecified
+    (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+    require 'rayvn/index'
+    runPages "${projects[0]}" "${args[@]}"
+}
+
+lintCmdUsage() {
+    echo "rayvn lint [PROJECT...] [--fix] [--ask]"
+    echo
+    echo "Scan project source files for violations of rayvn's bash requirements."
+    echo
+    echo "  --fix  Auto-fix all violations that can be corrected automatically."
+    echo "  --ask  Interactively prompt whether to fix each file with violations."
+    echo
+    echo "Note: The old \$( cmd ) command substitution syntax is detected but not auto-fixed." # lint-ok
+    echo "      The current \${ cmd; } syntax is significantly more efficient."
+    bye "$@"
 }
 
 lintCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn lint [PROJECT...] [--fix] [--ask]"
-        echo
-        echo "  Scan project source files for violations of rayvn's bash requirements."
-        echo
-        echo "  --fix  Auto-fix all violations that can be corrected automatically."
-        echo "  --ask  Interactively prompt whether to fix each file with violations."
-        echo
-        echo "  Note: The old \$( cmd ) command substitution syntax is detected but not auto-fixed." # lint-ok
-        echo "        The current \${ cmd; } syntax is significantly more efficient."
-    else
-        resolveProjectsFromArgs
-        assertProjectsSpecified
-        (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
-        local fixMode=
-        (( _argsParsedOptions['fix'] )) && fixMode='--fix'
-        (( _argsParsedOptions['ask'] )) && fixMode='--ask'
-        require 'rayvn/lint'
-        runLint ${fixMode} "${projects[@]}"
-    fi
+    resolveProjectsFromArgs
+    assertProjectsSpecified
+    (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+    local fixMode=
+    (( _argsParsedOptions['fix'] )) && fixMode='--fix'
+    (( _argsParsedOptions['ask'] )) && fixMode='--ask'
+    require 'rayvn/lint'
+    runLint ${fixMode} "${projects[@]}"
+}
+
+collisionsCmdUsage() {
+    echo "rayvn collisions [PROJECT...]"
+    echo
+    echo "Check for function and global variable name collisions across project libraries."
+    bye "$@"
 }
 
 collisionsCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn collisions [PROJECT...]"
-        echo
-        echo "  Check for function and global variable name collisions across project libraries."
+    resolveProjectsFromArgs
+    require 'rayvn/namespace'
+    if (( ${#projects[@]} > 0 )); then
+        checkNamespaces "${projects[@]}"
     else
-        resolveProjectsFromArgs
-        require 'rayvn/namespace'
-        if (( ${#projects[@]} > 0 )); then
-            checkNamespaces "${projects[@]}"
-        else
-            checkNamespaces
-        fi
+        checkNamespaces
     fi
+}
+
+dependenciesCmdUsage() {
+    echo "rayvn dependencies [--fix] [PROJECT...]"
+    echo
+    echo "Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps."
+    echo
+    echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability."
+    bye "$@"
 }
 
 dependenciesCmd() {
     resolveProjectsFromArgs
-    if (( _argsParsedOptions['help'] )) || (( ${#projects[@]} == 0 )); then
-        echo "rayvn dependencies [--fix] [PROJECT...]"
-        echo
-        echo "  Scan source files for external command dependencies and verify they are"
-        echo "  declared in flake.nix runtimeDeps."
-        echo
-        echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability."
-    else
-        require 'rayvn/index'
-        local fixMode=; (( _argsParsedOptions['fix'] )) && fixMode=fix
-        local project result=0
-        for project in "${projects[@]}"; do
-            findDependencies "${project}" "${fixMode}" || result=1
-        done
-        return ${result}
-    fi
+    (( ${#projects[@]} == 0 )) && dependenciesCmdUsage
+    require 'rayvn/index'
+    local fixMode=; (( _argsParsedOptions['fix'] )) && fixMode=fix
+    local project result=0
+    for project in "${projects[@]}"; do
+        findDependencies "${project}" "${fixMode}" || result=1
+    done
+    return ${result}
+}
+
+docsCmdUsage() {
+    echo "rayvn docs audit | update [PROJECT...] [OPTIONS]"
+    echo
+    echo "audit [OPTIONS]    Report missing/stale ◇ doc comments."
+    echo
+    echo "  --release        Exit 1 if any public functions are missing ◇ doc comments."
+    echo
+    echo "update [OPTIONS]   Generate or fix ◇ doc comments via Claude API."
+    echo
+    echo "  --dry-run         Print proposed docs without writing any changes."
+    echo "  --regen           Regenerate docs for all public functions, not just missing/stale."
+    echo "  --missing-only    Only process functions missing a ◇ doc comment."
+    echo "  --stale-only      Only process functions with potentially stale docs."
+    echo "  --lib NAME        Limit to a single library by name."
+    echo "  --since DURATION  Skip functions updated within this duration (e.g. '30m', '2h', '1d')."
+    echo "  --delay SECS      Seconds to sleep between API calls to avoid rate limits (default: 5)."
+    bye "$@"
 }
 
 docsCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn docs audit | update [PROJECT...] [OPTIONS]"
-        echo
-        echo "  audit [OPTIONS]    Report missing/stale ◇ doc comments."
-        echo
-        echo "  --release          Exit 1 if any public functions are missing ◇ doc comments."
-        echo
-        echo "  update [OPTIONS]   Generate or fix ◇ doc comments via Claude API."
-        echo
-        echo "  --dry-run          Print proposed docs without writing any changes."
-        echo "  --regen            Regenerate docs for all public functions, not just missing/stale."
-        echo "  --missing-only     Only process functions missing a ◇ doc comment."
-        echo "  --stale-only       Only process functions with potentially stale docs."
-        echo "  --lib NAME         Limit to a single library by name."
-        echo "  --since DURATION   Skip functions updated within this duration (e.g. '30m', '2h', '1d')."
-        echo "  --delay SECS       Seconds to sleep between API calls to avoid rate limits (default: 5)."
-    else
-        require 'rayvn/function-docs'
-        local subcommand="${_argsParsedArguments[0]}"
-        local remaining=("${_argsParsedArguments[@]:1}")
-        args=()
-        local arg
-        for arg in "${remaining[@]}"; do
-            addIfRayvnExecutable "${arg}" || args+=("${arg}")
-        done
-        (( ${#projects[@]} > 0 )) || detectCurrentProject
-        case "${subcommand}" in
-            audit)  auditDocs  "${args[@]}" ;;
-            update) updateDocs "${args[@]}" ;;
-            *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
-        esac
-    fi
+    require 'rayvn/function-docs'
+    local subcommand="${_argsParsedArguments[0]}"
+    local remaining=("${_argsParsedArguments[@]:1}")
+    args=()
+    local arg
+    for arg in "${remaining[@]}"; do
+        addIfRayvnExecutable "${arg}" || args+=("${arg}")
+    done
+    (( ${#projects[@]} > 0 )) || detectCurrentProject
+    case "${subcommand}" in
+        audit)  auditDocs  "${args[@]}" ;;
+        update) updateDocs "${args[@]}" ;;
+        *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
+    esac
+}
+
+releaseCmdUsage() {
+    echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION"
+    echo
+    echo "Create a versioned GitHub release for a project."
+    echo
+    echo "  --repo ACCOUNT/REPO  Specify the GitHub repository explicitly."
+    bye "$@"
 }
 
 releaseCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION"
-        echo
-        echo "  Create a versioned GitHub release for a project."
-        echo
-        echo "  --repo ACCOUNT/REPO  Specify the GitHub repository explicitly."
+    local version=
+    resolveProjectsFromArgs
+    if (( ${#projects[@]} )); then
+        assertSingleProject
+        version="${args[0]}"
+    elif (( ${#args[@]} == 1 )); then
+        projects=(rayvn)
+        version="${args[0]}"
     else
-        local version=
-        resolveProjectsFromArgs
-        if (( ${#projects[@]} )); then
-            assertSingleProject
-            version="${args[0]}"
-        elif (( ${#args[@]} == 1 )); then
-            projects=(rayvn)
-            version="${args[0]}"
-        else
-            projects=("${args[0]}")
-            version="${args[1]}"
-        fi
-
-        [[ -n ${version} ]] || fail "version required"
-
-        local ghRepo="${_argsParsedOptions['repo']:-}"
-        if [[ -z ${ghRepo} ]]; then
-            local project="${projects[0]}"
-            case "${project}" in
-                rayvn) ghRepo='phoggy/rayvn' ;;
-                valt) ghRepo='phoggy/valt' ;;
-                wardn) ghRepo='phoggy/wardn' ;;
-                *) fail "Please specify project using GitHub repo format: --repo 'my-account/my-repo'."
-            esac
-        fi
-
-        require 'rayvn/release'
-        release "${ghRepo}" "${version}"
+        projects=("${args[0]}")
+        version="${args[1]}"
     fi
+    [[ -n ${version} ]] || fail "version required"
+    local ghRepo="${_argsParsedOptions['repo']:-}"
+    if [[ -z ${ghRepo} ]]; then
+        local project="${projects[0]}"
+        case "${project}" in
+            rayvn) ghRepo='phoggy/rayvn' ;;
+            valt)  ghRepo='phoggy/valt' ;;
+            wardn) ghRepo='phoggy/wardn' ;;
+            *) fail "Please specify project using GitHub repo format: --repo 'my-account/my-repo'."
+        esac
+    fi
+    require 'rayvn/release'
+    release "${ghRepo}" "${version}"
+}
+
+registerCmdUsage() {
+    echo "rayvn register PROJECT"
+    echo
+    echo "  Stake a claim on a project name on rayvn central."
+    bye "$@"
 }
 
 registerCmd() {
-    if (( _argsParsedOptions['help'] )); then
-        echo "rayvn register PROJECT"
-        echo
-        echo "  Stake a claim on a project name on rayvn central."
-    else
-        require 'rayvn/central'
-        registerProjectOnRayvnCentral "${_argsParsedArguments[0]}" || fail
-    fi
+    require 'rayvn/central'
+    registerProjectOnRayvnCentral "${_argsParsedArguments[0]}" || fail
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( IMPLEMENTATION )+---)++++---)++-)++-+------+-+--"
@@ -800,27 +812,25 @@ parseCommand() {
     _argsParsedOptions=()
     _argsParsedArguments=()
     parseCommonOptions rayvn "$@"; shift $?
-    while (( $# )); do
-        case "$1" in
-            register) shift; parseRegisterArgs "$@"; registerCmd; return ;;
-            index) shift; parseIndexArgs "$@"; indexCmd; return ;;
-            docs) shift; parseDocsArgs "$@"; docsCmd; return ;;
-            collisions) shift; parseCollisionsArgs "$@"; collisionsCmd; return ;;
-            args) shift; parseArgsArgs "$@"; argsCmd; return ;;
-            functions) shift; parseFunctionsArgs "$@"; functionsCmd; return ;;
-            new | create) shift; parseNewArgs "$@"; newCmd; return ;;
-            projects) shift; parseProjectsArgs "$@"; projectsCmd; return ;;
-            deps | dependencies) shift; parseDependenciesArgs "$@"; dependenciesCmd; return ;;
-            pages) shift; parsePagesArgs "$@"; pagesCmd; return ;;
-            build) shift; parseBuildArgs "$@"; buildCmd; return ;;
-            release) shift; parseReleaseArgs "$@"; releaseCmd; return ;;
-            theme) shift; parseThemeArgs "$@"; themeCmd; return ;;
-            lint) shift; parseLintArgs "$@"; lintCmd; return ;;
-            libraries) shift; parseLibrariesArgs "$@"; librariesCmd; return ;;
-            test) shift; parseTestArgs "$@"; testCmd; return ;;
-            *) usage "unknown command: $1" ;;
-        esac
-    done
+    case "$1" in
+        register) shift; parseRegisterArgs "$@"; (( _argsParsedOptions['help'] )) && registerCmdUsage || registerCmd ;;
+        index) shift; parseIndexArgs "$@"; (( _argsParsedOptions['help'] )) && indexCmdUsage || indexCmd ;;
+        docs) shift; parseDocsArgs "$@"; (( _argsParsedOptions['help'] )) && docsCmdUsage || docsCmd ;;
+        collisions) shift; parseCollisionsArgs "$@"; (( _argsParsedOptions['help'] )) && collisionsCmdUsage || collisionsCmd ;;
+        args) shift; parseArgsArgs "$@"; (( _argsParsedOptions['help'] )) && argsCmdUsage || argsCmd ;;
+        functions) shift; parseFunctionsArgs "$@"; (( _argsParsedOptions['help'] )) && functionsCmdUsage || functionsCmd ;;
+        new | create) shift; parseNewArgs "$@"; (( _argsParsedOptions['help'] )) && newCmdUsage || newCmd ;;
+        projects) shift; parseProjectsArgs "$@"; (( _argsParsedOptions['help'] )) && projectsCmdUsage || projectsCmd ;;
+        deps | dependencies) shift; parseDependenciesArgs "$@"; (( _argsParsedOptions['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
+        pages) shift; parsePagesArgs "$@"; (( _argsParsedOptions['help'] )) && pagesCmdUsage || pagesCmd ;;
+        build) shift; parseBuildArgs "$@"; (( _argsParsedOptions['help'] )) && buildCmdUsage || buildCmd ;;
+        release) shift; parseReleaseArgs "$@"; (( _argsParsedOptions['help'] )) && releaseCmdUsage || releaseCmd ;;
+        theme) shift; parseThemeArgs "$@"; (( _argsParsedOptions['help'] )) && themeCmdUsage || themeCmd ;;
+        lint) shift; parseLintArgs "$@"; (( _argsParsedOptions['help'] )) && lintCmdUsage || lintCmd ;;
+        libraries) shift; parseLibrariesArgs "$@"; (( _argsParsedOptions['help'] )) && librariesCmdUsage || librariesCmd ;;
+        test) shift; parseTestArgs "$@"; (( _argsParsedOptions['help'] )) && testCmdUsage || testCmd ;;
+        *) usage "unknown command: $1" ;;
+    esac
 }
 
 parseRegisterArgs() {
