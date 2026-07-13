@@ -461,13 +461,29 @@ if ! (( rayvnTest_DeferCore )); then
     fi
 fi
 
+# A bare 'source rayvn.up' (no arguments) causes bash to pass the *caller's* positional
+# parameters through as "$@" here, so a script arg like 'bin/rayvn' would be mistaken for
+# a project/library. Read the actual source statement from the caller and ignore the
+# inherited args if none were literally written. Any line that cannot be confidently
+# matched is treated as passing explicit args, preserving normal behavior for forms
+# like 'source rayvn.up "${libs[@]}"'. Note: in the inherited case the positional
+# parameters are *shared* with the caller, so they must never be modified here.
+
+declare -g _rayvnUpBareSource=0
+if (( $# > 0 )) && [[ -f "${BASH_SOURCE[1]:-}" ]]; then
+    declare -ga _rayvnUpSourceLine=()
+    mapfile -t -s $(( BASH_LINENO[0] - 1 )) -n 1 _rayvnUpSourceLine < "${BASH_SOURCE[1]}"
+    [[ "${_rayvnUpSourceLine[0]}" =~ ^[[:space:]]*(source|\.)[[:space:]]+[^[:space:]]*rayvn\.up[[:space:]]*(#.*)?$ ]] && _rayvnUpBareSource=1
+    unset _rayvnUpSourceLine
+fi
+
 # Are we in a process that has already initialized rayvn?
 
 if (( ! rayvnIsUp )); then
 
     # No, so configure, require specified libraries
 
-    configure "$@"
+    if (( _rayvnUpBareSource )); then configure; else configure "$@"; fi
 
     # Export key maps so child processes can restore them via _restoreGlobalMaps
 
@@ -475,7 +491,7 @@ if (( ! rayvnIsUp )); then
 
     # Remove all temp functions and vars
 
-    unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
+    unset "${_rayvnUpUnsetIds[@]}" _rayvnUpBareSource 2> /dev/null
     return 0
 
 elif [[ -z "${_rayvnShellPid:-}" ]]; then
@@ -483,9 +499,9 @@ elif [[ -z "${_rayvnShellPid:-}" ]]; then
     # Child process: rayvnIsUp was exported by parent but _rayvnShellPid was not.
     # Restore project paths from parent, then configure and load libraries normally.
 
-    _rayvnChildInit "$@"
+    if (( _rayvnUpBareSource )); then _rayvnChildInit; else _rayvnChildInit "$@"; fi
     (( rayvnTest_DeferCore )) || exportGlobalMaps _rayvnProjects _rayvnRequireCounts _rayvnFunctionSources _ignoreRayvnUpFunctions
-    unset "${_rayvnUpUnsetIds[@]}" 2> /dev/null
+    unset "${_rayvnUpUnsetIds[@]}" _rayvnUpBareSource 2> /dev/null
     return 0
 
 else
