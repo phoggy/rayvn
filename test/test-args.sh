@@ -46,14 +46,14 @@ init() {
 
 testArgParserBasic() {
     local spec=("--name|-n:str" "--force|-f" "--count:+int" "bool" "*")
-    declare -A expectedOptions=([name]="bar" [force]="1" [count]="29")
+    declare -A expectedOptions=(['name']="bar" ['force']="1" ['count']="29")
     declare -a expectedArgs=("1" "foo" "bar")
     assertParse spec expectedOptions expectedArgs -f --name bar --count 29 true foo bar
 }
 
 testArgParserAliases() {
     local spec=("--name|-n:str" "--force|-f" "--count|-c:+int")
-    declare -A expectedOptions=([name]="Bob" [force]="1" [count]="5")
+    declare -A expectedOptions=(['name']="Bob" ['force']="1" ['count']="5")
     declare -a expectedArgs=()
     assertParse spec expectedOptions expectedArgs -n Bob -f -c 5
 }
@@ -62,10 +62,10 @@ testArgParserBoolConversion() {
     local spec=("--verbose|-v:bool")
     declare -A expected
 
-    expected=([verbose]="1"); assertParseOptions spec expected --verbose true
-    expected=([verbose]="0"); assertParseOptions spec expected --verbose false
-    expected=([verbose]="1"); assertParseOptions spec expected --verbose 1
-    expected=([verbose]="0"); assertParseOptions spec expected -v 0
+    expected=(['verbose']="1"); assertParseOptions spec expected --verbose true
+    expected=(['verbose']="0"); assertParseOptions spec expected --verbose false
+    expected=(['verbose']="1"); assertParseOptions spec expected --verbose 1
+    expected=(['verbose']="0"); assertParseOptions spec expected -v 0
 }
 
 testArgParserEmptySpec() {
@@ -146,7 +146,7 @@ testArgParserEnum() {
 
     # Option enum
     spec=("--mode:fast|slow")
-    declare -A expected=([mode]="fast")
+    declare -A expected=(['mode']="fast")
     assertParseOptions spec expected --mode fast
     assertParseFailsWith spec "must be one of: fast|slow" --mode medium
 }
@@ -162,7 +162,7 @@ testArgParserCustomTypeMap() {
     assertParseFailed spec "bar must be 4 characters or longer" "${failArgs[@]}"
 
     local passArgs=(-f --name barf --count 29 true foo bar)
-    declare -A expectedOptions=([count]="29" [force]="1" [name]="barf")
+    declare -A expectedOptions=(['count']="29" ['force']="1" ['name']="barf")
     declare -a expectedArgs=("1" "foo" "bar")
     assertParse spec expectedOptions expectedArgs "${passArgs[@]}"
 }
@@ -175,7 +175,7 @@ testGenParser() {
     local spec=("--name|-n:str" "--force|-f" "--count:+int" "bool" "*")
     evalGeneratedParser spec
 
-    declare -A expectedOptions=([count]="29" [force]="1" [name]="Bob")
+    declare -A expectedOptions=(['count']="29" ['force']="1" ['name']="Bob")
     declare -a expectedArgs=("1" "foo" "bar")
 
     parseArgs -f --name Bob --count 29 true foo bar
@@ -186,7 +186,7 @@ testGenParserAliases() {
     local spec=("--name|-n:str" "--force|-f" "--count|-c:+int")
     evalGeneratedParser spec
 
-    declare -A expectedOptions=([name]="Bob" [force]="1" [count]="5")
+    declare -A expectedOptions=(['name']="Bob" ['force']="1" ['count']="5")
     declare -a expectedArgs=()
     parseArgs -n Bob -f -c 5
     assertExpectedParse expectedOptions expectedArgs
@@ -199,10 +199,10 @@ testGenParserBoolConversion() {
     declare -A expected
     declare -a noArgs=()
 
-    expected=([verbose]="1"); parseArgs --verbose true; assertExpectedParse expected noArgs
-    expected=([verbose]="0"); parseArgs --verbose false; assertExpectedParse expected noArgs
-    expected=([verbose]="1"); parseArgs --verbose 1; assertExpectedParse expected noArgs
-    expected=([verbose]="0"); parseArgs -v 0; assertExpectedParse expected noArgs
+    expected=(['verbose']="1"); parseArgs --verbose true; assertExpectedParse expected noArgs
+    expected=(['verbose']="0"); parseArgs --verbose false; assertExpectedParse expected noArgs
+    expected=(['verbose']="1"); parseArgs --verbose 1; assertExpectedParse expected noArgs
+    expected=(['verbose']="0"); parseArgs -v 0; assertExpectedParse expected noArgs
 }
 
 testGenParserWildcard() {
@@ -295,7 +295,7 @@ testGenParserEnum() {
     # Option enum
     spec=("--mode:fast|slow")
     evalGeneratedParser spec
-    expectedOptions=([mode]="slow")
+    expectedOptions=(['mode']="slow")
     expectedArgs=()
     parseArgs --mode slow
     assertExpectedParse expectedOptions expectedArgs
@@ -314,14 +314,14 @@ testGenParserCustomTypeMap() {
     assertGenParseFailsWith "must be 4 characters or longer" --name bar good
     assertGenParseFailsWith "must be 4 characters or longer" --name good bar
 
-    declare -A expectedOptions=([name]="barf" [force]="1")
+    declare -A expectedOptions=(['name']="barf" ['force']="1")
     declare -a expectedArgs=("good")
     parseArgs -f --name barf good
     assertExpectedParse expectedOptions expectedArgs
 }
 
 testGenCliParser() {
-    declare -A cliSpec=([list]='list(--verbose|-v *)' [add]='add(--name|-n:str str)')
+    declare -A cliSpec=(['list']='list(--verbose|-v *)' ['add']='add(--name|-n:str str)')
     local parser; parser="${ generateParser rayvn cliSpec; }"
     eval "${parser}"
 
@@ -339,13 +339,13 @@ testGenCliParser() {
 
     parseCommand list --verbose foo bar
     (( listCalled )) || fail "listCmd was not called"
-    declare -A expectedOptions=([verbose]="1")
+    declare -A expectedOptions=(['verbose']="1")
     declare -a expectedArgs=("foo" "bar")
     assertExpectedParse expectedOptions expectedArgs
 
     parseCommand add -n widget thing
     (( addCalled )) || fail "addCmd was not called"
-    expectedOptions=([name]="widget")
+    expectedOptions=(['name']="widget")
     expectedArgs=("thing")
     assertExpectedParse expectedOptions expectedArgs
 }
@@ -381,7 +381,7 @@ EOF
 
     local block; block=${ gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${script}"; }
     eval "${block}"
-    declare -A expectedOptions=([name]="Bob" [force]="1")
+    declare -A expectedOptions=(['name']="Bob" ['force']="1")
     declare -a expectedArgs=("42")
     parseExampleArgs -f --name Bob 42
     assertExpectedParse expectedOptions expectedArgs
@@ -414,21 +414,21 @@ _benchRuntime() {
 }
 
 _benchHandCoded() {
-    _argsParsedOptions=()
-    _argsParsedArguments=()
+    _opts=()
+    _args=()
     local argIndex=0 value
     while (( $# )); do
         case "$1" in
-            --name | -n) [[ -z "$2" ]] && fail "missing value for --name"; _argsParsedOptions+=([name]="$2"); shift 2 ;;
-            --force | -f) _argsParsedOptions+=([force]="1"); shift ;;
-            --count | -c) [[ -z "$2" ]] && fail "missing value for --count"; assertPositiveInt "$2"; _argsParsedOptions+=([count]="$2"); shift 2 ;;
+            --name | -n) [[ -z "$2" ]] && fail "missing value for --name"; _opts+=(['name']="$2"); shift 2 ;;
+            --force | -f) _opts+=(['force']="1"); shift ;;
+            --count | -c) [[ -z "$2" ]] && fail "missing value for --count"; assertPositiveInt "$2"; _opts+=(['count']="$2"); shift 2 ;;
             *)
                 value="$1"
                 if (( argIndex == 0 )); then
                     assertBool "${value}"
                     booleanAsInteger "${value}" value
                 fi
-                _argsParsedArguments+=("${value}")
+                _args+=("${value}")
                 (( argIndex++ ))
                 shift
                 ;;
@@ -497,21 +497,21 @@ assertExpectedParse() {
     local -n expectedArgsRef="$2"
     local option i
 
-    (( ${#_argsParsedOptions[@]} == ${#expectedOptionsRef[@]} )) || \
-        fail "expected ${#expectedOptionsRef[@]} options, got ${#_argsParsedOptions[@]}: ${ declare -p _argsParsedOptions; }"
+    (( ${#_opts[@]} == ${#expectedOptionsRef[@]} )) || \
+        fail "expected ${#expectedOptionsRef[@]} options, got ${#_opts[@]}: ${ declare -p _opts; }"
 
-    (( ${#_argsParsedArguments[@]} == ${#expectedArgsRef[@]} )) || \
-        fail "expected ${#expectedArgsRef[@]} args, got ${#_argsParsedArguments[@]}: ${ declare -p _argsParsedArguments; }"
+    (( ${#_args[@]} == ${#expectedArgsRef[@]} )) || \
+        fail "expected ${#expectedArgsRef[@]} args, got ${#_args[@]}: ${ declare -p _args; }"
 
     for option in "${!expectedOptionsRef[@]}"; do
         local expectedValue=${expectedOptionsRef["${option}"]}
-        local value=${_argsParsedOptions["${option}"]}
+        local value=${_opts["${option}"]}
         assertEqual "${value}" "${expectedValue}" "option '${option}': expected '${expectedValue}', got '${value}'"
     done
 
     for (( i = 0; i < ${#expectedArgsRef[@]}; i++ )); do
         local expectedValue=${expectedArgsRef[i]}
-        local value=${_argsParsedArguments[i]}
+        local value=${_args[i]}
         assertEqual "${value}" "${expectedValue}" "argument '${i}': expected '${expectedValue}', got '${value}'"
     done
 }

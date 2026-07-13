@@ -217,8 +217,8 @@ _init_rayvn_args() {
 
     # Parse results
 
-    declare -gA _argsParsedOptions
-    declare -ga _argsParsedArguments
+    declare -gA _opts
+    declare -ga _args
 }
 
 _argsDetectProject() {
@@ -270,15 +270,15 @@ _genCommandParser() {
     # Gen main dispatcher
 
     echo "parseCommand() {"
-    echo "    _argsParsedOptions=()"
-    echo "    _argsParsedArguments=()"
+    echo "    _opts=()"
+    echo "    _args=()"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
     echo "    case \"\$1\" in"
     for command in "${!_commandSpecRef[@]}"; do
         fnSpec="${_commandSpecRef[${command}]}"
         cmdName="${fnSpec%(*}"
         handler="parse${cmdName^}Args"
-        echo "        ${command}) shift; ${handler} \"\$@\"; (( _argsParsedOptions['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
+        echo "        ${command}) shift; ${handler} \"\$@\"; (( _opts['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
     done
     echo "        *) usage \"unknown command: \$1\" ;;"
     echo "    esac"
@@ -340,7 +340,7 @@ _genParseFunction() {
 
     {
         echo "parse${name^}Args() {"
-        [[ ${includeResets} != false ]] && { echo "    _argsParsedOptions=()"; echo "    _argsParsedArguments=()"; }
+        [[ ${includeResets} != false ]] && { echo "    _opts=()"; echo "    _args=()"; }
         if (( pureWildcard || ${#_argsArgumentTypes[@]} == 0 )); then
             (( needsValue )) && echo "    local _value"
         else
@@ -365,18 +365,18 @@ _genParseFunction() {
                 fi
                 local missingCheck="[[ -z \"\$2\" || ( \"\$2\" == -* && \"\$2\" =~ ^(${allOptions})\$ ) ]] && fail \"missing value for ${canonical}\""
                 if [[ "${type}" == 'bool' ]]; then
-                    echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _argsParsedOptions+=([${shortName}]=\"\${_value}\"); shift 2 ;;"
+                    echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift 2 ;;"
                 else
-                    echo "            ${pattern}) ${missingCheck}; ${check}_argsParsedOptions+=([${shortName}]=\"\$2\"); shift 2 ;;"
+                    echo "            ${pattern}) ${missingCheck}; ${check}_opts+=(['${shortName}']=\"\$2\"); shift 2 ;;"
                 fi
             else
-                echo "            ${pattern}) _argsParsedOptions+=([${shortName}]=\"1\"); shift ;;"
+                echo "            ${pattern}) _opts+=(['${shortName}']=\"1\"); shift ;;"
             fi
         done
 
         # Positional arg case
         if (( pureWildcard )); then
-            echo "            *) _argsParsedArguments+=(\"\$1\"); shift ;;"
+            echo "            *) _args+=(\"\$1\"); shift ;;"
         elif (( ${#_argsArgumentTypes[@]} > 0 )); then
             local nTyped=0
             for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
@@ -414,7 +414,7 @@ _genParseFunction() {
             fi
 
             local appendVar="\$1"; (( hasBoolPositional )) && appendVar="\${_value}"
-            local tail="_argsParsedArguments+=(\"${appendVar}\"); (( _argIndex++ )); shift ;;"
+            local tail="_args+=(\"${appendVar}\"); (( _argIndex++ )); shift ;;"
             if (( ${#_prefix[@]} == 0 )); then
                 echo "            *) ${tail}"
             elif (( ${#_prefix[@]} == 1 )); then
@@ -431,9 +431,9 @@ _genParseFunction() {
         echo "        esac"
         echo "    done"
         if (( _argsMinArgs == 1 )); then
-            echo "    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail \"missing required argument\""
+            echo "    (( _opts['help'] || _argIndex >= 1 )) || fail \"missing required argument\""
         elif (( _argsMinArgs > 1 )); then
-            echo "    (( _argsParsedOptions['help'] || _argIndex >= ${_argsMinArgs} )) || fail \"missing required arguments: expected at least ${_argsMinArgs}\""
+            echo "    (( _opts['help'] || _argIndex >= ${_argsMinArgs} )) || fail \"missing required arguments: expected at least ${_argsMinArgs}\""
         fi
         echo "}"
     }
@@ -502,8 +502,8 @@ _parseArguments() {
     local maxIndex=${#_argsArgumentTypes[@]}
     local argIndex=0 typedArg=1
     local option type typeChecker value
-    _argsParsedOptions=()
-    _argsParsedArguments=()
+    _opts=()
+    _args=()
 
     while (( $# > 0 )); do
         option=${_argsOptionNames[$1]}
@@ -525,14 +525,14 @@ _parseArguments() {
                     [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
                     [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
                 fi
-                _argsParsedOptions+=([${option##*-}]=${value})
+                _opts+=([${option##*-}]=${value})
                 shift 2
 
             else
 
                 # No, it's a flag so just store it
 
-                _argsParsedOptions+=([${option##*-}]='1')
+                _opts+=([${option##*-}]='1')
                 shift
             fi
 
@@ -562,7 +562,7 @@ _parseArguments() {
                 fi
             fi
 
-            _argsParsedArguments+=("${value}")
+            _args+=("${value}")
             (( argIndex++ ))
             shift
         else
@@ -570,7 +570,7 @@ _parseArguments() {
         fi
     done
 
-    if (( argIndex < _argsMinArgs && ! _argsParsedOptions['help'] )); then
+    if (( argIndex < _argsMinArgs && ! _opts['help'] )); then
         (( _argsMinArgs == 1 )) && fail "missing required argument"
         fail "missing required arguments: expected at least ${_argsMinArgs}"
     fi

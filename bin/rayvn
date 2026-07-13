@@ -42,8 +42,8 @@ main() {
 }
 
 init() {
-    declare -gA _argsParsedOptions=()
-    declare -ga _argsParsedArguments=()
+    declare -gA _opts=()
+    declare -ga _args=()
     declare -gAr rayvnEnvVars=(
         ['RAYVN_DEFAULT_PROJECT']="Default project name (default: rayvn)."
     )
@@ -251,7 +251,7 @@ resolveProjects() {
     local -n _extraArgsRef=$2
     local offset=${3:-0}
     local arg
-    for arg in "${_argsParsedArguments[@]:${offset}}"; do
+    for arg in "${_args[@]:${offset}}"; do
         addIfRayvnExecutable "${arg}" _projectsRef || _extraArgsRef+=("${arg}")
     done
     (( ${#_projectsRef[@]} > 0 )) || detectCurrentProject _projectsRef
@@ -333,8 +333,8 @@ assertProjectsSpecified() {
 SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
 
 newCmd() {
-    local type=${_argsParsedArguments[0]}
-    local name=${_argsParsedArguments[1]}
+    local type=${_args[0]}
+    local name=${_args[1]}
     local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
     local templateDir="${rayvnHome}/templates"
     case ${type} in
@@ -347,7 +347,7 @@ newCmd() {
 
 themeCmd() {
     require 'rayvn/theme'
-    if (( _argsParsedOptions['show'] )); then
+    if (( _opts['show'] )); then
         header "current theme"
         showCurrentTheme
     else
@@ -357,7 +357,7 @@ themeCmd() {
 
 argsCmd() {
     require 'rayvn/args'
-    updateParser "${_argsParsedArguments[0]}"
+    updateParser "${_args[0]}"
 }
 
 projectsCmd() {
@@ -380,12 +380,12 @@ librariesCmd() {
 }
 
 functionsCmd() {
-    local includePrivate="${_argsParsedOptions['all']:-0}"
+    local includePrivate="${_opts['all']:-0}"
     local project
-    if [[ -n ${_argsParsedArguments[0]:-} && ${_argsParsedArguments[0]} == */* ]]; then
+    if [[ -n ${_args[0]:-} && ${_args[0]} == */* ]]; then
         local qualifiedLib library
         local -a libNames=() libProjects=()
-        for qualifiedLib in "${_argsParsedArguments[@]}"; do
+        for qualifiedLib in "${_args[@]}"; do
             project="${qualifiedLib%%/*}"
             library="${qualifiedLib##*/}"
             libNames+=("${library}")
@@ -407,7 +407,7 @@ testCmd() {
     local -a projects=() matchArgs=()
     resolveProjects projects matchArgs
     require 'rayvn/test-harness'
-    executeTests projects matchArgs "${_argsParsedOptions['nix']:-0}" "${_argsParsedOptions['all']:-0}"
+    executeTests projects matchArgs "${_opts['nix']:-0}" "${_opts['all']:-0}"
 }
 
 buildCmd() {
@@ -439,8 +439,8 @@ lintCmd() {
     assertProjectsSpecified projects extraArgs
     (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
     local fixMode=
-    (( _argsParsedOptions['fix'] )) && fixMode='--fix'
-    (( _argsParsedOptions['ask'] )) && fixMode='--ask'
+    (( _opts['fix'] )) && fixMode='--fix'
+    (( _opts['ask'] )) && fixMode='--ask'
     require 'rayvn/lint'
     runLint ${fixMode} "${projects[@]}"
 }
@@ -457,7 +457,7 @@ dependenciesCmd() {
     resolveProjects projects extraArgs
     (( ${#projects[@]} == 0 )) && dependenciesCmdUsage
     require 'rayvn/index'
-    local fixMode=; (( _argsParsedOptions['fix'] )) && fixMode=fix
+    local fixMode=; (( _opts['fix'] )) && fixMode=fix
     local project result=0
     for project in "${projects[@]}"; do
         findDependencies "${project}" "${fixMode}" || result=1
@@ -467,7 +467,7 @@ dependenciesCmd() {
 
 docsCmd() {
     require 'rayvn/function-docs'
-    local subcommand="${_argsParsedArguments[0]}"
+    local subcommand="${_args[0]}"
     local -a projects=() extraArgs=()
     resolveProjects projects extraArgs 1
     case "${subcommand}" in
@@ -492,7 +492,7 @@ releaseCmd() {
         version="${extraArgs[1]:-}"
     fi
     [[ -n ${version} ]] || fail "version required"
-    local ghRepo="${_argsParsedOptions['repo']:-}"
+    local ghRepo="${_opts['repo']:-}"
     if [[ -z ${ghRepo} ]]; then
         local project="${projects[0]}"
         case "${project}" in
@@ -508,7 +508,7 @@ releaseCmd() {
 
 registerCmd() {
     require 'rayvn/central'
-    registerProjectOnRayvnCentral "${_argsParsedArguments[0]}" || fail
+    registerProjectOnRayvnCentral "${_args[0]}" || fail
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( IMPLEMENTATION )+---)++++---)++-)++-+------+-+--"
@@ -622,7 +622,7 @@ newProject() {
     declare -i createdRepo=0
     local choiceIndex formulaFile repoUrl
 
-    if (( _argsParsedOptions['local'] )); then
+    if (( _opts['local'] )); then
         # --local flag: skip GitHub, just create local git repo
         makeDir "${projectRoot}" > /dev/null
         cd "${projectRoot}" || fail
@@ -807,26 +807,26 @@ copyFileAndSubstituteVars() {
 ARGS_PARSER_BEGIN="━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔽 BEGIN generated code: DO NOT EDIT 🔽 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"
 
 parseCommand() {
-    _argsParsedOptions=()
-    _argsParsedArguments=()
+    _opts=()
+    _args=()
     parseCommonOptions rayvn "$@"; shift $?
     case "$1" in
-        register) shift; parseRegisterArgs "$@"; (( _argsParsedOptions['help'] )) && registerCmdUsage || registerCmd ;;
-        index) shift; parseIndexArgs "$@"; (( _argsParsedOptions['help'] )) && indexCmdUsage || indexCmd ;;
-        docs) shift; parseDocsArgs "$@"; (( _argsParsedOptions['help'] )) && docsCmdUsage || docsCmd ;;
-        collisions) shift; parseCollisionsArgs "$@"; (( _argsParsedOptions['help'] )) && collisionsCmdUsage || collisionsCmd ;;
-        args) shift; parseArgsArgs "$@"; (( _argsParsedOptions['help'] )) && argsCmdUsage || argsCmd ;;
-        functions) shift; parseFunctionsArgs "$@"; (( _argsParsedOptions['help'] )) && functionsCmdUsage || functionsCmd ;;
-        new | create) shift; parseNewArgs "$@"; (( _argsParsedOptions['help'] )) && newCmdUsage || newCmd ;;
-        projects) shift; parseProjectsArgs "$@"; (( _argsParsedOptions['help'] )) && projectsCmdUsage || projectsCmd ;;
-        deps | dependencies) shift; parseDependenciesArgs "$@"; (( _argsParsedOptions['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
-        pages) shift; parsePagesArgs "$@"; (( _argsParsedOptions['help'] )) && pagesCmdUsage || pagesCmd ;;
-        build) shift; parseBuildArgs "$@"; (( _argsParsedOptions['help'] )) && buildCmdUsage || buildCmd ;;
-        release) shift; parseReleaseArgs "$@"; (( _argsParsedOptions['help'] )) && releaseCmdUsage || releaseCmd ;;
-        theme) shift; parseThemeArgs "$@"; (( _argsParsedOptions['help'] )) && themeCmdUsage || themeCmd ;;
-        lint) shift; parseLintArgs "$@"; (( _argsParsedOptions['help'] )) && lintCmdUsage || lintCmd ;;
-        libraries) shift; parseLibrariesArgs "$@"; (( _argsParsedOptions['help'] )) && librariesCmdUsage || librariesCmd ;;
-        test) shift; parseTestArgs "$@"; (( _argsParsedOptions['help'] )) && testCmdUsage || testCmd ;;
+        register) shift; parseRegisterArgs "$@"; (( _opts['help'] )) && registerCmdUsage || registerCmd ;;
+        index) shift; parseIndexArgs "$@"; (( _opts['help'] )) && indexCmdUsage || indexCmd ;;
+        docs) shift; parseDocsArgs "$@"; (( _opts['help'] )) && docsCmdUsage || docsCmd ;;
+        collisions) shift; parseCollisionsArgs "$@"; (( _opts['help'] )) && collisionsCmdUsage || collisionsCmd ;;
+        args) shift; parseArgsArgs "$@"; (( _opts['help'] )) && argsCmdUsage || argsCmd ;;
+        functions) shift; parseFunctionsArgs "$@"; (( _opts['help'] )) && functionsCmdUsage || functionsCmd ;;
+        new | create) shift; parseNewArgs "$@"; (( _opts['help'] )) && newCmdUsage || newCmd ;;
+        projects) shift; parseProjectsArgs "$@"; (( _opts['help'] )) && projectsCmdUsage || projectsCmd ;;
+        deps | dependencies) shift; parseDependenciesArgs "$@"; (( _opts['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
+        pages) shift; parsePagesArgs "$@"; (( _opts['help'] )) && pagesCmdUsage || pagesCmd ;;
+        build) shift; parseBuildArgs "$@"; (( _opts['help'] )) && buildCmdUsage || buildCmd ;;
+        release) shift; parseReleaseArgs "$@"; (( _opts['help'] )) && releaseCmdUsage || releaseCmd ;;
+        theme) shift; parseThemeArgs "$@"; (( _opts['help'] )) && themeCmdUsage || themeCmd ;;
+        lint) shift; parseLintArgs "$@"; (( _opts['help'] )) && lintCmdUsage || lintCmd ;;
+        libraries) shift; parseLibrariesArgs "$@"; (( _opts['help'] )) && librariesCmdUsage || librariesCmd ;;
+        test) shift; parseTestArgs "$@"; (( _opts['help'] )) && testCmdUsage || testCmd ;;
         *) usage "unknown command: $1" ;;
     esac
 }
@@ -835,18 +835,18 @@ parseRegisterArgs() {
     local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) (( _argIndex == 0 )) || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) (( _argIndex == 0 )) || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
-    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail "missing required argument"
+    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
 parseIndexArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -855,18 +855,18 @@ parseDocsArgs() {
     local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
-    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail "missing required argument"
+    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
 parseCollisionsArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -875,19 +875,19 @@ parseArgsArgs() {
     local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
-    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail "missing required argument"
+    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
 parseFunctionsArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            --all) _argsParsedOptions+=([all]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --all) _opts+=(['all']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -896,22 +896,22 @@ parseNewArgs() {
     local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
-            --local) _argsParsedOptions+=([local]="1"); shift ;;
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            --local) _opts+=(['local']="1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
             *)
                 (( _argIndex < 2 )) || unknownArg "$1"
                 (( _argIndex == 0 )) && { [[ "|project|script|library|test|" == *"|$1|"* ]] || fail "$1 must be one of: project|script|library|test"; }
-                _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
+                _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
-    (( _argsParsedOptions['help'] || _argIndex >= 2 )) || fail "missing required arguments: expected at least 2"
+    (( _opts['help'] || _argIndex >= 2 )) || fail "missing required arguments: expected at least 2"
 }
 
 parseProjectsArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -919,9 +919,9 @@ parseProjectsArgs() {
 parseDependenciesArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --fix) _argsParsedOptions+=([fix]="1"); shift ;;
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --fix) _opts+=(['fix']="1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -929,8 +929,8 @@ parseDependenciesArgs() {
 parsePagesArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -938,8 +938,8 @@ parsePagesArgs() {
 parseBuildArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -947,9 +947,9 @@ parseBuildArgs() {
 parseReleaseArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --repo) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(-h|--repo|--help)$ ) ]] && fail "missing value for --repo"; _argsParsedOptions+=([repo]="$2"); shift 2 ;;
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --repo) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(-h|--repo|--help)$ ) ]] && fail "missing value for --repo"; _opts+=(['repo']="$2"); shift 2 ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -957,8 +957,8 @@ parseReleaseArgs() {
 parseThemeArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --show) _argsParsedOptions+=([show]="1"); shift ;;
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
+            --show) _opts+=(['show']="1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
             *) unknownArg "$1" ;;
         esac
     done
@@ -967,10 +967,10 @@ parseThemeArgs() {
 parseLintArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --fix) _argsParsedOptions+=([fix]="1"); shift ;;
-            --ask) _argsParsedOptions+=([ask]="1"); shift ;;
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --fix) _opts+=(['fix']="1"); shift ;;
+            --ask) _opts+=(['ask']="1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -978,8 +978,8 @@ parseLintArgs() {
 parseLibrariesArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
@@ -987,10 +987,10 @@ parseLibrariesArgs() {
 parseTestArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --nix) _argsParsedOptions+=([nix]="1"); shift ;;
-            --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            --all) _argsParsedOptions+=([all]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            --nix) _opts+=(['nix']="1"); shift ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --all) _opts+=(['all']="1"); shift ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
 }
