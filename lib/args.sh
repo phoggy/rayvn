@@ -15,10 +15,14 @@
 # The * wildcard positional argument allows any number of untyped values to follow. This is intended to support cases like
 # that of tar args with -C dir interspersed and requires the caller to validate them.
 #
-#      type: str | int | +int | bool | file | dir
+#      type: str | int | +int | bool | file | dir | a|b|c (inline enum: value must be one of the alternatives)
 #    option: --name[|alias]:type                    TODO: allow multiple aliases??
 #      flag: --name[|alias]
-#      spec: [option | flag | type]... [*]
+#  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
+#      spec: [option | flag | argument]... [*]
+#
+# Typed positional arguments are REQUIRED by default: the parser fails if fewer arguments are supplied than the
+# number of positionals without a '?' suffix. The * wildcard is always optional.
 #
 # The int type accepts both positive and negative values; use the +int type to accept only positive integers.
 #
@@ -48,6 +52,9 @@
 #       (( ${#1} > 3 )) || fail "$1 must be 4 characters or longer" # or whatever
 #    }
 #
+# Custom types also work with generated parsers: the checker function name is resolved from argsTypeMap at
+# generation time and embedded in the generated code, so the function must be defined wherever the parser runs.
+#
 
 
 # ◇ Parse argument specifications. Assumes that the following variables are defined and will fill them:
@@ -55,6 +62,7 @@
 #   declare -A _argsOptionNames
 #   declare -A _argsOptionTypes
 #   declare -a _argsArgumentTypes
+#   declare -i _argsMinArgs
 #
 # · ARGS
 #
@@ -79,6 +87,7 @@ parseArgumentSpecAndArgs() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
+    declare -i _argsMinArgs=0
 
     parseArgumentSpec "${specVar}"; shift
     _parseArguments "$@"
@@ -244,6 +253,7 @@ _genArgumentParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
+    declare -i _argsMinArgs=0
     _genParseFunction "$2" "$3"
 }
 
@@ -253,6 +263,7 @@ _genCommandParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
+    declare -i _argsMinArgs=0
     local command handler cmdName fnSpec tmpSpec
     local -a argsSpec
 
@@ -291,6 +302,7 @@ _genParseFunction() {
     local specVar="$1"
     local name="${2:-}"
     local includeResets="${3:-true}"
+    local -n _genTypeMapRef="${argsTypeMap}"
     _parseArgumentSpec "${specVar}"
 
     # Group option aliases by canonical: long opts first, then short, joined with ' | '
@@ -345,13 +357,12 @@ _genParseFunction() {
             local shortName="${canonical##*-}"
             if [[ -n "${type}" ]]; then
                 local check=""
-                case "${type}" in
-                    int)  check="assertInt \"\$2\"; " ;;
-                    +int) check="assertPositiveInt \"\$2\"; " ;;
-                    bool) check="assertBool \"\$2\"; " ;;
-                    file) check="assertFile \"\$2\"; " ;;
-                    dir)  check="assertDirectory \"\$2\"; " ;;
-                esac
+                if [[ ${type} == *'|'* ]]; then
+                    check="[[ \"|${type}|\" == *\"|\$2|\"* ]] || fail \"\$2 must be one of: ${type}\"; "
+                else
+                    local typeChecker="${_genTypeMapRef[${type}]:-}"
+                    [[ -n "${typeChecker}" && "${typeChecker}" != '*' ]] && check="${typeChecker} \"\$2\"; "
+                fi
                 local missingCheck="[[ -z \"\$2\" || ( \"\$2\" == -* && \"\$2\" =~ ^(${allOptions})\$ ) ]] && fail \"missing value for ${canonical}\""
                 if [[ "${type}" == 'bool' ]]; then
                     echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _argsParsedOptions+=([${shortName}]=\"\${_value}\"); shift 2 ;;"
@@ -376,16 +387,17 @@ _genParseFunction() {
             for (( i = 0; i < nTyped; i++ )); do
                 argType="${_argsArgumentTypes[i]}"
                 local argCheck=""
-                case "${argType}" in
-                    int)  argCheck="assertInt \"\$1\"" ;;
-                    +int) argCheck="assertPositiveInt \"\$1\"" ;;
-                    bool) argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value" ;;
-                    file) argCheck="assertFile \"\$1\"" ;;
-                    dir)  argCheck="assertDirectory \"\$1\"" ;;
-                esac
+                if [[ ${argType} == *'|'* ]]; then
+                    argCheck="[[ \"|${argType}|\" == *\"|\$1|\"* ]] || fail \"\$1 must be one of: ${argType}\""
+                elif [[ ${argType} == 'bool' ]]; then
+                    argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value"
+                else
+                    local argChecker="${_genTypeMapRef[${argType}]:-}"
+                    [[ -n "${argChecker}" && "${argChecker}" != '*' ]] && argCheck="${argChecker} \"\$1\""
+                fi
                 _checks+=("${argCheck}")
             done
-            _wrapCheck() { [[ "$1" == *";"* ]] && echo "{ $1; }" || echo "$1"; }
+            _wrapCheck() { [[ "$1" == *";"* || "$1" == *"||"* ]] && echo "{ $1; }" || echo "$1"; }
 
             # Build prefix lines (everything before the consolidated append/increment/shift)
             local -a _prefix=()
@@ -418,6 +430,11 @@ _genParseFunction() {
 
         echo "        esac"
         echo "    done"
+        if (( _argsMinArgs == 1 )); then
+            echo "    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail \"missing required argument\""
+        elif (( _argsMinArgs > 1 )); then
+            echo "    (( _argsParsedOptions['help'] || _argIndex >= ${_argsMinArgs} )) || fail \"missing required arguments: expected at least ${_argsMinArgs}\""
+        fi
         echo "}"
     }
 }
@@ -426,12 +443,12 @@ _parseArgumentSpec() {
     local -n _typeMapRef="${argsTypeMap}"
     local -n _specRef="$1"
 
-#   echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
-    local _spec _type _argIndex=0 _starArgIndex=1024
+    local _spec _type _optional _argIndex=0 _starArgIndex=1024 _lastRequiredIndex=-1
 
     _argsOptionNames=()
     _argsOptionTypes=()
     _argsArgumentTypes=()
+    _argsMinArgs=0
 
     for _spec in "${_specRef[@]}"; do
         if [[ ${_spec} == -* ]]; then
@@ -458,19 +475,26 @@ _parseArgumentSpec() {
                 _starArgIndex="${#_argsArgumentTypes[@]}"
                 _argsArgumentTypes+=("*")
             elif (( _argIndex < _starArgIndex )); then
+                _optional=0
+                [[ ${_type} == *'?' ]] && { _optional=1; _type="${_type%\?}"; }
                 _isKnownType
                 _argsArgumentTypes+=("${_type}")
+                (( _optional )) || _lastRequiredIndex=${_argIndex}
             fi
             (( _argIndex++ ))
         fi
     done
-
-  #  set +x; echo "DONE PARSING SPEC"; echo; declare -p _argsOptionNames _argsOptionTypes _argsArgumentTypes
+    _argsMinArgs=$(( _lastRequiredIndex + 1 ))
 }
 
 _isKnownType() {
+    [[ ${_type} == *'|'* ]] && return 0    # inline enum type, e.g. audit|update
     local typeChecker="${_typeMapRef[${_type}]}"
     [[ -n ${typeChecker} ]] || invalidArgs "${_spec} has unknown type: ${_type}"
+}
+
+_argsAssertEnum() {
+    [[ "|$2|" == *"|$1|"* ]] || fail "$1 must be one of: $2"
 }
 
 _parseArguments() {
@@ -494,9 +518,13 @@ _parseArguments() {
 
                 [[ -z "$2" || -n ${_argsOptionNames[$2]} ]] && fail "missing value for ${option}"
                 value=$2
-                typeChecker=${_typeMapRef[${type}]}
-                [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
-                [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                if [[ ${type} == *'|'* ]]; then
+                    _argsAssertEnum "${value}" "${type}"
+                else
+                    typeChecker=${_typeMapRef[${type}]}
+                    [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
+                    [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                fi
                 _argsParsedOptions+=([${option##*-}]=${value})
                 shift 2
 
@@ -524,9 +552,13 @@ _parseArguments() {
 
                     # Validate and convert bool if needed
 
-                    typeChecker=${_typeMapRef[${type}]}
-                    [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
-                    [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                    if [[ ${type} == *'|'* ]]; then
+                        _argsAssertEnum "${value}" "${type}"
+                    else
+                        typeChecker=${_typeMapRef[${type}]}
+                        [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
+                        [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
+                    fi
                 fi
             fi
 
@@ -538,7 +570,10 @@ _parseArguments() {
         fi
     done
 
-#    set +x; echo; echo "DONE PARSING"; echo; declare -p _argsParsedOptions _argsParsedArguments
+    if (( argIndex < _argsMinArgs && ! _argsParsedOptions['help'] )); then
+        (( _argsMinArgs == 1 )) && fail "missing required argument"
+        fail "missing required arguments: expected at least ${_argsMinArgs}"
+    fi
 }
 
 

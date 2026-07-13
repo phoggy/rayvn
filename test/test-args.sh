@@ -10,6 +10,8 @@ main() {
     testArgParserEmptySpec
     testArgParserWildcard
     testArgParserTypeRejection
+    testArgParserRequired
+    testArgParserEnum
     testArgParserCustomTypeMap
 
     # Generated parser tests
@@ -19,6 +21,9 @@ main() {
     testGenParserWildcard
     testGenParserEmptySpec
     testGenParserTypeRejection
+    testGenParserRequired
+    testGenParserEnum
+    testGenParserCustomTypeMap
     testGenCliParser
     testUpdateParser
 
@@ -99,6 +104,51 @@ testArgParserTypeRejection() {
 
     spec=("--name:str" "--force|-f")
     assertParseFailsWith spec "missing value for --name" --name --force
+}
+
+testArgParserRequired() {
+    local spec
+
+    # Typed positionals are required by default
+    spec=("str")
+    assertParseFailsWith spec "missing required argument"
+    spec=("str" "str")
+    assertParseFailsWith spec "missing required arguments: expected at least 2" onlyOne
+
+    # The '?' suffix makes a positional optional
+    spec=("str?")
+    declare -A expectedOptions=()
+    declare -a expectedArgs=()
+    assertParse spec expectedOptions expectedArgs
+
+    spec=("str" "str?")
+    expectedArgs=("foo")
+    assertParse spec expectedOptions expectedArgs foo
+
+    # Wildcard remains optional
+    spec=("str" "*")
+    assertParseFailsWith spec "missing required argument"
+    expectedArgs=("foo" "bar")
+    assertParse spec expectedOptions expectedArgs foo bar
+}
+
+testArgParserEnum() {
+    local spec
+
+    # Positional enum
+    spec=("audit|update")
+    declare -A expectedOptions=()
+    declare -a expectedArgs=("audit")
+    assertParse spec expectedOptions expectedArgs audit
+    expectedArgs=("update")
+    assertParse spec expectedOptions expectedArgs update
+    assertParseFailsWith spec "must be one of: audit|update" bogus
+
+    # Option enum
+    spec=("--mode:fast|slow")
+    declare -A expected=([mode]="fast")
+    assertParseOptions spec expected --mode fast
+    assertParseFailsWith spec "must be one of: fast|slow" --mode medium
 }
 
 testArgParserCustomTypeMap() {
@@ -199,6 +249,75 @@ testGenParserTypeRejection() {
     spec=("--name:str" "--force|-f")
     evalGeneratedParser spec
     assertGenParseFailsWith "missing value for --name" --name --force
+}
+
+testGenParserRequired() {
+    local spec
+
+    spec=("str")
+    evalGeneratedParser spec
+    assertGenParseFailsWith "missing required argument"
+    parseArgs foo
+    declare -A expectedOptions=()
+    declare -a expectedArgs=("foo")
+    assertExpectedParse expectedOptions expectedArgs
+
+    spec=("str" "str")
+    evalGeneratedParser spec
+    assertGenParseFailsWith "missing required arguments: expected at least 2" onlyOne
+
+    spec=("str?")
+    evalGeneratedParser spec
+    parseArgs
+    expectedArgs=()
+    assertExpectedParse expectedOptions expectedArgs
+
+    spec=("str" "*")
+    evalGeneratedParser spec
+    assertGenParseFailsWith "missing required argument"
+    parseArgs foo bar
+    expectedArgs=("foo" "bar")
+    assertExpectedParse expectedOptions expectedArgs
+}
+
+testGenParserEnum() {
+    local spec
+
+    # Positional enum
+    spec=("audit|update")
+    evalGeneratedParser spec
+    declare -A expectedOptions=()
+    declare -a expectedArgs=("audit")
+    parseArgs audit
+    assertExpectedParse expectedOptions expectedArgs
+    assertGenParseFailsWith "must be one of: audit|update" bogus
+
+    # Option enum
+    spec=("--mode:fast|slow")
+    evalGeneratedParser spec
+    expectedOptions=([mode]="slow")
+    expectedArgs=()
+    parseArgs --mode slow
+    assertExpectedParse expectedOptions expectedArgs
+    assertGenParseFailsWith "must be one of: fast|slow" --mode medium
+}
+
+testGenParserCustomTypeMap() {
+    declare -Ar _genCustomTypeMap=(['str4']=_assertMinStringLength4 ['str']='*' ['int']=assertInt
+                                   ['+int']=assertPositiveInt ['bool']=assertBool
+                                   ['file']=assertFile ['dir']=assertDirectory)
+    local argsTypeMap=_genCustomTypeMap
+    local spec=("--name|-n:str4" "--force|-f" "str4")
+    evalGeneratedParser spec
+
+    # Custom checker must be embedded in the generated code for both option and positional
+    assertGenParseFailsWith "must be 4 characters or longer" --name bar good
+    assertGenParseFailsWith "must be 4 characters or longer" --name good bar
+
+    declare -A expectedOptions=([name]="barf" [force]="1")
+    declare -a expectedArgs=("good")
+    parseArgs -f --name barf good
+    assertExpectedParse expectedOptions expectedArgs
 }
 
 testGenCliParser() {
@@ -400,6 +519,10 @@ assertExpectedParse() {
 _minStringLength4() {
     checked=1 error=
     (( ${#1} > 3 )) || error="$1 must be 4 characters or longer"
+}
+
+_assertMinStringLength4() {
+    (( ${#1} > 3 )) || fail "$1 must be 4 characters or longer"
 }
 
 source rayvn.up 'rayvn/test' 'rayvn/args'

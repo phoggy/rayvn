@@ -53,7 +53,7 @@ SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-
 
 # rayvn:cli cliSpec
 declare -gA cliSpec=(
-    ['new | create']='new(str str --local --help|-h)'
+    ['new | create']='new(project|script|library|test str --local --help|-h)'
     ['args']='args(file --help|-h)'
     ['theme']='theme(--show --help|-h)'
     ['test']='test(--nix --all --help|-h *)'
@@ -66,7 +66,7 @@ declare -gA cliSpec=(
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
     ['index']='index(--help|-h *)'
     ['pages']='pages(--help|-h *)'
-    ['docs']='docs(--help|-h *)'
+    ['docs']='docs(audit|update --help|-h *)'
     ['release']='release(--repo:str --help|-h *)'
     ['register']='register(str --help|-h)'
 )
@@ -335,12 +335,6 @@ SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+
 newCmd() {
     local type=${_argsParsedArguments[0]}
     local name=${_argsParsedArguments[1]}
-    [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
-    case ${type} in
-        project | script | library | test) ;;
-        *) bye "unknown type: ${type}"
-    esac
-    [[ -n "${name}" ]] || bye "name required"
     local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
     local templateDir="${rayvnHome}/templates"
     case ${type} in
@@ -362,10 +356,8 @@ themeCmd() {
 }
 
 argsCmd() {
-    local scriptFile="${_argsParsedArguments[0]}"
-    [[ -n "${scriptFile}" ]] || argsCmdUsage "script file required"
     require 'rayvn/args'
-    updateParser "${scriptFile}"
+    updateParser "${_argsParsedArguments[0]}"
 }
 
 projectsCmd() {
@@ -847,6 +839,7 @@ parseRegisterArgs() {
             *) (( _argIndex == 0 )) || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
+    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
 parseIndexArgs() {
@@ -859,12 +852,14 @@ parseIndexArgs() {
 }
 
 parseDocsArgs() {
+    local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) _argsParsedArguments+=("$1"); shift ;;
+            *) (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
+    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
 parseCollisionsArgs() {
@@ -884,6 +879,7 @@ parseArgsArgs() {
             *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
+    (( _argsParsedOptions['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
 parseFunctionsArgs() {
@@ -902,9 +898,13 @@ parseNewArgs() {
         case "$1" in
             --local) _argsParsedOptions+=([local]="1"); shift ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
-            *) (( _argIndex < 2 )) || unknownArg "$1"; _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
+            *)
+                (( _argIndex < 2 )) || unknownArg "$1"
+                (( _argIndex == 0 )) && { [[ "|project|script|library|test|" == *"|$1|"* ]] || fail "$1 must be one of: project|script|library|test"; }
+                _argsParsedArguments+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
+    (( _argsParsedOptions['help'] || _argIndex >= 2 )) || fail "missing required arguments: expected at least 2"
 }
 
 parseProjectsArgs() {
