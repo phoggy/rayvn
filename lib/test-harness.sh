@@ -5,21 +5,34 @@
 
 # ◇ Execute tests for one or more rayvn projects, running test files in parallel.
 #
-# · NOTES
+# · ARGS
 #
-#   Reads project list, filter args, and option flags from the caller's environment
-#   (the 'projects', 'args', and 'flags' variables set by the rayvn command).
-#   Supports --nix (run inside nix develop) and --all (run locally then in nix).
+#   projectsRef (arrayRef)   Project names to test.
+#   matchArgsRef (arrayRef)  Test name include patterns; prefix with '-' to exclude.
+#   nix (bool)               Run tests inside nix develop (default: 0).
+#   all (bool)               Run tests locally and then again inside nix (default: 0).
 
 executeTests() {
-    _assertPrerequisites "rayvn test [PROJECT] [PROJECT...] [TEST-NAME] [TEST-NAME...] [--nix] [--all]" || return 0
+    local -n _projectsRef=$1
+    local -n _matchArgsRef=$2
+    _testProjects=("${_projectsRef[@]}")
+    _testMatchArgs=("${_matchArgsRef[@]}")
+    _testNix=${3:-0}
+    _testAll=${4:-0}
+    _maxProjectNameLength="${ maxArrayElementLength _testProjects; }"
     _executeTests
 }
 
 # ◇ Build the Nix flake for one or more rayvn projects, skipping any without a flake.nix.
+#
+# · ARGS
+#
+#   projectsRef (arrayRef)  Project names to build.
 
 executeNixBuild() {
-    _assertPrerequisites "rayvn build [PROJECT] [PROJECT...]" || return 0
+    local -n _projectsRef=$1
+    _testProjects=("${_projectsRef[@]}")
+    _maxProjectNameLength="${ maxArrayElementLength _testProjects; }"
     command -v nix > /dev/null 2>&1 || fail "'rayvn build' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
     require 'rayvn/spinner' 'rayvn/prompt'
     _taskTypes=() _taskNames=() _taskFiles=() _taskFileNames=()
@@ -46,6 +59,10 @@ _init_rayvn_test-harness() {
     declare -g _testLogDir
     declare -g _testResultDir
     declare -g _testNoMatchMsg=''
+    declare -ga _testProjects=()
+    declare -ga _testMatchArgs=()
+    declare -g _testNix=0
+    declare -g _testAll=0
     declare -ga _taskTypes=()
     declare -ga _taskNames=()
     declare -ga _taskFiles=()
@@ -64,38 +81,6 @@ _init_rayvn_test-harness() {
     ensureDir "${_testResultDir}" || fail
 }
 
-_assertPrerequisites() {
-    local helpMsg="$1"
-    _assertArrayIsDefined projects
-    _assertArrayIsDefined args
-    _assertHashTableIsDefined flags
-
-    if (( flags['help'] )); then
-        echo "${helpMsg}"
-        return 1
-    fi
-
-    _maxProjectNameLength="${ maxArrayElementLength projects; }"
-}
-
-_assertArrayIsDefined() {
-    local varName=$1
-    _assertVarIsDefined ${varName}
-    [[ "${ declare -p ${varName} 2> /dev/null; }" =~ "declare -a" ]] || fail "${varName} is not an array"
-}
-
-_assertHashTableIsDefined() {
-    local varName=$1
-    _assertVarIsDefined ${varName}
-    [[ "${ declare -p ${varName} 2> /dev/null; }" =~ "declare -A" ]] || fail "${varName} is not a hash table"
-}
-
-_assertVarIsDefined() {
-    local name="$1"
-    [[ ${ declare -p "${name}" 2> /dev/null; } ]] || fail "${name} is not defined"
-}
-
-
 _executeTests() {
     rayvnTest_TraceFail=1
     require 'rayvn/spinner' 'rayvn/prompt'
@@ -113,7 +98,7 @@ _executeTests() {
 
     _testNoMatchMsg=''
     local matchArg
-    for matchArg in "${args[@]}"; do
+    for matchArg in "${_testMatchArgs[@]}"; do
         (( ${#_testNoMatchMsg} > 0 )) && _testNoMatchMsg+=' or '
         _testNoMatchMsg+="'${matchArg}'"
     done
@@ -122,14 +107,14 @@ _executeTests() {
 
     local -A buildTaskIdx=()
 
-    if (( flags['nix'] )); then
+    if (( _testNix )); then
         if ! command -v nix > /dev/null 2>&1; then
             show warning "nix is not installed"
             return 0
         fi
         _collectBuildTasks buildTaskIdx
         _collectNixTasks buildTaskIdx
-    elif (( flags['all'] )); then
+    elif (( _testAll )); then
         if [[ -z ${IN_NIX_SHELL} ]]; then
             _collectLocalTasks
             if command -v nix > /dev/null 2>&1; then
@@ -157,7 +142,7 @@ _executeTests() {
 
 _collectLocalTasks() {
     local project projectRoot
-    for project in "${projects[@]}"; do
+    for project in "${_testProjects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
         if [[ -z ${projectRoot} ]]; then
             show warning "unknown project:" bold "${project}"
@@ -182,7 +167,7 @@ _collectLocalTasks() {
 _collectBuildTasks() {
     local -n _buildTaskIdxRef="$1"
     local project projectRoot
-    for project in "${projects[@]}"; do
+    for project in "${_testProjects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
         if [[ -f "${projectRoot}/flake.nix" ]]; then
             _buildTaskIdxRef["${project}"]=${#_taskTypes[@]}
@@ -204,7 +189,7 @@ _collectBuildTasks() {
 _collectNixTasks() {
     local -n _nixBuildTaskIdxRef="$1"
     local project projectRoot buildIdx
-    for project in "${projects[@]}"; do
+    for project in "${_testProjects[@]}"; do
         projectRoot="${_rayvnProjects[${project}::project]}"
         [[ -z ${projectRoot} ]] && continue
         [[ -f "${projectRoot}/flake.nix" ]] || continue
@@ -224,7 +209,7 @@ _collectProjectTestTasks() {
 
     # Parse include/exclude patterns from CLI args
     local includePatterns=() cliExcludePatterns=() arg
-    for arg in "${args[@]}"; do
+    for arg in "${_testMatchArgs[@]}"; do
         if [[ "${arg}" == -* ]]; then
             cliExcludePatterns+=("${arg#-}")
         else

@@ -25,9 +25,6 @@ auditDocs() {
         shift
     done
 
-    # Fall back to CLI-specified projects global if no project args given
-    (( ${#targetProjects[@]} == 0 )) && targetProjects=("${projects[@]}")
-
     require 'rayvn/index'
     _initIndex
 
@@ -95,10 +92,8 @@ updateDocs() {
         shift
     done
 
-    # If --lib uses qualified 'project/name' format, infer project from it
-    [[ -n "${libFilter}" && "${libFilter}" == */* && ${#targetProjects[@]} == 0 ]] && targetProjects+=("${libFilter%%/*}")
-
-    (( ${#targetProjects[@]} == 0 )) && targetProjects=("${projects[@]}")
+    # A qualified 'project/name' --lib filter pins the project
+    [[ -n "${libFilter}" && "${libFilter}" == */* ]] && targetProjects=("${libFilter%%/*}")
 
     require 'rayvn/index'
     _initIndex

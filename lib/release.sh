@@ -101,13 +101,12 @@ _checkExistingRelease() {
 }
 
 _runTests() {
-    local -a projects=("$1")
-    local -a args=()
-    local -A flags=([all]=1)
+    local -a testProjects=("$1")
+    local -a matchArgs=()
 
     header "Running tests"
 
-    executeTests || fail "Tests failed"
+    executeTests testProjects matchArgs 0 1 || fail "Tests failed"
 }
 
 _updateFlakeDeps() {

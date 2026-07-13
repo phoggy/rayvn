@@ -42,9 +42,6 @@ main() {
 }
 
 init() {
-    declare -g projects=()
-    declare -g args=()
-    declare -gAi flags=()
     declare -gA _argsParsedOptions=()
     declare -ga _argsParsedArguments=()
     declare -gAr rayvnEnvVars=(
@@ -74,85 +71,6 @@ declare -gA cliSpec=(
     ['register']='register(str --help|-h)'
 )
 
-resolveProjectsFromArgs() {
-    args=()
-    local arg
-    for arg in "${_argsParsedArguments[@]}"; do
-        addIfRayvnExecutable "${arg}" || args+=("${arg}")
-    done
-    (( ${#projects[@]} > 0 )) || detectCurrentProject
-}
-
-detectCurrentProject() {
-    local dir="${PWD}"
-    while [[ -n "${dir}" && "${dir}" != '/' ]]; do
-        if [[ -f "${dir}/rayvn.pkg" ]]; then
-            local projectName; projectName=${ gawk -F"'" '/^projectName=/{print $2; exit}' "${dir}/rayvn.pkg"; }
-            if [[ -n "${projectName}" ]]; then
-                if [[ "${projectName}" != rayvn ]]; then
-                    _addRayvnProject "${projectName}" "${dir}"
-                fi
-                projects+=( "${projectName}" )
-            fi
-            return 0
-        fi
-        dir="${dir%/*}"
-    done
-    local defaultProject="${RAYVN_DEFAULT_PROJECT-rayvn}"
-    if [[ -n ${defaultProject} ]]; then
-        projects+=( "${defaultProject}" )
-    else
-        show warning "No project specified" "and" italic "RAYVN_DEFAULT_PROJECT" "is explicitly set to empty."
-        show "Specify project name, run from within a project directory or change" italic "RAYVN_DEFAULT_PROJECT" glue "."
-    fi
-}
-
-addIfRayvnExecutable() {
-    local name="$1"
-    local path root rayvnPkgFile
-    path="${ type -P "${name}"; }"
-    if [[ -n "${path}" ]]; then
-        if [[ "${name}" == 'rayvn'  ]]; then
-            projects+=( "${name}" )
-            return 0
-        else
-            # Get root directory
-
-            path="${ realpath "${path}"; }"
-            path="${path%/}"  # normalize trailing slash
-            path="${path%/*}" # strip last component
-            root="${path%/*}" # and again to reach root
-
-            # See if there is a rayvn.pkg file
-
-            rayvnPkgFile="${root}/rayvn.pkg"
-            [[ -f "${rayvnPkgFile}" ]] || rayvnPkgFile="${root}/share/${name}/rayvn.pkg"
-            if [[ -f ${rayvnPkgFile} ]]; then
-                _addRayvnProject "${name}" "${root}"
-                projects+=( "${name}" )
-                return 0
-            fi
-        fi
-    fi
-    return 1
-}
-
-assertSingleProject() {
-    (( ${#projects[@]} > 1 )) && fail "only one project name is supported"
-}
-
-assertProjectsSpecified() {
-    (( ${#projects[@]} > 0 )) && return 0
-    local candidate="${args[0]}"
-    if [[ -n "${candidate}" && "${candidate}" != -* ]]; then
-        fail "Unknown project:" blue "${candidate}" "— is its bin directory in PATH?"
-    else
-        fail "A project name is required (e.g. rayvn, valt, wardn)"
-    fi
-}
-
-SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
-
 newCmdUsage() {
     echo "rayvn new project|script|library|test NAME [--local]"
     echo
@@ -160,25 +78,6 @@ newCmdUsage() {
     echo
     echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
     bye "$@"
-}
-
-newCmd() {
-    local type=${_argsParsedArguments[0]}
-    local name=${_argsParsedArguments[1]}
-    [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
-    case ${type} in
-        project | script | library | test) ;;
-        *) bye "unknown type: ${type}"
-    esac
-    [[ -n "${name}" ]] || bye "name required"
-    local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
-    local templateDir="${rayvnHome}/templates"
-    case ${type} in
-        project) newProject ;;
-        script)  newScript ;;
-        library) newLibrary ;;
-        test)    newTest ;;
-    esac
 }
 
 themeCmdUsage() {
@@ -190,34 +89,17 @@ themeCmdUsage() {
     bye "$@"
 }
 
-themeCmd() {
-    require 'rayvn/theme'
-    if (( _argsParsedOptions['show'] )); then
-        header "current theme"
-        showCurrentTheme
-    else
-        setTheme
-    fi
-}
-
 argsCmdUsage() {
     echo "rayvn args SCRIPT"
     echo
     echo "Regenerate the parser block in SCRIPT from its spec. The script must contain"
-    echo "one of the following annotations and the ARGS_PARSER_BEGIN/END markers:"
+    echo "one of the following annotations:"
     echo
     echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
     echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
     echo
     echo "The spec variable must be defined at global scope (not inside a function)."
     bye "$@"
-}
-
-argsCmd() {
-    local scriptFile="${_argsParsedArguments[0]}"
-    [[ -n "${scriptFile}" ]] || argsCmdUsage "script file required"
-    require 'rayvn/args'
-    updateParser "${scriptFile}"
 }
 
 projectsCmdUsage() {
@@ -227,22 +109,11 @@ projectsCmdUsage() {
     bye "$@"
 }
 
-projectsCmd() {
-    resolveProjectsFromArgs
-    echo
-    forEachProject printProject
-}
-
 librariesCmdUsage() {
     echo "rayvn libraries [PROJECT...]"
     echo
     echo "List all libraries for one or more projects."
     bye "$@"
-}
-
-librariesCmd() {
-    resolveProjectsFromArgs
-    forEachProject printLibraries
 }
 
 functionsCmdUsage() {
@@ -252,27 +123,6 @@ functionsCmdUsage() {
     echo
     echo "  --all  Also list private (_-prefixed) functions."
     bye "$@"
-}
-
-functionsCmd() {
-    flags['all']="${_argsParsedOptions['all']:-0}"
-    if [[ -n ${_argsParsedArguments[0]:-} && ${_argsParsedArguments[0]} == */* ]]; then
-        local qualifiedLib project library
-        local -a libNames=() libProjects=()
-        for qualifiedLib in "${_argsParsedArguments[@]}"; do
-            project="${qualifiedLib%%/*}"
-            library="${qualifiedLib##*/}"
-            libNames+=("${library}")
-            memberOf "${project}" libProjects || libProjects+=("${project}")
-        done
-        args=("${libNames[@]}")
-        for project in "${libProjects[@]}"; do
-            listProjectLibraries "${project}"
-        done
-    else
-        resolveProjectsFromArgs
-        forEachProject listProjectLibraries
-    fi
 }
 
 testCmdUsage() {
@@ -285,25 +135,11 @@ testCmdUsage() {
     bye "$@"
 }
 
-testCmd() {
-    flags['nix']="${_argsParsedOptions['nix']:-0}"
-    flags['all']="${_argsParsedOptions['all']:-0}"
-    resolveProjectsFromArgs
-    require 'rayvn/test-harness'
-    executeTests
-}
-
 buildCmdUsage() {
     echo "rayvn build [PROJECT...]"
     echo
     echo "  Run nix build for one or more projects."
     bye "$@"
-}
-
-buildCmd() {
-    resolveProjectsFromArgs
-    require 'rayvn/test-harness'
-    executeNixBuild
 }
 
 indexCmdUsage() {
@@ -312,12 +148,6 @@ indexCmdUsage() {
     echo "Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
     echo "Run after adding or modifying library functions to keep the indexes current."
     bye "$@"
-}
-
-indexCmd() {
-    resolveProjectsFromArgs
-    require 'rayvn/index'
-    runIndex "${args[@]}"
 }
 
 pagesCmdUsage() {
@@ -347,14 +177,6 @@ pagesCmdUsage() {
     bye "$@"
 }
 
-pagesCmd() {
-    resolveProjectsFromArgs
-    assertProjectsSpecified
-    (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
-    require 'rayvn/index'
-    runPages "${projects[0]}" "${args[@]}"
-}
-
 lintCmdUsage() {
     echo "rayvn lint [PROJECT...] [--fix] [--ask]"
     echo
@@ -368,32 +190,12 @@ lintCmdUsage() {
     bye "$@"
 }
 
-lintCmd() {
-    resolveProjectsFromArgs
-    assertProjectsSpecified
-    (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
-    local fixMode=
-    (( _argsParsedOptions['fix'] )) && fixMode='--fix'
-    (( _argsParsedOptions['ask'] )) && fixMode='--ask'
-    require 'rayvn/lint'
-    runLint ${fixMode} "${projects[@]}"
-}
 
 collisionsCmdUsage() {
     echo "rayvn collisions [PROJECT...]"
     echo
     echo "Check for function and global variable name collisions across project libraries."
     bye "$@"
-}
-
-collisionsCmd() {
-    resolveProjectsFromArgs
-    require 'rayvn/namespace'
-    if (( ${#projects[@]} > 0 )); then
-        checkNamespaces "${projects[@]}"
-    else
-        checkNamespaces
-    fi
 }
 
 dependenciesCmdUsage() {
@@ -403,18 +205,6 @@ dependenciesCmdUsage() {
     echo
     echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability."
     bye "$@"
-}
-
-dependenciesCmd() {
-    resolveProjectsFromArgs
-    (( ${#projects[@]} == 0 )) && dependenciesCmdUsage
-    require 'rayvn/index'
-    local fixMode=; (( _argsParsedOptions['fix'] )) && fixMode=fix
-    local project result=0
-    for project in "${projects[@]}"; do
-        findDependencies "${project}" "${fixMode}" || result=1
-    done
-    return ${result}
 }
 
 docsCmdUsage() {
@@ -436,23 +226,6 @@ docsCmdUsage() {
     bye "$@"
 }
 
-docsCmd() {
-    require 'rayvn/function-docs'
-    local subcommand="${_argsParsedArguments[0]}"
-    local remaining=("${_argsParsedArguments[@]:1}")
-    args=()
-    local arg
-    for arg in "${remaining[@]}"; do
-        addIfRayvnExecutable "${arg}" || args+=("${arg}")
-    done
-    (( ${#projects[@]} > 0 )) || detectCurrentProject
-    case "${subcommand}" in
-        audit)  auditDocs  "${args[@]}" ;;
-        update) updateDocs "${args[@]}" ;;
-        *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
-    esac
-}
-
 releaseCmdUsage() {
     echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION"
     echo
@@ -462,18 +235,269 @@ releaseCmdUsage() {
     bye "$@"
 }
 
+registerCmdUsage() {
+    echo "rayvn register PROJECT"
+    echo
+    echo "  Stake a claim on a project name on rayvn central."
+    bye "$@"
+}
+
+# Split parsed arguments into recognized project names and everything else, filling the
+# caller's arrays via namerefs. Falls back to the current directory's project (or the
+# default) when no projects are given. Args: projectsRef extraArgsRef [argOffset]
+
+resolveProjects() {
+    local -n _projectsRef=$1
+    local -n _extraArgsRef=$2
+    local offset=${3:-0}
+    local arg
+    for arg in "${_argsParsedArguments[@]:${offset}}"; do
+        addIfRayvnExecutable "${arg}" _projectsRef || _extraArgsRef+=("${arg}")
+    done
+    (( ${#_projectsRef[@]} > 0 )) || detectCurrentProject _projectsRef
+}
+
+detectCurrentProject() {
+    local -n _detectedProjectsRef=$1
+    local dir="${PWD}"
+    while [[ -n "${dir}" && "${dir}" != '/' ]]; do
+        if [[ -f "${dir}/rayvn.pkg" ]]; then
+            local projectName; projectName=${ gawk -F"'" '/^projectName=/{print $2; exit}' "${dir}/rayvn.pkg"; }
+            if [[ -n "${projectName}" ]]; then
+                if [[ "${projectName}" != rayvn ]]; then
+                    _addRayvnProject "${projectName}" "${dir}"
+                fi
+                _detectedProjectsRef+=( "${projectName}" )
+            fi
+            return 0
+        fi
+        dir="${dir%/*}"
+    done
+    local defaultProject="${RAYVN_DEFAULT_PROJECT-rayvn}"
+    if [[ -n ${defaultProject} ]]; then
+        _detectedProjectsRef+=( "${defaultProject}" )
+    else
+        show warning "No project specified" "and" italic "RAYVN_DEFAULT_PROJECT" "is explicitly set to empty."
+        show "Specify project name, run from within a project directory or change" italic "RAYVN_DEFAULT_PROJECT" glue "."
+    fi
+}
+
+addIfRayvnExecutable() {
+    local name="$1"
+    local -n _addProjectsRef=$2
+    local path root rayvnPkgFile
+    path="${ type -P "${name}"; }"
+    if [[ -n "${path}" ]]; then
+        if [[ "${name}" == 'rayvn'  ]]; then
+            _addProjectsRef+=( "${name}" )
+            return 0
+        else
+            # Get root directory
+
+            path="${ realpath "${path}"; }"
+            path="${path%/}"  # normalize trailing slash
+            path="${path%/*}" # strip last component
+            root="${path%/*}" # and again to reach root
+
+            # See if there is a rayvn.pkg file
+
+            rayvnPkgFile="${root}/rayvn.pkg"
+            [[ -f "${rayvnPkgFile}" ]] || rayvnPkgFile="${root}/share/${name}/rayvn.pkg"
+            if [[ -f ${rayvnPkgFile} ]]; then
+                _addRayvnProject "${name}" "${root}"
+                _addProjectsRef+=( "${name}" )
+                return 0
+            fi
+        fi
+    fi
+    return 1
+}
+
+assertSingleProject() {
+    local -n _projectsRef=$1
+    (( ${#_projectsRef[@]} > 1 )) && fail "only one project name is supported"
+}
+
+assertProjectsSpecified() {
+    local -n _projectsRef=$1
+    local -n _extraArgsRef=$2
+    (( ${#_projectsRef[@]} > 0 )) && return 0
+    local candidate="${_extraArgsRef[0]:-}"
+    if [[ -n "${candidate}" && "${candidate}" != -* ]]; then
+        fail "Unknown project:" blue "${candidate}" "— is its bin directory in PATH?"
+    else
+        fail "A project name is required (e.g. rayvn, valt, wardn)"
+    fi
+}
+
+SECTION="--+-+-----+-++(-++(---++++(---+( COMMANDS )+---)++++---)++-)++-+------+-+--"
+
+newCmd() {
+    local type=${_argsParsedArguments[0]}
+    local name=${_argsParsedArguments[1]}
+    [[ -n "${type}" ]] || bye "one of 'project', 'library', 'script' or 'test' required"
+    case ${type} in
+        project | script | library | test) ;;
+        *) bye "unknown type: ${type}"
+    esac
+    [[ -n "${name}" ]] || bye "name required"
+    local gitRoot; gitRoot=${ git rev-parse --show-toplevel 2> /dev/null; } || gitRoot=''
+    local templateDir="${rayvnHome}/templates"
+    case ${type} in
+        project) newProject ;;
+        script)  newScript ;;
+        library) newLibrary ;;
+        test)    newTest ;;
+    esac
+}
+
+themeCmd() {
+    require 'rayvn/theme'
+    if (( _argsParsedOptions['show'] )); then
+        header "current theme"
+        showCurrentTheme
+    else
+        setTheme
+    fi
+}
+
+argsCmd() {
+    local scriptFile="${_argsParsedArguments[0]}"
+    [[ -n "${scriptFile}" ]] || argsCmdUsage "script file required"
+    require 'rayvn/args'
+    updateParser "${scriptFile}"
+}
+
+projectsCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    echo
+    local project
+    for project in "${projects[@]}"; do
+        printProject "${project}" "${_rayvnProjects[${project}${_projectRootSuffix}]}"
+    done
+}
+
+librariesCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    local project
+    for project in "${projects[@]}"; do
+        printLibraries "${project}"
+    done
+}
+
+functionsCmd() {
+    local includePrivate="${_argsParsedOptions['all']:-0}"
+    local project
+    if [[ -n ${_argsParsedArguments[0]:-} && ${_argsParsedArguments[0]} == */* ]]; then
+        local qualifiedLib library
+        local -a libNames=() libProjects=()
+        for qualifiedLib in "${_argsParsedArguments[@]}"; do
+            project="${qualifiedLib%%/*}"
+            library="${qualifiedLib##*/}"
+            libNames+=("${library}")
+            memberOf "${project}" libProjects || libProjects+=("${project}")
+        done
+        for project in "${libProjects[@]}"; do
+            listProjectLibraries "${project}" libNames "${includePrivate}"
+        done
+    else
+        local -a projects=() libNames=()
+        resolveProjects projects libNames
+        for project in "${projects[@]}"; do
+            listProjectLibraries "${project}" libNames "${includePrivate}"
+        done
+    fi
+}
+
+testCmd() {
+    local -a projects=() matchArgs=()
+    resolveProjects projects matchArgs
+    require 'rayvn/test-harness'
+    executeTests projects matchArgs "${_argsParsedOptions['nix']:-0}" "${_argsParsedOptions['all']:-0}"
+}
+
+buildCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    require 'rayvn/test-harness'
+    executeNixBuild projects
+}
+
+indexCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    require 'rayvn/index'
+    runIndex "${extraArgs[@]}"
+}
+
+pagesCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    assertProjectsSpecified projects extraArgs
+    (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+    require 'rayvn/index'
+    runPages "${projects[0]}" "${extraArgs[@]}"
+}
+
+lintCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    assertProjectsSpecified projects extraArgs
+    (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+    local fixMode=
+    (( _argsParsedOptions['fix'] )) && fixMode='--fix'
+    (( _argsParsedOptions['ask'] )) && fixMode='--ask'
+    require 'rayvn/lint'
+    runLint ${fixMode} "${projects[@]}"
+}
+
+collisionsCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    require 'rayvn/namespace'
+    checkNamespaces "${projects[@]}"
+}
+
+dependenciesCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    (( ${#projects[@]} == 0 )) && dependenciesCmdUsage
+    require 'rayvn/index'
+    local fixMode=; (( _argsParsedOptions['fix'] )) && fixMode=fix
+    local project result=0
+    for project in "${projects[@]}"; do
+        findDependencies "${project}" "${fixMode}" || result=1
+    done
+    return ${result}
+}
+
+docsCmd() {
+    require 'rayvn/function-docs'
+    local subcommand="${_argsParsedArguments[0]}"
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs 1
+    case "${subcommand}" in
+        audit)  auditDocs  "${extraArgs[@]}" "${projects[@]}" ;;
+        update) updateDocs "${extraArgs[@]}" "${projects[@]}" ;;
+        *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
+    esac
+}
+
 releaseCmd() {
     local version=
-    resolveProjectsFromArgs
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
     if (( ${#projects[@]} )); then
-        assertSingleProject
-        version="${args[0]}"
-    elif (( ${#args[@]} == 1 )); then
+        assertSingleProject projects
+        version="${extraArgs[0]:-}"
+    elif (( ${#extraArgs[@]} == 1 )); then
         projects=(rayvn)
-        version="${args[0]}"
+        version="${extraArgs[0]}"
     else
-        projects=("${args[0]}")
-        version="${args[1]}"
+        projects=("${extraArgs[0]:-}")
+        version="${extraArgs[1]:-}"
     fi
     [[ -n ${version} ]] || fail "version required"
     local ghRepo="${_argsParsedOptions['repo']:-}"
@@ -490,13 +514,6 @@ releaseCmd() {
     release "${ghRepo}" "${version}"
 }
 
-registerCmdUsage() {
-    echo "rayvn register PROJECT"
-    echo
-    echo "  Stake a claim on a project name on rayvn central."
-    bye "$@"
-}
-
 registerCmd() {
     require 'rayvn/central'
     registerProjectOnRayvnCentral "${_argsParsedArguments[0]}" || fail
@@ -511,40 +528,60 @@ printProject() {
     echo "${version} -> ${projectRoot}"
 }
 
+# Fill the caller's array with the library names of a project. Args: project librariesRef
+
+getLibraries() {
+    local project="$1"
+    local -n _librariesRef=$2
+    local libraryRoot="${_rayvnProjects[${project}${_libraryRootSuffix}]}"
+    [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
+    local file fileName
+    _librariesRef=()
+    for file in "${libraryRoot}"/*.sh; do
+        [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
+        fileName="${file##*/}"
+        _librariesRef+=("${fileName%.sh}")
+    done
+}
+
 printLibraries() {
     local project="$1"
     echo
     header "${project} libraries"
-    forEachLibrary "${project}" printProjectLibrary
-}
-
-printProjectLibrary() {
-    local project="$1"
-    local library="$2"
-    show primary "  ${project}/${library}"
+    local -a libraries=()
+    getLibraries "${project}" libraries
+    local library
+    for library in "${libraries[@]}"; do
+        show primary "  ${project}/${library}"
+    done
 }
 
 listProjectLibraries() {
     local project="$1"
-    forEachLibrary "${project}" listFunctions
+    local -n _libFilterRef=$2
+    local includePrivate=$3
+    local libraryRoot="${_rayvnProjects[${project}${_libraryRootSuffix}]}"
+    local -a libraries=()
+    getLibraries "${project}" libraries
+    local library
+    for library in "${libraries[@]}"; do
+        (( ${#_libFilterRef[@]} > 0 )) && ! memberOf "${library}" _libFilterRef && continue
+        listFunctions "${project}" "${library}" "${libraryRoot}/${library}.sh" "${includePrivate}"
+    done
 }
 
 listFunctions() {
     local project=$1
     local library="$2"
     local libraryFile="$3"
+    local includePrivate=$4
     local libraryName="${project}/${library}"
-    (( ${#args[@]} > 0 )) && ! memberOf "${library}" args && return 0
     local functions=()
     local function
-    local includePrivate=0
-    (( flags['all'] )) && includePrivate=1
 
     getFunctions "${libraryFile}" functions
 
-    echo
     header "${libraryName} functions"
-    echo
 
     for function in "${functions[@]}"; do
         [[ ${function} != _* ]] && show primary "  ${function}"
@@ -566,40 +603,9 @@ getFunctions() {
     arrayRef=("${_functions[@]}")
 }
 
-forEachProject() {              # TODO: this pattern is a pain. Replace with getProjects()
-    local command="$1"
-    local arguments=("${@:2}")
-    local projectRoot
-    for project in "${projects[@]}"; do
-        projectRoot="${_rayvnProjects[${project}::project]}"
-        "${command}" "${project}" "${projectRoot}" "${arguments}"
-    done
-}
-
-forEachLibrary() {              # TODO: this pattern is a pain. Replace with getLibraries() with optional project filter.
-    local project="$1"
-    local command="$2"
-    local arguments=("${@:3}")
-    local libraryRoot="${_rayvnProjects[${project}::library]}"
-    [[ -n ${libraryRoot} ]] || fail "no libraries found for '${project}' project"
-    for file in "${libraryRoot}"/*.sh; do
-        [[ -e ${file} ]] || fail "no libraries found for '${project}' at ${libraryRoot}"
-        local fileName; fileName="${ basename "${file}"; }"
-        local library="${fileName%.*}"
-        "${command}" "${project}" "${library}" "${file}" "${arguments}"
-    done
-}
-
 printVersion() {
     local verbose="${1:-}"
     projectVersion rayvn "${verbose}"
-}
-
-printLibrary() {
-    local projectName="$1"
-    local libraryName="$2"
-    local libraryRoot="$3"
-    echo "${projectName}/${libraryName} -> ${libraryRoot}"
 }
 
 newProject() {
@@ -941,7 +947,7 @@ parseBuildArgs() {
 parseReleaseArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --repo) [[ -z "$2" ]] && fail "missing value for --repo"; _argsParsedOptions+=([repo]="$2"); shift 2 ;;
+            --repo) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(-h|--repo|--help)$ ) ]] && fail "missing value for --repo"; _argsParsedOptions+=([repo]="$2"); shift 2 ;;
             --help | -h) _argsParsedOptions+=([help]="1"); shift ;;
             *) _argsParsedArguments+=("$1"); shift ;;
         esac
