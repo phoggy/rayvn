@@ -38,7 +38,7 @@
 # and updateParser). For low-ceremony scripts, parseArgsWithSpec generates and runs the parser in one call,
 # trading a ~ms generation cost per run for zero build step and no spec/parser drift.
 #
-# Type checking is performed via a map of types to a type check function (single arg). A '*' type is unchecked. The default
+# Type checking is performed via a map of type name to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
 #
 #    declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
@@ -56,7 +56,6 @@
 #
 # Custom types also work with generated parsers: the checker function name is resolved from argsTypeMap at
 # generation time and embedded in the generated code, so the function must be defined wherever the parser runs.
-#
 
 
 # ◇ Generate a parser for an argument spec and parse the args with it, in one call. Convenient for
