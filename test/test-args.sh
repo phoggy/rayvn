@@ -17,6 +17,8 @@ main() {
     testGenParserEndOfOptions
     testGenParserEqualsValue
     testGenParserShortOnlyOption
+    testGenParserDefaults
+    testGenParserMultipleAliases
     testGenCliParser
     testUpdateParser
     testUpdateParserCheck
@@ -249,6 +251,46 @@ testGenParserShortOnlyOption() {
     parseArgs -f -c 5
     assertExpectedParse expectedOptions expectedArgs
     assertGenParseFailsWith "must be a positive integer" -c abc
+}
+
+testGenParserDefaults() {
+    local spec=("--count|-c:+int=5" "--mode:fast|slow=slow" "--verbose:bool=false" "--name:str")
+    evalGeneratedParser spec
+
+    # Unsupplied options arrive pre-populated (bool default converted to 0/1)
+    declare -A expectedOptions=(['count']="5" ['mode']="slow" ['verbose']="0")
+    declare -a expectedArgs=()
+    parseArgs
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Supplied values override defaults, in either form
+    expectedOptions=(['count']="9" ['mode']="fast" ['verbose']="1")
+    parseArgs -c 9 --mode=fast --verbose true
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Invalid defaults are rejected at generation time
+    local badSpec=("--mode:fast|slow=medium")
+    local err; err=${ ( generateParser rayvn badSpec ) 2>&1; }
+    assertContains "must be one of: fast|slow" "${err}"
+
+    badSpec=("--force|-f=1")
+    err=${ ( generateParser rayvn badSpec ) 2>&1; }
+    assertContains "cannot have a default" "${err}"
+}
+
+testGenParserMultipleAliases() {
+    local spec=("--name|--nm|-n|-N:str" "--force|--frc|-f")
+    evalGeneratedParser spec
+
+    declare -A expectedOptions=(['name']="Bob" ['force']="1")
+    declare -a expectedArgs=()
+    parseArgs -N Bob --frc
+    assertExpectedParse expectedOptions expectedArgs
+
+    # The = form works through any long alias; the first name provides the _opts key
+    parseArgs --nm=Bob --force
+    assertExpectedParse expectedOptions expectedArgs
+    assertGenParseFailsWith "does not accept a value" --frc=1
 }
 
 testGenCliParser() {

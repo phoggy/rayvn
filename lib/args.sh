@@ -17,13 +17,18 @@
 # that of tar args with -C dir interspersed and requires the caller to validate them.
 #
 #      type: str | int | +int | bool | file | dir | a|b|c (inline enum: value must be one of the alternatives)
-#    option: --name[|alias]:type                    TODO: allow multiple aliases??
-#      flag: --name[|alias]
+#    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
+#      flag: --name[|alias...]
 #  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
 #      spec: [option | flag | argument]... [*]
 #
 # Typed positional arguments are REQUIRED by default: the parser fails if fewer arguments are supplied than the
 # number of positionals without a '?' suffix. The * wildcard is always optional.
+#
+# Options and flags may declare any number of aliases; the FIRST name is canonical and provides the _opts key.
+# An option with a '=default' pre-populates _opts with that value, so it is always set even when the option is
+# not supplied. Defaults are validated at generation time for int, +int, bool (converted to 0/1) and enum types;
+# str, file, dir, and custom-typed defaults are the author's responsibility. Flags cannot take a default.
 #
 # The int type accepts both positive and negative values; use the +int type to accept only positive integers.
 #
@@ -82,6 +87,7 @@ parseArgsWithSpec() {
     local specVar=$1; shift
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
+    declare -A _argsOptionDefaults
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
     local specType; specType=${ _getSpecType; }
@@ -271,6 +277,7 @@ _getSpecType() {
 _genArgumentParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
+    declare -A _argsOptionDefaults
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
     _genParseFunction "$2" "$3"
@@ -281,6 +288,7 @@ _genCommandParser() {
     local -n _commandSpecRef="$2"
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
+    declare -A _argsOptionDefaults
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
     local command handler cmdName fnSpec tmpSpec
@@ -329,16 +337,23 @@ _genParseFunction() {
     local -n _genTypeMapRef="${argsTypeMap}"
     _parseArgumentSpec "${specVar}"
 
-    # Group option aliases by canonical: long opts first, then short, joined with ' | '
-    declare -A _longOpt   # canonical → "--long"
+    # Group option aliases by canonical: long opts first, then short, joined with ' | '.
+    # Aliases are iterated in sorted order so generated output is deterministic.
+    declare -A _longOpts  # canonical → "--long | --lng ..."
     declare -A _shortOpts # canonical → "-a | -b ..."
     declare -A _canonicalSet
     local alias canonical
-    for alias in "${!_argsOptionNames[@]}"; do
+    local -a _sortedAliases=()
+    (( ${#_argsOptionNames[@]} )) && mapfile -t _sortedAliases <<< "${ printf '%s\n' "${!_argsOptionNames[@]}" | sort; }"
+    for alias in "${_sortedAliases[@]}"; do
         canonical="${_argsOptionNames[${alias}]}"
         _canonicalSet[${canonical}]=1
         if [[ ${alias} == --* ]]; then
-            _longOpt[${canonical}]="${alias}"
+            if [[ -n "${_longOpts[${canonical}]+x}" ]]; then
+                _longOpts[${canonical}]+=" | ${alias}"
+            else
+                _longOpts[${canonical}]="${alias}"
+            fi
         elif [[ -n "${_shortOpts[${canonical}]+x}" ]]; then
             _shortOpts[${canonical}]+=" | ${alias}"
         else
@@ -350,6 +365,22 @@ _genParseFunction() {
 
     local -a _canonicals=()
     (( ${#_canonicalSet[@]} )) && mapfile -t _canonicals <<< "${ printf '%s\n' "${!_canonicalSet[@]}" | sort; }"
+
+    # Build default option values; validate at generation time where safe (no filesystem or custom checks)
+
+    local _defaults='' _defVal _defType
+    for canonical in "${_canonicals[@]}"; do
+        [[ -n "${_argsOptionDefaults[${canonical}]+x}" ]] || continue
+        _defVal="${_argsOptionDefaults[${canonical}]}"
+        _defType="${_argsOptionTypes[${canonical}]}"
+        case "${_defType}" in
+            *'|'*) [[ "|${_defType}|" == *"|${_defVal}|"* ]] || invalidArgs "${canonical} default '${_defVal}' must be one of: ${_defType}" ;;
+            bool)  assertBool "${_defVal}"; booleanAsInteger "${_defVal}" _defVal ;;
+            int)   assertInt "${_defVal}" ;;
+            +int)  assertPositiveInt "${_defVal}" ;;
+        esac
+        _defaults+="${_defaults:+ }['${canonical##*-}']=\"${_defVal}\""
+    done
 
     # Build alternation of all option aliases so option values can be checked for
     # missing values (e.g. '--name --force')
@@ -411,7 +442,12 @@ _genParseFunction() {
 
     {
         echo "parse${name^}Args() {"
-        [[ ${includeResets} != false ]] && { echo "    _opts=()"; echo "    _args=()"; }
+        if [[ ${includeResets} != false ]]; then
+            echo "    _opts=(${_defaults})"
+            echo "    _args=()"
+        elif [[ -n "${_defaults}" ]]; then
+            echo "    _opts+=(${_defaults})"
+        fi
         if (( pureWildcard || ${#_argsArgumentTypes[@]} == 0 )); then
             (( needsValue )) && echo "    local _value"
         else
@@ -421,13 +457,18 @@ _genParseFunction() {
         echo "        case \"\$1\" in"
 
         # Option and flag cases
-        local type shortName longAlias pattern line
+        local type shortName longs eqPattern pattern line _la
+        local -a _longList
         for canonical in "${_canonicals[@]}"; do
-            longAlias="${_longOpt[${canonical}]:-}"
-            pattern="${longAlias}"
+            longs="${_longOpts[${canonical}]:-}"
+            pattern="${longs}"
             if [[ -n "${_shortOpts[${canonical}]+x}" ]]; then
                 [[ -n "${pattern}" ]] && pattern+=" | ${_shortOpts[${canonical}]}" || pattern="${_shortOpts[${canonical}]}"
             fi
+            _longList=()
+            [[ -n "${longs}" ]] && IFS='|' read -ra _longList <<< "${longs// /}"
+            eqPattern=''
+            for _la in "${_longList[@]}"; do eqPattern+="${eqPattern:+ | }${_la}=*"; done
             type="${_argsOptionTypes[${canonical}]:-}"
             shortName="${canonical##*-}"
             if [[ -n "${type}" ]]; then
@@ -446,17 +487,17 @@ _genParseFunction() {
                 local eqMissing="[[ -n \"\${_value}\" ]] || fail \"missing value for ${canonical}\""
                 if [[ "${type}" == 'bool' ]]; then
                     echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift 2 ;;"
-                    [[ -n "${longAlias}" ]] && \
-                        echo "            ${longAlias}=*) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
+                    [[ -n "${eqPattern}" ]] && \
+                        echo "            ${eqPattern}) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
                 else
                     echo "            ${pattern}) ${missingCheck}; ${check}_opts+=(['${shortName}']=\"\$2\"); shift 2 ;;"
-                    [[ -n "${longAlias}" ]] && \
-                        echo "            ${longAlias}=*) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}_opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
+                    [[ -n "${eqPattern}" ]] && \
+                        echo "            ${eqPattern}) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}_opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
                 fi
             else
                 echo "            ${pattern}) _opts+=(['${shortName}']=\"1\"); shift ;;"
-                [[ -n "${longAlias}" ]] && \
-                    echo "            ${longAlias}=*) fail \"${canonical} does not accept a value\" ;;"
+                [[ -n "${eqPattern}" ]] && \
+                    echo "            ${eqPattern}) fail \"${canonical} does not accept a value\" ;;"
             fi
         done
 
@@ -509,24 +550,32 @@ _parseArgumentSpec() {
 
     _argsOptionNames=()
     _argsOptionTypes=()
+    _argsOptionDefaults=()
     _argsArgumentTypes=()
     _argsMinArgs=0
 
     for _spec in "${_specRef[@]}"; do
         if [[ ${_spec} == -* ]]; then
 
-            # option or flag
+            # option or flag: the first name is canonical and provides the _opts key
 
-            local options="${_spec%:*}"
-            local option=${options%|*}
-            local alias=; [[ ${options} == *\|* ]] && alias="${options##*|}"
+            local options="${_spec%%:*}"
+            [[ ${options} == *=* ]] && invalidArgs "${_spec}: a default value requires a type (flags cannot have a default)"
+            local -a _aliases
+            IFS='|' read -ra _aliases <<< "${options}"
+            local option="${_aliases[0]}"
+            local _a; for _a in "${_aliases[@]}"; do
+                _argsOptionNames+=([${_a}]="${option}")
+            done
             if [[ ${_spec} == *:* ]]; then
-                _type="${_spec##*:}"
+                _type="${_spec#*:}"
+                if [[ ${_type} == *=* ]]; then
+                    _argsOptionDefaults+=([${option}]="${_type#*=}")
+                    _type="${_type%%=*}"
+                fi
                 _isKnownType
                 _argsOptionTypes+=([${option}]=${_type})
             fi
-            _argsOptionNames+=([${option}]="${option}")
-            [[ -n ${alias} ]] && _argsOptionNames+=([${alias}]="${option}")
 
         else
 
