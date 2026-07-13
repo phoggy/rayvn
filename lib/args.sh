@@ -64,7 +64,7 @@ parseArgumentSpec() {
     local specVar=$1
     local specType; specType=${ _getSpecType; }
     [[ ${specType} == argument ]] || fail "CLI specification not supported"
-    _parseArgumentSpec "${specVar}"; shift
+    _parseArgumentSpec "${specVar}"
 }
 
 # ◇ Parse argument specification and arguments.
@@ -178,7 +178,13 @@ updateParser() {
         ' "${scriptFile}" > "${tmpFile}" || fail "failed to rewrite ${scriptFile}"
     fi
 
-    cp "${tmpFile}" "${scriptFile}" || fail "failed to write updated ${scriptFile}"
+    # Replace via a new inode (not in-place) so a currently executing script
+    # (e.g. 'rayvn args bin/rayvn') keeps reading its original content
+
+    local newFile="${scriptFile}.new.$$"
+    cp -p "${scriptFile}" "${newFile}" || fail "failed to create ${newFile}"
+    cat "${tmpFile}" > "${newFile}" || fail "failed to write ${newFile}"
+    mv "${newFile}" "${scriptFile}" || fail "failed to replace ${scriptFile}"
     show "Updated parser in" blue "${ tildePath "${scriptFile}"; }"
 }
 
@@ -243,7 +249,7 @@ _genArgumentParser() {
 
 _genCommandParser() {
     local project="$1"
-    local -n _commandSpec="$2"
+    local -n _commandSpecRef="$2"
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
@@ -257,8 +263,8 @@ _genCommandParser() {
     echo "    _argsParsedArguments=()"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
     echo "    case \"\$1\" in"
-    for command in "${!_commandSpec[@]}"; do
-        fnSpec="${_commandSpec[${command}]}"
+    for command in "${!_commandSpecRef[@]}"; do
+        fnSpec="${_commandSpecRef[${command}]}"
         cmdName="${fnSpec%(*}"
         handler="parse${cmdName^}Args"
         echo "        ${command}) shift; ${handler} \"\$@\"; (( _argsParsedOptions['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
@@ -270,8 +276,8 @@ _genCommandParser() {
 
     # Gen per-command parsers
 
-    for command in "${!_commandSpec[@]}"; do
-        fnSpec="${_commandSpec[${command}]}"
+    for command in "${!_commandSpecRef[@]}"; do
+        fnSpec="${_commandSpecRef[${command}]}"
         handler="${fnSpec%(*}"
         tmpSpec="${fnSpec#*(}"
         IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
@@ -301,6 +307,13 @@ _genParseFunction() {
             _shortOpts[${canonical}]="${alias}"
         fi
     done
+
+    # Build alternation of all option aliases so option values can be checked for
+    # missing values, matching the runtime parser behavior (e.g. '--name --force')
+
+    local allOptions=''
+    for alias in "${!_argsOptionNames[@]}"; do allOptions+="|${alias}"; done
+    allOptions="${allOptions#|}"
 
     local hasWildcard=0 pureWildcard=0 hasBoolPositional=0 needsValue=0 i argType
     for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
@@ -339,10 +352,11 @@ _genParseFunction() {
                     file) check="assertFile \"\$2\"; " ;;
                     dir)  check="assertDirectory \"\$2\"; " ;;
                 esac
+                local missingCheck="[[ -z \"\$2\" || ( \"\$2\" == -* && \"\$2\" =~ ^(${allOptions})\$ ) ]] && fail \"missing value for ${canonical}\""
                 if [[ "${type}" == 'bool' ]]; then
-                    echo "            ${pattern}) [[ -z \"\$2\" ]] && fail \"missing value for ${canonical}\"; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _argsParsedOptions+=([${shortName}]=\"\${_value}\"); shift 2 ;;"
+                    echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _argsParsedOptions+=([${shortName}]=\"\${_value}\"); shift 2 ;;"
                 else
-                    echo "            ${pattern}) [[ -z \"\$2\" ]] && fail \"missing value for ${canonical}\"; ${check}_argsParsedOptions+=([${shortName}]=\"\$2\"); shift 2 ;;"
+                    echo "            ${pattern}) ${missingCheck}; ${check}_argsParsedOptions+=([${shortName}]=\"\$2\"); shift 2 ;;"
                 fi
             else
                 echo "            ${pattern}) _argsParsedOptions+=([${shortName}]=\"1\"); shift ;;"
@@ -409,7 +423,7 @@ _genParseFunction() {
 }
 
 _parseArgumentSpec() {
-    local -n _typeMap="${argsTypeMap}"
+    local -n _typeMapRef="${argsTypeMap}"
     local -n _specRef="$1"
 
 #   echo; echo "PARSING SPEC: ${_specRef[*]}"; echo
@@ -455,14 +469,12 @@ _parseArgumentSpec() {
 }
 
 _isKnownType() {
-    local typeChecker="${_typeMap[${_type}]}"
+    local typeChecker="${_typeMapRef[${_type}]}"
     [[ -n ${typeChecker} ]] || invalidArgs "${_spec} has unknown type: ${_type}"
 }
 
 _parseArguments() {
-    local -n _typeMap="${argsTypeMap}"
-#    echo; echo "PARSING ARGS: $*"; echo; declare -p _typeMap _argsOptionNames _argsOptionTypes _argsArgumentTypes
-
+    local -n _typeMapRef="${argsTypeMap}"
     local maxIndex=${#_argsArgumentTypes[@]}
     local argIndex=0 typedArg=1
     local option type typeChecker value
@@ -482,7 +494,7 @@ _parseArguments() {
 
                 [[ -z "$2" || -n ${_argsOptionNames[$2]} ]] && fail "missing value for ${option}"
                 value=$2
-                typeChecker=${_typeMap[${type}]}
+                typeChecker=${_typeMapRef[${type}]}
                 [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
                 [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
                 _argsParsedOptions+=([${option##*-}]=${value})
@@ -512,7 +524,7 @@ _parseArguments() {
 
                     # Validate and convert bool if needed
 
-                    typeChecker=${_typeMap[${type}]}
+                    typeChecker=${_typeMapRef[${type}]}
                     [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
                     [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
                 fi
