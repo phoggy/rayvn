@@ -3,16 +3,6 @@
 main() {
     init "$@"
 
-    # Argument spec + runtime parser tests
-    testArgParserBasic
-    testArgParserAliases
-    testArgParserBoolConversion
-    testArgParserEmptySpec
-    testArgParserWildcard
-    testArgParserTypeRejection
-    testArgParserRequired
-    testArgParserEnum
-    testArgParserCustomTypeMap
 
     # Generated parser tests
     testGenParser
@@ -26,6 +16,7 @@ main() {
     testGenParserCustomTypeMap
     testGenCliParser
     testUpdateParser
+    testParseArgsWithSpec
 
     # Performance benchmark
     benchmarkParsers
@@ -38,133 +29,6 @@ init() {
         esac
         shift
     done
-}
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Argument spec + runtime parser tests
-# ──────────────────────────────────────────────────────────────────────────────
-
-testArgParserBasic() {
-    local spec=("--name|-n:str" "--force|-f" "--count:+int" "bool" "*")
-    declare -A expectedOptions=(['name']="bar" ['force']="1" ['count']="29")
-    declare -a expectedArgs=("1" "foo" "bar")
-    assertParse spec expectedOptions expectedArgs -f --name bar --count 29 true foo bar
-}
-
-testArgParserAliases() {
-    local spec=("--name|-n:str" "--force|-f" "--count|-c:+int")
-    declare -A expectedOptions=(['name']="Bob" ['force']="1" ['count']="5")
-    declare -a expectedArgs=()
-    assertParse spec expectedOptions expectedArgs -n Bob -f -c 5
-}
-
-testArgParserBoolConversion() {
-    local spec=("--verbose|-v:bool")
-    declare -A expected
-
-    expected=(['verbose']="1"); assertParseOptions spec expected --verbose true
-    expected=(['verbose']="0"); assertParseOptions spec expected --verbose false
-    expected=(['verbose']="1"); assertParseOptions spec expected --verbose 1
-    expected=(['verbose']="0"); assertParseOptions spec expected -v 0
-}
-
-testArgParserEmptySpec() {
-    local spec=()
-    assertParseFailsWith spec "unknown argument: foo" foo
-}
-
-testArgParserWildcard() {
-    local spec=("*")
-    declare -A expectedOptions=()
-    declare -a expectedArgs=("foo" "bar" "baz")
-    assertParse spec expectedOptions expectedArgs foo bar baz
-}
-
-testArgParserTypeRejection() {
-    local spec
-
-    spec=("--count:+int")
-    assertParseFailsWith spec "must be a positive integer" --count -5
-    assertParseFailsWith spec "must be a positive integer" --count abc
-
-    spec=("--n:int")
-    assertParseFailsWith spec "must be a positive or negative integer" --n 3.14
-
-    spec=("--name:str")
-    assertParseFailsWith spec "missing value for --name" --name
-
-    spec=("str")
-    assertParseFailsWith spec "unknown argument: bar" foo bar
-
-    spec=("--flag:bool")
-    assertParseFailsWith spec "must be boolean" --flag maybe
-
-    spec=("--name:str")
-    assertParseFailsWith spec "unknown argument: --bad" --name foo --bad
-
-    spec=("--name:str" "--force|-f")
-    assertParseFailsWith spec "missing value for --name" --name --force
-}
-
-testArgParserRequired() {
-    local spec
-
-    # Typed positionals are required by default
-    spec=("str")
-    assertParseFailsWith spec "missing required argument"
-    spec=("str" "str")
-    assertParseFailsWith spec "missing required arguments: expected at least 2" onlyOne
-
-    # The '?' suffix makes a positional optional
-    spec=("str?")
-    declare -A expectedOptions=()
-    declare -a expectedArgs=()
-    assertParse spec expectedOptions expectedArgs
-
-    spec=("str" "str?")
-    expectedArgs=("foo")
-    assertParse spec expectedOptions expectedArgs foo
-
-    # Wildcard remains optional
-    spec=("str" "*")
-    assertParseFailsWith spec "missing required argument"
-    expectedArgs=("foo" "bar")
-    assertParse spec expectedOptions expectedArgs foo bar
-}
-
-testArgParserEnum() {
-    local spec
-
-    # Positional enum
-    spec=("audit|update")
-    declare -A expectedOptions=()
-    declare -a expectedArgs=("audit")
-    assertParse spec expectedOptions expectedArgs audit
-    expectedArgs=("update")
-    assertParse spec expectedOptions expectedArgs update
-    assertParseFailsWith spec "must be one of: audit|update" bogus
-
-    # Option enum
-    spec=("--mode:fast|slow")
-    declare -A expected=(['mode']="fast")
-    assertParseOptions spec expected --mode fast
-    assertParseFailsWith spec "must be one of: fast|slow" --mode medium
-}
-
-testArgParserCustomTypeMap() {
-    declare -Ar _customTypeMap=(['str4']=_minStringLength4 ['str']='*' ['int']=assertInt
-                                ['+int']=assertPositiveInt ['bool']=assertBool
-                                ['file']=assertFile ['dir']=assertDirectory)
-    local argsTypeMap=_customTypeMap
-    local spec=("--name|-n:str4" "--force|-f" "--count:+int" "bool" "*")
-
-    local failArgs=(-f --name bar --count 29 true foo bar)
-    assertParseFailed spec "bar must be 4 characters or longer" "${failArgs[@]}"
-
-    local passArgs=(-f --name barf --count 29 true foo bar)
-    declare -A expectedOptions=(['count']="29" ['force']="1" ['name']="barf")
-    declare -a expectedArgs=("1" "foo" "bar")
-    assertParse spec expectedOptions expectedArgs "${passArgs[@]}"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -387,6 +251,22 @@ EOF
     assertExpectedParse expectedOptions expectedArgs
 }
 
+testParseArgsWithSpec() {
+    local spec=("--name|-n:str" "--force|-f" "audit|update" "str?")
+
+    declare -A expectedOptions=(['name']="Bob" ['force']="1")
+    declare -a expectedArgs=("audit" "x")
+    parseArgsWithSpec spec -f --name Bob audit x
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Enum, required, and unknown arg checks all apply
+    assertGenParseFailsWith "must be one of: audit|update" bogus
+    local err
+    err=${ ( parseArgsWithSpec spec ) 2>&1; }
+    assertContains "missing required argument" "${err}"
+    err=${ ( parseArgsWithSpec spec audit x y ) 2>&1; }
+    assertContains "unknown argument: y" "${err}"
+}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Performance benchmark
@@ -402,15 +282,15 @@ benchmarkParsers() {
     echo
     echo "=== Parser Performance Benchmark ==="
     echo
-    benchmark _benchRuntime   ${iterations} "runtime-declarative" "${args[@]}"
-    benchmark parseArgs   ${iterations} "generated"      "${args[@]}"
-    benchmark _benchHandCoded ${iterations} "hand-coded"          "${args[@]}"
+    benchmark _benchWithSpec  ${iterations} "generate+parse" "${args[@]}"
+    benchmark parseArgs       ${iterations} "generated"      "${args[@]}"
+    benchmark _benchHandCoded ${iterations} "hand-coded"     "${args[@]}"
     echo
 }
 
-_benchRuntime() {
+_benchWithSpec() {
     local spec=("--name|-n:str" "--force|-f" "--count|-c:+int" "bool" "*")
-    parseArgumentSpecAndArgs spec "$@"
+    parseArgsWithSpec spec "$@"
 }
 
 _benchHandCoded() {
@@ -454,44 +334,6 @@ assertGenParseFailsWith() {
     assertContains "${expectedError}" "${err}"
 }
 
-assertParse() {
-    local specVarName="$1"
-    local expectedOptionsVar="$2"
-    local expectedArgsVar="$3"
-    shift 3
-    parseArgumentSpecAndArgs "${specVarName}" "$@"
-    assertExpectedParse "${expectedOptionsVar}" "${expectedArgsVar}"
-}
-
-assertParseOptions() {
-    local specVarName="$1"
-    local expectedOptionsVar="$2"
-    shift 2
-    local -a _emptyArgs=()
-    parseArgumentSpecAndArgs "${specVarName}" "$@"
-    assertExpectedParse "${expectedOptionsVar}" _emptyArgs
-}
-
-assertParseFailed() {
-    local specVarName="$1"
-    local expectedError="$2"
-    shift 2
-    local checked=0 error
-    parseArgumentSpecAndArgs "${specVarName}" "$@"
-    (( checked )) || fail "type checker not called"
-    assertEqual "${error}" "${expectedError}"
-}
-
-assertParseFailsWith() {
-    local specVarName="$1"
-    local expectedError="$2"
-    shift 2
-    local err
-    err=${ ( parseArgumentSpecAndArgs "${specVarName}" "$@" ) 2>&1; }
-    [[ -n "${err}" ]] || fail "parse should have failed but produced no error"
-    assertContains "${expectedError}" "${err}"
-}
-
 assertExpectedParse() {
     local -n expectedOptionsRef="$1"
     local -n expectedArgsRef="$2"
@@ -514,11 +356,6 @@ assertExpectedParse() {
         local value=${_args[i]}
         assertEqual "${value}" "${expectedValue}" "argument '${i}': expected '${expectedValue}', got '${value}'"
     done
-}
-
-_minStringLength4() {
-    checked=1 error=
-    (( ${#1} > 3 )) || error="$1 must be 4 characters or longer"
 }
 
 _assertMinStringLength4() {

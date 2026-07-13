@@ -34,7 +34,9 @@
 # An empty spec means no arguments are allowed. A "*" in a spec must be the last item and means that all remaining
 # arguments are allowed and are untyped.
 #
-# An argument spec can be processed at runtime or once
+# Specs are turned into parser code by generateParser (usually regenerated in-place via 'rayvn args SCRIPT'
+# and updateParser). For low-ceremony scripts, parseArgsWithSpec generates and runs the parser in one call,
+# trading a ~ms generation cost per run for zero build step and no spec/parser drift.
 #
 # Type checking is performed via a map of types to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
@@ -57,40 +59,26 @@
 #
 
 
-# ◇ Parse argument specifications. Assumes that the following variables are defined and will fill them:
-#
-#   declare -A _argsOptionNames
-#   declare -A _argsOptionTypes
-#   declare -a _argsArgumentTypes
-#   declare -i _argsMinArgs
+# ◇ Generate a parser for an argument spec and parse the args with it, in one call. Convenient for
+#   scripts that don't want a 'rayvn args' regeneration step: the parser is generated on every run,
+#   so it can never drift from the spec. The ~ms generation cost is irrelevant for CLI use; scripts
+#   that care should embed a generated parser via 'rayvn args SCRIPT' instead. Fills _opts and _args.
 #
 # · ARGS
 #
-#   argsSpec (arrayRef)     Arguments specification.
+#   specVar (arrayRef)  The name of the arguments specification array.
+#   args (args)         The arguments to parse.
 
-parseArgumentSpec() {
-    local specVar=$1
-    local specType; specType=${ _getSpecType; }
-    [[ ${specType} == argument ]] || fail "CLI specification not supported"
-    _parseArgumentSpec "${specVar}"
-}
-
-# ◇ Parse argument specification and arguments.
-#
-# · ARGS
-#
-#   argsSpec (arrayRef)     Arguments specification.
-#   args (array)            The arguments to parse.
-
-parseArgumentSpecAndArgs() {
-    local specVar=$1
+parseArgsWithSpec() {
+    local specVar=$1; shift
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
-
-    parseArgumentSpec "${specVar}"; shift
-    _parseArguments "$@"
+    local specType; specType=${ _getSpecType; }
+    [[ ${specType} == argument ]] || fail "CLI specification not supported"
+    eval "${ _genParseFunction "${specVar}"; }"
+    parseArgs "$@"
 }
 
 # ◇ Generate a parser from an argument or CLI spec. Use 'rayvn args SCRIPT' to regenerate in-place
@@ -493,87 +481,5 @@ _isKnownType() {
     [[ -n ${typeChecker} ]] || invalidArgs "${_spec} has unknown type: ${_type}"
 }
 
-_argsAssertEnum() {
-    [[ "|$2|" == *"|$1|"* ]] || fail "$1 must be one of: $2"
-}
-
-_parseArguments() {
-    local -n _typeMapRef="${argsTypeMap}"
-    local maxIndex=${#_argsArgumentTypes[@]}
-    local argIndex=0 typedArg=1
-    local option type typeChecker value
-    _opts=()
-    _args=()
-
-    while (( $# > 0 )); do
-        option=${_argsOptionNames[$1]}
-        if [[ -n ${option} ]]; then
-
-            # Option or flag. Do we have a type?
-
-            type="${_argsOptionTypes[${option}]}"
-            if [[ -n ${type} ]]; then
-
-                # Yes, so option: validate the type of the arg and store it
-
-                [[ -z "$2" || -n ${_argsOptionNames[$2]} ]] && fail "missing value for ${option}"
-                value=$2
-                if [[ ${type} == *'|'* ]]; then
-                    _argsAssertEnum "${value}" "${type}"
-                else
-                    typeChecker=${_typeMapRef[${type}]}
-                    [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
-                    [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                fi
-                _opts+=([${option##*-}]=${value})
-                shift 2
-
-            else
-
-                # No, it's a flag so just store it
-
-                _opts+=([${option##*-}]='1')
-                shift
-            fi
-
-        elif (( typedArg == 0 || argIndex < maxIndex )); then
-
-            value=$1
-
-            if (( typedArg )); then
-
-                type=${_argsArgumentTypes[${argIndex}]}
-                if [[ ${type} == '*' ]]; then
-
-                    # Any type, so treat further args as untyped
-
-                    typedArg=0
-                else
-
-                    # Validate and convert bool if needed
-
-                    if [[ ${type} == *'|'* ]]; then
-                        _argsAssertEnum "${value}" "${type}"
-                    else
-                        typeChecker=${_typeMapRef[${type}]}
-                        [[ ${typeChecker} != '*' ]] && ${typeChecker} ${value}
-                        [[ ${type} == 'bool' ]] && booleanAsInteger ${value} value
-                    fi
-                fi
-            fi
-
-            _args+=("${value}")
-            (( argIndex++ ))
-            shift
-        else
-            fail "unknown argument: $1"
-        fi
-    done
-
-    if (( argIndex < _argsMinArgs && ! _opts['help'] )); then
-        (( _argsMinArgs == 1 )) && fail "missing required argument"
-        fail "missing required arguments: expected at least ${_argsMinArgs}"
-    fi
-}
 
 
