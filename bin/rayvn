@@ -54,7 +54,7 @@ SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-
 # rayvn:cli cliSpec
 declare -gA cliSpec=(
     ['new | create']='new(project|script|library|test str --local --help|-h)'
-    ['args']='args(file --help|-h)'
+    ['args']='args(file --check --help|-h)'
     ['theme']='theme(--show --help|-h)'
     ['test']='test(--nix --all --help|-h *)'
     ['build']='build(--help|-h *)'
@@ -90,10 +90,11 @@ themeCmdUsage() {
 }
 
 argsCmdUsage() {
-    echo "rayvn args SCRIPT"
+    echo "rayvn args SCRIPT [--check]"
     echo
-    echo "Regenerate the parser block in SCRIPT from its spec. The script must contain"
-    echo "one of the following annotations:"
+    echo "Regenerate the parser block in SCRIPT from its spec, or with --check report"
+    echo "whether the committed block is stale without modifying the file. The script"
+    echo "must contain one of the following annotations:"
     echo
     echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
     echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
@@ -357,7 +358,8 @@ themeCmd() {
 
 argsCmd() {
     require 'rayvn/args'
-    updateParser "${_args[0]}"
+    local checkFlag=; (( _opts['check'] )) && checkFlag='--check'
+    updateParser ${checkFlag} "${_args[0]}"
 }
 
 projectsCmd() {
@@ -811,41 +813,75 @@ parseCommand() {
     _args=()
     parseCommonOptions rayvn "$@"; shift $?
     case "$1" in
-        register) shift; parseRegisterArgs "$@"; (( _opts['help'] )) && registerCmdUsage || registerCmd ;;
-        index) shift; parseIndexArgs "$@"; (( _opts['help'] )) && indexCmdUsage || indexCmd ;;
-        docs) shift; parseDocsArgs "$@"; (( _opts['help'] )) && docsCmdUsage || docsCmd ;;
-        collisions) shift; parseCollisionsArgs "$@"; (( _opts['help'] )) && collisionsCmdUsage || collisionsCmd ;;
         args) shift; parseArgsArgs "$@"; (( _opts['help'] )) && argsCmdUsage || argsCmd ;;
-        functions) shift; parseFunctionsArgs "$@"; (( _opts['help'] )) && functionsCmdUsage || functionsCmd ;;
-        new | create) shift; parseNewArgs "$@"; (( _opts['help'] )) && newCmdUsage || newCmd ;;
-        projects) shift; parseProjectsArgs "$@"; (( _opts['help'] )) && projectsCmdUsage || projectsCmd ;;
-        deps | dependencies) shift; parseDependenciesArgs "$@"; (( _opts['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
-        pages) shift; parsePagesArgs "$@"; (( _opts['help'] )) && pagesCmdUsage || pagesCmd ;;
         build) shift; parseBuildArgs "$@"; (( _opts['help'] )) && buildCmdUsage || buildCmd ;;
-        release) shift; parseReleaseArgs "$@"; (( _opts['help'] )) && releaseCmdUsage || releaseCmd ;;
-        theme) shift; parseThemeArgs "$@"; (( _opts['help'] )) && themeCmdUsage || themeCmd ;;
-        lint) shift; parseLintArgs "$@"; (( _opts['help'] )) && lintCmdUsage || lintCmd ;;
+        collisions) shift; parseCollisionsArgs "$@"; (( _opts['help'] )) && collisionsCmdUsage || collisionsCmd ;;
+        deps | dependencies) shift; parseDependenciesArgs "$@"; (( _opts['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
+        docs) shift; parseDocsArgs "$@"; (( _opts['help'] )) && docsCmdUsage || docsCmd ;;
+        functions) shift; parseFunctionsArgs "$@"; (( _opts['help'] )) && functionsCmdUsage || functionsCmd ;;
+        index) shift; parseIndexArgs "$@"; (( _opts['help'] )) && indexCmdUsage || indexCmd ;;
         libraries) shift; parseLibrariesArgs "$@"; (( _opts['help'] )) && librariesCmdUsage || librariesCmd ;;
+        lint) shift; parseLintArgs "$@"; (( _opts['help'] )) && lintCmdUsage || lintCmd ;;
+        new | create) shift; parseNewArgs "$@"; (( _opts['help'] )) && newCmdUsage || newCmd ;;
+        pages) shift; parsePagesArgs "$@"; (( _opts['help'] )) && pagesCmdUsage || pagesCmd ;;
+        projects) shift; parseProjectsArgs "$@"; (( _opts['help'] )) && projectsCmdUsage || projectsCmd ;;
+        register) shift; parseRegisterArgs "$@"; (( _opts['help'] )) && registerCmdUsage || registerCmd ;;
+        release) shift; parseReleaseArgs "$@"; (( _opts['help'] )) && releaseCmdUsage || releaseCmd ;;
         test) shift; parseTestArgs "$@"; (( _opts['help'] )) && testCmdUsage || testCmd ;;
+        theme) shift; parseThemeArgs "$@"; (( _opts['help'] )) && themeCmdUsage || themeCmd ;;
         *) usage "unknown command: $1" ;;
     esac
 }
 
-parseRegisterArgs() {
+parseArgsArgs() {
     local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
+            --check) _opts+=(['check']="1"); shift ;;
+            --check=*) fail "--check does not accept a value" ;;
             --help | -h) _opts+=(['help']="1"); shift ;;
-            *) (( _argIndex == 0 )) || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift
+                while (( $# > 0 )); do
+                    (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"
+                    _args+=("$1"); (( _argIndex++ )); shift
+                done ;;
+            *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
     (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
-parseIndexArgs() {
+parseBuildArgs() {
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseCollisionsArgs() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseDependenciesArgs() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --fix) _opts+=(['fix']="1"); shift ;;
+            --fix=*) fail "--fix does not accept a value" ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
         esac
     done
@@ -856,27 +892,13 @@ parseDocsArgs() {
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift
+                while (( $# > 0 )); do
+                    (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }
+                    _args+=("$1"); (( _argIndex++ )); shift
+                done ;;
             *) (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }; _args+=("$1"); (( _argIndex++ )); shift ;;
-        esac
-    done
-    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
-}
-
-parseCollisionsArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) _args+=("$1"); shift ;;
-        esac
-    done
-}
-
-parseArgsArgs() {
-    local _argIndex=0
-    while (( $# > 0 )); do
-        case "$1" in
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
     (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
@@ -885,91 +907,22 @@ parseArgsArgs() {
 parseFunctionsArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --help | -h) _opts+=(['help']="1"); shift ;;
             --all) _opts+=(['all']="1"); shift ;;
+            --all=*) fail "--all does not accept a value" ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
         esac
     done
 }
 
-parseNewArgs() {
-    local _argIndex=0
-    while (( $# > 0 )); do
-        case "$1" in
-            --local) _opts+=(['local']="1"); shift ;;
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *)
-                (( _argIndex < 2 )) || unknownArg "$1"
-                (( _argIndex == 0 )) && { [[ "|project|script|library|test|" == *"|$1|"* ]] || fail "$1 must be one of: project|script|library|test"; }
-                _args+=("$1"); (( _argIndex++ )); shift ;;
-        esac
-    done
-    (( _opts['help'] || _argIndex >= 2 )) || fail "missing required arguments: expected at least 2"
-}
-
-parseProjectsArgs() {
+parseIndexArgs() {
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
-            *) _args+=("$1"); shift ;;
-        esac
-    done
-}
-
-parseDependenciesArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --fix) _opts+=(['fix']="1"); shift ;;
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) _args+=("$1"); shift ;;
-        esac
-    done
-}
-
-parsePagesArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) _args+=("$1"); shift ;;
-        esac
-    done
-}
-
-parseBuildArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) _args+=("$1"); shift ;;
-        esac
-    done
-}
-
-parseReleaseArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --repo) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(-h|--repo|--help)$ ) ]] && fail "missing value for --repo"; _opts+=(['repo']="$2"); shift 2 ;;
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) _args+=("$1"); shift ;;
-        esac
-    done
-}
-
-parseThemeArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --show) _opts+=(['show']="1"); shift ;;
-            --help | -h) _opts+=(['help']="1"); shift ;;
-            *) unknownArg "$1" ;;
-        esac
-    done
-}
-
-parseLintArgs() {
-    while (( $# > 0 )); do
-        case "$1" in
-            --fix) _opts+=(['fix']="1"); shift ;;
-            --ask) _opts+=(['ask']="1"); shift ;;
-            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
         esac
     done
@@ -979,6 +932,99 @@ parseLibrariesArgs() {
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseLintArgs() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --ask) _opts+=(['ask']="1"); shift ;;
+            --ask=*) fail "--ask does not accept a value" ;;
+            --fix) _opts+=(['fix']="1"); shift ;;
+            --fix=*) fail "--fix does not accept a value" ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseNewArgs() {
+    local _argIndex=0
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --local) _opts+=(['local']="1"); shift ;;
+            --local=*) fail "--local does not accept a value" ;;
+            --) shift
+                while (( $# > 0 )); do
+                    (( _argIndex < 2 )) || unknownArg "$1"
+                    (( _argIndex == 0 )) && { [[ "|project|script|library|test|" == *"|$1|"* ]] || fail "$1 must be one of: project|script|library|test"; }
+                    _args+=("$1"); (( _argIndex++ )); shift
+                done ;;
+            *)
+                (( _argIndex < 2 )) || unknownArg "$1"
+                (( _argIndex == 0 )) && { [[ "|project|script|library|test|" == *"|$1|"* ]] || fail "$1 must be one of: project|script|library|test"; }
+                _args+=("$1"); (( _argIndex++ )); shift ;;
+        esac
+    done
+    (( _opts['help'] || _argIndex >= 2 )) || fail "missing required arguments: expected at least 2"
+}
+
+parsePagesArgs() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseProjectsArgs() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseRegisterArgs() {
+    local _argIndex=0
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift
+                while (( $# > 0 )); do
+                    (( _argIndex == 0 )) || unknownArg "$1"
+                    _args+=("$1"); (( _argIndex++ )); shift
+                done ;;
+            *) (( _argIndex == 0 )) || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
+        esac
+    done
+    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
+}
+
+parseReleaseArgs() {
+    local _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --repo) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(-h|--repo|--help)$ ) ]] && fail "missing value for --repo"; _opts+=(['repo']="$2"); shift 2 ;;
+            --repo=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --repo"; _opts+=(['repo']="${_value}"); shift ;;
+            --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
         esac
     done
@@ -987,10 +1033,27 @@ parseLibrariesArgs() {
 parseTestArgs() {
     while (( $# > 0 )); do
         case "$1" in
-            --nix) _opts+=(['nix']="1"); shift ;;
-            --help | -h) _opts+=(['help']="1"); shift ;;
             --all) _opts+=(['all']="1"); shift ;;
+            --all=*) fail "--all does not accept a value" ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --nix) _opts+=(['nix']="1"); shift ;;
+            --nix=*) fail "--nix does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
+        esac
+    done
+}
+
+parseThemeArgs() {
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --show) _opts+=(['show']="1"); shift ;;
+            --show=*) fail "--show does not accept a value" ;;
+            --) shift; (( $# == 0 )) || unknownArg "$1" ;;
+            *) unknownArg "$1" ;;
         esac
     done
 }

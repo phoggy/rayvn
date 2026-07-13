@@ -14,8 +14,12 @@ main() {
     testGenParserRequired
     testGenParserEnum
     testGenParserCustomTypeMap
+    testGenParserEndOfOptions
+    testGenParserEqualsValue
+    testGenParserShortOnlyOption
     testGenCliParser
     testUpdateParser
+    testUpdateParserCheck
     testParseArgsWithSpec
 
     # Performance benchmark
@@ -184,6 +188,69 @@ testGenParserCustomTypeMap() {
     assertExpectedParse expectedOptions expectedArgs
 }
 
+testGenParserEndOfOptions() {
+    local spec
+
+    # Wildcard: everything after -- is positional, even option-like values
+    spec=("--force|-f" "*")
+    evalGeneratedParser spec
+    declare -A expectedOptions=(['force']="1")
+    declare -a expectedArgs=("--force" "-x" "foo")
+    parseArgs -f -- --force -x foo
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Typed positionals: checks still apply after --
+    spec=("--force|-f" "+int")
+    evalGeneratedParser spec
+    expectedOptions=()
+    expectedArgs=("42")
+    parseArgs -- 42
+    assertExpectedParse expectedOptions expectedArgs
+    assertGenParseFailsWith "must be a positive integer" -- abc
+    assertGenParseFailsWith "unknown argument" -- 42 extra
+
+    # No positionals allowed: anything after -- is unknown
+    spec=("--force|-f")
+    evalGeneratedParser spec
+    assertGenParseFailsWith "unknown argument: foo" -- foo
+    expectedOptions=(['force']="1")
+    expectedArgs=()
+    parseArgs -f --
+    assertExpectedParse expectedOptions expectedArgs
+}
+
+testGenParserEqualsValue() {
+    local spec=("--name|-n:str" "--count:+int" "--mode:fast|slow" "--verbose:bool" "--force|-f")
+    evalGeneratedParser spec
+
+    declare -A expectedOptions=(['name']="Bob" ['count']="29" ['mode']="fast" ['verbose']="0")
+    declare -a expectedArgs=()
+    parseArgs --name=Bob --count=29 --mode=fast --verbose=false
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Option-like values are unambiguous in = form
+    expectedOptions=(['name']="--weird")
+    parseArgs --name=--weird
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Type checks, empty values, and flags with values are rejected
+    assertGenParseFailsWith "must be a positive integer" --count=abc
+    assertGenParseFailsWith "must be one of: fast|slow" --mode=medium
+    assertGenParseFailsWith "missing value for --name" --name=
+    assertGenParseFailsWith "does not accept a value" --force=1
+}
+
+testGenParserShortOnlyOption() {
+    local spec=("-f" "-c:+int")
+    evalGeneratedParser spec
+
+    declare -A expectedOptions=(['f']="1" ['c']="5")
+    declare -a expectedArgs=()
+    parseArgs -f -c 5
+    assertExpectedParse expectedOptions expectedArgs
+    assertGenParseFailsWith "must be a positive integer" -c abc
+}
+
 testGenCliParser() {
     declare -A cliSpec=(['list']='list(--verbose|-v *)' ['add']='add(--name|-n:str str)')
     local parser; parser="${ generateParser rayvn cliSpec; }"
@@ -249,6 +316,34 @@ EOF
     declare -a expectedArgs=("42")
     parseExampleArgs -f --name Bob 42
     assertExpectedParse expectedOptions expectedArgs
+}
+
+testUpdateParserCheck() {
+    local dir; dir=${ makeTempDir; }
+    local script="${dir}/checked.sh"
+    cat > "${script}" << 'EOF'
+#!/usr/bin/env bash
+
+# rayvn:args checkedSpec checked
+declare -a checkedSpec=("--name|-n:str" "str?")
+
+main() { parseCheckedArgs "$@"; }
+EOF
+
+    # Missing block reports drift
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 && fail "check should fail with no parser block"
+
+    # Freshly generated block is in sync
+    updateParser "${script}" > /dev/null
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 || fail "check should pass on fresh block"
+
+    # Editing the spec makes the block stale
+    gsed -i 's/--name|-n:str/--name|-n:str --force|-f/' "${script}"
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 && fail "check should fail on stale block"
+
+    # Regeneration restores sync
+    updateParser "${script}" > /dev/null
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 || fail "check should pass after regen"
 }
 
 testParseArgsWithSpec() {

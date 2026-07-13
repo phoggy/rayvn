@@ -123,6 +123,7 @@ _lintFile() {
     _preprocessLintFile "${file}" lintFile
     _lintRunChecks "${lintFile}" findings fixes
     _lintStructureCheck "${lintFile}" "${relPath}" findings fixes
+    _lintParserDriftCheck "${file}" "${relPath}" findings
 
     if (( ${#findings[@]} == 0 )); then
         show bold "  ${relPath}" "${successCheckMark}"
@@ -248,6 +249,23 @@ _lintStructureCheck() {
         _lintLibStructure "${_lscFile}" _lscFindingsRef
     elif [[ "${_lscRelPath}" == bin/* || "${_lscRelPath}" == test/* || "${_lscRelPath}" == tests/* ]]; then
         _lintExecStructure "${_lscFile}" _lscFindingsRef
+    fi
+}
+
+# Parser drift check: for files with a rayvn:args/rayvn:cli annotation, verify the
+# committed generated parser block matches what the spec would generate now.
+_lintParserDriftCheck() {
+    local file=$1
+    local relPath=$2
+    local -n _lintDriftFindingsRef=$3
+
+    # Test scripts generate parsers at runtime (or in fixtures); only bin/lib commit generated blocks
+    [[ "${relPath}" == test/* || "${relPath}" == tests/* ]] && return 0
+    grep -qE '^#[[:space:]]*(rayvn:args|rayvn:cli)[[:space:]]' "${file}" || return 0
+    require 'rayvn/args'
+    if ! ( updateParser --check "${file}" ) > /dev/null 2>&1; then
+        local lineNum; lineNum=${ grep -n '^ARGS_PARSER_BEGIN=' "${file}" | cut -d: -f1; }
+        _lintDriftFindingsRef+=("    line ${lineNum:-1}  generated parser block stale or missing — run 'rayvn args ${relPath}'")
     fi
 }
 

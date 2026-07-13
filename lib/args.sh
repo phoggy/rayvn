@@ -6,7 +6,8 @@
 # Argument Specification
 #
 # An argument spec is an array declaring named/typed options (e.g. --count 5 --file /etc/passwd), named/boolean flags (e.g. -f)
-# and typed or untyped positional arguments. Parsed options and flags are accessed by name, arguments by position.
+# and typed or untyped positional arguments. Parse results land in the _opts map, keyed by option name without leading
+# dashes (e.g. _opts['count']), and in the _args array (positional values in order).
 #
 # For example:
 #
@@ -34,9 +35,18 @@
 # An empty spec means no arguments are allowed. A "*" in a spec must be the last item and means that all remaining
 # arguments are allowed and are untyped.
 #
+# Parsers accept both '--opt value' and '--opt=value' forms for long options. In the space form, a value that names
+# another option is rejected as a missing value; use the '=' form when a value could look like an option (e.g.
+# --name=--weird). Flags reject an '=' value. A bare '--' ends option processing: everything after it is treated
+# as positional (type and arity checks still apply).
+#
 # Specs are turned into parser code by generateParser (usually regenerated in-place via 'rayvn args SCRIPT'
 # and updateParser). For low-ceremony scripts, parseArgsWithSpec generates and runs the parser in one call,
 # trading a ~ms generation cost per run for zero build step and no spec/parser drift.
+#
+# Generated output is deterministic (options and commands are emitted in sorted order), so a committed block can be
+# compared against its spec: 'rayvn args SCRIPT --check' (updateParser --check) reports a stale or missing block
+# without modifying the file, and 'rayvn lint' runs this check automatically for annotated bin/ and lib/ files.
 #
 # Type checking is performed via a map of type name to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
@@ -106,6 +116,9 @@ generateParser() {
 #   or '# rayvn:cli specVar' annotation and the named spec definition from the file, generates a new
 #   parser, and replaces the content between the ARGS_PARSER_BEGIN and ARGS_PARSER_END markers.
 #
+#   With --check, does not modify the file: returns 0 if the committed block matches what would be
+#   generated, or prints a message and returns 1 if it is stale or missing.
+#
 #   The spec must be defined at global scope in the script (not inside a function).
 #
 #   Annotation formats:
@@ -114,9 +127,12 @@ generateParser() {
 #
 # · ARGS
 #
+#   check (flag)       Optional '--check': report drift instead of updating.
 #   scriptFile (file)  Path to the script to update.
 
 updateParser() {
+    local checkOnly=0
+    [[ $1 == '--check' ]] && { checkOnly=1; shift; }
     local scriptFile="$1"
     assertFile "${scriptFile}"
 
@@ -147,6 +163,22 @@ updateParser() {
     # Generate new parser and write to temp file
     local contentFile; contentFile=${ makeTempFile; }
     generateParser "${project}" "${specVar}" "${funcName:-}" > "${contentFile}" || fail "parser generation failed"
+
+    # Check mode: compare the committed block against what would be generated
+
+    if (( checkOnly )); then
+        if ! grep -q '^ARGS_PARSER_BEGIN=' "${scriptFile}"; then
+            show warning "no generated parser block" "in" blue "${ tildePath "${scriptFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+            return 1
+        fi
+        local blockFile; blockFile=${ makeTempFile; }
+        gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${scriptFile}" > "${blockFile}"
+        if ! diff -q "${contentFile}" "${blockFile}" > /dev/null; then
+            show warning "generated parser block is stale" "in" blue "${ tildePath "${scriptFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+            return 1
+        fi
+        return 0
+    fi
 
     # Replace block in-place using temp file
     local tmpFile; tmpFile=${ makeTempFile; }
@@ -254,6 +286,11 @@ _genCommandParser() {
     local command handler cmdName fnSpec tmpSpec
     local -a argsSpec
 
+    # Sort commands so generated output is deterministic (stable regen diffs and drift checks)
+
+    local -a _commands=()
+    (( ${#_commandSpecRef[@]} )) && mapfile -t _commands <<< "${ printf '%s\n' "${!_commandSpecRef[@]}" | sort; }"
+
     # Gen main dispatcher
 
     echo "parseCommand() {"
@@ -261,7 +298,7 @@ _genCommandParser() {
     echo "    _args=()"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
     echo "    case \"\$1\" in"
-    for command in "${!_commandSpecRef[@]}"; do
+    for command in "${_commands[@]}"; do
         fnSpec="${_commandSpecRef[${command}]}"
         cmdName="${fnSpec%(*}"
         handler="parse${cmdName^}Args"
@@ -274,7 +311,7 @@ _genCommandParser() {
 
     # Gen per-command parsers
 
-    for command in "${!_commandSpecRef[@]}"; do
+    for command in "${_commands[@]}"; do
         fnSpec="${_commandSpecRef[${command}]}"
         handler="${fnSpec%(*}"
         tmpSpec="${fnSpec#*(}"
@@ -295,9 +332,11 @@ _genParseFunction() {
     # Group option aliases by canonical: long opts first, then short, joined with ' | '
     declare -A _longOpt   # canonical → "--long"
     declare -A _shortOpts # canonical → "-a | -b ..."
+    declare -A _canonicalSet
     local alias canonical
     for alias in "${!_argsOptionNames[@]}"; do
         canonical="${_argsOptionNames[${alias}]}"
+        _canonicalSet[${canonical}]=1
         if [[ ${alias} == --* ]]; then
             _longOpt[${canonical}]="${alias}"
         elif [[ -n "${_shortOpts[${canonical}]+x}" ]]; then
@@ -307,8 +346,13 @@ _genParseFunction() {
         fi
     done
 
+    # Sort canonical names so generated output is deterministic (stable regen diffs and drift checks)
+
+    local -a _canonicals=()
+    (( ${#_canonicalSet[@]} )) && mapfile -t _canonicals <<< "${ printf '%s\n' "${!_canonicalSet[@]}" | sort; }"
+
     # Build alternation of all option aliases so option values can be checked for
-    # missing values, matching the runtime parser behavior (e.g. '--name --force')
+    # missing values (e.g. '--name --force')
 
     local allOptions=''
     for alias in "${!_argsOptionNames[@]}"; do allOptions+="|${alias}"; done
@@ -321,9 +365,49 @@ _genParseFunction() {
     done
     [[ ${hasWildcard} == 1 && ${#_argsArgumentTypes[@]} == 1 ]] && pureWildcard=1
     (( hasBoolPositional )) && needsValue=1
-    local opt; for opt in "${!_argsOptionTypes[@]}"; do
-        [[ "${_argsOptionTypes[$opt]}" == 'bool' ]] && { needsValue=1; break; }
-    done
+    (( ${#_argsOptionTypes[@]} > 0 )) && needsValue=1   # --opt=value arms use _value
+
+    # Build the positional handling lines, shared by the '*' arm and the '--' end-of-options arm
+
+    _wrapCheck() { [[ "$1" == *";"* || "$1" == *"||"* ]] && echo "{ $1; }" || echo "$1"; }
+    local -a _prefix=()
+    local tail=""
+    local nTyped=0
+    if (( ! pureWildcard && ${#_argsArgumentTypes[@]} > 0 )); then
+        for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+            [[ "${_argsArgumentTypes[i]}" == '*' ]] && break
+            (( nTyped++ ))
+        done
+        local -a _checks=()
+        for (( i = 0; i < nTyped; i++ )); do
+            argType="${_argsArgumentTypes[i]}"
+            local argCheck=""
+            if [[ ${argType} == *'|'* ]]; then
+                argCheck="[[ \"|${argType}|\" == *\"|\$1|\"* ]] || fail \"\$1 must be one of: ${argType}\""
+            elif [[ ${argType} == 'bool' ]]; then
+                argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value"
+            else
+                local argChecker="${_genTypeMapRef[${argType}]:-}"
+                [[ -n "${argChecker}" && "${argChecker}" != '*' ]] && argCheck="${argChecker} \"\$1\""
+            fi
+            _checks+=("${argCheck}")
+        done
+
+        (( hasBoolPositional )) && _prefix+=("_value=\"\$1\"")
+        if (( nTyped == 1 && ! hasWildcard )); then
+            [[ -n "${_checks[0]}" ]] \
+                && _prefix+=("(( _argIndex == 0 )) && ${ _wrapCheck "${_checks[0]}"; } || unknownArg \"\$1\"") \
+                || _prefix+=("(( _argIndex == 0 )) || unknownArg \"\$1\"")
+        else
+            (( ! hasWildcard && nTyped > 0 )) && _prefix+=("(( _argIndex < ${nTyped} )) || unknownArg \"\$1\"")
+            for (( i = 0; i < nTyped; i++ )); do
+                [[ -n "${_checks[i]}" ]] && _prefix+=("(( _argIndex == ${i} )) && ${ _wrapCheck "${_checks[i]}"; }")
+            done
+        fi
+
+        local appendVar="\$1"; (( hasBoolPositional )) && appendVar="\${_value}"
+        tail="_args+=(\"${appendVar}\"); (( _argIndex++ )); shift"
+    fi
 
     {
         echo "parse${name^}Args() {"
@@ -337,79 +421,70 @@ _genParseFunction() {
         echo "        case \"\$1\" in"
 
         # Option and flag cases
-        for canonical in "${!_longOpt[@]}"; do
-            local pattern="${_longOpt[${canonical}]}"
-            [[ -n "${_shortOpts[${canonical}]+x}" ]] && pattern+=" | ${_shortOpts[${canonical}]}"
-            local type="${_argsOptionTypes[${canonical}]:-}"
-            local shortName="${canonical##*-}"
+        local type shortName longAlias pattern line
+        for canonical in "${_canonicals[@]}"; do
+            longAlias="${_longOpt[${canonical}]:-}"
+            pattern="${longAlias}"
+            if [[ -n "${_shortOpts[${canonical}]+x}" ]]; then
+                [[ -n "${pattern}" ]] && pattern+=" | ${_shortOpts[${canonical}]}" || pattern="${_shortOpts[${canonical}]}"
+            fi
+            type="${_argsOptionTypes[${canonical}]:-}"
+            shortName="${canonical##*-}"
             if [[ -n "${type}" ]]; then
-                local check=""
+                local check="" eqCheck=""
                 if [[ ${type} == *'|'* ]]; then
                     check="[[ \"|${type}|\" == *\"|\$2|\"* ]] || fail \"\$2 must be one of: ${type}\"; "
+                    eqCheck="[[ \"|${type}|\" == *\"|\${_value}|\"* ]] || fail \"\${_value} must be one of: ${type}\"; "
                 else
                     local typeChecker="${_genTypeMapRef[${type}]:-}"
-                    [[ -n "${typeChecker}" && "${typeChecker}" != '*' ]] && check="${typeChecker} \"\$2\"; "
+                    if [[ -n "${typeChecker}" && "${typeChecker}" != '*' ]]; then
+                        check="${typeChecker} \"\$2\"; "
+                        eqCheck="${typeChecker} \"\${_value}\"; "
+                    fi
                 fi
                 local missingCheck="[[ -z \"\$2\" || ( \"\$2\" == -* && \"\$2\" =~ ^(${allOptions})\$ ) ]] && fail \"missing value for ${canonical}\""
+                local eqMissing="[[ -n \"\${_value}\" ]] || fail \"missing value for ${canonical}\""
                 if [[ "${type}" == 'bool' ]]; then
                     echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift 2 ;;"
+                    [[ -n "${longAlias}" ]] && \
+                        echo "            ${longAlias}=*) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
                 else
                     echo "            ${pattern}) ${missingCheck}; ${check}_opts+=(['${shortName}']=\"\$2\"); shift 2 ;;"
+                    [[ -n "${longAlias}" ]] && \
+                        echo "            ${longAlias}=*) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}_opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
                 fi
             else
                 echo "            ${pattern}) _opts+=(['${shortName}']=\"1\"); shift ;;"
+                [[ -n "${longAlias}" ]] && \
+                    echo "            ${longAlias}=*) fail \"${canonical} does not accept a value\" ;;"
             fi
         done
+
+        # End-of-options separator: everything after '--' is positional
+        if (( pureWildcard )); then
+            echo "            --) shift; _args+=(\"\$@\"); break ;;"
+        elif (( ${#_argsArgumentTypes[@]} > 0 )); then
+            echo "            --) shift"
+            echo "                while (( \$# > 0 )); do"
+            for line in "${_prefix[@]}"; do echo "                    ${line}"; done
+            echo "                    ${tail}"
+            echo "                done ;;"
+        else
+            echo "            --) shift; (( \$# == 0 )) || unknownArg \"\$1\" ;;"
+        fi
 
         # Positional arg case
         if (( pureWildcard )); then
             echo "            *) _args+=(\"\$1\"); shift ;;"
         elif (( ${#_argsArgumentTypes[@]} > 0 )); then
-            local nTyped=0
-            for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
-                [[ "${_argsArgumentTypes[i]}" == '*' ]] && break
-                (( nTyped++ ))
-            done
-            local -a _checks=()
-            for (( i = 0; i < nTyped; i++ )); do
-                argType="${_argsArgumentTypes[i]}"
-                local argCheck=""
-                if [[ ${argType} == *'|'* ]]; then
-                    argCheck="[[ \"|${argType}|\" == *\"|\$1|\"* ]] || fail \"\$1 must be one of: ${argType}\""
-                elif [[ ${argType} == 'bool' ]]; then
-                    argCheck="assertBool \"\${_value}\"; booleanAsInteger \"\${_value}\" _value"
-                else
-                    local argChecker="${_genTypeMapRef[${argType}]:-}"
-                    [[ -n "${argChecker}" && "${argChecker}" != '*' ]] && argCheck="${argChecker} \"\$1\""
-                fi
-                _checks+=("${argCheck}")
-            done
-            _wrapCheck() { [[ "$1" == *";"* || "$1" == *"||"* ]] && echo "{ $1; }" || echo "$1"; }
-
-            # Build prefix lines (everything before the consolidated append/increment/shift)
-            local -a _prefix=()
-            (( hasBoolPositional )) && _prefix+=("_value=\"\$1\"")
-            if (( nTyped == 1 && ! hasWildcard )); then
-                [[ -n "${_checks[0]}" ]] \
-                    && _prefix+=("(( _argIndex == 0 )) && ${ _wrapCheck "${_checks[0]}"; } || unknownArg \"\$1\"") \
-                    || _prefix+=("(( _argIndex == 0 )) || unknownArg \"\$1\"")
-            else
-                (( ! hasWildcard && nTyped > 0 )) && _prefix+=("(( _argIndex < ${nTyped} )) || unknownArg \"\$1\"")
-                for (( i = 0; i < nTyped; i++ )); do
-                    [[ -n "${_checks[i]}" ]] && _prefix+=("(( _argIndex == ${i} )) && ${ _wrapCheck "${_checks[i]}"; }")
-                done
-            fi
-
-            local appendVar="\$1"; (( hasBoolPositional )) && appendVar="\${_value}"
-            local tail="_args+=(\"${appendVar}\"); (( _argIndex++ )); shift ;;"
             if (( ${#_prefix[@]} == 0 )); then
-                echo "            *) ${tail}"
+                echo "            *) ${tail} ;;"
             elif (( ${#_prefix[@]} == 1 )); then
-                echo "            *) ${_prefix[0]}; ${tail}"
+                echo "            *) ${_prefix[0]}; ${tail} ;;"
             else
                 echo "            *)"
-                local line; for line in "${_prefix[@]}"; do echo "                ${line}"; done
-                echo "                ${tail}"
+                for line in "${_prefix[@]}"; do echo "                ${line}"; done
+                echo "                ${tail} ;;"
             fi
         else
             echo "            *) unknownArg \"\$1\" ;;"
