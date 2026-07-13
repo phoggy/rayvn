@@ -19,6 +19,7 @@ main() {
     testGenParserShortOnlyOption
     testGenParserDefaults
     testGenParserMultipleAliases
+    testGenParserExclusionGroups
     testGenCliParser
     testUpdateParser
     testUpdateParserCheck
@@ -291,6 +292,52 @@ testGenParserMultipleAliases() {
     parseArgs --nm=Bob --force
     assertExpectedParse expectedOptions expectedArgs
     assertGenParseFailsWith "does not accept a value" --frc=1
+}
+
+testGenParserExclusionGroups() {
+    local spec err
+
+    # A group of undeclared simple flags declares them and makes them exclusive
+    spec=("[--fix|--ask]" "*")
+    evalGeneratedParser spec
+    declare -A expectedOptions=(['fix']="1")
+    declare -a expectedArgs=("foo")
+    parseArgs --fix foo
+    assertExpectedParse expectedOptions expectedArgs
+    assertGenParseFailsWith "at most one of --fix | --ask" --fix --ask
+
+    # Members may reference declared options by any alias; typed options participate
+    spec=("--fix|-f" "--mode:fast|slow" "[-f|--mode]")
+    evalGeneratedParser spec
+    assertGenParseFailsWith "at most one of --fix | --mode" -f --mode fast
+    expectedOptions=(['mode']="fast")
+    expectedArgs=()
+    parseArgs --mode fast
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Three-way group
+    spec=("[--setup|--record|--publish]")
+    evalGeneratedParser spec
+    assertGenParseFailsWith "at most one of --setup | --record | --publish" --setup --publish
+    expectedOptions=(['publish']="1")
+    parseArgs --publish
+    assertExpectedParse expectedOptions expectedArgs
+
+    # The check is waived when --help is parsed
+    spec=("[--fix|--ask]" "--help|-h")
+    evalGeneratedParser spec
+    parseArgs --fix --ask --help
+    (( _opts['help'] )) || fail "help should be set"
+
+    # A member with a default is rejected at generation time
+    spec=("--mode:fast|slow=slow" "[--mode|--other]")
+    err=${ ( generateParser rayvn spec ) 2>&1; }
+    assertContains "cannot be in an exclusion group" "${err}"
+
+    # Single-member groups are rejected
+    spec=("[--fix]")
+    err=${ ( generateParser rayvn spec ) 2>&1; }
+    assertContains "must name at least two options" "${err}"
 }
 
 testGenCliParser() {

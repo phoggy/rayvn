@@ -61,7 +61,7 @@ declare -gA cliSpec=(
     ['projects']='projects(--help|-h *)'
     ['libraries']='libraries(--help|-h *)'
     ['functions']='functions(--all --help|-h *)'
-    ['lint']='lint(--fix --ask --help|-h *)'
+    ['lint']='lint([--fix|--ask] --help|-h *)'
     ['collisions']='collisions(--help|-h *)'
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
     ['index']='index(--help|-h *)'
@@ -940,6 +940,7 @@ parseLibrariesArgs() {
 }
 
 parseLintArgs() {
+    local _mutex
     while (( $# > 0 )); do
         case "$1" in
             --ask) _opts+=(['ask']="1"); shift ;;
@@ -952,6 +953,10 @@ parseLintArgs() {
             *) _args+=("$1"); shift ;;
         esac
     done
+    _mutex=0
+    [[ -v _opts['fix'] ]] && (( _mutex++ ))
+    [[ -v _opts['ask'] ]] && (( _mutex++ ))
+    (( _opts['help'] || _mutex <= 1 )) || fail "at most one of --fix | --ask may be specified"
 }
 
 parseNewArgs() {

@@ -19,8 +19,9 @@
 #      type: str | int | +int | bool | file | dir | a|b|c (inline enum: value must be one of the alternatives)
 #    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
 #      flag: --name[|alias...]
+#     group: [--a|--b|...]                          mutually exclusive: at most one may be supplied
 #  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
-#      spec: [option | flag | argument]... [*]
+#      spec: [option | flag | argument | group]... [*]
 #
 # Typed positional arguments are REQUIRED by default: the parser fails if fewer arguments are supplied than the
 # number of positionals without a '?' suffix. The * wildcard is always optional.
@@ -29,6 +30,11 @@
 # An option with a '=default' pre-populates _opts with that value, so it is always set even when the option is
 # not supplied. Defaults are validated at generation time for int, +int, bool (converted to 0/1) and enum types;
 # str, file, dir, and custom-typed defaults are the author's responsibility. Flags cannot take a default.
+#
+# An exclusion group [--a|--b|...] fails the parse when more than one member is supplied. Members may reference
+# options declared elsewhere in the spec (by any alias); a simple flag name not declared elsewhere is declared
+# by the group itself, so [--fix|--ask] both declares the two flags and makes them exclusive. Members may not
+# have default values. The check is waived when --help is parsed.
 #
 # The int type accepts both positive and negative values; use the +int type to accept only positive integers.
 #
@@ -88,6 +94,7 @@ parseArgsWithSpec() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
+    declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
     local specType; specType=${ _getSpecType; }
@@ -278,6 +285,7 @@ _genArgumentParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
+    declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
     _genParseFunction "$2" "$3"
@@ -289,6 +297,7 @@ _genCommandParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
+    declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
     local command handler cmdName fnSpec tmpSpec
@@ -448,11 +457,11 @@ _genParseFunction() {
         elif [[ -n "${_defaults}" ]]; then
             echo "    _opts+=(${_defaults})"
         fi
-        if (( pureWildcard || ${#_argsArgumentTypes[@]} == 0 )); then
-            (( needsValue )) && echo "    local _value"
-        else
-            (( needsValue )) && echo "    local _argIndex=0 _value" || echo "    local _argIndex=0"
-        fi
+        local _locals=''
+        (( pureWildcard || ${#_argsArgumentTypes[@]} == 0 )) || _locals+=' _argIndex=0'
+        (( needsValue )) && _locals+=' _value'
+        (( ${#_argsGroups[@]} )) && _locals+=' _mutex'
+        [[ -n "${_locals}" ]] && echo "    local${_locals}"
         echo "    while (( \$# > 0 )); do"
         echo "        case \"\$1\" in"
 
@@ -538,6 +547,18 @@ _genParseFunction() {
         elif (( _argsMinArgs > 1 )); then
             echo "    (( _opts['help'] || _argIndex >= ${_argsMinArgs} )) || fail \"missing required arguments: expected at least ${_argsMinArgs}\""
         fi
+
+        # Exclusion group checks
+        local _group _member
+        local -a _groupMembers
+        for _group in "${_argsGroups[@]}"; do
+            IFS='|' read -ra _groupMembers <<< "${_group}"
+            echo "    _mutex=0"
+            for _member in "${_groupMembers[@]}"; do
+                echo "    [[ -v _opts['${_member##*-}'] ]] && (( _mutex++ ))"
+            done
+            echo "    (( _opts['help'] || _mutex <= 1 )) || fail \"at most one of ${_group//|/ | } may be specified\""
+        done
         echo "}"
     }
 }
@@ -552,10 +573,18 @@ _parseArgumentSpec() {
     _argsOptionTypes=()
     _argsOptionDefaults=()
     _argsArgumentTypes=()
+    _argsGroups=()
     _argsMinArgs=0
+    local -a _argsGroupSpecs=()
 
     for _spec in "${_specRef[@]}"; do
-        if [[ ${_spec} == -* ]]; then
+        if [[ ${_spec} == \[*\] ]]; then
+
+            # mutually exclusive option group; resolved after all declarations are parsed
+
+            _argsGroupSpecs+=("${_spec:1:${#_spec}-2}")
+
+        elif [[ ${_spec} == -* ]]; then
 
             # option or flag: the first name is canonical and provides the _opts key
 
@@ -596,6 +625,28 @@ _parseArgumentSpec() {
         fi
     done
     _argsMinArgs=$(( _lastRequiredIndex + 1 ))
+
+    # Resolve exclusion groups: members reference declared options by any alias, or are
+    # simple flag names which the group itself declares
+
+    local _group _member _canonical _resolved
+    local -a _members
+    for _group in "${_argsGroupSpecs[@]}"; do
+        _resolved=''
+        IFS='|' read -ra _members <<< "${_group}"
+        (( ${#_members[@]} >= 2 )) || invalidArgs "[${_group}] must name at least two options"
+        for _member in "${_members[@]}"; do
+            _canonical="${_argsOptionNames[${_member}]:-}"
+            if [[ -z "${_canonical}" ]]; then
+                [[ ${_member} =~ ^--?[a-zA-Z][a-zA-Z0-9-]*$ ]] || invalidArgs "[${_group}]: '${_member}' is not a declared option or a simple flag name"
+                _argsOptionNames+=([${_member}]="${_member}")
+                _canonical="${_member}"
+            fi
+            [[ -n "${_argsOptionDefaults[${_canonical}]+x}" ]] && invalidArgs "[${_group}]: ${_canonical} has a default value and cannot be in an exclusion group"
+            _resolved+="${_resolved:+|}${_canonical}"
+        done
+        _argsGroups+=("${_resolved}")
+    done
 }
 
 _isKnownType() {
