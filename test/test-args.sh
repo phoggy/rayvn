@@ -21,6 +21,7 @@ main() {
     testGenParserMultipleAliases
     testGenParserExclusionGroups
     testGenCliParser
+    testGenCliUsage
     testUpdateParser
     testUpdateParserCheck
     testParseArgsWithSpec
@@ -368,6 +369,68 @@ testGenCliParser() {
     expectedOptions=(['name']="widget")
     expectedArgs=("thing")
     assertExpectedParse expectedOptions expectedArgs
+}
+
+testGenCliUsage() {
+    local dir; dir=${ makeTempDir; }
+    local script="${dir}/usage.sh"
+    cat > "${script}" << 'EOF'
+#!/usr/bin/env bash
+
+# rayvn:cli usageSpec
+declare -gA usageSpec=(
+    # Scan things for problems.
+    #   PROJECT...   Project names (default: current).
+    #   --fix        Auto-fix problems.
+    #   --ask        Prompt per file.
+    ['lint']='lint([--fix|--ask] --help|-h *)'
+
+    # Create a new thing.
+    #   TYPE         One of a, b or c.
+    #   NAME         The name to create.
+    #   --repo|-r    Target repo.
+    ['new']='new(a|b|c str --repo|-r:str=my/repo --help|-h)'
+)
+EOF
+    updateParser "${script}" > /dev/null
+    eval "${ gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${script}"; }"
+
+    # Rendered output: synopsis, summary, aligned entries, default text, auto --help
+    local out
+    out=${ ( newCmdUsage ) 2>&1; }
+    assertContains "new TYPE NAME [--repo REPO]" "${out}"
+    assertContains "Create a new thing." "${out}"
+    assertContains "--repo, -r REPO" "${out}"
+    assertContains "(default: my/repo)" "${out}"
+    assertContains "--help, -h" "${out}"
+
+    out=${ ( lintCmdUsage ) 2>&1; }
+    assertContains "lint [PROJECT...] [--fix | --ask]" "${out}"
+    assertContains "Auto-fix problems." "${out}"
+
+    # The Extra hook is called when defined
+    lintCmdUsageExtra() { echo "EXTRA CONTENT"; }
+    out=${ ( lintCmdUsage ) 2>&1; }
+    assertContains "EXTRA CONTENT" "${out}"
+    unset -f lintCmdUsageExtra
+
+    # Doc validation errors at generation time
+    declare -A _argsCliDocs
+    declare -A errSpec=(['list']='list(--verbose --help|-h)')
+    local err
+
+    _argsCliDocs=(['list']=$'Summary.\n  --bogus  Nope.')
+    err=${ ( generateParser rayvn errSpec ) 2>&1; }
+    assertContains "unknown option '--bogus'" "${err}"
+
+    _argsCliDocs=(['list']=$'Summary.')
+    err=${ ( generateParser rayvn errSpec ) 2>&1; }
+    assertContains "is not documented" "${err}"
+
+    declare -A posSpec=(['add']='add(str --help|-h)')
+    _argsCliDocs=(['add']=$'Summary.')
+    err=${ ( generateParser rayvn posSpec ) 2>&1; }
+    assertContains "must name all 1 positional" "${err}"
 }
 
 testUpdateParser() {

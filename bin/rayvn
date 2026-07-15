@@ -53,95 +53,69 @@ SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-
 
 # rayvn:cli cliSpec
 declare -gA cliSpec=(
+    # Create a new project, library, script or test from a template.
+    #   TYPE     What to create: a project, script, library or test.
+    #   NAME     The name to create.
+    #   --local  Skip GitHub repo creation; initialize a local git repo only.
     ['new | create']='new(project|script|library|test str --local --help|-h)'
+
+    # Regenerate the parser block in SCRIPT from its spec, or with --check report
+    # whether the committed block is stale without modifying the file.
+    #   SCRIPT   The script to update; must contain a rayvn:args or rayvn:cli annotation.
+    #   --check  Report drift without updating the file.
     ['args']='args(file --check --help|-h)'
+
+    # Interactively select a color theme for rayvn output or show the current theme.
+    #   --show  Show current theme.
     ['theme']='theme(--show --help|-h)'
+
+    # Run tests for one or more projects.
+    #   ARGS...  Project names and/or test name patterns; prefix a pattern with '-' to exclude it.
+    #   --nix    Run tests inside a nix develop shell.
+    #   --all    Run tests locally and then again inside nix.
     ['test']='test(--nix --all --help|-h *)'
+
+    # Run nix build for one or more projects.
+    #   PROJECT...  Project names (default: current project).
     ['build']='build(--help|-h *)'
+
+    # Show info for one or more projects.
+    #   PROJECT...  Project names (default: current project).
     ['projects']='projects(--help|-h *)'
+
+    # List all libraries for one or more projects.
+    #   PROJECT...  Project names (default: current project).
     ['libraries']='libraries(--help|-h *)'
+
+    # List public functions for project libraries.
+    #   ARGS...  PROJECT/LIBRARY qualified names, or project names optionally followed by library names.
+    #   --all    Also list private (_-prefixed) functions.
     ['functions']='functions(--all --help|-h *)'
+
+    # Scan project source files for violations of rayvn's bash requirements.
+    #   PROJECT...  Project names (default: current project); only one may be specified.
+    #   --fix       Auto-fix all violations that can be corrected automatically.
+    #   --ask       Interactively prompt whether to fix each file with violations.
     ['lint']='lint([--fix|--ask] --help|-h *)'
+
+    # Check for function and global variable name collisions across project libraries.
+    #   PROJECT...  Project names (default: current project).
     ['collisions']='collisions(--help|-h *)'
+
+    # Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps.
+    #   PROJECT...  Project names (default: current project).
+    #   --fix       Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability.
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
+
     ['index']='index(--help|-h *)'
     ['pages']='pages(--help|-h *)'
     ['docs']='docs(audit|update --help|-h *)'
     ['release']='release(--repo:str --help|-h *)'
+
+    # Stake a claim on a project name on rayvn central.
+    #   NAME  The project name to register.
     ['register']='register(str --help|-h)'
 )
-
-newCmdUsage() {
-    echo "rayvn new project|script|library|test NAME [--local]"
-    echo
-    echo "Create a new project, library, script or test from a template."
-    echo
-    echo "  --local  Skip GitHub repo creation; initialize a local git repo only."
-    bye "$@"
-}
-
-themeCmdUsage() {
-    echo "rayvn theme [--show]"
-    echo
-    echo "Interactively select a color theme for rayvn output or show the current theme."
-    echo
-    echo "  --show  Show current theme."
-    bye "$@"
-}
-
-argsCmdUsage() {
-    echo "rayvn args SCRIPT [--check]"
-    echo
-    echo "Regenerate the parser block in SCRIPT from its spec, or with --check report"
-    echo "whether the committed block is stale without modifying the file. The script"
-    echo "must contain one of the following annotations:"
-    echo
-    echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
-    echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
-    echo
-    echo "The spec variable must be defined at global scope (not inside a function)."
-    bye "$@"
-}
-
-projectsCmdUsage() {
-    echo "rayvn projects [PROJECT...]"
-    echo
-    echo "Show info for one or more projects."
-    bye "$@"
-}
-
-librariesCmdUsage() {
-    echo "rayvn libraries [PROJECT...]"
-    echo
-    echo "List all libraries for one or more projects."
-    bye "$@"
-}
-
-functionsCmdUsage() {
-    echo "rayvn functions [PROJECT/LIBRARY... | PROJECT... [LIBRARY]] [--all]"
-    echo
-    echo "List public functions for project libraries."
-    echo
-    echo "  --all  Also list private (_-prefixed) functions."
-    bye "$@"
-}
-
-testCmdUsage() {
-    echo "rayvn test [PROJECT...] [TEST-NAME...] [--nix] [--all]"
-    echo
-    echo "Run tests for one or more projects."
-    echo
-    echo "  --nix  Run tests inside a nix develop shell."
-    echo "  --all  Run tests locally and then again inside nix."
-    bye "$@"
-}
-
-buildCmdUsage() {
-    echo "rayvn build [PROJECT...]"
-    echo
-    echo "  Run nix build for one or more projects."
-    bye "$@"
-}
 
 indexCmdUsage() {
     echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
@@ -178,35 +152,6 @@ pagesCmdUsage() {
     bye "$@"
 }
 
-lintCmdUsage() {
-    echo "rayvn lint [PROJECT...] [--fix] [--ask]"
-    echo
-    echo "Scan project source files for violations of rayvn's bash requirements."
-    echo
-    echo "  --fix  Auto-fix all violations that can be corrected automatically."
-    echo "  --ask  Interactively prompt whether to fix each file with violations."
-    echo
-    echo "Note: The old \$( cmd ) command substitution syntax is detected but not auto-fixed." # lint-ok
-    echo "      The current \${ cmd; } syntax is significantly more efficient."
-    bye "$@"
-}
-
-
-collisionsCmdUsage() {
-    echo "rayvn collisions [PROJECT...]"
-    echo
-    echo "Check for function and global variable name collisions across project libraries."
-    bye "$@"
-}
-
-dependenciesCmdUsage() {
-    echo "rayvn dependencies [--fix] [PROJECT...]"
-    echo
-    echo "Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps."
-    echo
-    echo "  --fix  Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability."
-    bye "$@"
-}
 
 docsCmdUsage() {
     echo "rayvn docs audit | update [PROJECT...] [OPTIONS]"
@@ -233,13 +178,6 @@ releaseCmdUsage() {
     echo "Create a versioned GitHub release for a project."
     echo
     echo "  --repo ACCOUNT/REPO  Specify the GitHub repository explicitly."
-    bye "$@"
-}
-
-registerCmdUsage() {
-    echo "rayvn register PROJECT"
-    echo
-    echo "  Stake a claim on a project name on rayvn central."
     bye "$@"
 }
 
@@ -354,6 +292,16 @@ themeCmd() {
     else
         setTheme
     fi
+}
+
+argsCmdUsageExtra() {
+    echo
+    echo "Annotation formats:"
+    echo
+    echo "    # rayvn:args specVar [funcName]   argument spec  → parse\${funcName^}Args()"
+    echo "    # rayvn:cli  specVar              CLI spec       → parseCommand() + per-command parsers"
+    echo
+    echo "The spec variable must be defined at global scope (not inside a function)."
 }
 
 argsCmd() {
@@ -852,6 +800,19 @@ parseArgsArgs() {
     (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
 }
 
+argsCmdUsage() {
+    echo "rayvn args SCRIPT [--check]"
+    echo
+    echo "Regenerate the parser block in SCRIPT from its spec, or with --check report"
+    echo "whether the committed block is stale without modifying the file."
+    echo
+    option "SCRIPT" "The script to update; must contain a rayvn:args or rayvn:cli annotation." 16
+    option "--check" "Report drift without updating the file." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F argsCmdUsageExtra > /dev/null && argsCmdUsageExtra
+    bye "$@"
+}
+
 parseBuildArgs() {
     while (( $# > 0 )); do
         case "$1" in
@@ -861,6 +822,17 @@ parseBuildArgs() {
             *) _args+=("$1"); shift ;;
         esac
     done
+}
+
+buildCmdUsage() {
+    echo "rayvn build [PROJECT...]"
+    echo
+    echo "Run nix build for one or more projects."
+    echo
+    option "PROJECT..." "Project names (default: current project)." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F buildCmdUsageExtra > /dev/null && buildCmdUsageExtra
+    bye "$@"
 }
 
 parseCollisionsArgs() {
@@ -874,6 +846,17 @@ parseCollisionsArgs() {
     done
 }
 
+collisionsCmdUsage() {
+    echo "rayvn collisions [PROJECT...]"
+    echo
+    echo "Check for function and global variable name collisions across project libraries."
+    echo
+    option "PROJECT..." "Project names (default: current project)." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F collisionsCmdUsageExtra > /dev/null && collisionsCmdUsageExtra
+    bye "$@"
+}
+
 parseDependenciesArgs() {
     while (( $# > 0 )); do
         case "$1" in
@@ -885,6 +868,18 @@ parseDependenciesArgs() {
             *) _args+=("$1"); shift ;;
         esac
     done
+}
+
+dependenciesCmdUsage() {
+    echo "rayvn dependencies [PROJECT...] [--fix]"
+    echo
+    echo "Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps."
+    echo
+    option "PROJECT..." "Project names (default: current project)." 16
+    option "--fix" "Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F dependenciesCmdUsageExtra > /dev/null && dependenciesCmdUsageExtra
+    bye "$@"
 }
 
 parseDocsArgs() {
@@ -917,6 +912,18 @@ parseFunctionsArgs() {
     done
 }
 
+functionsCmdUsage() {
+    echo "rayvn functions [ARGS...] [--all]"
+    echo
+    echo "List public functions for project libraries."
+    echo
+    option "ARGS..." "PROJECT/LIBRARY qualified names, or project names optionally followed by library names." 16
+    option "--all" "Also list private (_-prefixed) functions." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F functionsCmdUsageExtra > /dev/null && functionsCmdUsageExtra
+    bye "$@"
+}
+
 parseIndexArgs() {
     while (( $# > 0 )); do
         case "$1" in
@@ -939,6 +946,17 @@ parseLibrariesArgs() {
     done
 }
 
+librariesCmdUsage() {
+    echo "rayvn libraries [PROJECT...]"
+    echo
+    echo "List all libraries for one or more projects."
+    echo
+    option "PROJECT..." "Project names (default: current project)." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F librariesCmdUsageExtra > /dev/null && librariesCmdUsageExtra
+    bye "$@"
+}
+
 parseLintArgs() {
     local _mutex
     while (( $# > 0 )); do
@@ -957,6 +975,19 @@ parseLintArgs() {
     [[ -v _opts['fix'] ]] && (( _mutex++ ))
     [[ -v _opts['ask'] ]] && (( _mutex++ ))
     (( _opts['help'] || _mutex <= 1 )) || fail "at most one of --fix | --ask may be specified"
+}
+
+lintCmdUsage() {
+    echo "rayvn lint [PROJECT...] [--fix | --ask]"
+    echo
+    echo "Scan project source files for violations of rayvn's bash requirements."
+    echo
+    option "PROJECT..." "Project names (default: current project); only one may be specified." 16
+    option "--fix" "Auto-fix all violations that can be corrected automatically." 16
+    option "--ask" "Interactively prompt whether to fix each file with violations." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F lintCmdUsageExtra > /dev/null && lintCmdUsageExtra
+    bye "$@"
 }
 
 parseNewArgs() {
@@ -982,6 +1013,19 @@ parseNewArgs() {
     (( _opts['help'] || _argIndex >= 2 )) || fail "missing required arguments: expected at least 2"
 }
 
+newCmdUsage() {
+    echo "rayvn new TYPE NAME [--local]"
+    echo
+    echo "Create a new project, library, script or test from a template."
+    echo
+    option "TYPE" "What to create: a project, script, library or test." 16
+    option "NAME" "The name to create." 16
+    option "--local" "Skip GitHub repo creation; initialize a local git repo only." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F newCmdUsageExtra > /dev/null && newCmdUsageExtra
+    bye "$@"
+}
+
 parsePagesArgs() {
     while (( $# > 0 )); do
         case "$1" in
@@ -1004,6 +1048,17 @@ parseProjectsArgs() {
     done
 }
 
+projectsCmdUsage() {
+    echo "rayvn projects [PROJECT...]"
+    echo
+    echo "Show info for one or more projects."
+    echo
+    option "PROJECT..." "Project names (default: current project)." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F projectsCmdUsageExtra > /dev/null && projectsCmdUsageExtra
+    bye "$@"
+}
+
 parseRegisterArgs() {
     local _argIndex=0
     while (( $# > 0 )); do
@@ -1019,6 +1074,17 @@ parseRegisterArgs() {
         esac
     done
     (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
+}
+
+registerCmdUsage() {
+    echo "rayvn register NAME"
+    echo
+    echo "Stake a claim on a project name on rayvn central."
+    echo
+    option "NAME" "The project name to register." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F registerCmdUsageExtra > /dev/null && registerCmdUsageExtra
+    bye "$@"
 }
 
 parseReleaseArgs() {
@@ -1050,6 +1116,19 @@ parseTestArgs() {
     done
 }
 
+testCmdUsage() {
+    echo "rayvn test [ARGS...] [--all] [--nix]"
+    echo
+    echo "Run tests for one or more projects."
+    echo
+    option "ARGS..." "Project names and/or test name patterns; prefix a pattern with '-' to exclude it." 16
+    option "--nix" "Run tests inside a nix develop shell." 16
+    option "--all" "Run tests locally and then again inside nix." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F testCmdUsageExtra > /dev/null && testCmdUsageExtra
+    bye "$@"
+}
+
 parseThemeArgs() {
     while (( $# > 0 )); do
         case "$1" in
@@ -1061,6 +1140,17 @@ parseThemeArgs() {
             *) unknownArg "$1" ;;
         esac
     done
+}
+
+themeCmdUsage() {
+    echo "rayvn theme [--show]"
+    echo
+    echo "Interactively select a color theme for rayvn output or show the current theme."
+    echo
+    option "--show" "Show current theme." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F themeCmdUsageExtra > /dev/null && themeCmdUsageExtra
+    bye "$@"
 }
 
 ARGS_PARSER_END="━━━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔼 END generated code: DO NOT EDIT 🔼 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"

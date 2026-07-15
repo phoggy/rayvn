@@ -59,6 +59,14 @@
 # compared against its spec: 'rayvn args SCRIPT --check' (updateParser --check) reports a stale or missing block
 # without modifying the file, and 'rayvn lint' runs this check automatically for annotated bin/ and lib/ files.
 #
+# For CLI specs, a comment block directly above a cliSpec entry generates a ${handler}CmdUsage() function.
+# Plain comment lines form the command summary; indented 'key  description' lines document options (keyed by any
+# alias, or the alias list as written in the spec) and, in order, provide display names for the positionals.
+# All options and positionals must be documented — generation fails otherwise — except --help, which is
+# documented automatically. Option defaults are appended to their descriptions. If ${handler}CmdUsageExtra()
+# is defined at runtime it is called after the generated content, before bye. Commands without a doc block
+# do not get a generated usage function and keep their hand-written one.
+#
 # Type checking is performed via a map of type name to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
 #
@@ -172,6 +180,24 @@ updateParser() {
 
     # Load spec into current shell
     eval "${specDef}" || fail "${scriptFile}: failed to eval spec '${specVar}'"
+
+    # For CLI specs, collect doc comment blocks above each entry (used to generate usage functions)
+
+    declare -A _argsCliDocs=()
+    if [[ "${annotationType}" == 'rayvn:cli' ]]; then
+        local docBlock='' line key
+        while IFS= read -r line; do
+            if [[ "${line}" =~ ^[[:space:]]*#[[:space:]]?(.*)$ ]]; then
+                docBlock+="${BASH_REMATCH[1]}"$'\n'
+            elif [[ "${line}" =~ ^[[:space:]]*\[\'([^\']+)\'\]= ]]; then
+                key="${BASH_REMATCH[1]}"
+                [[ -n "${docBlock}" ]] && _argsCliDocs[${key}]="${docBlock}"
+                docBlock=''
+            else
+                docBlock=''
+            fi
+        done <<< "${specDef}"
+    fi
 
     # Generate new parser and write to temp file
     local contentFile; contentFile=${ makeTempFile; }
@@ -326,8 +352,9 @@ _genCommandParser() {
     echo "}"
     echo
 
-    # Gen per-command parsers
+    # Gen per-command parsers, plus a usage function for each command that has a doc comment block
 
+    declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
     for command in "${_commands[@]}"; do
         fnSpec="${_commandSpecRef[${command}]}"
         handler="${fnSpec%(*}"
@@ -335,7 +362,169 @@ _genCommandParser() {
         IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
         _genParseFunction argsSpec "${handler}" false
         echo
+        if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
+            _genUsageFunction "${project}" "${handler}" "${_argsCliDocs[${command}]}"
+            echo
+        fi
     done
+}
+
+# Generate a ${handler}CmdUsage() function from a doc comment block. Relies on the spec tables
+# left populated by the preceding _genParseFunction call. Doc block format: summary lines,
+# then indented entry lines of 'key  description' where key is an option (any alias) or, in
+# positional order, a display name for each positional. All options and positionals must be
+# documented; --help is documented automatically. If ${handler}CmdUsageExtra is defined at
+# runtime it is called after the generated content.
+_genUsageFunction() {
+    local project="$1"
+    local handler="$2"
+    local docBlock="$3"
+
+    # Parse the doc block
+
+    local -a _summary=() _entryKeys=() _entryDescs=()
+    local line
+    while IFS= read -r line; do
+        [[ -z "${line//[[:space:]]/}" ]] && continue
+        if [[ "${line}" =~ ^[[:space:]]+([^[:space:]]+)[[:space:]]*(.*[^[:space:]])?[[:space:]]*$ ]]; then
+            _entryKeys+=("${BASH_REMATCH[1]}")
+            _entryDescs+=("${BASH_REMATCH[2]}")
+        else
+            _summary+=("${line}")
+        fi
+    done <<< "${docBlock}"
+
+    # Group aliases by canonical, sorted for deterministic output
+
+    declare -A _aliasesOf
+    local alias canonical
+    local -a _sortedAliases=()
+    (( ${#_argsOptionNames[@]} )) && mapfile -t _sortedAliases <<< "${ printf '%s\n' "${!_argsOptionNames[@]}" | sort; }"
+    for alias in "${_sortedAliases[@]}"; do
+        canonical="${_argsOptionNames[${alias}]}"
+        [[ "${alias}" == "${canonical}" ]] && continue
+        _aliasesOf[${canonical}]+=", ${alias}"
+    done
+
+    # Build the option label (aliases plus value placeholder) for a canonical name
+
+    _optionLabel() {
+        local _canonical=$1
+        local _label="${_canonical}${_aliasesOf[${_canonical}]:-}"
+        local _type="${_argsOptionTypes[${_canonical}]:-}"
+        local _shortName="${_canonical##*-}"
+        if [[ -n "${_type}" ]]; then
+            case "${_type}" in
+                bool)  _label+=" true|false" ;;
+                *'|'*) _label+=" ${_type}" ;;
+                *)     _label+=" ${_shortName^^}" ;;
+            esac
+        fi
+        echo "${_label}"
+    }
+
+    # Classify doc entries: options by alias, positionals by order
+
+    local -A _documented=()
+    local -a _labels=() _descs=() _posNames=()
+    local i key desc
+    for (( i = 0; i < ${#_entryKeys[@]}; i++ )); do
+        key="${_entryKeys[i]}"
+        desc="${_entryDescs[i]}"
+        [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"   # allow alias-list keys, e.g. --repo|-r
+        if [[ -n "${_argsOptionNames[${key}]+x}" ]]; then
+            canonical="${_argsOptionNames[${key}]}"
+            [[ -n "${_argsOptionDefaults[${canonical}]+x}" ]] && desc+=" (default: ${_argsOptionDefaults[${canonical}]})"
+            _labels+=("${ _optionLabel "${canonical}"; }")
+            _descs+=("${desc}")
+            _documented[${canonical}]=1
+        elif [[ ${key} == -* ]]; then
+            invalidArgs "${handler}: usage doc references unknown option '${key}'"
+        else
+            (( ${#_posNames[@]} < ${#_argsArgumentTypes[@]} )) || invalidArgs "${handler}: usage doc has more positional entries than the spec"
+            _posNames+=("${key}")
+            _labels+=("${key}")
+            _descs+=("${desc}")
+        fi
+    done
+
+    # Every option and positional must be documented; --help is auto-documented
+
+    local -A _canonicalSet=()
+    for alias in "${_sortedAliases[@]}"; do _canonicalSet[${_argsOptionNames[${alias}]}]=1; done
+    for canonical in "${!_canonicalSet[@]}"; do
+        [[ -n "${_documented[${canonical}]+x}" || "${canonical}" == '--help' ]] || \
+            invalidArgs "${handler}: option ${canonical} is not documented in the usage doc block"
+    done
+    (( ${#_posNames[@]} == ${#_argsArgumentTypes[@]} )) || \
+        invalidArgs "${handler}: usage doc must name all ${#_argsArgumentTypes[@]} positional argument(s)"
+    if [[ -n "${_argsOptionNames['--help']+x}" && -z "${_documented['--help']+x}" ]]; then
+        _labels+=("${ _optionLabel --help; }")
+        _descs+=("Print this help message.")
+    fi
+
+    # Build the synopsis: command, positionals (bracketed when optional), groups, then options
+
+    local synopsis="${project} ${handler}"
+    local posName
+    for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+        posName="${_posNames[i]}"
+        if [[ "${_argsArgumentTypes[i]}" == '*' ]]; then
+            synopsis+=" [${posName%%.*}...]"
+        elif (( i < _argsMinArgs )); then
+            synopsis+=" ${posName}"
+        else
+            synopsis+=" [${posName}]"
+        fi
+    done
+    local group
+    local -A _grouped=()
+    for group in "${_argsGroups[@]}"; do
+        synopsis+=" [${group//|/ | }]"
+        local -a _members; IFS='|' read -ra _members <<< "${group}"
+        local member; for member in "${_members[@]}"; do _grouped[${member}]=1; done
+    done
+    local -a _sortedCanonicals=()
+    (( ${#_canonicalSet[@]} )) && mapfile -t _sortedCanonicals <<< "${ printf '%s\n' "${!_canonicalSet[@]}" | sort; }"
+    for canonical in "${_sortedCanonicals[@]}"; do
+        [[ "${canonical}" == '--help' || -n "${_grouped[${canonical}]+x}" ]] && continue
+        local _type="${_argsOptionTypes[${canonical}]:-}"
+        if [[ -n "${_type}" ]]; then
+            local placeholder shortName="${canonical##*-}"
+            case "${_type}" in
+                bool)  placeholder='true|false' ;;
+                *'|'*) placeholder="${_type}" ;;
+                *)     placeholder="${shortName^^}" ;;
+            esac
+            synopsis+=" [${canonical} ${placeholder}]"
+        else
+            synopsis+=" [${canonical}]"
+        fi
+    done
+
+    # Compute the description column and emit
+
+    local maxLabel=0
+    for (( i = 0; i < ${#_labels[@]}; i++ )); do
+        (( ${#_labels[i]} > maxLabel )) && maxLabel=${#_labels[i]}
+    done
+    local column=$(( maxLabel + 6 ))
+
+    _escapeUsage() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//\$/\\\$}"; s="${s//\`/\\\`}"; printf '%s' "${s}"; }
+
+    echo "${handler}CmdUsage() {"
+    echo "    echo \"${ _escapeUsage "${synopsis}"; }\""
+    echo "    echo"
+    for line in "${_summary[@]}"; do
+        echo "    echo \"${ _escapeUsage "${line}"; }\""
+    done
+    echo "    echo"
+    for (( i = 0; i < ${#_labels[@]}; i++ )); do
+        echo "    option \"${ _escapeUsage "${_labels[i]}"; }\" \"${ _escapeUsage "${_descs[i]}"; }\" ${column}"
+    done
+    echo "    declare -F ${handler}CmdUsageExtra > /dev/null && ${handler}CmdUsageExtra"
+    echo "    bye \"\$@\""
+    echo "}"
 }
 
 _genParseFunction() {
