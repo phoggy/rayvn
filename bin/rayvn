@@ -107,9 +107,16 @@ declare -gA cliSpec=(
     #   --fix       Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability.
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
 
+    # rayvn:usage hand-written
     ['index']='index(--help|-h *)'
+
+    # rayvn:usage hand-written
     ['pages']='pages(--help|-h *)'
+
+    # rayvn:usage hand-written
     ['docs']='docs(audit|update --help|-h *)'
+
+    # rayvn:usage hand-written
     ['release']='release(--repo:str --help|-h *)'
 
     # Stake a claim on a project name on rayvn central.

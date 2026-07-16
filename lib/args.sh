@@ -65,7 +65,8 @@
 # All options and positionals must be documented — generation fails otherwise — except --help, which is
 # documented automatically. Option defaults are appended to their descriptions. If ${handler}CmdUsageExtra()
 # is defined at runtime it is called after the generated content, before bye. Commands without a doc block
-# do not get a generated usage function and keep their hand-written one.
+# do not get a generated usage function and keep their hand-written one; mark such entries with a
+# '# rayvn:usage hand-written' comment line so the split is visible when reading the spec.
 #
 # Type checking is performed via a map of type name to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
@@ -185,16 +186,20 @@ updateParser() {
 
     declare -A _argsCliDocs=()
     if [[ "${annotationType}" == 'rayvn:cli' ]]; then
-        local docBlock='' line key
+        local docBlock='' line key content handWritten=0
         while IFS= read -r line; do
             if [[ "${line}" =~ ^[[:space:]]*#[[:space:]]?(.*)$ ]]; then
-                docBlock+="${BASH_REMATCH[1]}"$'\n'
+                content="${BASH_REMATCH[1]}"
+                [[ "${content}" =~ ^rayvn:usage[[:space:]]+hand-written[[:space:]]*$ ]] && handWritten=1
+                docBlock+="${content}"$'\n'
             elif [[ "${line}" =~ ^[[:space:]]*\[\'([^\']+)\'\]= ]]; then
                 key="${BASH_REMATCH[1]}"
-                [[ -n "${docBlock}" ]] && _argsCliDocs[${key}]="${docBlock}"
+                [[ -n "${docBlock}" ]] && (( ! handWritten )) && _argsCliDocs[${key}]="${docBlock}"
                 docBlock=''
+                handWritten=0
             else
                 docBlock=''
+                handWritten=0
             fi
         done <<< "${specDef}"
     fi

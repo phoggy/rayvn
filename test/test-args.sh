@@ -390,6 +390,9 @@ declare -gA usageSpec=(
     #   NAME         The name to create.
     #   --repo|-r    Target repo.
     ['new']='new(a|b|c str --repo|-r:str=my/repo --help|-h)'
+
+    # rayvn:usage hand-written
+    ['manual']='manual(--help|-h *)'
 )
 EOF
     updateParser "${script}" > /dev/null
@@ -407,6 +410,9 @@ EOF
     out=${ ( lintCmdUsage ) 2>&1; }
     assertContains "lint [PROJECT...] [--fix | --ask]" "${out}"
     assertContains "Auto-fix problems." "${out}"
+
+    # The 'rayvn:usage hand-written' marker suppresses generation
+    grep -q 'manualCmdUsage()' "${script}" && fail "usage function should not be generated for hand-written marker"
 
     # The Extra hook is called when defined
     lintCmdUsageExtra() { echo "EXTRA CONTENT"; }
