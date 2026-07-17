@@ -20,6 +20,8 @@ main() {
     testGenParserDefaults
     testGenParserMultipleAliases
     testGenParserExclusionGroups
+    testGenParserDashedNames
+    testGenParserVersionType
     testGenCliParser
     testGenCliUsage
     testUpdateParser
@@ -339,6 +341,35 @@ testGenParserExclusionGroups() {
     spec=("[--fix]")
     err=${ ( generateParser rayvn spec ) 2>&1; }
     assertContains "must name at least two options" "${err}"
+}
+
+testGenParserVersionType() {
+    local spec=("version")
+    evalGeneratedParser spec
+
+    declare -A expectedOptions=()
+    declare -a expectedArgs=("1.2.3")
+    parseArgs 1.2.3
+    assertExpectedParse expectedOptions expectedArgs
+
+    expectedArgs=("1.2.3-alpha.1+build.5")
+    parseArgs 1.2.3-alpha.1+build.5
+    assertExpectedParse expectedOptions expectedArgs
+
+    assertGenParseFailsWith "must be a semantic version" 1.2
+    assertGenParseFailsWith "must be a semantic version" v1.2.3
+    assertGenParseFailsWith "must be a semantic version" abc
+}
+
+testGenParserDashedNames() {
+    # Dashed long names must produce distinct _opts keys ('no-compact', not 'compact')
+    local spec=("--compact:str" "--no-compact" "--hash-file:str")
+    evalGeneratedParser spec
+
+    declare -A expectedOptions=(['compact']="a" ['no-compact']="1" ['hash-file']="b")
+    declare -a expectedArgs=()
+    parseArgs --compact a --no-compact --hash-file b
+    assertExpectedParse expectedOptions expectedArgs
 }
 
 testGenCliParser() {

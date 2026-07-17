@@ -597,6 +597,14 @@ assertBool() {
     [[ $1 == true || $1 == false || $1 == 1 || $1 == 0 ]] || fail "$1 must be boolean: true|false|1|0"
 }
 
+# ◇ Fail if the given argument is not a semantic version: MAJOR.MINOR.PATCH with optional
+#   pre-release and/or build metadata suffixes (e.g. 1.2.3, 1.2.3-alpha.1, 1.2.3+build.5).
+
+assertVersion() {
+    [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]] || \
+        fail "$1 must be a semantic version, e.g. 1.2.3"
+}
+
 # ◇ Fails if the given path does not exist.
 
 assertFileExists() {

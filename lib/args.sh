@@ -16,7 +16,7 @@
 # The * wildcard positional argument allows any number of untyped values to follow. This is intended to support cases like
 # that of tar args with -C dir interspersed and requires the caller to validate them.
 #
-#      type: str | int | +int | bool | file | dir | a|b|c (inline enum: value must be one of the alternatives)
+#      type: str | int | +int | bool | file | dir | version | a|b|c (inline enum: value must be one of the alternatives)
 #    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
 #      flag: --name[|alias...]
 #     group: [--a|--b|...]                          mutually exclusive: at most one may be supplied
@@ -72,15 +72,15 @@
 # map is:
 #
 #    declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
-#                                       ['file']=assertFile ['dir']=assertDirectory )
+#                                       ['file']=assertFile ['dir']=assertDirectory ['version']=assertVersion )
 #
 # Custom types can be supported by creating a custom map and setting argsTypeMap to the name of the custom map var:
 #
-#    declare -gAr myTypeMap=( ['str']=assertMyString ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
+#    declare -gAr myTypeMap=( ['str4']=assertString4 ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
 #                             ['file']=assertFile ['dir']=assertDirectory )
 #    argsTypeMap=myTypeMap
 #
-#    assertMyString() {
+#    assertString4() {
 #       (( ${#1} > 3 )) || fail "$1 must be 4 characters or longer" # or whatever
 #    }
 #
@@ -272,7 +272,7 @@ _init_rayvn_args() {
     # Default type map
 
     declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
-                                       ['file']=assertFile ['dir']=assertDirectory )
+                                       ['file']=assertFile ['dir']=assertDirectory ['version']=assertVersion )
 
     # Selected type map. User can override
 
@@ -417,7 +417,7 @@ _genUsageFunction() {
         local _canonical=$1
         local _label="${_canonical}${_aliasesOf[${_canonical}]:-}"
         local _type="${_argsOptionTypes[${_canonical}]:-}"
-        local _shortName="${_canonical##*-}"
+        local _shortName; _shortName="${ _argsOptKey "${_canonical}"; }"
         if [[ -n "${_type}" ]]; then
             case "${_type}" in
                 bool)  _label+=" true|false" ;;
@@ -495,7 +495,7 @@ _genUsageFunction() {
         [[ "${canonical}" == '--help' || -n "${_grouped[${canonical}]+x}" ]] && continue
         local _type="${_argsOptionTypes[${canonical}]:-}"
         if [[ -n "${_type}" ]]; then
-            local placeholder shortName="${canonical##*-}"
+            local placeholder shortName="${ _argsOptKey "${canonical}"; }"
             case "${_type}" in
                 bool)  placeholder='true|false' ;;
                 *'|'*) placeholder="${_type}" ;;
@@ -582,7 +582,7 @@ _genParseFunction() {
             int)   assertInt "${_defVal}" ;;
             +int)  assertPositiveInt "${_defVal}" ;;
         esac
-        _defaults+="${_defaults:+ }['${canonical##*-}']=\"${_defVal}\""
+        _defaults+="${_defaults:+ }['${ _argsOptKey "${canonical}"; }']=\"${_defVal}\""
     done
 
     # Build alternation of all option aliases so option values can be checked for
@@ -673,7 +673,7 @@ _genParseFunction() {
             eqPattern=''
             for _la in "${_longList[@]}"; do eqPattern+="${eqPattern:+ | }${_la}=*"; done
             type="${_argsOptionTypes[${canonical}]:-}"
-            shortName="${canonical##*-}"
+            shortName="${ _argsOptKey "${canonical}"; }"
             if [[ -n "${type}" ]]; then
                 local check="" eqCheck=""
                 if [[ ${type} == *'|'* ]]; then
@@ -749,7 +749,7 @@ _genParseFunction() {
             IFS='|' read -ra _groupMembers <<< "${_group}"
             echo "    _mutex=0"
             for _member in "${_groupMembers[@]}"; do
-                echo "    [[ -v _opts['${_member##*-}'] ]] && (( _mutex++ ))"
+                echo "    [[ -v _opts['${ _argsOptKey "${_member}"; }'] ]] && (( _mutex++ ))"
             done
             echo "    (( _opts['help'] || _mutex <= 1 )) || fail \"at most one of ${_group//|/ | } may be specified\""
         done
@@ -841,6 +841,13 @@ _parseArgumentSpec() {
         done
         _argsGroups+=("${_resolved}")
     done
+}
+
+# Derive the _opts key for an option name: strip leading dashes only, so dashed
+# long names remain distinct (e.g. --no-compact → 'no-compact', not 'compact')
+_argsOptKey() {
+    local name="${1#-}"
+    printf '%s' "${name#-}"
 }
 
 _isKnownType() {

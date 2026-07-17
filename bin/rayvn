@@ -107,8 +107,15 @@ declare -gA cliSpec=(
     #   --fix       Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability.
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
 
-    # rayvn:usage hand-written
-    ['index']='index(--help|-h *)'
+    # Generate verbose and compact function indexes used by AI agents (e.g. Claude Code).
+    # Run after adding or modifying library functions to keep the indexes current.
+    #   PROJECT...    Project names (default: current project).
+    #   --output|-o   Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
+    #   --compact|-c  Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
+    #   --no-compact  Skip generating the compact index.
+    #   --no-hash     Skip function hash tracking.
+    #   --hash-file   Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
+    ['index']='index(--output|-o:str --compact|-c:str --no-compact --no-hash --hash-file:str --help|-h *)'
 
     # rayvn:usage hand-written
     ['pages']='pages(--help|-h *)'
@@ -116,21 +123,15 @@ declare -gA cliSpec=(
     # rayvn:usage hand-written
     ['docs']='docs(audit|update --help|-h *)'
 
-    # rayvn:usage hand-written
-    ['release']='release(--repo:str --help|-h *)'
+    # Create a versioned GitHub release for the current directory's project. The GitHub repository is derived from
+    # the git 'origin' remote and confirmed before releasing.
+    #   VERSION  The version to release, e.g. '1.2.3'; must be greater than the current version.
+    ['release']='release(version --help|-h)'
 
     # Stake a claim on a project name on rayvn central.
     #   NAME  The project name to register.
     ['register']='register(str --help|-h)'
 )
-
-indexCmdUsage() {
-    echo "rayvn index [-o FILE] [-c FILE] [--no-compact] [--no-hash] [--hash-file FILE]"
-    echo
-    echo "Generates verbose and compact function indexes used by AI agents (e.g. Claude Code)."
-    echo "Run after adding or modifying library functions to keep the indexes current."
-    bye "$@"
-}
 
 pagesCmdUsage() {
     echo "rayvn pages [PROJECT] [--dir DIR] [--setup | --record [ID...] | --publish | --view]"
@@ -176,15 +177,6 @@ docsCmdUsage() {
     echo "  --lib NAME        Limit to a single library by name."
     echo "  --since DURATION  Skip functions updated within this duration (e.g. '30m', '2h', '1d')."
     echo "  --delay SECS      Seconds to sleep between API calls to avoid rate limits (default: 5)."
-    bye "$@"
-}
-
-releaseCmdUsage() {
-    echo "rayvn release [PROJECT | --repo 'my-account/my-repo'] VERSION"
-    echo
-    echo "Create a versioned GitHub release for a project."
-    echo
-    echo "  --repo ACCOUNT/REPO  Specify the GitHub repository explicitly."
     bye "$@"
 }
 
@@ -377,8 +369,15 @@ buildCmd() {
 indexCmd() {
     local -a projects=() extraArgs=()
     resolveProjects projects extraArgs
+    (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
     require 'rayvn/index'
-    runIndex "${extraArgs[@]}"
+    local -a indexArgs=()
+    [[ -v _opts['output'] ]] && indexArgs+=(--output "${_opts['output']}")
+    [[ -v _opts['compact'] ]] && indexArgs+=(--compact "${_opts['compact']}")
+    [[ -v _opts['no-compact'] ]] && indexArgs+=(--no-compact)
+    [[ -v _opts['no-hash'] ]] && indexArgs+=(--no-hash)
+    [[ -v _opts['hash-file'] ]] && indexArgs+=(--hash-file "${_opts['hash-file']}")
+    runIndex "${indexArgs[@]}"
 }
 
 pagesCmd() {
@@ -435,32 +434,12 @@ docsCmd() {
 }
 
 releaseCmd() {
-    local version=
+    local version="${_args[0]}"
     local -a projects=() extraArgs=()
-    resolveProjects projects extraArgs
-    if (( ${#projects[@]} )); then
-        assertSingleProject projects
-        version="${extraArgs[0]:-}"
-    elif (( ${#extraArgs[@]} == 1 )); then
-        projects=(rayvn)
-        version="${extraArgs[0]}"
-    else
-        projects=("${extraArgs[0]:-}")
-        version="${extraArgs[1]:-}"
-    fi
-    [[ -n ${version} ]] || fail "version required"
-    local ghRepo="${_opts['repo']:-}"
-    if [[ -z ${ghRepo} ]]; then
-        local project="${projects[0]}"
-        case "${project}" in
-            rayvn) ghRepo='phoggy/rayvn' ;;
-            valt)  ghRepo='phoggy/valt' ;;
-            wardn) ghRepo='phoggy/wardn' ;;
-            *) fail "Please specify project using GitHub repo format: --repo 'my-account/my-repo'."
-        esac
-    fi
+    resolveProjects projects extraArgs 1
+    assertProjectsSpecified projects extraArgs
     require 'rayvn/release'
-    release "${ghRepo}" "${version}"
+    release "${projects[0]}" "${version}"
 }
 
 registerCmd() {
@@ -932,14 +911,42 @@ functionsCmdUsage() {
 }
 
 parseIndexArgs() {
+    local _value
     while (( $# > 0 )); do
         case "$1" in
+            --compact | -c) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --compact"; _opts+=(['compact']="$2"); shift 2 ;;
+            --compact=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --compact"; _opts+=(['compact']="${_value}"); shift ;;
+            --hash-file) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --hash-file"; _opts+=(['hash-file']="$2"); shift 2 ;;
+            --hash-file=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --hash-file"; _opts+=(['hash-file']="${_value}"); shift ;;
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
+            --no-compact) _opts+=(['no-compact']="1"); shift ;;
+            --no-compact=*) fail "--no-compact does not accept a value" ;;
+            --no-hash) _opts+=(['no-hash']="1"); shift ;;
+            --no-hash=*) fail "--no-hash does not accept a value" ;;
+            --output | -o) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --output"; _opts+=(['output']="$2"); shift 2 ;;
+            --output=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --output"; _opts+=(['output']="${_value}"); shift ;;
             --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
         esac
     done
+}
+
+indexCmdUsage() {
+    echo "rayvn index [PROJECT...] [--compact COMPACT] [--hash-file HASH-FILE] [--no-compact] [--no-hash] [--output OUTPUT]"
+    echo
+    echo "Generate verbose and compact function indexes used by AI agents (e.g. Claude Code)."
+    echo "Run after adding or modifying library functions to keep the indexes current."
+    echo
+    option "PROJECT..." "Project names (default: current project)." 27
+    option "--output, -o OUTPUT" "Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)." 27
+    option "--compact, -c COMPACT" "Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt)." 27
+    option "--no-compact" "Skip generating the compact index." 27
+    option "--no-hash" "Skip function hash tracking." 27
+    option "--hash-file HASH-FILE" "Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt)." 27
+    option "--help, -h" "Print this help message." 27
+    declare -F indexCmdUsageExtra > /dev/null && indexCmdUsageExtra
+    bye "$@"
 }
 
 parseLibrariesArgs() {
@@ -1095,17 +1102,32 @@ registerCmdUsage() {
 }
 
 parseReleaseArgs() {
-    local _value
+    local _argIndex=0
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
-            --repo) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(-h|--repo|--help)$ ) ]] && fail "missing value for --repo"; _opts+=(['repo']="$2"); shift 2 ;;
-            --repo=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --repo"; _opts+=(['repo']="${_value}"); shift ;;
-            --) shift; _args+=("$@"); break ;;
-            *) _args+=("$1"); shift ;;
+            --) shift
+                while (( $# > 0 )); do
+                    (( _argIndex == 0 )) && assertVersion "$1" || unknownArg "$1"
+                    _args+=("$1"); (( _argIndex++ )); shift
+                done ;;
+            *) (( _argIndex == 0 )) && assertVersion "$1" || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
+    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
+}
+
+releaseCmdUsage() {
+    echo "rayvn release VERSION"
+    echo
+    echo "Create a versioned GitHub release for the current directory's project. The GitHub repository is derived from"
+    echo "the git 'origin' remote and confirmed before releasing."
+    echo
+    option "VERSION" "The version to release, e.g. '1.2.3'; must be greater than the current version." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F releaseCmdUsageExtra > /dev/null && releaseCmdUsageExtra
+    bye "$@"
 }
 
 parseTestArgs() {

@@ -4,25 +4,39 @@
 # Use via: require 'rayvn/release'
 
 # ◇ Perform a full release pipeline for a GitHub project: run tests, update flake.nix and flake.lock, verify the Nix build,
-#   create the GitHub release, and sets the post-release version.
+#   create the GitHub release, and sets the post-release version. The GitHub 'account/repo' is derived from the
+#   current directory's git 'origin' remote, whose repo name must match the project.
 #
 # · ARGS
 #
-#   ghRepo (string)   GitHub repo in 'account/repo' format.
+#   project (string)  The project name; must match the current repo's name.
 #   version (string)  Version string to release (e.g. '1.2.3').
 
 release() {
-    local ghRepo="$1"
+    local project="$1"
     local version="$2"
-    local project="${ghRepo#*/}"
 
-    [[ ${ghRepo} =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$ ]] || fail "account/repo required"
+    [[ -n ${project} ]] || fail "project required"
     [[ -n ${version} ]] || fail "version required"
     command -v nix > /dev/null 2>&1 || fail "'rayvn release' requires Nix. See https://github.com/phoggy/rayvn#installing-nix"
 
+    local ghRepo; ghRepo=${ _deriveGhRepo "${project}"; }
+
+    # The new version must be greater than the current rayvn.pkg version
+
+    [[ -f rayvn.pkg ]] || fail "no rayvn.pkg in the current directory; run from the project root"
+    local currentVersion; currentVersion=${ gawk -F"'" '/^projectVersion=/{print $2; exit}' rayvn.pkg; }
+    currentVersion="${currentVersion%+}"
+    [[ -n "${currentVersion}" ]] || fail "projectVersion not found in rayvn.pkg"
+    _versionGreater "${version}" "${currentVersion}" || \
+        fail "version ${version} must be greater than the current version ${currentVersion}"
+
+    local choiceIndex
+    confirm "Release ${ghRepo} v${version}?" yes no choiceIndex || bye
+    (( choiceIndex == 0 )) || bye
+
     header "RELEASING ${project^^} v${version}" primary "${ghRepo}"
 
-    _ensureInExpectedRepo "${ghRepo}" || fail
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _validatePkgFile || fail
@@ -212,38 +226,34 @@ _updateExistingTagIfRequired() {
     fi
 }
 
-_ensureInExpectedRepo() {
-    local ghRepo="$1"
-    local account="${ghRepo%%/*}"
-    local repo="${ghRepo#*/}"
-    header "Ensuring current directory matches ${ghRepo}"
+# Compare two semantic versions numerically by MAJOR.MINOR.PATCH (pre-release/build
+# suffixes are ignored). Returns 0 if the first is greater than the second.
+_versionGreater() {
+    local -a a b
+    IFS='.-+' read -ra a <<< "$1"
+    IFS='.-+' read -ra b <<< "$2"
+    local i
+    for i in 0 1 2; do
+        (( ${a[i]:-0} > ${b[i]:-0} )) && return 0
+        (( ${a[i]:-0} < ${b[i]:-0} )) && return 1
+    done
+    return 1
+}
 
-    # Ensure we're in a Git repository
-
-    if ! git rev-parse --is-inside-work-tree &> /dev/null; then
-        fail "This is not a Git repository."
-    fi
-
-    # Get the remote repository URL
-
-    remoteUrl=${ git config --get remote.origin.url; }
-
-    # Extract the repository name and account from the URL (handles HTTPS & SSH formats)
-
-    if [[ "${remoteUrl}" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
-        remoteAccount="${BASH_REMATCH[1]}"
-        remoteRepo="${BASH_REMATCH[2]}"
-    else
-        fail "Unable to parse repository URL '${remoteUrl}'."
-    fi
-
-    # Check if both the account and repo match
-
-    if [[ "${remoteAccount}" != "${account}" || "${remoteRepo}" != "${repo}" ]]; then
-        fail "Expected repository '${account}/${repo}', but found '${remoteAccount}/${remoteRepo}': " \
-             "change to correct directory and try again."
-    fi
-    echo "In local ${ghRepo} repo."
+# Derive the GitHub 'account/repo' from the current directory's git 'origin' remote
+# (handles HTTPS & SSH URL formats). The repo name must match the project, guarding
+# against releasing the named project from the wrong directory.
+_deriveGhRepo() {
+    local project="$1"
+    git rev-parse --is-inside-work-tree &> /dev/null || fail "This is not a Git repository."
+    local remoteUrl; remoteUrl=${ git config --get remote.origin.url; }
+    [[ -n "${remoteUrl}" ]] || fail "No 'origin' remote found; a GitHub remote is required to release."
+    [[ "${remoteUrl}" =~ github\.com[:/]([^/]+)/([^/.]+) ]] || fail "Unable to parse GitHub repository from '${remoteUrl}'."
+    local account="${BASH_REMATCH[1]}"
+    local repo="${BASH_REMATCH[2]}"
+    [[ "${repo}" == "${project}" ]] || fail "Current repo is '${account}/${repo}' but project is '${project}':" \
+                                            "change to the correct directory and try again."
+    echo "${account}/${repo}"
 }
 
 _ensureRepoIsReadyForRelease() {
