@@ -315,7 +315,13 @@ invalidArgs() {
 }
 
 # ◇ Print an error and exit 1, optionally with a stack trace if in debug mode
-#   or explicitly with --trace.
+#   or explicitly with --trace. If _failHandler names a function (e.g. a command's
+#   usage function), the message is delegated to it instead: rayvn/args generated
+#   parsers set _failHandler for the duration of argument parsing so any failure —
+#   including one raised by an assert* type checker — shows usage text instead of
+#   a bare error. Callers wanting this behavior in other contexts may set
+#   _failHandler themselves; it is always restored, never left dangling, by the
+#   generated parsers.
 #
 # · USAGE
 #
@@ -342,6 +348,15 @@ fail() {
     if varDefined _spinnerServerPid; then
         local inRayvnFail=1
         _spinnerExit
+    fi
+
+    # Delegate to a registered fail handler instead of the default error + exit
+
+    if [[ -n "${_failHandler}" ]]; then
+        local _failHandlerFn="${_failHandler}"
+        _failHandler=''
+        "${_failHandlerFn}" "$@"
+        exit 1
     fi
 
     # Write trace and/or error
@@ -1563,6 +1578,10 @@ _init_rayvn_core() {
 
     declare -ga _ifsStack=()
     declare -gr _ifsUnset=$'\x01'
+
+    # Name of a function to delegate to instead of the default fail() behavior (see fail())
+
+    declare -g _failHandler=''
 
     # Setup exit handling
 

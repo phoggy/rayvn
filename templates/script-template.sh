@@ -5,7 +5,7 @@ usage() {
     echo
     show bold "does" italic "something" glue "."
     echo
-    show "Usage:" bold "${scriptName}" "[options]"
+    show "Usage:" bold blue "${scriptName}" "[options]"
     echo
     echo "Options:"
     echo

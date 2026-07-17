@@ -68,6 +68,14 @@
 # do not get a generated usage function and keep their hand-written one; mark such entries with a
 # '# rayvn:usage hand-written' comment line so the split is visible when reading the spec.
 #
+# Generated parsers never call fail() directly for a parse error; instead they set core's
+# _failHandler for the duration of the parse (see fail()), so any failure — a missing value,
+# an unknown argument, an exclusion group violation, or an assert* type check like assertVersion
+# — shows the command's usage text with the error rather than a bare message. CLI subcommand
+# parsers route to their ${handler}CmdUsage; standalone argument-spec parsers (parseArgs, or a
+# custom name) route to the script's own usage() if one is defined, else parsing behaves exactly
+# as if no handler were set. The previous handler is always restored before the parser returns.
+#
 # Type checking is performed via a map of type name to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
 #
@@ -278,6 +286,10 @@ _init_rayvn_args() {
 
     declare -g argsTypeMap=_argsDefaultTypeMap
 
+    # Maximum rendered width for generated usage text
+
+    declare -gi _argsUsageWidth=100
+
     # Parse results
 
     declare -gA _opts
@@ -360,12 +372,20 @@ _genCommandParser() {
     # Gen per-command parsers, plus a usage function for each command that has a doc comment block
 
     declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
+    local -a _docPosNames
     for command in "${_commands[@]}"; do
         fnSpec="${_commandSpecRef[${command}]}"
         handler="${fnSpec%(*}"
         tmpSpec="${fnSpec#*(}"
         IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
-        _genParseFunction argsSpec "${handler}" false
+
+        _docPosNames=()
+        if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
+            _parseArgumentSpec argsSpec
+            _genDocPositionalNames "${_argsCliDocs[${command}]}" _docPosNames
+        fi
+
+        _genParseFunction argsSpec "${handler}" false _docPosNames
         echo
         if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
             _genUsageFunction "${project}" "${handler}" "${_argsCliDocs[${command}]}"
@@ -517,19 +537,96 @@ _genUsageFunction() {
 
     _escapeUsage() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//\$/\\\$}"; s="${s//\`/\\\`}"; printf '%s' "${s}"; }
 
+    local synopsisRest="${synopsis#"${project} ${handler}"}"
+    synopsisRest="${synopsisRest# }"
+
+    # Word-wrap text to the given width, one output line per printed line
+
+    _wrapUsage() {
+        local width=$1
+        local -a words
+        read -ra words <<< "$2"
+        local word line=''
+        for word in "${words[@]}"; do
+            if [[ -z "${line}" ]]; then
+                line="${word}"
+            elif (( ${#line} + 1 + ${#word} <= width )); then
+                line+=" ${word}"
+            else
+                printf '%s\n' "${line}"
+                line="${word}"
+            fi
+        done
+        [[ -n "${line}" ]] && printf '%s\n' "${line}"
+        return 0
+    }
+
     echo "${handler}CmdUsage() {"
-    echo "    echo \"${ _escapeUsage "${synopsis}"; }\""
     echo "    echo"
-    for line in "${_summary[@]}"; do
-        echo "    echo \"${ _escapeUsage "${line}"; }\""
-    done
+
+    # Summary: joined and re-wrapped to the standard width
+
+    if (( ${#_summary[@]} )); then
+        local summaryText="${_summary[*]}"
+        while IFS= read -r line; do
+            echo "    show bold \"${ _escapeUsage "${line}"; }\""
+        done <<< "${ _wrapUsage ${_argsUsageWidth} "${summaryText}"; }"
+        echo "    echo"
+    fi
+
+    # Synopsis: wrapped with continuation lines aligned under the arguments
+
+    local synIndent=$(( 7 + ${#project} + 1 + ${#handler} + 1 ))
+    local -a synLines=()
+    [[ -n "${synopsisRest}" ]] && mapfile -t synLines <<< "${ _wrapUsage $(( _argsUsageWidth - synIndent )) "${synopsisRest}"; }"
+    if (( ${#synLines[@]} )); then
+        echo "    show \"Usage:\" bold blue \"${project} ${handler}\" \"${ _escapeUsage "${synLines[0]}"; }\""
+        local synPad; printf -v synPad '%*s' ${synIndent} ''
+        for (( i = 1; i < ${#synLines[@]}; i++ )); do
+            echo "    echo \"${synPad}${ _escapeUsage "${synLines[i]}"; }\""
+        done
+    else
+        echo "    show \"Usage:\" bold blue \"${project} ${handler}\""
+    fi
     echo "    echo"
+
+    # Entries: descriptions wrapped to the standard width with aligned continuations
+
+    local -a descLines=()
+    local j
     for (( i = 0; i < ${#_labels[@]}; i++ )); do
-        echo "    option \"${ _escapeUsage "${_labels[i]}"; }\" \"${ _escapeUsage "${_descs[i]}"; }\" ${column}"
+        mapfile -t descLines <<< "${ _wrapUsage $(( _argsUsageWidth - column )) "${_descs[i]}"; }"
+        echo "    option \"${ _escapeUsage "${_labels[i]}"; }\" \"${ _escapeUsage "${descLines[0]}"; }\" ${column}"
+        for (( j = 1; j < ${#descLines[@]}; j++ )); do
+            echo "    option \"\" \"${ _escapeUsage "${descLines[j]}"; }\" ${column}"
+        done
     done
     echo "    declare -F ${handler}CmdUsageExtra > /dev/null && ${handler}CmdUsageExtra"
     echo "    bye \"\$@\""
     echo "}"
+}
+
+# Extract positional display names from a doc block, in spec order, so _genParseFunction
+# can name the specific missing argument(s) in its arity-check message. Requires the spec
+# tables (_argsOptionNames, _argsArgumentTypes) to already be populated via _parseArgumentSpec.
+# This mirrors _genUsageFunction's own entry classification but only needs the key, not the
+# description; _genUsageFunction re-classifies the same doc block independently afterward and
+# is the source of truth for validating the doc is complete and correct.
+_genDocPositionalNames() {
+    local docBlock="$1"
+    local -n _posNamesOutRef="$2"
+    _posNamesOutRef=()
+
+    local -a _entryKeys=()
+    local line key
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^[[:space:]]+([^[:space:]]+) ]] && _entryKeys+=("${BASH_REMATCH[1]}")
+    done <<< "${docBlock}"
+
+    for key in "${_entryKeys[@]}"; do
+        [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"
+        [[ -n "${_argsOptionNames[${key}]+x}" || ${key} == -* ]] || _posNamesOutRef+=("${key}")
+    done
 }
 
 _genParseFunction() {
@@ -537,6 +634,11 @@ _genParseFunction() {
     local specVar="$1"
     local name="${2:-}"
     local includeResets="${3:-true}"
+    local -a _posNames=()
+    if [[ -n "${4:-}" ]]; then
+        local -n _posNamesArgRef="$4"
+        _posNames=("${_posNamesArgRef[@]}")
+    fi
     local -n _genTypeMapRef="${argsTypeMap}"
     _parseArgumentSpec "${specVar}"
 
@@ -651,6 +753,20 @@ _genParseFunction() {
         elif [[ -n "${_defaults}" ]]; then
             echo "    _opts+=(${_defaults})"
         fi
+
+        # Route any fail() during this parse (including from assert* type checkers) to the
+        # command's usage function instead of a bare error. CLI subcommand parsers (name
+        # known, includeResets false) always have a corresponding CmdUsage; standalone
+        # argument-spec parsers fall back to the script's own usage() if one is defined,
+        # per rayvn convention, else parsing behaves exactly as if no handler were set.
+
+        echo "    local _prevFailHandler=\"\${_failHandler}\""
+        if [[ ${includeResets} == false ]]; then
+            echo "    declare -g _failHandler=${name}CmdUsage"
+        else
+            echo "    declare -F usage > /dev/null && declare -g _failHandler=usage"
+        fi
+
         local _locals=''
         (( pureWildcard || ${#_argsArgumentTypes[@]} == 0 )) || _locals+=' _argIndex=0'
         (( needsValue )) && _locals+=' _value'
@@ -736,7 +852,13 @@ _genParseFunction() {
 
         echo "        esac"
         echo "    done"
-        if (( _argsMinArgs == 1 )); then
+        if (( _argsMinArgs >= 1 && ${#_posNames[@]} >= _argsMinArgs )); then
+            # Doc-derived names are known: name the specific missing argument(s) at runtime,
+            # sliced by how many were actually supplied (_argIndex)
+            local _reqNames='' i
+            for (( i = 0; i < _argsMinArgs; i++ )); do _reqNames+="${_reqNames:+ }\"${_posNames[i]}\""; done
+            echo "    (( _opts['help'] || _argIndex >= ${_argsMinArgs} )) || { local -a _missingArgs=(${_reqNames}); _missingArgs=(\"\${_missingArgs[@]:\${_argIndex}}\"); (( \${#_missingArgs[@]} == 1 )) && fail \"missing required argument: \${_missingArgs[0]}\" || fail \"missing required arguments: \${_missingArgs[*]}\"; }"
+        elif (( _argsMinArgs == 1 )); then
             echo "    (( _opts['help'] || _argIndex >= 1 )) || fail \"missing required argument\""
         elif (( _argsMinArgs > 1 )); then
             echo "    (( _opts['help'] || _argIndex >= ${_argsMinArgs} )) || fail \"missing required arguments: expected at least ${_argsMinArgs}\""
@@ -753,6 +875,7 @@ _genParseFunction() {
             done
             echo "    (( _opts['help'] || _mutex <= 1 )) || fail \"at most one of ${_group//|/ | } may be specified\""
         done
+        echo "    declare -g _failHandler=\"\${_prevFailHandler}\""
         echo "}"
     }
 }

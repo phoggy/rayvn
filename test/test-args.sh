@@ -24,6 +24,9 @@ main() {
     testGenParserVersionType
     testGenCliParser
     testGenCliUsage
+    testGenCliNamedMissingArgMessages
+    testGenParserFailRoutesToUsage
+    testGenParserFailFallback
     testUpdateParser
     testUpdateParserCheck
     testParseArgsWithSpec
@@ -468,6 +471,99 @@ EOF
     _argsCliDocs=(['add']=$'Summary.')
     err=${ ( generateParser rayvn posSpec ) 2>&1; }
     assertContains "must name all 1 positional" "${err}"
+}
+
+testGenCliNamedMissingArgMessages() {
+    local dir; dir=${ makeTempDir; }
+    local script="${dir}/named.sh"
+    cat > "${script}" << 'EOF'
+#!/usr/bin/env bash
+
+# rayvn:cli namedSpec
+declare -gA namedSpec=(
+    # Single required positional.
+    #   SCRIPT  Single required positional.
+    ['one']='one(file --help|-h)'
+
+    # Two required positionals.
+    #   TYPE  First of two required positionals.
+    #   NAME  Second of two required positionals.
+    ['two']='two(str str --help|-h)'
+)
+EOF
+    updateParser "${script}" > /dev/null
+    eval "${ gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${script}"; }"
+
+    oneCmd() { :; }
+    twoCmd() { :; }
+
+    local out
+    out=${ ( parseCommand one ) 2>&1; }
+    assertContains "missing required argument: SCRIPT" "${out}"
+
+    out=${ ( parseCommand two ) 2>&1; }
+    assertContains "missing required arguments: TYPE NAME" "${out}"
+
+    out=${ ( parseCommand two first ) 2>&1; }
+    assertContains "missing required argument: NAME" "${out}"
+
+    # Standalone argument-spec parsers have no doc-derived names, so the message stays generic
+    local spec=("str" "str")
+    evalGeneratedParser spec
+    local err; err=${ ( parseArgs ) 2>&1; }
+    assertContains "missing required arguments: expected at least 2" "${err}"
+}
+
+testGenParserFailRoutesToUsage() {
+    declare -A cliSpec=(['rel']='rel(version --help|-h)')
+    local parser; parser="${ generateParser rayvn cliSpec; }"
+    eval "${parser}"
+
+    local relCalled=0
+    relCmd() { relCalled=1; }
+    relCmdUsage() { echo "USAGE_MARKER"; echo "rayvn rel VERSION"; bye "$@"; }
+
+    # Missing required positional routes to the command's usage, not a bare fail
+    local out
+    out=${ ( parseCommand rel ) 2>&1; }
+    assertContains "USAGE_MARKER" "${out}"
+    assertContains "missing required argument" "${out}"
+
+    # A type-check failure (the 'version' type calls assertVersion, a shared core.sh
+    # function that calls fail() itself) also routes — the hook lives in fail(), so it
+    # catches this without any special-casing in the generator
+    out=${ ( parseCommand rel abc ) 2>&1; }
+    assertContains "USAGE_MARKER" "${out}"
+    assertContains "must be a semantic version" "${out}"
+
+    (( relCalled == 0 )) || fail "relCmd should not have been called on a parse failure"
+
+    # A successful parse must restore _failHandler, not leave it set for unrelated
+    # later fail() calls in the command's own body
+    parseCommand rel 1.2.3
+    (( relCalled )) || fail "relCmd was not called on successful parse"
+    [[ -z "${_failHandler}" ]] || fail "_failHandler leaked after a successful parse: '${_failHandler}'"
+
+    # Standalone argument-spec parsers route to the script's own usage() if one is defined
+    local spec=("str")
+    evalGeneratedParser spec
+    usage() { echo "TOP_USAGE_MARKER"; bye "$@"; }
+    out=${ ( parseArgs ) 2>&1; }
+    assertContains "TOP_USAGE_MARKER" "${out}"
+    assertContains "missing required argument" "${out}"
+    unset -f usage
+}
+
+testGenParserFailFallback() {
+    # Without a usage() function defined, standalone parsers fall back to the default
+    # fail() behavior (a bare error) rather than crashing on an undefined function call
+    local spec=("str")
+    evalGeneratedParser spec
+    unset -f usage 2> /dev/null
+    local err
+    err=${ ( parseArgs ) 2>&1; }
+    assertContains "missing required argument" "${err}"
+    [[ "${err}" != *"command not found"* ]] || fail "calling undefined usage() crashed: ${err}"
 }
 
 testUpdateParser() {
