@@ -363,27 +363,98 @@ _genCommandParser() {
     local -a _commands=()
     (( ${#_commandSpecRef[@]} )) && mapfile -t _commands <<< "${ printf '%s\n' "${!_commandSpecRef[@]}" | sort; }"
 
+    # A key with a space and no '|' is a two-word command (e.g. 'docs audit'), dispatched on
+    # "$1 $2" and shifting 2; single-word keys (which may themselves alias multiple names via
+    # '|', e.g. 'new | create') are dispatched on "$1" alone exactly as before. Group prefixes
+    # (the shared first word of one or more two-word commands, e.g. 'docs') get a generated
+    # ${prefix}CmdUsage() overview listing their subcommands (see _genGroupUsageFunction): a
+    # bare or misspelled subcommand shows it with a "requires a subcommand" error appended,
+    # while -h/--help immediately after the prefix shows it cleanly with no error.
+
+    local -a _twoWordCommands=() _oneWordCommands=()
+    for command in "${_commands[@]}"; do
+        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
+            _twoWordCommands+=("${command}")
+        else
+            _oneWordCommands+=("${command}")
+        fi
+    done
+
+    declare -A _groupSubcommands=()  # prefix -> space-joined subcommand names, for the fallback message
+    local prefix sub
+    for command in "${_twoWordCommands[@]}"; do
+        prefix="${command%% *}"
+        sub="${command#* }"
+        _groupSubcommands[${prefix}]+="${_groupSubcommands[${prefix}]:+ }${sub}"
+    done
+
+    # Needed here (not just in the per-command loop below) so the group-overview usage
+    # functions generated next can read each subcommand's doc block for its summary line
+
+    declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
+
     # Gen main dispatcher
+
+    local -a _sortedPrefixes=()
+    (( ${#_groupSubcommands[@]} )) && mapfile -t _sortedPrefixes <<< "${ printf '%s\n' "${!_groupSubcommands[@]}" | sort; }"
 
     echo "parseCommand() {"
     echo "    _opts=()"
     echo "    _args=()"
     echo "    parseCommonOptions ${project} \"\$@\"; shift \$?"
-    echo "    case \"\$1\" in"
-    for command in "${_commands[@]}"; do
-        fnSpec="${_commandSpecRef[${command}]}"
-        cmdName="${fnSpec%(*}"
-        handler="parse${cmdName^}Args"
-        echo "        ${command}) shift; ${handler} \"\$@\"; (( _opts['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
-    done
-    echo "        *) usage \"unknown command: \$1\" ;;"
-    echo "    esac"
+    if (( ${#_twoWordCommands[@]} )); then
+        echo "    case \"\$1 \${2:-}\" in"
+        for command in "${_twoWordCommands[@]}"; do
+            fnSpec="${_commandSpecRef[${command}]}"
+            cmdName="${fnSpec%(*}"
+            handler="parse${cmdName^}Args"
+            echo "        \"${command}\") shift 2; ${handler} \"\$@\"; (( _opts['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
+        done
+        echo "        *)"
+        echo "            case \"\$1\" in"
+        for command in "${_oneWordCommands[@]}"; do
+            fnSpec="${_commandSpecRef[${command}]}"
+            cmdName="${fnSpec%(*}"
+            handler="parse${cmdName^}Args"
+            echo "                ${command}) shift; ${handler} \"\$@\"; (( _opts['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
+        done
+        for prefix in "${_sortedPrefixes[@]}"; do
+            echo "                ${prefix})"
+            echo "                    case \"\${2:-}\" in"
+            echo "                        -h | --help) ${prefix}CmdUsage ;;"
+            echo "                        *) ${prefix}CmdUsage \"${prefix} requires a subcommand: ${_groupSubcommands[${prefix}]// /, }\" ;;"
+            echo "                    esac"
+            echo "                    ;;"
+        done
+        echo "                *) usage \"unknown command: \$1\" ;;"
+        echo "            esac"
+        echo "            ;;"
+        echo "    esac"
+    else
+        echo "    case \"\$1\" in"
+        for command in "${_oneWordCommands[@]}"; do
+            fnSpec="${_commandSpecRef[${command}]}"
+            cmdName="${fnSpec%(*}"
+            handler="parse${cmdName^}Args"
+            echo "        ${command}) shift; ${handler} \"\$@\"; (( _opts['help'] )) && ${cmdName}CmdUsage || ${cmdName}Cmd ;;"
+        done
+        echo "        *) usage \"unknown command: \$1\" ;;"
+        echo "    esac"
+    fi
     echo "}"
     echo
 
+    # Gen a ${prefix}CmdUsage() overview for each group prefix, listing its subcommands with
+    # their doc block's first summary line, so 'rayvn docs -h'/'rayvn docs'/'rayvn docs bogus'
+    # show something useful instead of a bare "unknown command: docs"
+
+    for prefix in "${_sortedPrefixes[@]}"; do
+        _genGroupUsageFunction "${project}" "${prefix}" "${_groupSubcommands[${prefix}]}"
+        echo
+    done
+
     # Gen per-command parsers, plus a usage function for each command that has a doc comment block
 
-    declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
     local -a _docPosNames
     for command in "${_commands[@]}"; do
         fnSpec="${_commandSpecRef[${command}]}"
@@ -400,7 +471,9 @@ _genCommandParser() {
         _genParseFunction argsSpec "${handler}" false _docPosNames
         echo
         if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
-            _genUsageFunction "${project}" "${handler}" "${_argsCliDocs[${command}]}"
+            local displayName=""
+            [[ "${command}" == *' '* && "${command}" != *'|'* ]] && displayName="${command}"
+            _genUsageFunction "${project}" "${handler}" "${_argsCliDocs[${command}]}" "${displayName}"
             echo
         fi
     done
@@ -411,11 +484,14 @@ _genCommandParser() {
 # then indented entry lines of 'key  description' where key is an option (any alias) or, in
 # positional order, a display name for each positional. All options and positionals must be
 # documented; --help is documented automatically. If ${handler}CmdUsageExtra is defined at
-# runtime it is called after the generated content.
+# runtime it is called after the generated content. displayName is what's shown in the synopsis
+# (e.g. 'docs audit' for a two-word command), which may differ from the camelCase handler
+# identifier used to name the generated function; defaults to handler when not given.
 _genUsageFunction() {
     local project="$1"
     local handler="$2"
     local docBlock="$3"
+    local displayName="${4:-${handler}}"
 
     # Parse the doc block
 
@@ -504,7 +580,7 @@ _genUsageFunction() {
 
     # Build the synopsis: command, positionals (bracketed when optional), groups, then options
 
-    local synopsis="${project} ${handler}"
+    local synopsis="${project} ${displayName}"
     local posName
     for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
         posName="${_posNames[i]}"
@@ -552,9 +628,7 @@ _genUsageFunction() {
     done
     local column=$(( maxLabel + 6 ))
 
-    _escapeUsage() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//\$/\\\$}"; s="${s//\`/\\\`}"; printf '%s' "${s}"; }
-
-    local synopsisRest="${synopsis#"${project} ${handler}"}"
+    local synopsisRest="${synopsis#"${project} ${displayName}"}"
     synopsisRest="${synopsisRest# }"
 
     # Word-wrap text to the given width, one output line per printed line
@@ -593,17 +667,17 @@ _genUsageFunction() {
 
     # Synopsis: wrapped with continuation lines aligned under the arguments
 
-    local synIndent=$(( 7 + ${#project} + 1 + ${#handler} + 1 ))
+    local synIndent=$(( 7 + ${#project} + 1 + ${#displayName} + 1 ))
     local -a synLines=()
     [[ -n "${synopsisRest}" ]] && mapfile -t synLines <<< "${ _wrapUsage $(( _argsUsageWidth - synIndent )) "${synopsisRest}"; }"
     if (( ${#synLines[@]} )); then
-        echo "    show \"Usage:\" bold blue \"${project} ${handler}\" \"${ _escapeUsage "${synLines[0]}"; }\""
+        echo "    show \"Usage:\" bold blue \"${project} ${displayName}\" \"${ _escapeUsage "${synLines[0]}"; }\""
         local synPad; printf -v synPad '%*s' ${synIndent} ''
         for (( i = 1; i < ${#synLines[@]}; i++ )); do
             echo "    echo \"${synPad}${ _escapeUsage "${synLines[i]}"; }\""
         done
     else
-        echo "    show \"Usage:\" bold blue \"${project} ${handler}\""
+        echo "    show \"Usage:\" bold blue \"${project} ${displayName}\""
     fi
     echo "    echo"
 
@@ -644,6 +718,57 @@ _genDocPositionalNames() {
         [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"
         [[ -n "${_argsOptionNames[${key}]+x}" || ${key} == -* ]] || _posNamesOutRef+=("${key}")
     done
+}
+
+# Extract the first non-indented (summary) line from a doc block, for a one-line description
+# in a group overview's subcommand list. Empty if the block is empty or has no summary line.
+_genFirstSummaryLine() {
+    local docBlock="$1"
+    local line
+    while IFS= read -r line; do
+        [[ -z "${line//[[:space:]]/}" ]] && continue
+        [[ "${line}" =~ ^[[:space:]] ]] && continue
+        printf '%s' "${line}"
+        return 0
+    done <<< "${docBlock}"
+}
+
+# Generate a ${prefix}CmdUsage() overview for a two-word command group prefix (e.g. 'docs'),
+# listing its subcommands with the first summary line from each one's own doc block (blank if
+# a subcommand has none, e.g. it's marked hand-written). The dispatcher calls this instead of
+# a bare error for a bare/misspelled subcommand or -h/--help immediately after the prefix, so
+# 'rayvn docs', 'rayvn docs -h' and 'rayvn docs bogus' all show something useful. Same optional
+# error-message + bye "$@" convention as every other generated usage function.
+_genGroupUsageFunction() {
+    local project="$1"
+    local prefix="$2"
+    local subcommandList="$3"   # space-joined, e.g. "audit update"
+
+    local -a _subs; read -ra _subs <<< "${subcommandList}"
+    local -a _subSummaries=()
+    local sub
+    for sub in "${_subs[@]}"; do
+        _subSummaries+=("${ _genFirstSummaryLine "${_argsCliDocs["${prefix} ${sub}"]:-}"; }")
+    done
+
+    local maxLen=0
+    for sub in "${_subs[@]}"; do (( ${#sub} > maxLen )) && maxLen=${#sub}; done
+    local column=$(( maxLen + 6 ))
+
+    local i
+    echo "${prefix}CmdUsage() {"
+    echo "    echo"
+    echo "    show \"Usage:\" bold blue \"${project} ${prefix}\" \"SUBCOMMAND [OPTIONS]\""
+    echo "    echo"
+    echo "    echo \"Subcommands:\""
+    echo "    echo"
+    for (( i = 0; i < ${#_subs[@]}; i++ )); do
+        echo "    option \"${ _escapeUsage "${_subs[i]}"; }\" \"${ _escapeUsage "${_subSummaries[i]}"; }\" ${column}"
+    done
+    echo "    echo"
+    echo "    echo \"Use '${project} ${prefix} SUBCOMMAND --help' for details on a specific subcommand.\""
+    echo "    bye \"\$@\""
+    echo "}"
 }
 
 _genParseFunction() {
@@ -1017,6 +1142,13 @@ _parseArgumentSpec() {
 _argsOptKey() {
     local name="${1#-}"
     printf '%s' "${name#-}"
+}
+
+# Escape a string for safe embedding inside a generated double-quoted echo/show argument
+_escapeUsage() {
+    local s="$1"
+    s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//\$/\\\$}"; s="${s//\`/\\\`}"
+    printf '%s' "${s}"
 }
 
 # The generated variable name for a variadic option's collected values, e.g. --record →

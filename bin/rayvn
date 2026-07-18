@@ -20,7 +20,8 @@ usage() {
     echo "    collisions       Check for namespace collisions within and across projects."
     echo "    dependencies     Scan source files and ensure dependency tracking is up to date."
     echo "    index            Generate function indexes for AI agent use."
-    echo "    docs             Audit or update function documentation."
+    echo "    docs audit       Audit function documentation."
+    echo "    docs update      Update function documentation."
     echo "    pages            Generate and preview project gh-pages site."
     echo "    build            Run nix build."
     echo "    release          Create a new release."
@@ -126,8 +127,21 @@ declare -gA cliSpec=(
     #   --view    Generate pages, then serve locally with Jekyll.
     ['pages']='pages(str? --dir:str --record:str* [--setup|--record|--publish|--view] --help|-h)'
 
-    # rayvn:usage hand-written
-    ['docs']='docs(audit|update --help|-h *)'
+    # Report missing/stale ◇ doc comments.
+    #   PROJECT...  Project names to audit (default: all loaded projects).
+    #   --release   Exit 1 if any public functions are missing ◇ doc comments.
+    ['docs audit']='docsAudit(--release --help|-h *)'
+
+    # Generate or fix ◇ doc comments via Claude API.
+    #   PROJECT...      Project names to limit scope (default: all loaded projects).
+    #   --dry-run       Print proposed docs without writing any changes.
+    #   --regen         Regenerate docs for all public functions, not just missing/stale.
+    #   --missing-only  Only process functions missing a ◇ doc comment.
+    #   --stale-only    Only process functions with potentially stale docs.
+    #   --lib           Limit to a single library by name.
+    #   --since         Skip functions updated within this duration (e.g. '30m', '2h', '1d').
+    #   --delay         Seconds to sleep between API calls to avoid rate limits.
+    ['docs update']='docsUpdate(--dry-run --regen --missing-only --stale-only --lib:str --since:str --delay:+int=5 --help|-h *)'
 
     # Create a versioned GitHub release for the current directory's project. The GitHub repository is derived from
     # the git 'origin' remote and confirmed before releasing.
@@ -155,31 +169,6 @@ pagesCmdUsageExtra() {
     echo "  pre=     Optional setup command run before recording (not captured)."
     echo "  post=    Optional cleanup command run after recording (not captured)."
     echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
-}
-
-docsCmdUsage() {
-    echo
-    show bold "Audit or update function ◇ doc comments."
-    echo
-    show "Usage:" bold blue "rayvn docs" "audit | update [PROJECT...] [OPTIONS]"
-    echo
-    echo "audit [OPTIONS]    Report missing/stale ◇ doc comments."
-    echo
-    echo "  --release        Exit 1 if any public functions are missing ◇ doc comments."
-    echo
-    echo "update [OPTIONS]   Generate or fix ◇ doc comments via Claude API."
-    echo
-    echo "  --dry-run         Print proposed docs without writing any changes."
-    echo "  --regen           Regenerate docs for all public functions, not just"
-    echo "                    missing/stale."
-    echo "  --missing-only    Only process functions missing a ◇ doc comment."
-    echo "  --stale-only      Only process functions with potentially stale docs."
-    echo "  --lib NAME        Limit to a single library by name."
-    echo "  --since DURATION  Skip functions updated within this duration (e.g. '30m',"
-    echo "                    '2h', '1d')."
-    echo "  --delay SECS      Seconds to sleep between API calls to avoid rate limits"
-    echo "                    (default: 5)."
-    bye "$@"
 }
 
 # Split parsed arguments into recognized project names and everything else, filling the
@@ -434,16 +423,32 @@ dependenciesCmd() {
     return ${result}
 }
 
-docsCmd() {
+docsAuditCmd() {
     require 'rayvn/function-docs'
-    local subcommand="${_args[0]}"
     local -a projects=() extraArgs=()
-    resolveProjects projects extraArgs 1
-    case "${subcommand}" in
-        audit)  auditDocs  "${extraArgs[@]}" "${projects[@]}" ;;
-        update) updateDocs "${extraArgs[@]}" "${projects[@]}" ;;
-        *) fail "unknown subcommand: ${subcommand:-<none>}. Use audit or update." ;;
-    esac
+    resolveProjects projects extraArgs
+    (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
+    local -a auditArgs=()
+    (( _opts['release'] )) && auditArgs+=(--release)
+    auditArgs+=("${projects[@]}")
+    auditDocs "${auditArgs[@]}"
+}
+
+docsUpdateCmd() {
+    require 'rayvn/function-docs'
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
+    local -a updateArgs=()
+    (( _opts['dry-run'] )) && updateArgs+=(--dry-run)
+    (( _opts['regen'] )) && updateArgs+=(--regen)
+    (( _opts['missing-only'] )) && updateArgs+=(--missing-only)
+    (( _opts['stale-only'] )) && updateArgs+=(--stale-only)
+    [[ -v _opts['lib'] ]] && updateArgs+=(--lib "${_opts['lib']}")
+    [[ -v _opts['since'] ]] && updateArgs+=(--since "${_opts['since']}")
+    updateArgs+=(--delay "${_opts['delay']}")
+    updateArgs+=("${projects[@]}")
+    updateDocs "${updateArgs[@]}"
 }
 
 releaseCmd() {
@@ -759,25 +764,49 @@ parseCommand() {
     _opts=()
     _args=()
     parseCommonOptions rayvn "$@"; shift $?
-    case "$1" in
-        args) shift; parseArgsArgs "$@"; (( _opts['help'] )) && argsCmdUsage || argsCmd ;;
-        build) shift; parseBuildArgs "$@"; (( _opts['help'] )) && buildCmdUsage || buildCmd ;;
-        collisions) shift; parseCollisionsArgs "$@"; (( _opts['help'] )) && collisionsCmdUsage || collisionsCmd ;;
-        deps | dependencies) shift; parseDependenciesArgs "$@"; (( _opts['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
-        docs) shift; parseDocsArgs "$@"; (( _opts['help'] )) && docsCmdUsage || docsCmd ;;
-        functions) shift; parseFunctionsArgs "$@"; (( _opts['help'] )) && functionsCmdUsage || functionsCmd ;;
-        index) shift; parseIndexArgs "$@"; (( _opts['help'] )) && indexCmdUsage || indexCmd ;;
-        libraries) shift; parseLibrariesArgs "$@"; (( _opts['help'] )) && librariesCmdUsage || librariesCmd ;;
-        lint) shift; parseLintArgs "$@"; (( _opts['help'] )) && lintCmdUsage || lintCmd ;;
-        new | create) shift; parseNewArgs "$@"; (( _opts['help'] )) && newCmdUsage || newCmd ;;
-        pages) shift; parsePagesArgs "$@"; (( _opts['help'] )) && pagesCmdUsage || pagesCmd ;;
-        projects) shift; parseProjectsArgs "$@"; (( _opts['help'] )) && projectsCmdUsage || projectsCmd ;;
-        register) shift; parseRegisterArgs "$@"; (( _opts['help'] )) && registerCmdUsage || registerCmd ;;
-        release) shift; parseReleaseArgs "$@"; (( _opts['help'] )) && releaseCmdUsage || releaseCmd ;;
-        test) shift; parseTestArgs "$@"; (( _opts['help'] )) && testCmdUsage || testCmd ;;
-        theme) shift; parseThemeArgs "$@"; (( _opts['help'] )) && themeCmdUsage || themeCmd ;;
-        *) usage "unknown command: $1" ;;
+    case "$1 ${2:-}" in
+        "docs audit") shift 2; parseDocsAuditArgs "$@"; (( _opts['help'] )) && docsAuditCmdUsage || docsAuditCmd ;;
+        "docs update") shift 2; parseDocsUpdateArgs "$@"; (( _opts['help'] )) && docsUpdateCmdUsage || docsUpdateCmd ;;
+        *)
+            case "$1" in
+                args) shift; parseArgsArgs "$@"; (( _opts['help'] )) && argsCmdUsage || argsCmd ;;
+                build) shift; parseBuildArgs "$@"; (( _opts['help'] )) && buildCmdUsage || buildCmd ;;
+                collisions) shift; parseCollisionsArgs "$@"; (( _opts['help'] )) && collisionsCmdUsage || collisionsCmd ;;
+                deps | dependencies) shift; parseDependenciesArgs "$@"; (( _opts['help'] )) && dependenciesCmdUsage || dependenciesCmd ;;
+                functions) shift; parseFunctionsArgs "$@"; (( _opts['help'] )) && functionsCmdUsage || functionsCmd ;;
+                index) shift; parseIndexArgs "$@"; (( _opts['help'] )) && indexCmdUsage || indexCmd ;;
+                libraries) shift; parseLibrariesArgs "$@"; (( _opts['help'] )) && librariesCmdUsage || librariesCmd ;;
+                lint) shift; parseLintArgs "$@"; (( _opts['help'] )) && lintCmdUsage || lintCmd ;;
+                new | create) shift; parseNewArgs "$@"; (( _opts['help'] )) && newCmdUsage || newCmd ;;
+                pages) shift; parsePagesArgs "$@"; (( _opts['help'] )) && pagesCmdUsage || pagesCmd ;;
+                projects) shift; parseProjectsArgs "$@"; (( _opts['help'] )) && projectsCmdUsage || projectsCmd ;;
+                register) shift; parseRegisterArgs "$@"; (( _opts['help'] )) && registerCmdUsage || registerCmd ;;
+                release) shift; parseReleaseArgs "$@"; (( _opts['help'] )) && releaseCmdUsage || releaseCmd ;;
+                test) shift; parseTestArgs "$@"; (( _opts['help'] )) && testCmdUsage || testCmd ;;
+                theme) shift; parseThemeArgs "$@"; (( _opts['help'] )) && themeCmdUsage || themeCmd ;;
+                docs)
+                    case "${2:-}" in
+                        -h | --help) docsCmdUsage ;;
+                        *) docsCmdUsage "docs requires a subcommand: audit, update" ;;
+                    esac
+                    ;;
+                *) usage "unknown command: $1" ;;
+            esac
+            ;;
     esac
+}
+
+docsCmdUsage() {
+    echo
+    show "Usage:" bold blue "rayvn docs" "SUBCOMMAND [OPTIONS]"
+    echo
+    echo "Subcommands:"
+    echo
+    option "audit" "Report missing/stale ◇ doc comments." 12
+    option "update" "Generate or fix ◇ doc comments via Claude API." 12
+    echo
+    echo "Use 'rayvn docs SUBCOMMAND --help' for details on a specific subcommand."
+    bye "$@"
 }
 
 parseArgsArgs() {
@@ -899,24 +928,83 @@ dependenciesCmdUsage() {
     bye "$@"
 }
 
-parseDocsArgs() {
+parseDocsAuditArgs() {
     local _prevFailHandler="${_failHandler}"
-    declare -g _failHandler=docsCmdUsage
-    local _argIndex=0
+    declare -g _failHandler=docsAuditCmdUsage
     while (( $# > 0 )); do
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
-            --) shift
-                while (( $# > 0 )); do
-                    (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }
-                    _args+=("$1"); (( _argIndex++ )); shift
-                done ;;
-            *) (( _argIndex == 0 )) && { [[ "|audit|update|" == *"|$1|"* ]] || fail "$1 must be one of: audit|update"; }; _args+=("$1"); (( _argIndex++ )); shift ;;
+            --release) _opts+=(['release']="1"); shift ;;
+            --release=*) fail "--release does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
         esac
     done
-    (( _opts['help'] || _argIndex >= 1 )) || fail "missing required argument"
     declare -g _failHandler="${_prevFailHandler}"
+}
+
+docsAuditCmdUsage() {
+    echo
+    show bold "Report missing/stale ◇ doc comments."
+    echo
+    show "Usage:" bold blue "rayvn docs audit" "[PROJECT...] [--release]"
+    echo
+    option "PROJECT..." "Project names to audit (default: all loaded projects)." 16
+    option "--release" "Exit 1 if any public functions are missing ◇ doc comments." 16
+    option "--help, -h" "Print this help message." 16
+    declare -F docsAuditCmdUsageExtra > /dev/null && docsAuditCmdUsageExtra
+    bye "$@"
+}
+
+parseDocsUpdateArgs() {
+    _opts+=(['delay']="5")
+    local _prevFailHandler="${_failHandler}"
+    declare -g _failHandler=docsUpdateCmdUsage
+    local _value
+    while (( $# > 0 )); do
+        case "$1" in
+            --delay) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--regen|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --delay"; assertPositiveInt "$2"; _opts+=(['delay']="$2"); shift 2 ;;
+            --delay=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --delay"; assertPositiveInt "${_value}"; _opts+=(['delay']="${_value}"); shift ;;
+            --dry-run) _opts+=(['dry-run']="1"); shift ;;
+            --dry-run=*) fail "--dry-run does not accept a value" ;;
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --lib) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--regen|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --lib"; _opts+=(['lib']="$2"); shift 2 ;;
+            --lib=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --lib"; _opts+=(['lib']="${_value}"); shift ;;
+            --missing-only) _opts+=(['missing-only']="1"); shift ;;
+            --missing-only=*) fail "--missing-only does not accept a value" ;;
+            --regen) _opts+=(['regen']="1"); shift ;;
+            --regen=*) fail "--regen does not accept a value" ;;
+            --since) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--regen|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --since"; _opts+=(['since']="$2"); shift 2 ;;
+            --since=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --since"; _opts+=(['since']="${_value}"); shift ;;
+            --stale-only) _opts+=(['stale-only']="1"); shift ;;
+            --stale-only=*) fail "--stale-only does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+    declare -g _failHandler="${_prevFailHandler}"
+}
+
+docsUpdateCmdUsage() {
+    echo
+    show bold "Generate or fix ◇ doc comments via Claude API."
+    echo
+    show "Usage:" bold blue "rayvn docs update" "[PROJECT...] [--delay DELAY] [--dry-run] [--lib LIB] [--missing-only]"
+    echo "                         [--regen] [--since SINCE] [--stale-only]"
+    echo
+    option "PROJECT..." "Project names to limit scope (default: all loaded projects)." 20
+    option "--dry-run" "Print proposed docs without writing any changes." 20
+    option "--regen" "Regenerate docs for all public functions, not just missing/stale." 20
+    option "--missing-only" "Only process functions missing a ◇ doc comment." 20
+    option "--stale-only" "Only process functions with potentially stale docs." 20
+    option "--lib LIB" "Limit to a single library by name." 20
+    option "--since SINCE" "Skip functions updated within this duration (e.g. '30m', '2h', '1d')." 20
+    option "--delay DELAY" "Seconds to sleep between API calls to avoid rate limits. (default: 5)" 20
+    option "--help, -h" "Print this help message." 20
+    declare -F docsUpdateCmdUsageExtra > /dev/null && docsUpdateCmdUsageExtra
+    bye "$@"
 }
 
 parseFunctionsArgs() {

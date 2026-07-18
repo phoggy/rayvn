@@ -24,6 +24,7 @@ main() {
     testGenParserDashedNames
     testGenParserVersionType
     testGenCliParser
+    testGenCliTwoWordCommands
     testGenCliUsage
     testGenCliNamedMissingArgMessages
     testGenParserFailRoutesToUsage
@@ -457,6 +458,81 @@ testGenCliParser() {
     expectedOptions=(['name']="widget")
     expectedArgs=("thing")
     assertExpectedParse expectedOptions expectedArgs
+}
+
+testGenCliTwoWordCommands() {
+    declare -A cliSpec=(
+        ['docs audit']='docsAudit(--release --help|-h *)'
+        ['docs update']='docsUpdate(--dry-run --help|-h *)'
+        ['new | create']='new(str str --help|-h)'
+    )
+    declare -A _argsCliDocs=(
+        ['docs audit']=$'Report missing/stale docs.\n  PROJECT...  Projects to audit.\n  --release  Exit 1 if missing.'
+        ['docs update']=$'Generate or fix docs.\n  PROJECT...  Projects to update.\n  --dry-run  Print without writing.'
+    )
+    local parser; parser="${ generateParser rayvn cliSpec; }"
+    eval "${parser}"
+
+    declare -F docsCmdUsage > /dev/null || fail "docsCmdUsage (group overview) was not generated"
+
+    declare -F parseCommand > /dev/null || fail "parseCommand was not generated"
+    declare -F parseDocsAuditArgs > /dev/null || fail "parseDocsAuditArgs was not generated"
+    declare -F parseDocsUpdateArgs > /dev/null || fail "parseDocsUpdateArgs was not generated"
+    declare -F parseNewArgs > /dev/null || fail "parseNewArgs was not generated"
+
+    local auditCalled=0 updateCalled=0 newCalled=0
+    docsAuditCmd() { auditCalled=1; }
+    docsAuditCmdUsage() { fail "docsAuditCmdUsage should not be called"; }
+    docsUpdateCmd() { updateCalled=1; }
+    docsUpdateCmdUsage() { fail "docsUpdateCmdUsage should not be called"; }
+    newCmd() { newCalled=1; }
+    newCmdUsage() { fail "newCmdUsage should not be called"; }
+
+    # Two-word dispatch: "$1 $2" is matched literally and both words are shifted
+    parseCommand docs audit --release proj1 proj2
+    (( auditCalled )) || fail "docsAuditCmd was not called"
+    declare -A expectedOptions=(['release']="1")
+    declare -a expectedArgs=("proj1" "proj2")
+    assertExpectedParse expectedOptions expectedArgs
+
+    parseCommand docs update --dry-run
+    (( updateCalled )) || fail "docsUpdateCmd was not called"
+    expectedOptions=(['dry-run']="1")
+    expectedArgs=()
+    assertExpectedParse expectedOptions expectedArgs
+
+    # Single-word (possibly aliased) commands are unaffected by two-word commands existing
+    parseCommand create a b
+    (( newCalled )) || fail "newCmd was not called"
+    expectedOptions=()
+    expectedArgs=("a" "b")
+    assertExpectedParse expectedOptions expectedArgs
+
+    # A bare or misspelled subcommand under a known two-word prefix routes to the group's
+    # generated overview usage (docsCmdUsage), with a "requires a subcommand" error appended,
+    # rather than a bare "unknown command: docs"
+    usage() { echo "USAGE: $*"; bye "$@"; }
+    local out
+    out=${ ( parseCommand docs ) 2>&1; }
+    assertContains "Subcommands:" "${out}"
+    assertContains "audit" "${out}"
+    assertContains "Report missing/stale docs." "${out}"
+    assertContains "docs requires a subcommand: audit, update" "${out}"
+    out=${ ( parseCommand docs bogus ) 2>&1; }
+    assertContains "docs requires a subcommand: audit, update" "${out}"
+
+    # -h/--help immediately after the prefix (the reported bug) shows the same overview
+    # cleanly, with no "requires a subcommand" error
+    out=${ ( parseCommand docs -h ) 2>&1; }
+    assertContains "Subcommands:" "${out}"
+    [[ "${out}" == *"requires a subcommand"* ]] && fail "docs -h should not show a 'requires a subcommand' error: ${out}"
+    out=${ ( parseCommand docs --help ) 2>&1; }
+    assertContains "Subcommands:" "${out}"
+    [[ "${out}" == *"requires a subcommand"* ]] && fail "docs --help should not show a 'requires a subcommand' error: ${out}"
+
+    out=${ ( parseCommand bogus ) 2>&1; }
+    assertContains "unknown command: bogus" "${out}"
+    unset -f usage
 }
 
 testGenCliUsage() {
