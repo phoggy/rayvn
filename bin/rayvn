@@ -117,8 +117,14 @@ declare -gA cliSpec=(
     #   --hash-file   Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
     ['index']='index(--output|-o:str --compact|-c:str --no-compact --no-hash --hash-file:str --help|-h *)'
 
-    # rayvn:usage hand-written
-    ['pages']='pages(--help|-h *)'
+    # Generate and preview the project's gh-pages site.
+    #   PROJECT   Project name (default: current directory's project); only one may be specified.
+    #   --dir     Output directory (default: project's configured worktree).
+    #   --record  Re-record asciinema casts; optionally filter by cast ID(s), all if omitted.
+    #   --setup   First-time setup: create gh-pages branch, worktree, and workflow.
+    #   --publish Generate pages, then commit and push to gh-pages.
+    #   --view    Generate pages, then serve locally with Jekyll.
+    ['pages']='pages(str? --dir:str --record:str* [--setup|--record|--publish|--view] --help|-h)'
 
     # rayvn:usage hand-written
     ['docs']='docs(audit|update --help|-h *)'
@@ -133,21 +139,7 @@ declare -gA cliSpec=(
     ['register']='register(str --help|-h)'
 )
 
-pagesCmdUsage() {
-    echo
-    show bold "Generate and preview the project's gh-pages site."
-    echo
-    show "Usage:" bold blue "rayvn pages" "[PROJECT] [--dir DIR]"
-    echo "                   [--setup | --record [ID...] | --publish | --view]"
-    echo
-    echo "PROJECT defaults to the current directory's project; only one may be specified."
-    echo
-    echo "  --setup          First-time setup: create gh-pages branch, worktree, and"
-    echo "                   workflow."
-    echo "  --record [ID...] Re-record asciinema casts. Optionally filter by cast ID(s)."
-    echo "  --dir DIR        Output directory (default: project's configured worktree)."
-    echo "  --publish        Generate pages, then commit and push to gh-pages."
-    echo "  --view           Generate pages, then serve locally with Jekyll."
+pagesCmdUsageExtra() {
     echo
     echo "Record markup (in any .md file in the pages dir):"
     echo
@@ -163,8 +155,6 @@ pagesCmdUsage() {
     echo "  pre=     Optional setup command run before recording (not captured)."
     echo "  post=    Optional cleanup command run after recording (not captured)."
     echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
-    echo
-    bye "$@"
 }
 
 docsCmdUsage() {
@@ -397,8 +387,19 @@ pagesCmd() {
     resolveProjects projects extraArgs
     assertProjectsSpecified projects extraArgs
     (( ${#projects[@]} == 1 )) || fail "Only one project at a time is supported"
+    (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
     require 'rayvn/index'
-    runPages "${projects[0]}" "${extraArgs[@]}"
+
+    local -a pagesArgs=()
+    [[ -v _opts['dir'] ]] && pagesArgs+=(--dir "${_opts['dir']}")
+    (( _opts['setup'] )) && pagesArgs+=(--setup)
+    (( _opts['publish'] )) && pagesArgs+=(--publish)
+    (( _opts['view'] )) && pagesArgs+=(--view)
+    if [[ -v _opts['record'] ]]; then
+        pagesArgs+=(--record)
+        pagesArgs+=("${_optListRecord[@]}")
+    fi
+    runPages "${projects[0]}" "${pagesArgs[@]}"
 }
 
 lintCmd() {
@@ -1097,17 +1098,62 @@ newCmdUsage() {
 }
 
 parsePagesArgs() {
+    declare -g _optListRecord=()
     local _prevFailHandler="${_failHandler}"
     declare -g _failHandler=pagesCmdUsage
+    local _argIndex=0 _value _mutex
     while (( $# > 0 )); do
         case "$1" in
+            --dir) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--record|--view|--publish|--dir|-h|--help|--setup)$ ) ]] && fail "missing value for --dir"; _opts+=(['dir']="$2"); shift 2 ;;
+            --dir=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --dir"; _opts+=(['dir']="${_value}"); shift ;;
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
-            --) shift; _args+=("$@"); break ;;
-            *) _args+=("$1"); shift ;;
+            --publish) _opts+=(['publish']="1"); shift ;;
+            --publish=*) fail "--publish does not accept a value" ;;
+            --record) shift
+                while (( $# > 0 )) && [[ "$1" != -* ]]; do
+                    _optListRecord+=("$1"); shift
+                done
+                _opts+=(['record']="1") ;;
+            --record=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --record"; _optListRecord+=("${_value}"); _opts+=(['record']="1"); shift ;;
+            --setup) _opts+=(['setup']="1"); shift ;;
+            --setup=*) fail "--setup does not accept a value" ;;
+            --view) _opts+=(['view']="1"); shift ;;
+            --view=*) fail "--view does not accept a value" ;;
+            --) shift
+                while (( $# > 0 )); do
+                    (( _argIndex == 0 )) || unknownArg "$1"
+                    _args+=("$1"); (( _argIndex++ )); shift
+                done ;;
+            *) (( _argIndex == 0 )) || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
+    _mutex=0
+    [[ -v _opts['setup'] ]] && (( _mutex++ ))
+    [[ -v _opts['record'] ]] && (( _mutex++ ))
+    [[ -v _opts['publish'] ]] && (( _mutex++ ))
+    [[ -v _opts['view'] ]] && (( _mutex++ ))
+    (( _opts['help'] || _mutex <= 1 )) || fail "at most one of --setup | --record | --publish | --view may be specified"
     declare -g _failHandler="${_prevFailHandler}"
+}
+
+pagesCmdUsage() {
+    echo
+    show bold "Generate and preview the project's gh-pages site."
+    echo
+    show "Usage:" bold blue "rayvn pages" "[PROJECT] [--setup | --record | --publish | --view] [--dir DIR]"
+    echo
+    option "PROJECT" "Project name (default: current directory's project); only one may be" 26
+    option "" "specified." 26
+    option "--dir DIR" "Output directory (default: project's configured worktree)." 26
+    option "--record [RECORD...]" "Re-record asciinema casts; optionally filter by cast ID(s), all if" 26
+    option "" "omitted." 26
+    option "--setup" "First-time setup: create gh-pages branch, worktree, and workflow." 26
+    option "--publish" "Generate pages, then commit and push to gh-pages." 26
+    option "--view" "Generate pages, then serve locally with Jekyll." 26
+    option "--help, -h" "Print this help message." 26
+    declare -F pagesCmdUsageExtra > /dev/null && pagesCmdUsageExtra
+    bye "$@"
 }
 
 parseProjectsArgs() {

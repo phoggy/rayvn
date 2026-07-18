@@ -18,6 +18,7 @@
 #
 #      type: str | int | +int | bool | file | dir | version | a|b|c (inline enum: value must be one of the alternatives)
 #    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
+#  variadic: --name[|alias...]:type*                e.g. --record:str* — see below
 #      flag: --name[|alias...]
 #     group: [--a|--b|...]                          mutually exclusive: at most one may be supplied
 #  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
@@ -35,6 +36,14 @@
 # options declared elsewhere in the spec (by any alias); a simple flag name not declared elsewhere is declared
 # by the group itself, so [--fix|--ask] both declares the two flags and makes them exclusive. Members may not
 # have default values. The check is waived when --help is parsed.
+#
+# A variadic option (type suffix '*', e.g. --record:str*) greedily consumes zero or more following tokens as its
+# value, stopping at the next token starting with '-' or at end of args. _opts[name] is still set to "1" when the
+# option is supplied at all (regardless of how many values followed); the collected values land in a dedicated
+# global array _optList<Name> (camelCase from the option name, e.g. --record → _optListRecord, --exclude-pattern
+# → _optListExcludePattern), reset to empty at the start of every parse whether or not the option was given. The
+# '=' form ('--record=id') sets a single-element list. Each value is validated against the declared type, same as
+# a scalar option. Variadic options cannot have a default.
 #
 # The int type accepts both positive and negative values; use the +int type to accept only positive integers.
 #
@@ -111,6 +120,7 @@ parseArgsWithSpec() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
+    declare -A _argsOptionVariadic
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -328,6 +338,7 @@ _genArgumentParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
+    declare -A _argsOptionVariadic
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -340,6 +351,7 @@ _genCommandParser() {
     declare -A _argsOptionNames
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
+    declare -A _argsOptionVariadic
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -438,7 +450,9 @@ _genUsageFunction() {
         local _label="${_canonical}${_aliasesOf[${_canonical}]:-}"
         local _type="${_argsOptionTypes[${_canonical}]:-}"
         local _shortName; _shortName="${ _argsOptKey "${_canonical}"; }"
-        if [[ -n "${_type}" ]]; then
+        if [[ -n "${_argsOptionVariadic[${_canonical}]+x}" ]]; then
+            _label+=" [${_shortName^^}...]"
+        elif [[ -n "${_type}" ]]; then
             case "${_type}" in
                 bool)  _label+=" true|false" ;;
                 *'|'*) _label+=" ${_type}" ;;
@@ -514,8 +528,11 @@ _genUsageFunction() {
     for canonical in "${_sortedCanonicals[@]}"; do
         [[ "${canonical}" == '--help' || -n "${_grouped[${canonical}]+x}" ]] && continue
         local _type="${_argsOptionTypes[${canonical}]:-}"
-        if [[ -n "${_type}" ]]; then
-            local placeholder shortName="${ _argsOptKey "${canonical}"; }"
+        local shortName; shortName="${ _argsOptKey "${canonical}"; }"
+        if [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]]; then
+            synopsis+=" [${canonical} [${shortName^^}...]]"
+        elif [[ -n "${_type}" ]]; then
+            local placeholder
             case "${_type}" in
                 bool)  placeholder='true|false' ;;
                 *'|'*) placeholder="${_type}" ;;
@@ -754,6 +771,17 @@ _genParseFunction() {
             echo "    _opts+=(${_defaults})"
         fi
 
+        # Reset variadic option value lists. These are dedicated globals (not _opts, whose
+        # values are scalar) so they must be reset on every parse regardless of includeResets,
+        # whether or not the option ends up being supplied
+
+        local _listVarName
+        for canonical in "${_canonicals[@]}"; do
+            [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]] || continue
+            _listVarName="${ _argsListVarName "${canonical}"; }"
+            echo "    declare -g ${_listVarName}=()"
+        done
+
         # Route any fail() during this parse (including from assert* type checkers) to the
         # command's usage function instead of a bare error. CLI subcommand parsers (name
         # known, includeResets false) always have a corresponding CmdUsage; standalone
@@ -791,20 +819,31 @@ _genParseFunction() {
             type="${_argsOptionTypes[${canonical}]:-}"
             shortName="${ _argsOptKey "${canonical}"; }"
             if [[ -n "${type}" ]]; then
-                local check="" eqCheck=""
+                local check="" eqCheck="" listCheck=""
                 if [[ ${type} == *'|'* ]]; then
                     check="[[ \"|${type}|\" == *\"|\$2|\"* ]] || fail \"\$2 must be one of: ${type}\"; "
                     eqCheck="[[ \"|${type}|\" == *\"|\${_value}|\"* ]] || fail \"\${_value} must be one of: ${type}\"; "
+                    listCheck="[[ \"|${type}|\" == *\"|\$1|\"* ]] || fail \"\$1 must be one of: ${type}\"; "
                 else
                     local typeChecker="${_genTypeMapRef[${type}]:-}"
                     if [[ -n "${typeChecker}" && "${typeChecker}" != '*' ]]; then
                         check="${typeChecker} \"\$2\"; "
                         eqCheck="${typeChecker} \"\${_value}\"; "
+                        listCheck="${typeChecker} \"\$1\"; "
                     fi
                 fi
                 local missingCheck="[[ -z \"\$2\" || ( \"\$2\" == -* && \"\$2\" =~ ^(${allOptions})\$ ) ]] && fail \"missing value for ${canonical}\""
                 local eqMissing="[[ -n \"\${_value}\" ]] || fail \"missing value for ${canonical}\""
-                if [[ "${type}" == 'bool' ]]; then
+                if [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]]; then
+                    local listVar; listVar="${ _argsListVarName "${canonical}"; }"
+                    echo "            ${pattern}) shift"
+                    echo "                while (( \$# > 0 )) && [[ \"\$1\" != -* ]]; do"
+                    echo "                    ${listCheck}${listVar}+=(\"\$1\"); shift"
+                    echo "                done"
+                    echo "                _opts+=(['${shortName}']=\"1\") ;;"
+                    [[ -n "${eqPattern}" ]] && \
+                        echo "            ${eqPattern}) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}${listVar}+=(\"\${_value}\"); _opts+=(['${shortName}']=\"1\"); shift ;;"
+                elif [[ "${type}" == 'bool' ]]; then
                     echo "            ${pattern}) ${missingCheck}; ${check}_value=\"\$2\"; booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift 2 ;;"
                     [[ -n "${eqPattern}" ]] && \
                         echo "            ${eqPattern}) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}booleanAsInteger \"\${_value}\" _value; _opts+=(['${shortName}']=\"\${_value}\"); shift ;;"
@@ -889,6 +928,7 @@ _parseArgumentSpec() {
     _argsOptionNames=()
     _argsOptionTypes=()
     _argsOptionDefaults=()
+    _argsOptionVariadic=()
     _argsArgumentTypes=()
     _argsGroups=()
     _argsMinArgs=0
@@ -918,6 +958,12 @@ _parseArgumentSpec() {
                 if [[ ${_type} == *=* ]]; then
                     _argsOptionDefaults+=([${option}]="${_type#*=}")
                     _type="${_type%%=*}"
+                fi
+                if [[ ${_type} == *'*' ]]; then
+                    [[ -n "${_argsOptionDefaults[${option}]+x}" ]] && \
+                        invalidArgs "${_spec}: a variadic option cannot have a default value"
+                    _argsOptionVariadic+=([${option}]=1)
+                    _type="${_type%\*}"
                 fi
                 _isKnownType
                 _argsOptionTypes+=([${option}]=${_type})
@@ -971,6 +1017,16 @@ _parseArgumentSpec() {
 _argsOptKey() {
     local name="${1#-}"
     printf '%s' "${name#-}"
+}
+
+# The generated variable name for a variadic option's collected values, e.g. --record →
+# _optListRecord, --exclude-pattern → _optListExcludePattern (camelCase, per rayvn convention)
+_argsListVarName() {
+    local shortName; shortName="${ _argsOptKey "$1"; }"
+    local -a words; IFS='-' read -ra words <<< "${shortName}"
+    local name='_optList' word
+    for word in "${words[@]}"; do name+="${word^}"; done
+    printf '%s' "${name}"
 }
 
 _isKnownType() {

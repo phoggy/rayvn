@@ -20,6 +20,7 @@ main() {
     testGenParserDefaults
     testGenParserMultipleAliases
     testGenParserExclusionGroups
+    testGenParserVariadicOption
     testGenParserDashedNames
     testGenParserVersionType
     testGenCliParser
@@ -344,6 +345,59 @@ testGenParserExclusionGroups() {
     spec=("[--fix]")
     err=${ ( generateParser rayvn spec ) 2>&1; }
     assertContains "must name at least two options" "${err}"
+}
+
+testGenParserVariadicOption() {
+    local spec err
+
+    # Basic consumption: greedily collects values, stopping at the next option-like token;
+    # _opts still marks presence, the values land in a dedicated _optListName array
+    spec=("--record:str*" "--force|-f")
+    evalGeneratedParser spec
+    declare -A expectedOptions=(['record']="1" ['force']="1")
+    declare -a expectedArgs=()
+    parseArgs --record id1 id2 --force
+    assertExpectedParse expectedOptions expectedArgs
+    assertEqual "${_optListRecord[*]}" "id1 id2" "variadic values"
+
+    # Bare invocation: present, but with an empty list
+    parseArgs --record
+    assertEqual "${_opts['record']}" "1" "bare --record sets presence"
+    assertEqual "${#_optListRecord[@]}" "0" "bare --record collects nothing"
+
+    # The '=' form sets a single-element list
+    parseArgs --record=onlyone
+    assertEqual "${_optListRecord[*]}" "onlyone" "= form single value"
+
+    # Resets on every parse, even when the option isn't supplied at all (no stale values
+    # left over from a previous call)
+    parseArgs --force
+    assertEqual "${#_optListRecord[@]}" "0" "_optListRecord reset when --record absent"
+
+    # Each value is type-checked, same as a scalar option
+    spec=("--nums:int*")
+    evalGeneratedParser spec
+    parseArgs --nums 1 2 3
+    assertEqual "${_optListNums[*]}" "1 2 3" "typed variadic values"
+    assertGenParseFailsWith "must be a positive or negative integer" --nums 1 abc
+
+    # Enum types work too
+    spec=("--mode:fast|slow*")
+    evalGeneratedParser spec
+    parseArgs --mode fast slow
+    assertEqual "${_optListMode[*]}" "fast slow" "enum variadic values"
+    assertGenParseFailsWith "must be one of: fast|slow" --mode fast bogus
+
+    # Dashes in the option name become underscores in the array's variable name
+    spec=("--exclude-pattern:str*")
+    evalGeneratedParser spec
+    parseArgs --exclude-pattern a b
+    assertEqual "${_optListExcludePattern[*]}" "a b" "dashed variadic option array name"
+
+    # A variadic option cannot have a default
+    spec=("--record:str*=x")
+    err=${ ( generateParser rayvn spec ) 2>&1; }
+    assertContains "cannot have a default value" "${err}"
 }
 
 testGenParserVersionType() {
