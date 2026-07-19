@@ -26,10 +26,12 @@ main() {
     testGenCliParser
     testGenCliTwoWordCommands
     testGenCliUsage
+    testGenCliUsageExtraSection
     testGenCliNamedMissingArgMessages
     testGenParserFailRoutesToUsage
     testGenParserFailFallback
     testUpdateParser
+    testUpdateParserExtraSectionEndingInParen
     testUpdateParserCheck
     testParseArgsWithSpec
 
@@ -603,6 +605,57 @@ EOF
     assertContains "must name all 1 positional" "${err}"
 }
 
+testGenCliUsageExtraSection() {
+    local dir; dir=${ makeTempDir; }
+    local script="${dir}/extra.sh"
+    cat > "${script}" << 'EOF'
+#!/usr/bin/env bash
+
+# rayvn:cli extraSpec
+declare -gA extraSpec=(
+    # Re-record casts.
+    #   ID...    Cast IDs to re-record; all if omitted.
+    #   --force  Overwrite without confirmation.
+    #
+    # Record markup (in any .md file):
+    #
+    #   <!-- record id="NAME" cmd="COMMAND" -->
+    #   {% include asciinema.html id="NAME" %}
+    #
+    #   id=   Cast identifier.
+    #   cmd=  Command to record.
+    ['rec']='rec(--force --help|-h *)'
+)
+EOF
+    updateParser "${script}" > /dev/null
+    eval "${ gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${script}"; }"
+
+    local out
+    out=${ ( recCmdUsage ) 2>&1; }
+
+    # Structured part unaffected: still validated/rendered as before
+    assertContains "rec [ID...] [--force]" "${out}"
+    assertContains "Cast IDs to re-record; all if omitted." "${out}"
+
+    # Extra part: echoed verbatim, blank lines preserved, no wrapping applied even though
+    # a line here exceeds the normal usage width
+    assertContains "Record markup (in any .md file):" "${out}"
+    assertContains '<!-- record id="NAME" cmd="COMMAND" -->' "${out}"
+    assertContains "id=   Cast identifier." "${out}"
+
+    # No trailing blank line leaking in from doc-block extraction/splitting (regression
+    # check for the bash <<< always-appends-a-newline quirk)
+    local lastLine="${out##*$'\n'}"
+    [[ -n "${lastLine}" ]] || fail "trailing blank line leaked into generated usage output"
+
+    # The runtime CmdUsageExtra hook still works alongside the spec-driven extra section
+    recCmdUsageExtra() { echo "HOOK CONTENT"; }
+    out=${ ( recCmdUsage ) 2>&1; }
+    assertContains "Record markup" "${out}"
+    assertContains "HOOK CONTENT" "${out}"
+    unset -f recCmdUsageExtra
+}
+
 testGenCliNamedMissingArgMessages() {
     local dir; dir=${ makeTempDir; }
     local script="${dir}/named.sh"
@@ -731,6 +784,41 @@ EOF
     declare -a expectedArgs=("42")
     parseExampleArgs -f --name Bob 42
     assertExpectedParse expectedOptions expectedArgs
+}
+
+testUpdateParserExtraSectionEndingInParen() {
+    # A doc-block extra-section line quoting example code that ends in ')' (e.g.
+    # 'parseCommand()') must not be mistaken for the cliSpec array's own closing paren —
+    # regression test for a spec-extraction bug the blank-line extra-section feature exposed
+    local dir; dir=${ makeTempDir; }
+    local script="${dir}/paren.sh"
+    cat > "${script}" << 'EOF'
+#!/usr/bin/env bash
+
+# rayvn:cli parenSpec
+declare -gA parenSpec=(
+    # Do a thing.
+    #   --force  Skip confirmation.
+    #
+    # Example code:
+    #
+    #   someFunction()
+    ['thing']='thing(--force --help|-h)'
+)
+EOF
+    updateParser "${script}" > /dev/null
+    grep -q "\['thing'\]=" "${script}" || fail "array entry was truncated by the extraction bug"
+    grep -q '^)$' "${script}" || fail "array closing paren missing after extraction"
+
+    eval "${ gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${script}"; }"
+    thingCmd() { :; }
+    declare -A expectedOptions=(['force']="1")
+    declare -a expectedArgs=()
+    parseCommand thing --force
+    assertExpectedParse expectedOptions expectedArgs
+
+    local out; out=${ ( thingCmdUsage ) 2>&1; }
+    assertContains "someFunction()" "${out}"
 }
 
 testUpdateParserCheck() {

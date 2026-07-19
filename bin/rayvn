@@ -64,6 +64,13 @@ declare -gA cliSpec=(
     # whether the committed block is stale without modifying the file.
     #   SCRIPT   Path to the script to update; must contain a rayvn:args or rayvn:cli annotation.
     #   --check  Report drift without updating the file.
+    #
+    # Annotation formats:
+    #
+    #     # rayvn:args specVar [funcName]   → parse${funcName^}Args()
+    #     # rayvn:cli  specVar              → parseCommand() + per-command parsers
+    #
+    # The spec variable must be defined at global scope (not inside a function).
     ['args']='args(file --check --help|-h)'
 
     # Interactively select a color theme for rayvn output or show the current theme.
@@ -125,6 +132,21 @@ declare -gA cliSpec=(
     #   --setup   First-time setup: create gh-pages branch, worktree, and workflow.
     #   --publish Generate pages, then commit and push to gh-pages.
     #   --view    Generate pages, then serve locally with Jekyll.
+    #
+    # Record markup (in any .md file in the pages dir):
+    #
+    #   <!-- record id="NAME" cmd="COMMAND" [cmd="COMMAND" ...]
+    #        [pre="CMD"] [post="CMD"] [prompt="PS1"] -->
+    #   {% include asciinema.html id="NAME" src="..." %}
+    #
+    #   Each <!-- record --> comment must be paired with a matching
+    #   {% include asciinema.html %} tag.
+    #
+    #   id=      Cast identifier (must match the include tag's id= attribute).
+    #   cmd=     Command to record. Repeatable; commands are recorded sequentially.
+    #   pre=     Optional setup command run before recording (not captured).
+    #   post=    Optional cleanup command run after recording (not captured).
+    #   prompt=  Optional shell prompt string (PS1) shown during recording.
     ['pages']='pages(str? --dir:str --record:str* [--setup|--record|--publish|--view] --help|-h)'
 
     # Report missing/stale ◇ doc comments.
@@ -152,24 +174,6 @@ declare -gA cliSpec=(
     #   NAME  The project name to register.
     ['register']='register(str --help|-h)'
 )
-
-pagesCmdUsageExtra() {
-    echo
-    echo "Record markup (in any .md file in the pages dir):"
-    echo
-    echo "  <!-- record id=\"NAME\" cmd=\"COMMAND\" [cmd=\"COMMAND\" ...]"
-    echo "       [pre=\"CMD\"] [post=\"CMD\"] [prompt=\"PS1\"] -->"
-    echo "  {% include asciinema.html id=\"NAME\" src=\"...\" %}"
-    echo
-    echo "  Each <!-- record --> comment must be paired with a matching"
-    echo "  {% include asciinema.html %} tag."
-    echo
-    echo "  id=      Cast identifier (must match the include tag's id= attribute)."
-    echo "  cmd=     Command to record. Repeatable; commands are recorded sequentially."
-    echo "  pre=     Optional setup command run before recording (not captured)."
-    echo "  post=    Optional cleanup command run after recording (not captured)."
-    echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
-}
 
 # Split parsed arguments into recognized project names and everything else, filling the
 # caller's arrays via namerefs. Falls back to the current directory's project (or the
@@ -282,16 +286,6 @@ themeCmd() {
     else
         setTheme
     fi
-}
-
-argsCmdUsageExtra() {
-    echo
-    echo "Annotation formats:"
-    echo
-    echo "    # rayvn:args specVar [funcName]   → parse\${funcName^}Args()"
-    echo "    # rayvn:cli  specVar              → parseCommand() + per-command parsers"
-    echo
-    echo "The spec variable must be defined at global scope (not inside a function)."
 }
 
 argsCmd() {
@@ -841,6 +835,13 @@ argsCmdUsage() {
     option "SCRIPT" "Path to the script to update; must contain a rayvn:args or rayvn:cli annotation." 16
     option "--check" "Report drift without updating the file." 16
     option "--help, -h" "Print this help message." 16
+    echo
+    echo "Annotation formats:"
+    echo
+    echo "    # rayvn:args specVar [funcName]   → parse\${funcName^}Args()"
+    echo "    # rayvn:cli  specVar              → parseCommand() + per-command parsers"
+    echo
+    echo "The spec variable must be defined at global scope (not inside a function)."
     declare -F argsCmdUsageExtra > /dev/null && argsCmdUsageExtra
     bye "$@"
 }
@@ -1240,6 +1241,21 @@ pagesCmdUsage() {
     option "--publish" "Generate pages, then commit and push to gh-pages." 26
     option "--view" "Generate pages, then serve locally with Jekyll." 26
     option "--help, -h" "Print this help message." 26
+    echo
+    echo "Record markup (in any .md file in the pages dir):"
+    echo
+    echo "  <!-- record id=\"NAME\" cmd=\"COMMAND\" [cmd=\"COMMAND\" ...]"
+    echo "       [pre=\"CMD\"] [post=\"CMD\"] [prompt=\"PS1\"] -->"
+    echo "  {% include asciinema.html id=\"NAME\" src=\"...\" %}"
+    echo
+    echo "  Each <!-- record --> comment must be paired with a matching"
+    echo "  {% include asciinema.html %} tag."
+    echo
+    echo "  id=      Cast identifier (must match the include tag's id= attribute)."
+    echo "  cmd=     Command to record. Repeatable; commands are recorded sequentially."
+    echo "  pre=     Optional setup command run before recording (not captured)."
+    echo "  post=    Optional cleanup command run after recording (not captured)."
+    echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
     declare -F pagesCmdUsageExtra > /dev/null && pagesCmdUsageExtra
     bye "$@"
 }

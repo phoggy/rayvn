@@ -72,10 +72,17 @@
 # Plain comment lines form the command summary; indented 'key  description' lines document options (keyed by any
 # alias, or the alias list as written in the spec) and, in order, provide display names for the positionals.
 # All options and positionals must be documented — generation fails otherwise — except --help, which is
-# documented automatically. Option defaults are appended to their descriptions. If ${handler}CmdUsageExtra()
-# is defined at runtime it is called after the generated content, before bye. Commands without a doc block
-# do not get a generated usage function and keep their hand-written one; mark such entries with a
-# '# rayvn:usage hand-written' comment line so the split is visible when reading the spec.
+# documented automatically. Option defaults are appended to their descriptions.
+#
+# A blank comment line ends that structured, validated part. Anything after it is appendix material — not
+# describing the command's arguments, not validated, not wrapped — echoed verbatim, blank lines included. This
+# keeps free-form reference content (e.g. a markup syntax the command reads from files) in the same spec comment
+# as the rest of a command's documentation instead of a separate hand-written function. If ${handler}CmdUsageExtra()
+# is defined at runtime it is called after the generated content, before bye; the two may be combined; use the
+# runtime hook for anything computed rather than static text.
+#
+# Commands without a doc block do not get a generated usage function and keep their hand-written one; mark such
+# entries with a '# rayvn:usage hand-written' comment line so the split is visible when reading the spec.
 #
 # Generated parsers never call fail() directly for a parse error; instead they set core's
 # _failHandler for the duration of the parse (see fail()), so any failure — a missing value,
@@ -188,12 +195,14 @@ updateParser() {
     # Detect project from rayvn.pkg
     local project; project=${ _argsDetectProject "${scriptFile}"; }
 
-    # Extract spec array definition via static parsing
+    # Extract spec array definition via static parsing. A comment line is never the array's
+    # closing paren, even if its text happens to end in one (e.g. a doc comment's extra
+    # section quoting example code like 'parseCommand()') — exclude comment lines from that check.
     local specDef; specDef=${ gawk -v spec="${specVar}" '
         BEGIN { pattern = "^(declare[^=]* )?" spec "=" }
         $0 ~ pattern { in_spec=1 }
         in_spec { print }
-        in_spec && /\)[[:space:]]*$/ { in_spec=0; exit }
+        in_spec && !/^[[:space:]]*#/ && /\)[[:space:]]*$/ { in_spec=0; exit }
     ' "${scriptFile}"; }
     [[ -n "${specDef}" ]] || fail "${scriptFile}: spec array '${specVar}' not found at global scope"
 
@@ -259,7 +268,7 @@ updateParser() {
         local insertAfter; insertAfter=${ gawk -v spec="${specVar}" '
             BEGIN { pattern = "^(declare[^=]* )?" spec "=" }
             $0 ~ pattern { in_spec=1 }
-            in_spec && /\)[[:space:]]*$/ { print NR; exit }
+            in_spec && !/^[[:space:]]*#/ && /\)[[:space:]]*$/ { print NR; exit }
         ' "${scriptFile}"; }
         [[ -n "${insertAfter}" ]] || fail "${scriptFile}: could not locate end of spec '${specVar}'"
         gawk -v n="${insertAfter}" -v contentFile="${contentFile}" '
@@ -465,7 +474,9 @@ _genCommandParser() {
         _docPosNames=()
         if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
             _parseArgumentSpec argsSpec
-            _genDocPositionalNames "${_argsCliDocs[${command}]}" _docPosNames
+            local _mainDocBlock _extraDocBlock
+            _genSplitDocBlock "${_argsCliDocs[${command}]}" _mainDocBlock _extraDocBlock
+            _genDocPositionalNames "${_mainDocBlock}" _docPosNames
         fi
 
         _genParseFunction argsSpec "${handler}" false _docPosNames
@@ -483,15 +494,22 @@ _genCommandParser() {
 # left populated by the preceding _genParseFunction call. Doc block format: summary lines,
 # then indented entry lines of 'key  description' where key is an option (any alias) or, in
 # positional order, a display name for each positional. All options and positionals must be
-# documented; --help is documented automatically. If ${handler}CmdUsageExtra is defined at
-# runtime it is called after the generated content. displayName is what's shown in the synopsis
-# (e.g. 'docs audit' for a two-word command), which may differ from the camelCase handler
-# identifier used to name the generated function; defaults to handler when not given.
+# documented; --help is documented automatically. A blank comment line ends this structured,
+# validated part; anything after it is echoed verbatim, unwrapped and unvalidated (see
+# _genSplitDocBlock) — free-form appendix material that isn't describing the command's
+# arguments belongs there rather than in the structured part. If ${handler}CmdUsageExtra is
+# defined at runtime it is called after the generated content (both may be used together).
+# displayName is what's shown in the synopsis (e.g. 'docs audit' for a two-word command),
+# which may differ from the camelCase handler identifier used to name the generated function;
+# defaults to handler when not given.
 _genUsageFunction() {
     local project="$1"
     local handler="$2"
     local docBlock="$3"
     local displayName="${4:-${handler}}"
+
+    local mainBlock extraBlock
+    _genSplitDocBlock "${docBlock}" mainBlock extraBlock
 
     # Parse the doc block
 
@@ -505,7 +523,7 @@ _genUsageFunction() {
         else
             _summary+=("${line}")
         fi
-    done <<< "${docBlock}"
+    done <<< "${mainBlock%$'\n'}"
 
     # Group aliases by canonical, sorted for deterministic output
 
@@ -692,6 +710,16 @@ _genUsageFunction() {
             echo "    option \"\" \"${ _escapeUsage "${descLines[j]}"; }\" ${column}"
         done
     done
+
+    # Verbatim extra content from the doc block (see _genSplitDocBlock), echoed as-is —
+    # no wrapping, no validation, one line per echo, blank lines preserved
+
+    if [[ -n "${extraBlock}" ]]; then
+        echo "    echo"
+        while IFS= read -r line; do
+            [[ -z "${line}" ]] && echo "    echo" || echo "    echo \"${ _escapeUsage "${line}"; }\""
+        done <<< "${extraBlock%$'\n'}"
+    fi
     echo "    declare -F ${handler}CmdUsageExtra > /dev/null && ${handler}CmdUsageExtra"
     echo "    bye \"\$@\""
     echo "}"
@@ -718,6 +746,36 @@ _genDocPositionalNames() {
         [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"
         [[ -n "${_argsOptionNames[${key}]+x}" || ${key} == -* ]] || _posNamesOutRef+=("${key}")
     done
+}
+
+# Split a doc block at its first blank comment line into a "main" part (summary + entries;
+# validated against the spec and reformatted, exactly as before) and an "extra" part (raw text
+# after that line, echoed verbatim with no validation or wrapping). A blank comment line was
+# already meaningless noise the parser dropped, so using the first one as this boundary adds
+# no new syntax: it lets free-form appendix material (not describing the command's arguments,
+# e.g. pages' record-markup reference) live in the same spec comment instead of a separate
+# hand-written ${handler}CmdUsageExtra function, keeping a command's documentation together.
+_genSplitDocBlock() {
+    local docBlock="$1"
+    local -n _mainOutRef="$2"
+    local -n _extraOutRef="$3"
+    _mainOutRef=''
+    _extraOutRef=''
+
+    # <<< always appends its own trailing newline, so a docBlock that already ends in one (as
+    # every doc block does, by construction) would produce one phantom empty final read —
+    # strip it first. (Same reason any later <<< over _mainOutRef/_extraOutRef must do the same.)
+
+    local line inExtra=0
+    while IFS= read -r line; do
+        if (( inExtra )); then
+            _extraOutRef+="${line}"$'\n'
+        elif [[ -z "${line//[[:space:]]/}" ]]; then
+            inExtra=1
+        else
+            _mainOutRef+="${line}"$'\n'
+        fi
+    done <<< "${docBlock%$'\n'}"
 }
 
 # Extract the first non-indented (summary) line from a doc block, for a one-line description
