@@ -265,7 +265,7 @@ _lintParserDriftCheck() {
     require 'rayvn/args'
     if ! ( updateParser --check "${file}" ) > /dev/null 2>&1; then
         local lineNum; lineNum=${ grep -n '^ARGS_PARSER_BEGIN=' "${file}" | cut -d: -f1; }
-        _lintDriftFindingsRef+=("    line ${lineNum:-1}  generated parser block stale or missing — run 'rayvn args ${relPath}'")
+        _lintDriftFindingsRef+=("    line ${lineNum:-1}  generated parser or completions stale or missing — run 'rayvn args ${relPath}'")
     fi
 }
 

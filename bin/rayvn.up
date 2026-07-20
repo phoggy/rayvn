@@ -190,6 +190,70 @@ _addRayvnProject() {
     fi
 }
 
+# One-time, idempotent setup: if ~/.bash_profile doesn't already source rayvn's shared
+# completions loader (rayvn/completions/rayvn-projects.bash — hand-written, not generated; see
+# there), append a line that does, with a one-line notice. Gated on isInteractive so scripted
+# and non-interactive invocations never touch the user's shell config; the grep check (matched
+# on the file's stable tail, not the full path, so it still matches if rayvn itself later
+# moves) makes this a no-op on every subsequent invocation once the line has been added.
+# Dev-checkout only in practice, via the [[ -f "${loader}" ]] check below rather than any
+# install-type detection: a packaged nix/brew build doesn't copy the whole completions/
+# directory into the installed prefix (see flake.nix), only completions/rayvn.bash itself,
+# installed straight into the standard bash-completion system directory under its lazy-load
+# naming convention — so it's found and sourced automatically on first tab-press, with no
+# ~/.bash_profile edit involved at all. For that install path rayvnHome/completions/
+# rayvn-projects.bash simply won't exist, so this returns early. Written using ${HOME} rather
+# than its expansion when rayvn lives under the user's home directory, so the appended line
+# reads naturally rather than baking in an absolute path.
+_installCompletions() {
+    [[ -v isInteractive ]] && (( isInteractive )) || return 0
+    local loader="${rayvnHome}/completions/rayvn-projects.bash"
+    [[ -f "${loader}" ]] || return 0
+    local profileFile="${HOME}/.bash_profile"
+    [[ -f "${profileFile}" ]] || return 0
+    grep -qF '/completions/rayvn-projects.bash' "${profileFile}" 2> /dev/null && return 0
+    local loaderForProfile="${loader}"
+    [[ "${loader}" == "${HOME}"/* ]] && loaderForProfile="\${HOME}${loader#"${HOME}"}"
+    {
+        echo ""
+        echo "# Added by rayvn.up: shell completions for rayvn projects"
+        echo "source \"${loaderForProfile}\""
+    } >> "${profileFile}" || return 0
+    show "Added rayvn completions to" blue "${ tildePath "${profileFile}"; }" \
+        "— restart your shell (or open a new terminal) to enable them."
+}
+
+# Persist every non-'rayvn' project this shell has resolved a root for (see _addRayvnProject)
+# as ~/.config/rayvn/projects/<name>, containing just that project's root path, so
+# rayvn-projects.bash can source completions for any rayvn-based project the user has ever
+# run — valt, wardn, or one that doesn't exist yet — without a hardcoded list. rayvn itself is
+# deliberately excluded: rayvn-projects.bash sources its own sibling completions file
+# directly. One file per project (rather than a single shared registry file) means each
+# project's write only ever touches its own file: no read-merge-rewrite of every other known
+# project on every invocation, and no lost-update race if two rayvn-based tools happen to
+# start at the same moment and both update the registry (a single shared file would have both
+# read the old content before either write landed, so whichever finished last would silently
+# drop the other's entry). Runs after 'require' so rayvn/core (and configDirPath) is
+# guaranteed loaded; skipped defensively if not, rather than failing, since this is best-effort
+# bookkeeping that will simply catch up on a later invocation.
+_recordKnownProjects() {
+    declare -F configDirPath > /dev/null || return 0
+    local projectsDir; projectsDir=${ configDirPath -p rayvn projects; }
+    ensureDir "${projectsDir}"
+
+    local key projectName varName root projectFile
+    for key in "${!_rayvnProjects[@]}"; do
+        [[ "${key}" == *"${_projectRootSuffix}" ]] || continue
+        projectName="${key%"${_projectRootSuffix}"}"
+        [[ "${projectName}" == rayvn ]] && continue
+        varName="${projectName//-/_}Home"
+        root="${!varName:-${_rayvnProjects[${key}]}}"
+        projectFile="${projectsDir}/${projectName}"
+        [[ -f "${projectFile}" && "$( < "${projectFile}"; )" == "${root}" ]] && continue
+        echo "${root}" > "${projectFile}"
+    done
+}
+
 _addRayvnProjectRoot() {
     local projectName="$1"
     local keySuffix="$2"
@@ -419,7 +483,7 @@ configure() {
 
     # Set our temporary functions and make a copy that we can later use to unset all of them, adding temporary vars
 
-    local rayvnUpTemporaryFunctions=(configure)
+    local rayvnUpTemporaryFunctions=(configure _installCompletions _recordKnownProjects)
     _rayvnUpUnsetIds+=("${rayvnUpTemporaryFunctions[@]}" _ignoreRayvnUpFunctions _required)
 
     # Collect all of our temporary functions in a map so we can ignore them when core is loaded: we do not want them
@@ -484,6 +548,14 @@ if (( ! rayvnIsUp )); then
     # No, so configure, require specified libraries
 
     if (( _rayvnUpBareSource )); then configure; else configure "$@"; fi
+
+    # Ensure shell completions are wired up for this dev machine (no-op after the first time),
+    # and keep the local project registry current for rayvn-projects.bash to read
+
+    if ! (( rayvnTest_DeferCore )); then
+        _installCompletions
+        _recordKnownProjects
+    fi
 
     # Export key maps so child processes can restore them via _restoreGlobalMaps
 

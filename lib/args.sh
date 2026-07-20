@@ -235,20 +235,60 @@ updateParser() {
     local contentFile; contentFile=${ makeTempFile; }
     generateParser "${project}" "${specVar}" "${funcName:-}" > "${contentFile}" || fail "parser generation failed"
 
-    # Check mode: compare the committed block against what would be generated
+    # For CLI specs with a known project root, also (re)generate the project's completions
+    # file. Unlike the parser, this is a whole standalone file (no BEGIN/END markers needed).
+
+    local completionsFile=''
+    local newCompletionsFile=''
+    if [[ "${annotationType}" == 'rayvn:cli' ]]; then
+        local projectRoot; projectRoot=${ _argsDetectProjectRoot "${scriptFile}"; } || true
+        if [[ -n "${projectRoot}" ]]; then
+            completionsFile="${projectRoot}/completions/${project}.bash"
+
+            # Use a project-relative path in the header comment (not whatever form scriptFile
+            # was passed in, relative or absolute) so the generated content — and therefore
+            # drift detection — doesn't depend on the caller's invocation style
+
+            local scriptRealPath; scriptRealPath=${ realpath "${scriptFile}"; }
+            local scriptRelPath="${scriptRealPath#"${projectRoot}"/}"
+
+            newCompletionsFile=${ makeTempFile; }
+            {
+                echo "#!/usr/bin/env bash"
+                echo
+                echo "# Generated bash completion for the ${project} CLI — DO NOT EDIT."
+                echo "# Regenerate via 'rayvn args ${scriptRelPath}'."
+                echo
+                generateCompletions "${project}" "${specVar}"
+            } > "${newCompletionsFile}" || fail "completions generation failed"
+        fi
+    fi
+
+    # Check mode: compare the committed block(s) against what would be generated
 
     if (( checkOnly )); then
+        local ok=1
         if ! grep -q '^ARGS_PARSER_BEGIN=' "${scriptFile}"; then
             show warning "no generated parser block" "in" blue "${ tildePath "${scriptFile}"; }" "— run" bold "rayvn args ${scriptFile}"
-            return 1
+            ok=0
+        else
+            local blockFile; blockFile=${ makeTempFile; }
+            gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${scriptFile}" > "${blockFile}"
+            if ! diff -q "${contentFile}" "${blockFile}" > /dev/null; then
+                show warning "generated parser block is stale" "in" blue "${ tildePath "${scriptFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+                ok=0
+            fi
         fi
-        local blockFile; blockFile=${ makeTempFile; }
-        gawk '/^ARGS_PARSER_BEGIN=/{f=1} f{print} /^ARGS_PARSER_END=/{f=0}' "${scriptFile}" > "${blockFile}"
-        if ! diff -q "${contentFile}" "${blockFile}" > /dev/null; then
-            show warning "generated parser block is stale" "in" blue "${ tildePath "${scriptFile}"; }" "— run" bold "rayvn args ${scriptFile}"
-            return 1
+        if [[ -n "${completionsFile}" ]]; then
+            if [[ ! -f "${completionsFile}" ]]; then
+                show warning "no generated completions file" "at" blue "${ tildePath "${completionsFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+                ok=0
+            elif ! diff -q "${newCompletionsFile}" "${completionsFile}" > /dev/null; then
+                show warning "generated completions file is stale" "at" blue "${ tildePath "${completionsFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+                ok=0
+            fi
         fi
-        return 0
+        (( ok )) && return 0 || return 1
     fi
 
     # Replace block in-place using temp file
@@ -285,6 +325,17 @@ updateParser() {
     cat "${tmpFile}" > "${newFile}" || fail "failed to write ${newFile}"
     mv "${newFile}" "${scriptFile}" || fail "failed to replace ${scriptFile}"
     show "Updated parser in" blue "${ tildePath "${scriptFile}"; }"
+
+    # Write the completions file, if one was generated above
+
+    if [[ -n "${completionsFile}" ]]; then
+        ensureDir "${completionsFile%/*}"
+        local newCompFile="${completionsFile}.new.$$"
+        cp "${newCompletionsFile}" "${newCompFile}" || fail "failed to create ${newCompFile}"
+        chmod 644 "${newCompFile}" || fail "failed to set permissions on ${newCompFile}"
+        mv "${newCompFile}" "${completionsFile}" || fail "failed to replace ${completionsFile}"
+        show "Updated completions in" blue "${ tildePath "${completionsFile}"; }"
+    fi
 }
 
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/args' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
@@ -317,16 +368,30 @@ _init_rayvn_args() {
 
 _argsDetectProject() {
     local scriptFile="$1"
+    local dir; dir=${ _argsDetectProjectRoot "${scriptFile}"; }
+    if [[ -n "${dir}" ]]; then
+        gawk -F"'" '/^projectName=/{print $2; exit}' "${dir}/rayvn.pkg"
+    else
+        echo "unknown"
+    fi
+}
+
+# Walk up from scriptFile's directory looking for a rayvn.pkg file, echoing its containing
+# directory (the project root) if found, nothing otherwise. Used both to derive the project
+# name (_argsDetectProject) and to locate where a generated completions/<project>.bash file
+# belongs.
+_argsDetectProjectRoot() {
+    local scriptFile="$1"
     local dir; dir=${ dirName "${scriptFile}"; }
     dir=${ realpath "${dir}"; }
     while [[ -n "${dir}" && "${dir}" != '/' ]]; do
         if [[ -f "${dir}/rayvn.pkg" ]]; then
-            gawk -F"'" '/^projectName=/{print $2; exit}' "${dir}/rayvn.pkg"
+            echo "${dir}"
             return 0
         fi
         dir="${dir%/*}"
     done
-    echo "unknown"
+    return 1
 }
 
 _getSpecType() {
@@ -354,6 +419,37 @@ _genArgumentParser() {
     _genParseFunction "$2" "$3"
 }
 
+# Classify a CLI spec's command keys into one/two-word groups and compute group-prefix
+# subcommand lists. Shared by the parser dispatcher generator and the completion generator so
+# both agree on which keys are two-word commands (e.g. 'docs audit', dispatched on "$1 $2") vs
+# single-word ones (which may themselves alias multiple names via '|', e.g. 'new | create',
+# dispatched on "$1" alone) and which prefixes (e.g. 'docs') need a group overview. Populates
+# the caller's already-declared _commands, _twoWordCommands, _oneWordCommands,
+# _groupSubcommands, _sortedPrefixes locals via bash's dynamic scoping, exactly like the rest
+# of this file's generators.
+_genClassifyCommands() {
+    local -n _classifySpecRef="$1"
+    (( ${#_classifySpecRef[@]} )) && mapfile -t _commands <<< "${ printf '%s\n' "${!_classifySpecRef[@]}" | sort; }"
+
+    local command
+    for command in "${_commands[@]}"; do
+        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
+            _twoWordCommands+=("${command}")
+        else
+            _oneWordCommands+=("${command}")
+        fi
+    done
+
+    local prefix sub
+    for command in "${_twoWordCommands[@]}"; do
+        prefix="${command%% *}"
+        sub="${command#* }"
+        _groupSubcommands[${prefix}]+="${_groupSubcommands[${prefix}]:+ }${sub}"
+    done
+
+    (( ${#_groupSubcommands[@]} )) && mapfile -t _sortedPrefixes <<< "${ printf '%s\n' "${!_groupSubcommands[@]}" | sort; }"
+}
+
 _genCommandParser() {
     local project="$1"
     local -n _commandSpecRef="$2"
@@ -364,38 +460,12 @@ _genCommandParser() {
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
-    local command handler cmdName fnSpec tmpSpec
+    local command handler cmdName fnSpec tmpSpec prefix
     local -a argsSpec
 
-    # Sort commands so generated output is deterministic (stable regen diffs and drift checks)
-
-    local -a _commands=()
-    (( ${#_commandSpecRef[@]} )) && mapfile -t _commands <<< "${ printf '%s\n' "${!_commandSpecRef[@]}" | sort; }"
-
-    # A key with a space and no '|' is a two-word command (e.g. 'docs audit'), dispatched on
-    # "$1 $2" and shifting 2; single-word keys (which may themselves alias multiple names via
-    # '|', e.g. 'new | create') are dispatched on "$1" alone exactly as before. Group prefixes
-    # (the shared first word of one or more two-word commands, e.g. 'docs') get a generated
-    # ${prefix}CmdUsage() overview listing their subcommands (see _genGroupUsageFunction): a
-    # bare or misspelled subcommand shows it with a "requires a subcommand" error appended,
-    # while -h/--help immediately after the prefix shows it cleanly with no error.
-
-    local -a _twoWordCommands=() _oneWordCommands=()
-    for command in "${_commands[@]}"; do
-        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
-            _twoWordCommands+=("${command}")
-        else
-            _oneWordCommands+=("${command}")
-        fi
-    done
-
-    declare -A _groupSubcommands=()  # prefix -> space-joined subcommand names, for the fallback message
-    local prefix sub
-    for command in "${_twoWordCommands[@]}"; do
-        prefix="${command%% *}"
-        sub="${command#* }"
-        _groupSubcommands[${prefix}]+="${_groupSubcommands[${prefix}]:+ }${sub}"
-    done
+    local -a _commands=() _twoWordCommands=() _oneWordCommands=() _sortedPrefixes=()
+    declare -A _groupSubcommands=()
+    _genClassifyCommands "$2"
 
     # Needed here (not just in the per-command loop below) so the group-overview usage
     # functions generated next can read each subcommand's doc block for its summary line
@@ -403,9 +473,6 @@ _genCommandParser() {
     declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
 
     # Gen main dispatcher
-
-    local -a _sortedPrefixes=()
-    (( ${#_groupSubcommands[@]} )) && mapfile -t _sortedPrefixes <<< "${ printf '%s\n' "${!_groupSubcommands[@]}" | sort; }"
 
     echo "parseCommand() {"
     echo "    _opts=()"
@@ -488,6 +555,236 @@ _genCommandParser() {
             echo
         fi
     done
+}
+
+# Generate a bash completion script for a CLI spec: a __${project}Complete() function plus its
+# 'complete -F' registration. The '__' prefix (rather than rayvn's usual single-underscore
+# 'private function' convention) is deliberate: completion files are sourced directly into the
+# user's interactive shell, outside rayvn.up's require()/collision-detection machinery, so a
+# name that happened to collide with some library's own _-prefixed private function could
+# silently clobber it or trip a spurious "already defined" error the next time that library
+# loads in the same shell. Nothing in rayvn/valt/wardn uses '__' as a prefix, so this reserves
+# a namespace that's collision-free by convention. Command-name completion covers one-word
+# commands (including '|'-joined aliases) and two-word group prefixes, with subcommands
+# completing at the next word. Per-command, option name completion is always generated; value
+# completion is added for enum, bool, file and dir typed options and leading positionals. A
+# positional's (or the trailing wildcard's) doc-block display name of exactly 'PROJECT' or
+# 'PROJECT...' is treated as a hint to complete project names via a shared
+# __rayvnCompletionProjects helper — not part of this file's spec grammar, just a naming
+# convention already used throughout bin/rayvn's own doc comments, so 'ARGS...'-documented
+# catch-alls (e.g. test, functions, which mix project names with other tokens) are correctly
+# left without project completion. That helper lives in rayvn/completions/rayvn-projects.bash
+# (sourced ahead of any per-project completion file by the shared loader), so every call to it
+# is guarded with a declare -F check: the generated file still loads and completes option names
+# correctly if ever sourced standalone.
+generateCompletions() {
+    local project="$1"
+    local -n _commandSpecRef="$2"
+    _genCompletionScript "${project}" "$2"
+}
+
+_genCompletionScript() {
+    local project="$1"
+    local -n _commandSpecRef="$2"
+    declare -A _argsOptionNames
+    declare -A _argsOptionTypes
+    declare -A _argsOptionDefaults
+    declare -A _argsOptionVariadic
+    declare -a _argsGroups
+    declare -a _argsArgumentTypes
+    declare -i _argsMinArgs=0
+    declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
+
+    local -a _commands=() _twoWordCommands=() _oneWordCommands=() _sortedPrefixes=()
+    declare -A _groupSubcommands=()
+    _genClassifyCommands "$2"
+
+    # Top-level completion words: one-word commands contribute each '|'-joined alias
+    # separately; two-word commands contribute only their shared prefix (the subcommand
+    # completes at the next word, handled by the group-prefix case below)
+
+    local -a _topWords=()
+    local command word
+    for command in "${_oneWordCommands[@]}"; do
+        local -a _aliasWords=()
+        IFS='|' read -ra _aliasWords <<< "${command// /}"
+        for word in "${_aliasWords[@]}"; do _topWords+=("${word}"); done
+    done
+    _topWords+=("${_sortedPrefixes[@]}")
+
+    local funcName="__${project}Complete"
+
+    echo "${funcName}() {"
+    echo "    local cur prev words cword"
+    echo "    if declare -F _init_completion > /dev/null 2>&1; then"
+    echo "        _init_completion || return"
+    echo "    else"
+    echo "        cur=\"\${COMP_WORDS[COMP_CWORD]}\""
+    echo "        prev=\"\${COMP_WORDS[COMP_CWORD-1]}\""
+    echo "        words=(\"\${COMP_WORDS[@]}\")"
+    echo "        cword=\"\${COMP_CWORD}\""
+    echo "    fi"
+    echo
+    echo "    if (( cword == 1 )); then"
+    echo "        COMPREPLY=(\$(compgen -W \"${_topWords[*]} -v --version -h --help\" -- \"\${cur}\"))"
+    echo "        return"
+    echo "    fi"
+
+    if (( ${#_sortedPrefixes[@]} )); then
+        echo
+        echo "    case \"\${words[1]}\" in"
+        local prefix
+        for prefix in "${_sortedPrefixes[@]}"; do
+            echo "        ${prefix})"
+            echo "            if (( cword == 2 )); then"
+            echo "                COMPREPLY=(\$(compgen -W \"${_groupSubcommands[${prefix}]}\" -- \"\${cur}\"))"
+            echo "                return"
+            echo "            fi"
+            echo "            ;;"
+        done
+        echo "    esac"
+    fi
+
+    # Per-command completion arms, derived from the same spec tables the parser generator
+    # uses. Computed once per command here (rather than re-parsed inside a shared case
+    # statement) since a command's arm needs its own _parseArgumentSpec pass.
+
+    # One-word arms nest one level deeper (under a '*)' fallback case) when two-word commands
+    # are also present, so their body indent differs; two-word arms are always at the same
+    # depth. Both are computed once per command up front, indented for their eventual context.
+
+    local oneWordArmIndent="            "
+    (( ${#_twoWordCommands[@]} )) && oneWordArmIndent="                    "
+    local twoWordArmIndent="            "
+
+    declare -A _armFor=()
+    local fnSpec handler tmpSpec argStart armIndent
+    local -a argsSpec
+    for command in "${_commands[@]}"; do
+        fnSpec="${_commandSpecRef[${command}]}"
+        handler="${fnSpec%(*}"
+        tmpSpec="${fnSpec#*(}"
+        IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
+        _parseArgumentSpec argsSpec
+
+        local -a _docPosNames=()
+        if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
+            local _mainDocBlock _extraDocBlock
+            _genSplitDocBlock "${_argsCliDocs[${command}]}" _mainDocBlock _extraDocBlock
+            _genDocPositionalNames "${_mainDocBlock}" _docPosNames
+        fi
+
+        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
+            argStart=3; armIndent="${twoWordArmIndent}"
+        else
+            argStart=2; armIndent="${oneWordArmIndent}"
+        fi
+        _armFor[${command}]="${ _genCompletionArm; }"
+    done
+
+    echo
+    if (( ${#_twoWordCommands[@]} )); then
+        echo "    case \"\${words[1]} \${words[2]:-}\" in"
+        for command in "${_twoWordCommands[@]}"; do
+            echo "        \"${command}\")"
+            echo "${_armFor[${command}]}"
+            echo "            ;;"
+        done
+        echo "        *)"
+        echo "            case \"\${words[1]}\" in"
+        for command in "${_oneWordCommands[@]}"; do
+            echo "                ${command})"
+            echo "${_armFor[${command}]}"
+            echo "                    ;;"
+        done
+        echo "            esac"
+        echo "            ;;"
+        echo "    esac"
+    else
+        echo "    case \"\${words[1]}\" in"
+        for command in "${_oneWordCommands[@]}"; do
+            echo "        ${command})"
+            echo "${_armFor[${command}]}"
+            echo "            ;;"
+        done
+        echo "    esac"
+    fi
+    echo "}"
+    echo
+    echo "complete -F ${funcName} ${project}"
+}
+
+# Emit one command's completion-arm body, indented by the caller-set armIndent local. Relies
+# on the spec tables left populated by the preceding _parseArgumentSpec call, plus
+# _docPosNames and argStart also set by the caller (see _genCompletionScript, which invokes
+# this once per command via dynamic scoping, the same pattern used throughout this file).
+_genCompletionArm() {
+    local -a _sortedAliases=()
+    (( ${#_argsOptionNames[@]} )) && mapfile -t _sortedAliases <<< "${ printf '%s\n' "${!_argsOptionNames[@]}" | sort; }"
+
+    echo "${armIndent}[[ \"\${cur}\" == -* ]] && { COMPREPLY=(\$(compgen -W \"${_sortedAliases[*]}\" -- \"\${cur}\")); return; }"
+
+    # Option value completion, keyed on $prev, for enum/bool/file/dir typed options (not
+    # variadic ones, which greedily consume until the next '-'-prefixed token)
+
+    local canonical alias type pattern
+    local -a _prevLines=()
+    local -a _canonicals=()
+    (( ${#_argsOptionTypes[@]} )) && mapfile -t _canonicals <<< "${ printf '%s\n' "${!_argsOptionTypes[@]}" | sort; }"
+    for canonical in "${_canonicals[@]}"; do
+        [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]] && continue
+        type="${_argsOptionTypes[${canonical}]}"
+        local -a _aliasesFor=()
+        for alias in "${_sortedAliases[@]}"; do
+            [[ "${_argsOptionNames[${alias}]}" == "${canonical}" ]] && _aliasesFor+=("${alias}")
+        done
+        pattern="${_aliasesFor[*]}"; pattern="${pattern// /|}"
+        case "${type}" in
+            *'|'*) _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -W \"${type//|/ }\" -- \"\${cur}\")); return ;;") ;;
+            bool)  _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -W \"true false\" -- \"\${cur}\")); return ;;") ;;
+            file)  _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -f -- \"\${cur}\")); return ;;") ;;
+            dir)   _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -d -- \"\${cur}\")); return ;;") ;;
+        esac
+    done
+    if (( ${#_prevLines[@]} )); then
+        echo "${armIndent}case \"\${prev}\" in"
+        printf '%s\n' "${_prevLines[@]}"
+        echo "${armIndent}esac"
+    fi
+
+    # Positional completion: type-specific for leading typed positions (enum/bool/file/dir),
+    # else project-name completion when that position's (or the wildcard's) doc name is
+    # exactly 'PROJECT' — see the doc comment above _genCompletionScript
+
+    local i nTyped=0 hasWildcard=0
+    for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+        if [[ "${_argsArgumentTypes[i]}" == '*' ]]; then hasWildcard=1; break; fi
+        (( nTyped++ ))
+    done
+
+    (( nTyped > 0 || hasWildcard )) || return 0
+
+    echo "${armIndent}local _relIdx=\$(( cword - ${argStart} ))"
+    local posName
+    for (( i = 0; i < nTyped; i++ )); do
+        type="${_argsArgumentTypes[i]}"
+        posName="${_docPosNames[i]:-}"
+        case "${type}" in
+            *'|'*) echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -W \"${type//|/ }\" -- \"\${cur}\")); return; }" ;;
+            bool)  echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -W \"true false\" -- \"\${cur}\")); return; }" ;;
+            file)  echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -f -- \"\${cur}\")); return; }" ;;
+            dir)   echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -d -- \"\${cur}\")); return; }" ;;
+            *)
+                [[ "${posName%...}" == 'PROJECT' ]] && \
+                    echo "${armIndent}(( _relIdx == ${i} )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"
+                ;;
+        esac
+    done
+    if (( hasWildcard )); then
+        posName="${_docPosNames[nTyped]:-}"
+        [[ "${posName%...}" == 'PROJECT' ]] && \
+            echo "${armIndent}(( _relIdx >= ${nTyped} )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"
+    fi
 }
 
 # Generate a ${handler}CmdUsage() function from a doc comment block. Relies on the spec tables
