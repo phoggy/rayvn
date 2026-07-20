@@ -752,7 +752,7 @@ copyFileAndSubstituteVars() {
     gsed "${sedExprs[@]}" "${inputFile}" > "${outputFile}"
 }
 
-ARGS_PARSER_BEGIN="━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔽 BEGIN generated code: DO NOT EDIT 🔽 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"
+ARGS_PARSER_BEGIN="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 BEGIN generated code: DO NOT EDIT 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 parseCommand() {
     _opts=()
@@ -1411,7 +1411,7 @@ themeCmdUsage() {
     bye "$@"
 }
 
-ARGS_PARSER_END="━━━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔼 END generated code: DO NOT EDIT 🔼 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━"
+ARGS_PARSER_END="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 END generated code: DO NOT EDIT 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 source rayvn.up
 main "$@"

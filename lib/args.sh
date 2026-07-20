@@ -293,8 +293,8 @@ _init_rayvn_args() {
 
     # Generated code delimiters
 
-    declare -gr _beginParseSection="ARGS_PARSER_BEGIN=\"━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔽 BEGIN generated code: DO NOT EDIT 🔽 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━\""
-    declare -gr   _endParseSection="ARGS_PARSER_END=\"━━━━━━🚫━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 🔼 END generated code: DO NOT EDIT 🔼 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━🚫━━━━\""
+    declare -gr _beginParseSection="ARGS_PARSER_BEGIN=\"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 BEGIN generated code: DO NOT EDIT 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\""
+    declare -gr     _endParseSection="ARGS_PARSER_END=\"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚫 END generated code: DO NOT EDIT 🚫 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\""
 
     # Default type map
 
