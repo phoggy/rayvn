@@ -3,6 +3,18 @@
 # Generated bash completion for the rayvn CLI — DO NOT EDIT.
 # Regenerate via 'rayvn args bin/rayvn'.
 
+# Scan PATH for rayvn project roots (dev layout: <root>/bin/, Nix layout:
+# <prefix>/bin/ with rayvn.pkg under share/) and output their project names, one per line.
+__rayvnCompletionProjects() {
+    local dir pkg IFS=:
+    for dir in $PATH; do
+        [[ -d "${dir}" ]] || continue
+        for pkg in "${dir}/../rayvn.pkg" "${dir}/../share/"*/rayvn.pkg; do
+            [[ -f "${pkg}" ]] && gawk -F"'" '/^projectName=/{print $2; exit}' "${pkg}" 2> /dev/null
+        done
+    done | sort -u
+}
+
 __rayvnComplete() {
     local cur prev words cword
     if declare -F _init_completion > /dev/null 2>&1; then
@@ -32,12 +44,12 @@ __rayvnComplete() {
         "docs audit")
             [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help --release -h" -- "${cur}")); return; }
             local _relIdx=$(( cword - 3 ))
-            (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+            (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
             ;;
         "docs update")
             [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--delay --dry-run --help --lib --missing-only --regen --since --stale-only -h" -- "${cur}")); return; }
             local _relIdx=$(( cword - 3 ))
-            (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+            (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
             ;;
         *)
             case "${words[1]}" in
@@ -49,17 +61,17 @@ __rayvnComplete() {
                 build)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 collisions)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 deps | dependencies)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--fix --help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 functions)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--all --help -h" -- "${cur}")); return; }
@@ -68,17 +80,17 @@ __rayvnComplete() {
                 index)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--compact --hash-file --help --no-compact --no-hash --output -c -h -o" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 libraries)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 lint)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--ask --fix --help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 new | create)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help --local -h" -- "${cur}")); return; }
@@ -88,12 +100,12 @@ __rayvnComplete() {
                 pages)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--dir --help --publish --record --setup --view -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx == 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx == 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 projects)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx >= 0 )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 register)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }

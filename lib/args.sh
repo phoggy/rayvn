@@ -335,6 +335,19 @@ updateParser() {
         chmod 644 "${newCompFile}" || fail "failed to set permissions on ${newCompFile}"
         mv "${newCompFile}" "${completionsFile}" || fail "failed to replace ${completionsFile}"
         show "Updated completions in" blue "${ tildePath "${completionsFile}"; }"
+
+        # Symlink into bash-completion's dynamic-load directory (XDG_DATA_HOME-aware, bare
+        # project name per its v2 lazy-loading convention) so its own loader discovers this
+        # project's completions the first time it's tab-completed in a shell — no registry,
+        # no custom loader script, and it stays current automatically on every regeneration
+        # since it's a symlink rather than a copy.
+
+        local dynamicDir="${XDG_DATA_HOME:-${HOME}/.local/share}/bash-completion/completions"
+        ensureDir "${dynamicDir}"
+        local dynamicLink="${dynamicDir}/${project}"
+        if [[ ! -L "${dynamicLink}" || "$( readlink "${dynamicLink}"; )" != "${completionsFile}" ]]; then
+            ln -sf "${completionsFile}" "${dynamicLink}" || fail "failed to link ${dynamicLink}"
+        fi
     fi
 }
 
@@ -434,9 +447,9 @@ _genClassifyCommands() {
     local command
     for command in "${_commands[@]}"; do
         if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
-            _twoWordCommands+=("${command}")
+            _twoWordCommands+=("${command}") # lint-ok: mutates caller's local via dynamic scoping
         else
-            _oneWordCommands+=("${command}")
+            _oneWordCommands+=("${command}") # lint-ok: mutates caller's local via dynamic scoping
         fi
     done
 
@@ -558,25 +571,28 @@ _genCommandParser() {
 }
 
 # Generate a bash completion script for a CLI spec: a __${project}Complete() function plus its
-# 'complete -F' registration. The '__' prefix (rather than rayvn's usual single-underscore
-# 'private function' convention) is deliberate: completion files are sourced directly into the
-# user's interactive shell, outside rayvn.up's require()/collision-detection machinery, so a
-# name that happened to collide with some library's own _-prefixed private function could
-# silently clobber it or trip a spurious "already defined" error the next time that library
-# loads in the same shell. Nothing in rayvn/valt/wardn uses '__' as a prefix, so this reserves
-# a namespace that's collision-free by convention. Command-name completion covers one-word
-# commands (including '|'-joined aliases) and two-word group prefixes, with subcommands
-# completing at the next word. Per-command, option name completion is always generated; value
-# completion is added for enum, bool, file and dir typed options and leading positionals. A
-# positional's (or the trailing wildcard's) doc-block display name of exactly 'PROJECT' or
-# 'PROJECT...' is treated as a hint to complete project names via a shared
-# __rayvnCompletionProjects helper — not part of this file's spec grammar, just a naming
+# 'complete -F' registration, meant to be installed as completions/<project>.bash and
+# discovered by bash-completion's dynamic loader (see updateParser, which symlinks it into
+# ~/.local/share/bash-completion/completions/<project>) — sourced lazily, independently, and
+# in no guaranteed order relative to any other project's completions file. The '__' prefix
+# (rather than rayvn's usual single-underscore 'private function' convention) is deliberate:
+# this file is sourced directly into the user's interactive shell, outside rayvn.up's
+# require()/collision-detection machinery, so a name that happened to collide with some
+# library's own _-prefixed private function could silently clobber it or trip a spurious
+# "already defined" error the next time that library loads in the same shell. Nothing in
+# rayvn/valt/wardn uses '__' as a prefix, so this reserves a namespace that's collision-free
+# by convention. Command-name completion covers one-word commands (including '|'-joined
+# aliases) and two-word group prefixes, with subcommands completing at the next word.
+# Per-command, option name completion is always generated; value completion is added for
+# enum, bool, file and dir typed options and leading positionals. A positional's (or the
+# trailing wildcard's) doc-block display name of exactly 'PROJECT' or 'PROJECT...' is treated
+# as a hint to complete project names — not part of this file's spec grammar, just a naming
 # convention already used throughout bin/rayvn's own doc comments, so 'ARGS...'-documented
 # catch-alls (e.g. test, functions, which mix project names with other tokens) are correctly
-# left without project completion. That helper lives in rayvn/completions/rayvn-projects.bash
-# (sourced ahead of any per-project completion file by the shared loader), so every call to it
-# is guarded with a declare -F check: the generated file still loads and completes option names
-# correctly if ever sourced standalone.
+# left without project completion. When at least one command needs it, a
+# __rayvnCompletionProjects helper is embedded directly in the generated file (not defined
+# once in a shared file some loader sources first, since there is no such loader anymore and
+# no reliable load order to depend on), so every generated file is fully self-contained.
 generateCompletions() {
     local project="$1"
     local -n _commandSpecRef="$2"
@@ -614,6 +630,66 @@ _genCompletionScript() {
 
     local funcName="__${project}Complete"
 
+    # Per-command completion arms, derived from the same spec tables the parser generator
+    # uses. Computed once per command here (rather than re-parsed inside a shared case
+    # statement) since a command's arm needs its own _parseArgumentSpec pass. Computed before
+    # any output so _usesProjectCompletion is known in time to decide whether to emit the
+    # __rayvnCompletionProjects helper ahead of the main function.
+
+    # One-word arms nest one level deeper (under a '*)' fallback case) when two-word commands
+    # are also present, so their body indent differs; two-word arms are always at the same
+    # depth. Both are computed once per command up front, indented for their eventual context.
+
+    local oneWordArmIndent="            "
+    (( ${#_twoWordCommands[@]} )) && oneWordArmIndent="                    "
+    local twoWordArmIndent="            "
+
+    declare -A _armFor=()
+    local fnSpec handler tmpSpec argStart armIndent
+    local -a argsSpec
+    local _usesProjectCompletion=0
+    for command in "${_commands[@]}"; do
+        fnSpec="${_commandSpecRef[${command}]}"
+        handler="${fnSpec%(*}"
+        tmpSpec="${fnSpec#*(}"
+        IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
+        _parseArgumentSpec argsSpec
+
+        local -a _docPosNames=()
+        if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
+            local _mainDocBlock _extraDocBlock
+            _genSplitDocBlock "${_argsCliDocs[${command}]}" _mainDocBlock _extraDocBlock
+            _genDocPositionalNames "${_mainDocBlock}" _docPosNames
+        fi
+
+        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
+            argStart=3; armIndent="${twoWordArmIndent}"
+        else
+            argStart=2; armIndent="${oneWordArmIndent}"
+        fi
+        _armFor[${command}]="${ _genCompletionArm; }"
+    done
+
+    # Each project's completions/<project>.bash is sourced independently and lazily by
+    # bash-completion's dynamic loader, with no guaranteed load order relative to any other
+    # project's file — so this helper is embedded directly here (rather than defined once in
+    # a shared file some other loader sources first) whenever any command actually needs it.
+
+    if (( _usesProjectCompletion )); then
+        echo "# Scan PATH for rayvn project roots (dev layout: <root>/bin/, Nix layout:"
+        echo "# <prefix>/bin/ with rayvn.pkg under share/) and output their project names, one per line."
+        echo "__rayvnCompletionProjects() {"
+        echo "    local dir pkg IFS=:"
+        echo "    for dir in \$PATH; do"
+        echo "        [[ -d \"\${dir}\" ]] || continue"
+        echo "        for pkg in \"\${dir}/../rayvn.pkg\" \"\${dir}/../share/\"*/rayvn.pkg; do"
+        echo "            [[ -f \"\${pkg}\" ]] && gawk -F\"'\" '/^projectName=/{print \$2; exit}' \"\${pkg}\" 2> /dev/null"
+        echo "        done"
+        echo "    done | sort -u"
+        echo "}"
+        echo
+    fi
+
     echo "${funcName}() {"
     echo "    local cur prev words cword"
     echo "    if declare -F _init_completion > /dev/null 2>&1; then"
@@ -644,43 +720,6 @@ _genCompletionScript() {
         done
         echo "    esac"
     fi
-
-    # Per-command completion arms, derived from the same spec tables the parser generator
-    # uses. Computed once per command here (rather than re-parsed inside a shared case
-    # statement) since a command's arm needs its own _parseArgumentSpec pass.
-
-    # One-word arms nest one level deeper (under a '*)' fallback case) when two-word commands
-    # are also present, so their body indent differs; two-word arms are always at the same
-    # depth. Both are computed once per command up front, indented for their eventual context.
-
-    local oneWordArmIndent="            "
-    (( ${#_twoWordCommands[@]} )) && oneWordArmIndent="                    "
-    local twoWordArmIndent="            "
-
-    declare -A _armFor=()
-    local fnSpec handler tmpSpec argStart armIndent
-    local -a argsSpec
-    for command in "${_commands[@]}"; do
-        fnSpec="${_commandSpecRef[${command}]}"
-        handler="${fnSpec%(*}"
-        tmpSpec="${fnSpec#*(}"
-        IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
-        _parseArgumentSpec argsSpec
-
-        local -a _docPosNames=()
-        if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
-            local _mainDocBlock _extraDocBlock
-            _genSplitDocBlock "${_argsCliDocs[${command}]}" _mainDocBlock _extraDocBlock
-            _genDocPositionalNames "${_mainDocBlock}" _docPosNames
-        fi
-
-        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
-            argStart=3; armIndent="${twoWordArmIndent}"
-        else
-            argStart=2; armIndent="${oneWordArmIndent}"
-        fi
-        _armFor[${command}]="${ _genCompletionArm; }"
-    done
 
     echo
     if (( ${#_twoWordCommands[@]} )); then
@@ -775,15 +814,19 @@ _genCompletionArm() {
             file)  echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -f -- \"\${cur}\")); return; }" ;;
             dir)   echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -d -- \"\${cur}\")); return; }" ;;
             *)
-                [[ "${posName%...}" == 'PROJECT' ]] && \
-                    echo "${armIndent}(( _relIdx == ${i} )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"
+                if [[ "${posName%...}" == 'PROJECT' ]]; then
+                    echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"
+                    _usesProjectCompletion=1
+                fi
                 ;;
         esac
     done
     if (( hasWildcard )); then
         posName="${_docPosNames[nTyped]:-}"
-        [[ "${posName%...}" == 'PROJECT' ]] && \
-            echo "${armIndent}(( _relIdx >= ${nTyped} )) && { declare -F __rayvnCompletionProjects > /dev/null && COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"
+        if [[ "${posName%...}" == 'PROJECT' ]]; then
+            echo "${armIndent}(( _relIdx >= ${nTyped} )) && { COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"
+            _usesProjectCompletion=1
+        fi
     fi
 }
 

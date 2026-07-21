@@ -12,10 +12,12 @@
 #
 # · ENV VARS (from rayvn.pkg)
 #
-#   nixBinaryMap    Map of nix pkg name → binary name overrides. [R/W]
-#   nixBrewMap      Map of nix pkg name → brew formula overrides. [R/W]
-#   nixBrewExclude  Array of nix pkg names to skip brew checks for. [R/W]
-#   gemDeps         Map of gem name → binary name for Ruby gem dependencies. [R/W]
+#   nixBinaryMap       Map of nix pkg name → binary name overrides. [R/W]
+#   nixBrewMap         Map of nix pkg name → brew formula overrides. [R/W]
+#   nixBrewExclude     Array of nix pkg names to skip brew checks for. [R/W]
+#   nixSkipBinaryCheck Array of nix pkg names with no on-PATH binary to check (e.g. a sourced
+#                      shell library like bash-completion); still included in the brew formula. [R/W]
+#   gemDeps            Map of gem name → binary name for Ruby gem dependencies. [R/W]
 
 checkProjectDependencies() {
     local projectName="$1"
@@ -26,7 +28,7 @@ checkProjectDependencies() {
 
     # Load overrides from rayvn.pkg (nixBinaryMap for correct binary names, nixBrewMap for install hints)
     local pkgFile="${projectRoot}/rayvn.pkg"
-    unset nixBinaryMap nixBrewMap nixBrewExclude gemDeps
+    unset nixBinaryMap nixBrewMap nixBrewExclude nixSkipBinaryCheck gemDeps
     [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
 
     # Check each dep
@@ -37,6 +39,7 @@ checkProjectDependencies() {
             pkg)
                 nixN="${name}"
                 memberOf "${nixN}" nixBrewExclude && continue
+                memberOf "${nixN}" nixSkipBinaryCheck && continue
                 binN="${nixBinaryMap[${nixN}]:-${nixN}}"
                 command -v "${binN}" &> /dev/null || missing+=("${nixN}:${binN}")
                 ;;

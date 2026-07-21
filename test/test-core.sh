@@ -1070,7 +1070,7 @@ testParseOptionalArg() {
 
     # EXAMPLE 1: local flag; parseOptionalArg '-n' "$1" flag 0 1 && shift
 
-    local flag
+    local flag arg
     arg=''; parseOptionalArg '-n' "${arg}" flag 0 1; result=$?
     assertEqual "${flag}" 0 "flag is not 0"
     assertEqual "${result}" 1 "result is not 1, would shift!"

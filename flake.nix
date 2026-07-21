@@ -23,6 +23,7 @@
           pkgs.bundler
           pkgs.jekyll
           pkgs.expect
+          pkgs.bash-completion
         ];
 
         rayvn = pkgs.stdenv.mkDerivation {
