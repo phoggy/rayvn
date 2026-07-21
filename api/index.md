@@ -23,7 +23,7 @@ Documentation for all public functions in rayvn's shared libraries.
 | [rayvn/theme](/rayvn/api/rayvn-theme) | Color themes. |
 | [rayvn/config](/rayvn/api/rayvn-config) | Configuration file support. |
 | [rayvn/process](/rayvn/api/rayvn-process) | Process management. |
-| [rayvn/args](/rayvn/api/rayvn-args) | Spec-driven argument parsing, usage, and shell completion generation, for scripts and CLIs alike (see [Argument Specification](/rayvn/api/rayvn-args#argument-specification)). |
+| [rayvn/args](/rayvn/api/rayvn-args) | Spec-driven argument parsing, usage, and shell completion generation, for scripts and CLIs alike. |
 
 ### Testing
 
