@@ -1467,6 +1467,20 @@ _generateLibraryPage() {
     fi
     notesBlock=${ _extractDocBlock "${libFile}" "notes"; }
 
+    # If the notes block opens with a markdown heading, link to it as its own short paragraph
+    # right after the description, rather than folding a parenthetical reference into the
+    # description itself (which also doubles as the home-page table cell text, where a "below"
+    # reference wouldn't make sense anyway). The anchor is derived the same way kramdown/GFM
+    # auto-generate heading ids: lowercase, spaces to hyphens, strip anything else.
+    local notesHeading="" notesAnchor=""
+    if [[ "${notesBlock}" == '## '* ]]; then
+        notesHeading="${notesBlock%%$'\n'*}"
+        notesHeading="${notesHeading#'## '}"
+        notesAnchor="${notesHeading,,}"
+        notesAnchor="${notesAnchor// /-}"
+        notesAnchor="${notesAnchor//[^a-z0-9-]/}"
+    fi
+
     local category="${_idxHomePageCategories[${projectName}/${libraryName}]:-}"
 
     {
@@ -1486,6 +1500,10 @@ _generateLibraryPage() {
 
         if [[ -n "${libDescription}" ]]; then
             printf '%s\n\n' "${libDescription}"
+        fi
+
+        if [[ -n "${notesHeading}" ]]; then
+            printf 'See the [%s](#%s) below for details.\n\n' "${notesHeading}" "${notesAnchor}"
         fi
 
         local _hasCategories=0 _scanLine
