@@ -420,6 +420,8 @@ Fail if the given argument is not a positive or negative integer.
 
 ### assertPositiveInt()
 
+Fail if the given argument is not a positive integer.
+
 ### assertBool()
 
 Fail if the given argument is not "true", "false", 1 or 0.
