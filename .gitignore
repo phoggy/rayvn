@@ -14,3 +14,6 @@ profile
 # Nix
 result
 
+# Scratch / work-in-progress files not meant for the repo
+/todo/
+
