@@ -3,7 +3,7 @@ layout: default
 title: "rayvn/typist"
 parent: "Project Tooling"
 grand_parent: API Reference
-nav_order: 20
+nav_order: 21
 ---
 
 # rayvn/typist

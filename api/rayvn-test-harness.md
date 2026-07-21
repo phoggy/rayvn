@@ -3,7 +3,7 @@ layout: default
 title: "rayvn/test-harness"
 parent: "Testing"
 grand_parent: API Reference
-nav_order: 12
+nav_order: 13
 ---
 
 # rayvn/test-harness
@@ -17,14 +17,25 @@ Test runner.
 Execute tests for one or more rayvn projects, running test files in parallel.
 
 
-*notes*
+*args*
 
-
-Reads project list, filter args, and option flags from the caller's environment
-(the 'projects', 'args', and 'flags' variables set by the rayvn command).
-Supports --nix (run inside nix develop) and --all (run locally then in nix).
+| | |
+|---|---|
+| `projectsRef` *(arrayRef)* | Project names to test. |
+| `matchArgsRef` *(arrayRef)* | Test name include patterns; prefix with '-' to exclude. |
+| `nix` *(bool)* | Run tests inside nix develop (default: 0). |
+| `all` *(bool)* | Run tests locally and then again inside nix (default: 0). |
+{: .args-table}
 
 ### executeNixBuild()
 
 Build the Nix flake for one or more rayvn projects, skipping any without a flake.nix.
+
+
+*args*
+
+| | |
+|---|---|
+| `projectsRef` *(arrayRef)* | Project names to build. |
+{: .args-table}
 

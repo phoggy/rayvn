@@ -58,10 +58,10 @@ Note: All examples below assume rayvn as the working directory so omit `PROJECT`
 Bash completions for all commands, subcommands, flags, and project names are included.
 Homebrew and Nix installs activate them automatically once
 [bash-completion](https://github.com/scop/bash-completion) is configured in your shell.
-For a development install, add to `~/.bash_profile`:
+If you cloned the repo, add to `~/.bash_profile`:
 
 ```bash
-source ~/dev/rayvn/completions/rayvn.bash
+source /path/to/rayvn/completions/rayvn.bash
 ```
 
 Project names are discovered dynamically by scanning `PATH` for `rayvn.pkg` files, so any
@@ -409,3 +409,24 @@ project name must match the GitHub repo name.
 
 `--remove`
 : release the registered name.
+### args
+
+```
+
+Regenerate the parser block in SCRIPT from its spec, or with --check report whether the committed
+block is stale without modifying the file.
+
+Usage: rayvn args SCRIPT [--check]
+
+    SCRIPT      Path to the script to update; must contain a rayvn:args or rayvn:cli annotation.
+    --check     Report drift without updating the file.
+    --help, -h  Print this help message.
+
+Annotation formats:
+
+    # rayvn:args specVar [funcName]   → parse${funcName^}Args()
+    # rayvn:cli  specVar              → parseCommand() + per-command parsers
+
+The spec variable must be defined at global scope (not inside a function).
+```
+

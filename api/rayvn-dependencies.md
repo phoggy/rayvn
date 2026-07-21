@@ -3,7 +3,7 @@ layout: default
 title: "rayvn/dependencies"
 parent: "Project Tooling"
 grand_parent: API Reference
-nav_order: 15
+nav_order: 16
 ---
 
 # rayvn/dependencies
@@ -27,10 +27,12 @@ any are missing. Silently skips if the project root or flake.nix is not accessib
 
 *env vars (from rayvn.pkg)*
 
-nixBinaryMap    Map of nix pkg name → binary name overrides. [R/W]
-nixBrewMap      Map of nix pkg name → brew formula overrides. [R/W]
-nixBrewExclude  Array of nix pkg names to skip brew checks for. [R/W]
-gemDeps         Map of gem name → binary name for Ruby gem dependencies. [R/W]
+nixBinaryMap       Map of nix pkg name → binary name overrides. [R/W]
+nixBrewMap         Map of nix pkg name → brew formula overrides. [R/W]
+nixBrewExclude     Array of nix pkg names to skip brew checks for. [R/W]
+nixSkipBinaryCheck Array of nix pkg names with no on-PATH binary to check (e.g. a sourced
+                   shell library like bash-completion); still included in the brew formula. [R/W]
+gemDeps            Map of gem name → binary name for Ruby gem dependencies. [R/W]
 
 ### checkGemDependencies()
 

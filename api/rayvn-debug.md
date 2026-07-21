@@ -81,13 +81,14 @@ Assert and log that a variable is not set, logging a stack trace if it is. No-op
 
 ### debugFile()
 
-Copy a file into the debug directory.
+Copy a file into the debug directory or log it's contents.
 
 
 *args*
 
 | | |
 |---|---|
+| `-l` | Log content instead of copying file. |
 | `sourceFile` *(string)* | Path to the source file. |
 | `fileName` *(string)* | Optional filename (default: basename of sourceFile). |
 {: .args-table}

@@ -102,9 +102,28 @@ header -u "${text}" "my subtitle"          # uppercase bold header, plain subtit
 header 1 "my header" italic "my subtitle"  # primary header, italic subtitle
 ```
 
-### commonOptions()
+### parseCommonOptions()
 
-Prints common CLI options, optionally including a debug options section.
+Parse and handle common CLI options: help, version and debug. Help and version will not return. Calls your `usage()` function
+for help (which is assumed to exit). Returns the number of remaining args, so call shift $? immediately on return
+
+
+*args*
+
+| | |
+|---|---|
+| `projectName` *(string)* | The project name, used to show version. |
+{: .args-table}
+
+*example*
+
+```bash
+parseCommonOptions myProject "$@; shift $?
+```
+
+### showCommonOptions()
+
+Prints common CLI options, optionally including debug and environment variables section.
 
 
 *args*
@@ -113,6 +132,33 @@ Prints common CLI options, optionally including a debug options section.
 |---|---|
 | `col` *(int)* | Column width for option alignment (default: 21). |
 | `includeDebug` *(bool)* | Whether to print the debug options section (default: 'true'). |
+| `includeEnvVars` *(bool)* | Whether to print the environment variables section (default: 'true'). |
+| `envMap` | (mapRef)        Optional additional env vars map. |
+{: .args-table}
+
+### showDebugOptions()
+
+Prints debug options section.
+
+
+*args*
+
+| | |
+|---|---|
+| `col` *(int)* | Column width for option alignment (default: 21). |
+{: .args-table}
+
+### showEnvVarOptions()
+
+Prints environment variables section.
+
+
+*args*
+
+| | |
+|---|---|
+| `col` *(int)* | Column width for option alignment (default: 21). |
+| `envMap` | (mapRef)  Optional additional env vars map. |
 {: .args-table}
 
 ### option()
@@ -183,7 +229,13 @@ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
 ### fail()
 
 Print an error and exit 1, optionally with a stack trace if in debug mode
-or explicitly with --trace.
+or explicitly with --trace. If _failHandler names a function (e.g. a command's
+usage function), the message is delegated to it instead: rayvn/args generated
+parsers set _failHandler for the duration of argument parsing so any failure —
+including one raised by an assert* type checker — shows usage text instead of
+a bare error. Callers wanting this behavior in other contexts may set
+_failHandler themselves; it is always restored, never left dangling, by the
+generated parsers.
 
 
 *usage*
@@ -198,6 +250,18 @@ or explicitly with --trace.
 | `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
+
+### unknownArg()
+
+Fail with "unknown argument: ARG".
+
+
+*args*
+
+| | |
+|---|---|
+| `arg` *(string)* | The unrecognized argument value. |
+{: .args-table}
 
 ### bye()
 
@@ -257,8 +321,9 @@ Check if an argument matches an expected value, setting a result var via nameref
 |---|---|
 | `argMatch` *(string)* | Expected argument value to match against (e.g. -n). |
 | `argValue` *(string)* | Actual argument value to test. |
-| `argResultRef` *(stringRef)* | Name of var to set to argResultValue on match, or '' if not. |
-| `argResultValue` *(string)* | Value to assign on match; defaults to ${argMatch}. |
+| `argResultRef` *(stringRef)* | Name of var to set to result value on match. |
+| `argNoMatchResultValue` *(string)* | Value to assign when no match. |
+| `argMatchResultValue` *(string)* | Value to assign when match. |
 {: .args-table}
 
 *returns*
@@ -268,6 +333,13 @@ Check if an argument matches an expected value, setting a result var via nameref
 | `0` | matched |
 | `1` | not matched |
 {: .args-table}
+
+*example*
+
+```bash
+local flag; parseOptionalArg '-n' "$1" flag 0 1 && shift          # sets flag to 1 and shifts on match, else sets to 0
+local bool; parseOptionalArg '-n' "$1" bool false true && shift   # sets bool to 'true' and shifts on match, else sets to 'false'
+```
 
 ### booleanAsInteger()
 
@@ -300,6 +372,7 @@ Fail if a variable with the given name is not defined.
 ### eraseVars()
 
 Overwrite one or more security sensitive variables with spaces then unset.
+Handles scalar variables, indexed arrays, and associative arrays (maps).
 
 
 *args*
@@ -341,6 +414,21 @@ exportGlobalMaps myLookup
 
 Fail with an error if not running interactively.
 
+### assertInt()
+
+Fail if the given argument is not a positive or negative integer.
+
+### assertPositiveInt()
+
+### assertBool()
+
+Fail if the given argument is not "true", "false", 1 or 0.
+
+### assertVersion()
+
+Fail if the given argument is not a semantic version: MAJOR.MINOR.PATCH with optional
+pre-release and/or build metadata suffixes (e.g. 1.2.3, 1.2.3-alpha.1, 1.2.3+build.5).
+
 ### assertFileExists()
 
 Fails if the given path does not exist.
@@ -361,6 +449,22 @@ Fail if the given path does not exist or is not a regular file.
 ### assertDirectory()
 
 Fail if the given path does not exist or is not a directory.
+
+### assertExecutable()
+
+Fail if the given value is neither an executable file path nor the name of an executable
+found on PATH — a path (containing '/') is checked with assertFile plus the executable
+bit; a bare name is resolved via PATH, which only ever finds executables. Lets a CLI
+argument accept either a script path (e.g. bin/rayvn) or a plain executable name (e.g.
+rayvn), matching how projects are named everywhere else.
+
+
+*args*
+
+| | |
+|---|---|
+| `value` *(string)* | A file path or bare executable name. |
+{: .args-table}
 
 ### assertFileDoesNotExist()
 
@@ -638,6 +742,14 @@ replaceRandomHex "X" myStr  # myStr becomes e.g. "3a7f-c209"
 ### timeStamp()
 
 Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
+
+
+*args*
+
+| | |
+|---|---|
+| `timeZone` *(string)* | Optional timezone name (default: UTC). |
+{: .args-table}
 
 ### epochSeconds()
 

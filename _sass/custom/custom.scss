@@ -198,7 +198,6 @@ div.highlighter-rouge div.highlight {
 // Style the usage signature paragraph (rendered above the usage table)
 .usage-signature {
   font-weight: bold;
-  font-size: var(--code-size);
   margin-bottom: 0.25rem;
 }
 
@@ -277,6 +276,17 @@ div.highlighter-rouge,
   background-color: var(--code-bg);
 }
 
+.nav-footer-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+}
+
+span.attribution {
+  margin-left: auto;
+  font-size: 0.75em;
+  font-style: italic;
+}
 
 // Nav category headers (Scripting, Testing, Project Tooling).
 // Targets depth-2 nav items that have children (identified by the expander button),
