@@ -8,9 +8,7 @@ nav_order: 11
 
 # rayvn/args
 
-Spec-driven argument parsing, usage, and shell completion generation, for scripts and CLIs alike.
-
-See [Argument Specification](/rayvn/api/rayvn-args#argument-specification) below for spec details.
+Spec-driven argument parsing, usage, and shell completion generation, for scripts and CLIs alike (see [Argument Specification](/rayvn/api/rayvn-args#argument-specification)).
 
 ## Functions
 
