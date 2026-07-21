@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2155
+# shellcheck disable=SC2155,SC2207
 
 # Common core.
 # Use via: require 'rayvn/core'
@@ -229,7 +229,6 @@ showDebugOptions() {
 #   col (int)        Column width for option alignment (default: 21).
 #   envMap (mapRef)  Optional additional env vars map.
 
-# shellcheck disable=SC2207
 showEnvVarOptions() {
     local column=${1:-21}
     local _envVarsMapName="$2"
@@ -601,6 +600,8 @@ assertIsInteractive() {
 assertInt() {
     [[ $1 =~ ^-?[0-9]+$ ]] || fail "$1 must be a positive or negative integer"
 }
+
+# ◇ Fail if the given argument is not a positive integer.
 
 assertPositiveInt() {
     [[ -z "${1//[0-9]/}" ]] || fail "$1 must be a positive integer"

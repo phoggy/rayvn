@@ -1327,9 +1327,9 @@ _genParseFunction() {
 
         echo "    local _prevFailHandler=\"\${_failHandler}\""
         if [[ ${includeResets} == false ]]; then
-            echo "    declare -g _failHandler=${name}CmdUsage"
+            echo "    declare -g _failHandler=${name}CmdUsage" # namespace-ok: generated text, not a real declaration here
         else
-            echo "    declare -F usage > /dev/null && declare -g _failHandler=usage"
+            echo "    declare -F usage > /dev/null && declare -g _failHandler=usage" # namespace-ok: generated text, not a real declaration here
         fi
 
         local _locals=''
@@ -1451,7 +1451,7 @@ _genParseFunction() {
             done
             echo "    (( _opts['help'] || _mutex <= 1 )) || fail \"at most one of ${_group//|/ | } may be specified\""
         done
-        echo "    declare -g _failHandler=\"\${_prevFailHandler}\""
+        echo "    declare -g _failHandler=\"\${_prevFailHandler}\"" # namespace-ok: generated text, not a real declaration here
         echo "}"
     }
 }
