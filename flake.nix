@@ -28,7 +28,7 @@
 
         rayvn = pkgs.stdenv.mkDerivation {
           pname = "rayvn";
-          version = "0.3.2";
+          version = "0.4.0";
           src = self;
 
           nativeBuildInputs = [ pkgs.makeWrapper ];
