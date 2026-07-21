@@ -3,7 +3,8 @@
 # Argument parsing.
 # Use via: require 'rayvn/args'
 
-# Argument Specification
+#@notes
+# ## Argument Specification
 #
 # An argument spec is an array declaring named/typed options (e.g. --count 5 --file /etc/passwd), named/boolean flags (e.g. -f)
 # and typed or untyped positional arguments. Parse results land in the _opts map, keyed by option name without leading
@@ -16,13 +17,15 @@
 # The * wildcard positional argument allows any number of untyped values to follow. This is intended to support cases like
 # that of tar args with -C dir interspersed and requires the caller to validate them.
 #
-#      type: str | int | +int | bool | file | dir | version | a|b|c (inline enum: value must be one of the alternatives)
+# ```
+#      type: str | int | +int | bool | file | dir | exe | version | a|b|c (inline enum: value must be one of the alternatives)
 #    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
 #  variadic: --name[|alias...]:type*                e.g. --record:str* — see below
 #      flag: --name[|alias...]
 #     group: [--a|--b|...]                          mutually exclusive: at most one may be supplied
 #  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
 #      spec: [option | flag | argument | group]... [*]
+# ```
 #
 # Typed positional arguments are REQUIRED by default: the parser fails if fewer arguments are supplied than the
 # number of positionals without a '?' suffix. The * wildcard is always optional.
@@ -95,11 +98,15 @@
 # Type checking is performed via a map of type name to a type check function (single arg). A '*' type is unchecked. The default
 # map is:
 #
+# ```
 #    declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
-#                                       ['file']=assertFile ['dir']=assertDirectory ['version']=assertVersion )
+#                                       ['file']=assertFile ['dir']=assertDirectory ['version']=assertVersion
+#                                       ['exe']=assertExecutable )
+# ```
 #
 # Custom types can be supported by creating a custom map and setting argsTypeMap to the name of the custom map var:
 #
+# ```
 #    declare -gAr myTypeMap=( ['str4']=assertString4 ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
 #                             ['file']=assertFile ['dir']=assertDirectory )
 #    argsTypeMap=myTypeMap
@@ -107,9 +114,11 @@
 #    assertString4() {
 #       (( ${#1} > 3 )) || fail "$1 must be 4 characters or longer" # or whatever
 #    }
+# ```
 #
 # Custom types also work with generated parsers: the checker function name is resolved from argsTypeMap at
 # generation time and embedded in the generated code, so the function must be defined wherever the parser runs.
+#@end
 
 
 # ◇ Generate a parser for an argument spec and parse the args with it, in one call. Convenient for
@@ -174,13 +183,15 @@ generateParser() {
 #
 # · ARGS
 #
-#   check (flag)       Optional '--check': report drift instead of updating.
-#   scriptFile (file)  Path to the script to update.
+#   check (flag)      Optional '--check': report drift instead of updating.
+#   scriptFile (exe)  Path to the script to update, or the bare name of an executable on PATH
+#                      (e.g. 'rayvn' resolves the same as 'bin/rayvn' would from its project root).
 
 updateParser() {
     local checkOnly=0
     [[ $1 == '--check' ]] && { checkOnly=1; shift; }
     local scriptFile="$1"
+    [[ "${scriptFile}" == */* ]] || scriptFile=${ type -P "${scriptFile}"; }
     assertFile "${scriptFile}"
 
     # Find annotation (either rayvn:args or rayvn:cli)
@@ -259,7 +270,7 @@ updateParser() {
                 echo "# Generated bash completion for the ${project} CLI — DO NOT EDIT."
                 echo "# Regenerate via 'rayvn args ${scriptRelPath}'."
                 echo
-                generateCompletions "${project}" "${specVar}"
+                _generateCompletions "${project}" "${specVar}"
             } > "${newCompletionsFile}" || fail "completions generation failed"
         fi
     fi
@@ -288,7 +299,7 @@ updateParser() {
                 ok=0
             fi
         fi
-        (( ok )) && return 0 || return 1
+        (( ok )) && { show success "${ tildePath "${scriptFile}"; }" "is up-to-date"; return 0; } || return 1
     fi
 
     # Replace block in-place using temp file
@@ -363,7 +374,8 @@ _init_rayvn_args() {
     # Default type map
 
     declare -gAr _argsDefaultTypeMap=( ['str']='*' ['int']=assertInt ['+int']=assertPositiveInt ['bool']=assertBool
-                                       ['file']=assertFile ['dir']=assertDirectory ['version']=assertVersion )
+                                       ['file']=assertFile ['dir']=assertDirectory ['version']=assertVersion
+                                       ['exe']=assertExecutable )
 
     # Selected type map. User can override
 
@@ -593,7 +605,7 @@ _genCommandParser() {
 # __rayvnCompletionProjects helper is embedded directly in the generated file (not defined
 # once in a shared file some loader sources first, since there is no such loader anymore and
 # no reliable load order to depend on), so every generated file is fully self-contained.
-generateCompletions() {
+_generateCompletions() {
     local project="$1"
     local -n _commandSpecRef="$2"
     _genCompletionScript "${project}" "$2"
@@ -783,6 +795,7 @@ _genCompletionArm() {
             bool)  _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -W \"true false\" -- \"\${cur}\")); return ;;") ;;
             file)  _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -f -- \"\${cur}\")); return ;;") ;;
             dir)   _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -d -- \"\${cur}\")); return ;;") ;;
+            exe)   _prevLines+=("${armIndent}    ${pattern}) COMPREPLY=(\$(compgen -A file -A command -- \"\${cur}\")); return ;;") ;;
         esac
     done
     if (( ${#_prevLines[@]} )); then
@@ -813,6 +826,7 @@ _genCompletionArm() {
             bool)  echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -W \"true false\" -- \"\${cur}\")); return; }" ;;
             file)  echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -f -- \"\${cur}\")); return; }" ;;
             dir)   echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -d -- \"\${cur}\")); return; }" ;;
+            exe)   echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -A file -A command -- \"\${cur}\")); return; }" ;;
             *)
                 if [[ "${posName%...}" == 'PROJECT' ]]; then
                     echo "${armIndent}(( _relIdx == ${i} )) && { COMPREPLY=(\$(compgen -W \"\$(__rayvnCompletionProjects)\" -- \"\${cur}\")); return; }"

@@ -62,7 +62,7 @@ declare -gA cliSpec=(
 
     # Regenerate the parser block in SCRIPT from its spec, or with --check report
     # whether the committed block is stale without modifying the file.
-    #   SCRIPT   Path to the script to update; must contain a rayvn:args or rayvn:cli annotation.
+    #   SCRIPT   Path to the script to update, or a bare executable name (e.g. 'rayvn'); must contain a rayvn:args or rayvn:cli annotation.
     #   --check  Report drift without updating the file.
     #
     # Annotation formats:
@@ -71,7 +71,7 @@ declare -gA cliSpec=(
     #     # rayvn:cli  specVar              → parseCommand() + per-command parsers
     #
     # The spec variable must be defined at global scope (not inside a function).
-    ['args']='args(file --check --help|-h)'
+    ['args']='args(exe --check --help|-h)'
 
     # Interactively select a color theme for rayvn output or show the current theme.
     #   --show  Show current theme.
@@ -815,10 +815,10 @@ parseArgsArgs() {
             --help=*) fail "--help does not accept a value" ;;
             --) shift
                 while (( $# > 0 )); do
-                    (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"
+                    (( _argIndex == 0 )) && assertExecutable "$1" || unknownArg "$1"
                     _args+=("$1"); (( _argIndex++ )); shift
                 done ;;
-            *) (( _argIndex == 0 )) && assertFile "$1" || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
+            *) (( _argIndex == 0 )) && assertExecutable "$1" || unknownArg "$1"; _args+=("$1"); (( _argIndex++ )); shift ;;
         esac
     done
     (( _opts['help'] || _argIndex >= 1 )) || { local -a _missingArgs=("SCRIPT"); _missingArgs=("${_missingArgs[@]:${_argIndex}}"); (( ${#_missingArgs[@]} == 1 )) && fail "missing required argument: ${_missingArgs[0]}" || fail "missing required arguments: ${_missingArgs[*]}"; }
@@ -832,7 +832,8 @@ argsCmdUsage() {
     echo
     show "Usage:" bold blue "rayvn args" "SCRIPT [--check]"
     echo
-    option "SCRIPT" "Path to the script to update; must contain a rayvn:args or rayvn:cli annotation." 16
+    option "SCRIPT" "Path to the script to update, or a bare executable name (e.g. 'rayvn'); must contain" 16
+    option "" "a rayvn:args or rayvn:cli annotation." 16
     option "--check" "Report drift without updating the file." 16
     option "--help, -h" "Print this help message." 16
     echo

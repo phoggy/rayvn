@@ -647,6 +647,26 @@ assertDirectory() {
     [[ -d $1 ]] || fail "$1 is not a directory"
 }
 
+# ◇ Fail if the given value is neither an executable file path nor the name of an executable
+#   found on PATH — a path (containing '/') is checked with assertFile plus the executable
+#   bit; a bare name is resolved via PATH, which only ever finds executables. Lets a CLI
+#   argument accept either a script path (e.g. bin/rayvn) or a plain executable name (e.g.
+#   rayvn), matching how projects are named everywhere else.
+#
+# · ARGS
+#
+#   value (string)  A file path or bare executable name.
+
+assertExecutable() {
+    local value="$1"
+    if [[ "${value}" == */* ]]; then
+        assertFile "${value}"
+        [[ -x "${value}" ]] || fail "$1 is not executable"
+    else
+        type -P "${value}" &> /dev/null || fail "$1 not found on PATH"
+    fi
+}
+
 # ◇ Fail if the given path already exists.
 
 assertFileDoesNotExist() {

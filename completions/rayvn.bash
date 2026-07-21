@@ -56,7 +56,7 @@ __rayvnComplete() {
                 args)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--check --help -h" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
-                    (( _relIdx == 0 )) && { COMPREPLY=($(compgen -f -- "${cur}")); return; }
+                    (( _relIdx == 0 )) && { COMPREPLY=($(compgen -A file -A command -- "${cur}")); return; }
                     ;;
                 build)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
