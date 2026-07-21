@@ -1256,7 +1256,7 @@ _updateHomePageLibraryTable() {
         fileLines+=("${line}")
         if [[ "${line}" == '## Libraries' ]]; then
             inLibTable=1
-        elif (( inLibTable )) && [[ "${line}" =~ ^## ]]; then
+        elif (( inLibTable )) && [[ "${line}" =~ ^##[[:space:]] ]]; then
             inLibTable=0
         fi
         (( inLibTable )) && [[ "${line}" =~ ^\| ]] && lastTableLine=${idx}
