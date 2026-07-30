@@ -33,6 +33,7 @@ main() {
     testUpdateParser
     testUpdateParserExtraSectionEndingInParen
     testUpdateParserCheck
+    testUpdateParserCompletions
     testParseArgsWithSpec
 
     # Performance benchmark
@@ -843,6 +844,50 @@ EOF
     # Editing the spec makes the block stale
     gsed -i 's/--name|-n:str/--name|-n:str --force|-f/' "${script}"
     ( updateParser --check "${script}" ) > /dev/null 2>&1 && fail "check should fail on stale block"
+
+    # Regeneration restores sync
+    updateParser "${script}" > /dev/null
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 || fail "check should pass after regen"
+}
+
+# No existing test exercises completions-file generation at all: testUpdateParser and
+# testUpdateParserCheck use rayvn:args scripts with no rayvn.pkg above them, so
+# _argsDetectProjectRoot never resolves and the completions path is skipped even for bash.
+# This test gives updateParser a real project root so both completions/<project>.bash and
+# completions/<project>.zsh get generated and checked, covering that gap for both shells.
+testUpdateParserCompletions() {
+    local dir; dir=${ makeTempDir; }
+    echo "projectName='compproj'" > "${dir}/rayvn.pkg"
+    local script="${dir}/bin/compproj"
+    ensureDir "${dir}/bin"
+    cat > "${script}" << 'EOF'
+#!/usr/bin/env bash
+
+# rayvn:cli compprojSpec
+declare -gA compprojSpec=(
+    # Scan things for problems.
+    #   PROJECT...  Project names (default: current).
+    #   --fix       Auto-fix problems.
+    ['lint']='lint(--fix --help|-h *)'
+)
+EOF
+    updateParser "${script}" > /dev/null
+
+    local bashFile="${dir}/completions/compproj.bash"
+    local zshFile="${dir}/completions/compproj.zsh"
+    [[ -f "${bashFile}" ]] || fail "bash completions file was not generated"
+    [[ -f "${zshFile}" ]] || fail "zsh completions file was not generated"
+    assertContains "complete -F" "${ cat "${bashFile}"; }"
+    assertContains "#compdef compproj" "${ cat "${zshFile}"; }"
+    assertContains "Auto-fix problems." "${ cat "${zshFile}"; }"
+
+    # Freshly generated completions are in sync
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 || fail "check should pass on fresh completions"
+
+    # A hand-edited (or merely stale) completions file is caught by --check even though the
+    # parser block and spec are untouched — drift detection compares each file independently
+    echo "# stale" > "${zshFile}"
+    ( updateParser --check "${script}" ) > /dev/null 2>&1 && fail "check should fail on stale zsh completions"
 
     # Regeneration restores sync
     updateParser "${script}" > /dev/null

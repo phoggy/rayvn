@@ -485,13 +485,14 @@ if (( ! rayvnIsUp )); then
 
     if (( _rayvnUpBareSource )); then configure; else configure "$@"; fi
 
-    # Ensure bash-completion is wired into the shell
+    # Ensure bash and zsh completions are wired into the shell
 
     if ! (( rayvnTest_DeferCore )) && [[ -v isInteractive ]] && (( isInteractive )); then
-        if ! grep -qF 'bash_completion' "${HOME}/.bashrc" 2> /dev/null && \
-           [[ ! -f "${_rayvnConfigDir}/.bash-completion-notice-shown" ]]; then
-            local installCompletionsFile="${rayvnHome}/etc/install-completions.sh"
-            [[ -f "${installCompletionsFile}" ]] && source "${installCompletionsFile}"
+        if ! grep -qF 'bash_completion' "${HOME}/.bashrc" 2> /dev/null && [[ ! -f "${_rayvnConfigDir}/.bash-completion-notice-shown" ]]; then
+            [[ -f "${rayvnHome}/etc/install-bash-completions.sh" ]] && source "${rayvnHome}/etc/install-bash-completions.sh"
+        fi
+        if [[ -f "${HOME}/.zshrc" ]] && ! grep -qF 'rayvn/zsh-completions' "${HOME}/.zshrc" 2> /dev/null; then
+            [[ -f "${rayvnHome}/etc/install-zsh-completions.sh" ]] && source "${rayvnHome}/etc/install-zsh-completions.sh"
         fi
     fi
 

@@ -71,6 +71,17 @@
 # compared against its spec: `rayvn args SCRIPT --check` (`updateParser --check`) reports a stale or missing block
 # without modifying the file, and `rayvn lint` runs this check automatically for annotated `bin/` and `lib/` files.
 #
+# For CLI specs whose project root is detectable (a `rayvn.pkg` above the script), `updateParser` also (re)generates
+# `completions/<project>.bash` and `completions/<project>.zsh` — shell completion for the whole command tree, driven
+# by the same spec tables and doc-comment blocks used for parsing and usage text. The zsh completion additionally
+# surfaces each option's and positional's doc-comment description in the completion menu (via `_arguments`'
+# `[description]` syntax), which bash's `compgen`-based completion has no way to show. Both are covered by
+# `--check`/`rayvn lint` the same way the parser block is. The zsh file starts with `#compdef <project>` and ends
+# with a `compdef` call, so it works either sourced directly or, like the bash file, via a dynamic-load symlink
+# `updateParser` maintains — for zsh this is `_<project>` in rayvn's own shared `zsh-completions` directory
+# (there's no bash-completion-v2-equivalent standardized zsh fpath convention to target, so rayvn defines its
+# own and `rayvn.up` wires it onto `$fpath` once, via `etc/install-zsh-completions.sh`).
+#
 # For CLI specs, a comment block directly above a `cliSpec` entry generates a `${handler}CmdUsage()` function.
 # Plain comment lines form the command summary; indented `key  description` lines document options (keyed by any
 # alias, or the alias list as written in the spec) and, in order, provide display names for the positionals.
@@ -251,10 +262,13 @@ updateParser() {
 
     local completionsFile=''
     local newCompletionsFile=''
+    local zshCompletionsFile=''
+    local newZshCompletionsFile=''
     if [[ "${annotationType}" == 'rayvn:cli' ]]; then
         local projectRoot; projectRoot=${ _argsDetectProjectRoot "${scriptFile}"; } || true
         if [[ -n "${projectRoot}" ]]; then
             completionsFile="${projectRoot}/completions/${project}.bash"
+            zshCompletionsFile="${projectRoot}/completions/${project}.zsh"
 
             # Use a project-relative path in the header comment (not whatever form scriptFile
             # was passed in, relative or absolute) so the generated content — and therefore
@@ -272,6 +286,19 @@ updateParser() {
                 echo
                 _generateCompletions "${project}" "${specVar}"
             } > "${newCompletionsFile}" || fail "completions generation failed"
+
+            newZshCompletionsFile=${ makeTempFile; }
+            {
+                # '#compdef' must be the file's literal first line for zsh's compinit to
+                # recognize it when autoload-scanning a fpath directory (e.g. if this file is
+                # later copied/symlinked in as '_<project>'); the DO-NOT-EDIT header goes after.
+                echo "#compdef ${project}"
+                echo
+                echo "# Generated zsh completion for the ${project} CLI — DO NOT EDIT."
+                echo "# Regenerate via 'rayvn args ${scriptRelPath}'."
+                echo
+                _generateZshCompletions "${project}" "${specVar}"
+            } > "${newZshCompletionsFile}" || fail "zsh completions generation failed"
         fi
     fi
 
@@ -296,6 +323,15 @@ updateParser() {
                 ok=0
             elif ! diff -q "${newCompletionsFile}" "${completionsFile}" > /dev/null; then
                 show warning "generated completions file is stale" "at" blue "${ tildePath "${completionsFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+                ok=0
+            fi
+        fi
+        if [[ -n "${zshCompletionsFile}" ]]; then
+            if [[ ! -f "${zshCompletionsFile}" ]]; then
+                show warning "no generated zsh completions file" "at" blue "${ tildePath "${zshCompletionsFile}"; }" "— run" bold "rayvn args ${scriptFile}"
+                ok=0
+            elif ! diff -q "${newZshCompletionsFile}" "${zshCompletionsFile}" > /dev/null; then
+                show warning "generated zsh completions file is stale" "at" blue "${ tildePath "${zshCompletionsFile}"; }" "— run" bold "rayvn args ${scriptFile}"
                 ok=0
             fi
         fi
@@ -358,6 +394,29 @@ updateParser() {
         local dynamicLink="${dynamicDir}/${project}"
         if [[ ! -L "${dynamicLink}" || "$( readlink "${dynamicLink}"; )" != "${completionsFile}" ]]; then
             ln -sf "${completionsFile}" "${dynamicLink}" || fail "failed to link ${dynamicLink}"
+        fi
+    fi
+
+    # Write the zsh completions file, if one was generated above, and symlink it into rayvn's
+    # own shared zsh-completions directory (XDG_DATA_HOME-aware) under its '_<project>' autoload
+    # name — zsh's compinit convention, unlike bash-completion's, cares about the link's
+    # filename, not just its containing directory. rayvn.up wires this directory onto the
+    # user's $fpath (once, via etc/install-zsh-completions.sh) the same way it wires
+    # bash-completion into ~/.bashrc.
+
+    if [[ -n "${zshCompletionsFile}" ]]; then
+        ensureDir "${zshCompletionsFile%/*}"
+        local newZshCompFile="${zshCompletionsFile}.new.$$"
+        cp "${newZshCompletionsFile}" "${newZshCompFile}" || fail "failed to create ${newZshCompFile}"
+        chmod 644 "${newZshCompFile}" || fail "failed to set permissions on ${newZshCompFile}"
+        mv "${newZshCompFile}" "${zshCompletionsFile}" || fail "failed to replace ${zshCompletionsFile}"
+        show "Updated zsh completions in" blue "${ tildePath "${zshCompletionsFile}"; }"
+
+        local zshDynamicDir="${XDG_DATA_HOME:-${HOME}/.local/share}/rayvn/zsh-completions"
+        ensureDir "${zshDynamicDir}"
+        local zshDynamicLink="${zshDynamicDir}/_${project}"
+        if [[ ! -L "${zshDynamicLink}" || "$( readlink "${zshDynamicLink}"; )" != "${zshCompletionsFile}" ]]; then
+            ln -sf "${zshCompletionsFile}" "${zshDynamicLink}" || fail "failed to link ${zshDynamicLink}"
         fi
     fi
 }
@@ -844,6 +903,322 @@ _genCompletionArm() {
     fi
 }
 
+# ◇ Generate a native zsh completion script (#compdef + _arguments/_describe) for a CLI spec,
+#   the zsh counterpart to _generateCompletions. Reuses the same spec tables and doc-block
+#   parsing as the bash generator and the usage-function generator, but — unlike bash's
+#   compgen, which has no concept of a description next to a candidate — surfaces each
+#   option's and positional's doc-comment description directly in the completion menu via
+#   _arguments' '[description]' syntax, and each command/subcommand's first summary line via
+#   _describe.
+#
+# · ARGS
+#
+#   project (string)    The project name.
+#   specVar (mapRef)    The name of the CLI specification map.
+
+_generateZshCompletions() {
+    local project="$1"
+    local -n _commandSpecRef="$2"
+    _genZshCompletionScript "${project}" "$2"
+}
+
+_genZshCompletionScript() {
+    local project="$1"
+    local -n _commandSpecRef="$2"
+    declare -A _argsOptionNames
+    declare -A _argsOptionTypes
+    declare -A _argsOptionDefaults
+    declare -A _argsOptionVariadic
+    declare -a _argsGroups
+    declare -a _argsArgumentTypes
+    declare -i _argsMinArgs=0
+    declare -p _argsCliDocs &> /dev/null || local -A _argsCliDocs=()
+
+    local -a _commands=() _twoWordCommands=() _oneWordCommands=() _sortedPrefixes=()
+    declare -A _groupSubcommands=()
+    _genClassifyCommands "$2"
+
+    # Top-level command candidates for _describe: one-word commands contribute each '|'-joined
+    # alias as its own 'name:summary' entry; two-word command group prefixes contribute a bare
+    # 'prefix:' entry (no single summary applies to a whole group of subcommands)
+
+    local -a _topCandidates=()
+    local command word summary
+    for command in "${_oneWordCommands[@]}"; do
+        local -a _aliasWords=()
+        IFS='|' read -ra _aliasWords <<< "${command// /}"
+        summary="${ _genFirstSummaryLine "${_argsCliDocs[${command}]:-}"; }"
+        for word in "${_aliasWords[@]}"; do
+            _topCandidates+=("${word}:${ _escapeZshDesc "${summary}"; }")
+        done
+    done
+    local prefix
+    for prefix in "${_sortedPrefixes[@]}"; do
+        _topCandidates+=("${prefix}:")
+    done
+
+    local funcName="_${project}"
+
+    # Per-command completion arms, computed once per command up front (same reasoning as the
+    # bash generator: each needs its own _parseArgumentSpec/doc-parsing pass). One-word arms
+    # nest under 'args) case $words[1] in'; two-word arms nest one level deeper, under each
+    # prefix's own 'subcommand -> args) case $words[1] in'.
+
+    local oneWordArmIndent="                    "
+    local twoWordArmIndent="                                    "
+
+    declare -A _armFor=()
+    local fnSpec handler tmpSpec armIndent
+    local -a argsSpec
+    local _usesProjectCompletion=0
+    for command in "${_commands[@]}"; do
+        fnSpec="${_commandSpecRef[${command}]}"
+        handler="${fnSpec%(*}"
+        tmpSpec="${fnSpec#*(}"
+        IFS=' ' read -ra argsSpec <<< "${tmpSpec%*)}"
+        _parseArgumentSpec argsSpec
+
+        local -A _optDesc=()
+        local -a _posDesc=()
+        local -a _docPosNames=()
+        if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
+            _genDocDescriptions "${_argsCliDocs[${command}]}" _optDesc _posDesc
+            local _mainDocBlock _extraDocBlock
+            _genSplitDocBlock "${_argsCliDocs[${command}]}" _mainDocBlock _extraDocBlock
+            _genDocPositionalNames "${_mainDocBlock}" _docPosNames
+        fi
+
+        if [[ "${command}" == *' '* && "${command}" != *'|'* ]]; then
+            armIndent="${twoWordArmIndent}"
+        else
+            armIndent="${oneWordArmIndent}"
+        fi
+        _armFor[${command}]="${ _genZshCompletionArm; }"
+    done
+
+    # Shared project-name completion helper (bash-compatible stdout-listing function, reused
+    # verbatim from the bash generator) plus a zsh wrapper that feeds its output to _describe.
+    # Only emitted if some arm actually needs it — see _genCompletionScript for why this is
+    # embedded here rather than defined once in a shared file: each project's completions file
+    # is sourced independently with no guaranteed load order.
+
+    if (( _usesProjectCompletion )); then
+        echo "# Scan PATH for rayvn project roots (dev layout: <root>/bin/, Nix layout:"
+        echo "# <prefix>/bin/ with rayvn.pkg under share/) and output their project names, one per line."
+        echo "__rayvnCompletionProjects() {"
+        echo "    local dir pkg IFS=:"
+        echo "    for dir in \$PATH; do"
+        echo "        [[ -d \"\${dir}\" ]] || continue"
+        echo "        for pkg in \"\${dir}/../rayvn.pkg\" \"\${dir}/../share/\"*/rayvn.pkg; do"
+        echo "            [[ -f \"\${pkg}\" ]] && gawk -F\"'\" '/^projectName=/{print \$2; exit}' \"\${pkg}\" 2> /dev/null"
+        echo "        done"
+        echo "    done | sort -u"
+        echo "}"
+        echo
+        echo "_rayvn_projects() {"
+        echo "    local -a projects; projects=(\${(f)\"\$(__rayvnCompletionProjects)\"})"
+        echo "    _describe 'project' projects"
+        echo "}"
+        echo
+    fi
+
+    echo "${funcName}() {"
+    echo "    local curcontext=\"\$curcontext\" state line"
+    echo "    typeset -A opt_args"
+    echo
+    echo "    _arguments -C \\"
+    echo "        '1: :->command' \\"
+    echo "        '*::arg:->args'"
+    echo
+    echo "    case \$state in"
+    echo "        command)"
+    echo "            local -a commands=("
+    local c
+    for c in "${_topCandidates[@]}"; do
+        echo "                '${c}'"
+    done
+    echo "            )"
+    echo "            _describe 'command' commands"
+    echo "            ;;"
+    echo "        args)"
+    echo "            case \$words[1] in"
+
+    local sub
+    local -a _subs
+    for prefix in "${_sortedPrefixes[@]}"; do
+        echo "                ${prefix})"
+        echo "                    _arguments -C \\"
+        echo "                        '1: :->subcommand' \\"
+        echo "                        '*::arg:->args'"
+        echo "                    case \$state in"
+        echo "                        subcommand)"
+        echo "                            local -a subcommands=("
+        _subs=(); read -ra _subs <<< "${_groupSubcommands[${prefix}]}"
+        for sub in "${_subs[@]}"; do
+            summary="${ _genFirstSummaryLine "${_argsCliDocs["${prefix} ${sub}"]:-}"; }"
+            echo "                                '${sub}:${ _escapeZshDesc "${summary}"; }'"
+        done
+        echo "                            )"
+        echo "                            _describe 'subcommand' subcommands"
+        echo "                            ;;"
+        echo "                        args)"
+        echo "                            case \$words[1] in"
+        for sub in "${_subs[@]}"; do
+            command="${prefix} ${sub}"
+            echo "                                ${sub})"
+            echo "${_armFor[${command}]}"
+            echo "                                    ;;"
+        done
+        echo "                            esac"
+        echo "                            ;;"
+        echo "                    esac"
+        echo "                    ;;"
+    done
+
+    for command in "${_oneWordCommands[@]}"; do
+        echo "                ${command})"
+        echo "${_armFor[${command}]}"
+        echo "                    ;;"
+    done
+    echo "            esac"
+    echo "            ;;"
+    echo "    esac"
+    echo "}"
+    echo
+    echo "(( \$+functions[compdef] )) && compdef ${funcName} ${project}"
+}
+
+# Emit one command's zsh `_arguments` spec entries, indented by the caller-set armIndent
+# local (dynamic scoping, same convention as _genCompletionArm). Relies on the spec tables
+# left populated by the preceding _parseArgumentSpec call, plus _optDesc/_posDesc/_docPosNames
+# also set by the caller (see _genZshCompletionScript).
+_genZshCompletionArm() {
+    local -a _sortedAliases=()
+    (( ${#_argsOptionNames[@]} )) && mapfile -t _sortedAliases <<< "${ printf '%s\n' "${!_argsOptionNames[@]}" | sort; }"
+
+    local alias canonical
+    declare -A _aliasesOfCanonical=()
+    for alias in "${_sortedAliases[@]}"; do
+        canonical="${_argsOptionNames[${alias}]}"
+        _aliasesOfCanonical[${canonical}]+="${_aliasesOfCanonical[${canonical}]:+ }${alias}"
+    done
+
+    declare -A _canonicalSet=()
+    for alias in "${_sortedAliases[@]}"; do _canonicalSet[${_argsOptionNames[${alias}]}]=1; done
+    local -a _canonicals=()
+    (( ${#_canonicalSet[@]} )) && mapfile -t _canonicals <<< "${ printf '%s\n' "${!_canonicalSet[@]}" | sort; }"
+
+    # Each canonical's zsh mutex word list: its own aliases, plus — if it's part of an
+    # exclusion group — every other member's aliases too, so e.g. [--fix|--ask] makes -f/--fix
+    # mutually exclusive with -a/--ask, not just with each other's own aliases
+
+    declare -A _mutexOf=()
+    for canonical in "${_canonicals[@]}"; do
+        _mutexOf[${canonical}]="${_aliasesOfCanonical[${canonical}]}"
+    done
+    local group memberCanonical combined
+    local -a _members
+    for group in "${_argsGroups[@]}"; do
+        IFS='|' read -ra _members <<< "${group}"
+        combined=''
+        for memberCanonical in "${_members[@]}"; do
+            combined+="${combined:+ }${_aliasesOfCanonical[${memberCanonical}]:-${memberCanonical}}"
+        done
+        for memberCanonical in "${_members[@]}"; do
+            _mutexOf[${memberCanonical}]="${combined}"
+        done
+    done
+
+    local -a _specLines=()
+    local type desc mutexStr braceList a
+    local -a _aliasArr
+    for canonical in "${_canonicals[@]}"; do
+        type="${_argsOptionTypes[${canonical}]:-}"
+        desc="${_optDesc[${canonical}]:-}"
+        [[ -z "${desc}" && "${canonical}" == '--help' ]] && desc="Print this help message."
+        mutexStr="${_mutexOf[${canonical}]:-${_aliasesOfCanonical[${canonical}]}}"
+
+        _aliasArr=(${_aliasesOfCanonical[${canonical}]})
+        if (( ${#_aliasArr[@]} > 1 )); then
+            braceList=''
+            for a in "${_aliasArr[@]}"; do braceList+="${braceList:+,}${a}"; done
+            braceList="{${braceList}}"
+        else
+            braceList="${_aliasArr[0]}"
+        fi
+
+        local action=''
+        if [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]]; then
+            action=":${ _argsOptKey "${canonical}"; }:"
+        elif [[ -n "${type}" ]]; then
+            case "${type}" in
+                *'|'*) action=":${ _argsOptKey "${canonical}"; }:(${type//|/ })" ;;
+                bool)  action=":${ _argsOptKey "${canonical}"; }:(true false)" ;;
+                file)  action=":${ _argsOptKey "${canonical}"; }:_files" ;;
+                dir)   action=":${ _argsOptKey "${canonical}"; }:_files -/" ;;
+                exe)   action=":${ _argsOptKey "${canonical}"; }:_command_names -e" ;;
+                *)     action=":${ _argsOptKey "${canonical}"; }:" ;;
+            esac
+        fi
+
+        _specLines+=("${armIndent}'(${mutexStr})'${braceList}'[${ _escapeZshDesc "${desc}"; }]${action}'")
+    done
+
+    # Positional args: numbered in spec order (1-based, relative to $words as re-sliced by the
+    # enclosing _arguments -C '*::arg:->args'), wildcard (if present) as a trailing '*' entry
+
+    local i nTyped=0 hasWildcard=0
+    for (( i = 0; i < ${#_argsArgumentTypes[@]}; i++ )); do
+        if [[ "${_argsArgumentTypes[i]}" == '*' ]]; then hasWildcard=1; break; fi
+        (( nTyped++ ))
+    done
+
+    local posName
+    for (( i = 0; i < nTyped; i++ )); do
+        type="${_argsArgumentTypes[i]}"
+        posName="${_docPosNames[i]:-arg$((i+1))}"
+        action=''
+        case "${type}" in
+            *'|'*) action="(${type//|/ })" ;;
+            bool)  action="(true false)" ;;
+            file)  action="_files" ;;
+            dir)   action="_files -/" ;;
+            exe)   action="_command_names -e" ;;
+            *)
+                if [[ "${posName%...}" == 'PROJECT' ]]; then
+                    action="_rayvn_projects"
+                    _usesProjectCompletion=1
+                fi
+                ;;
+        esac
+        _specLines+=("${armIndent}'$((i+1)):${posName}:${action}'")
+    done
+
+    if (( hasWildcard )); then
+        posName="${_docPosNames[nTyped]:-args}"
+        action=''
+        if [[ "${posName%...}" == 'PROJECT' ]]; then
+            action="_rayvn_projects"
+            _usesProjectCompletion=1
+        fi
+        _specLines+=("${armIndent}'*:${posName}:${action}'")
+    fi
+
+    if (( ${#_specLines[@]} )); then
+        echo "${armIndent}_arguments \\"
+        local last=$(( ${#_specLines[@]} - 1 ))
+        for (( i = 0; i <= last; i++ )); do
+            if (( i == last )); then
+                printf '%s\n' "${_specLines[i]}"
+            else
+                printf '%s \\\n' "${_specLines[i]}"
+            fi
+        done
+    else
+        echo "${armIndent}_message 'no arguments'"
+    fi
+}
+
 # Generate a ${handler}CmdUsage() function from a doc comment block. Relies on the spec tables
 # left populated by the preceding _genParseFunction call. Doc block format: summary lines,
 # then indented entry lines of 'key  description' where key is an option (any alias) or, in
@@ -1100,6 +1475,39 @@ _genDocPositionalNames() {
         [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"
         [[ -n "${_argsOptionNames[${key}]+x}" || ${key} == -* ]] || _posNamesOutRef+=("${key}")
     done
+}
+
+# Extract per-option and per-positional descriptions from a doc block's main section, for the
+# zsh completion generator (which embeds raw description text in each _arguments spec entry,
+# unlike _genUsageFunction which formats descriptions into a usage function body). The doc
+# block is assumed already valid — validated once by _genUsageFunction when the command's usage
+# function was generated — so this does no re-validation, just re-extraction. Requires the spec
+# tables (_argsOptionNames) already populated via _parseArgumentSpec.
+_genDocDescriptions() {
+    local docBlock="$1"
+    local -n _optDescOutRef="$2"   # assoc array: canonical option name -> description
+    local -n _posDescOutRef="$3"   # indexed array: positional index -> description
+    _optDescOutRef=()
+    _posDescOutRef=()
+
+    local mainBlock extraBlock
+    _genSplitDocBlock "${docBlock}" mainBlock extraBlock
+
+    local line key desc canonical
+    local -i posIndex=0
+    while IFS= read -r line; do
+        [[ "${line}" =~ ^[[:space:]]+([^[:space:]]+)[[:space:]]*(.*[^[:space:]])?[[:space:]]*$ ]] || continue
+        key="${BASH_REMATCH[1]}"
+        desc="${BASH_REMATCH[2]}"
+        [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"
+        if [[ -n "${_argsOptionNames[${key}]+x}" ]]; then
+            canonical="${_argsOptionNames[${key}]}"
+            _optDescOutRef[${canonical}]="${desc}"
+        elif [[ ${key} != -* ]]; then
+            _posDescOutRef[posIndex]="${desc}"
+            (( posIndex++ ))
+        fi
+    done <<< "${mainBlock%$'\n'}"
 }
 
 # Split a doc block at its first blank comment line into a "main" part (summary + entries;
@@ -1560,6 +1968,16 @@ _argsOptKey() {
 _escapeUsage() {
     local s="$1"
     s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//\$/\\\$}"; s="${s//\`/\\\`}"
+    printf '%s' "${s}"
+}
+
+# Escape a string for safe embedding inside a generated zsh _arguments spec's single-quoted
+# '...[description]...' entry: backslash and ']' are escaped for zsh's own spec parser (a
+# literal ']' would otherwise end the description early), and a literal single quote is
+# escaped as '\'' so it doesn't end the generated script's own quoting of the whole entry.
+_escapeZshDesc() {
+    local s="$1"
+    s="${s//\\/\\\\}"; s="${s//\]/\\]}"; s="${s//\'/\'\\\'\'}"
     printf '%s' "${s}"
 }
 
