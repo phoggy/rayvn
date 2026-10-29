@@ -255,6 +255,7 @@ _rayvnChildInit() {
     # Child process: restore parent's project paths to skip re-discovery, then configure normally.
     _restoreGlobalMaps
     currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+    currentProjectName=${currentProjectName#.}; currentProjectName=${currentProjectName%-wrapped} # Nix wrapProgram renames scripts to .NAME-wrapped
     configure "$@"
 }
 
@@ -338,7 +339,10 @@ configure() {
     declare -gr _rayvnReadOnlyFunctions=${ (( rayvnTest_ModifiableFunctions )) && echo 0 || echo 1; }
     declare -g currentProjectName
     declare -g _tracing=-1
-    [[ -n "${currentProjectName}" ]] || { currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail; }
+    if [[ -z "${currentProjectName}" ]]; then
+        currentProjectName=${ basename "${BASH_SOURCE[2]}"; } || fail
+        currentProjectName=${currentProjectName#.}; currentProjectName=${currentProjectName%-wrapped} # Nix wrapProgram renames scripts to .NAME-wrapped
+    fi
     local projects=() split=() project key
 
     # Init tracing if traceOut is set
