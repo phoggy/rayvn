@@ -27,6 +27,7 @@ main() {
     testNumericPlaces
     testRandomInteger
     testTempDirPath
+    testConfigDirPathNonIdentifierName
     testMakeTempFile
     testMakeTempDir
     testAssertValidFileName
@@ -331,6 +332,16 @@ testTempDirPath() {
 
     local subpath; subpath=${ tempDirPath "subfile"; }
     assertEqual "${path}/subfile" "${subpath}" "tempDirPath with arg appends"
+}
+
+testConfigDirPathNonIdentifierName() {
+    local name="rayvn-test.config.$$"
+    local errFile; errFile=${ makeTempFile; }
+    local dir; dir=${ configDirPath -p "${name}" 2> "${errFile}"; }
+    assertEqual "${HOME}/.config/${name}" "${dir}" "configDirPath returns path for dotted name"
+    assertTrue "configDirPath creates directory for dotted name" test -d "${dir}"
+    assertTrue "configDirPath must not write errors for dotted name" test ! -s "${errFile}"
+    rm -rf "${dir}" "${errFile}"
 }
 
 testMakeTempFile() {
