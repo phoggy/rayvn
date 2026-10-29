@@ -9,7 +9,7 @@ usage() {
     echo
     echo "Options:"
     echo
-    commonOptions 21 true # description column, show debug options
+    showCommonOptions 21 true # description column, show debug options
     bye "$@"
 }
 
