@@ -2046,9 +2046,10 @@ _onRayvnExit() {
         eval "${task}"
     done
 
-    # Add a line and any deferred signal message after exit tasks have repositioned the cursor
+    # Add a line and any deferred signal message after exit tasks have repositioned the cursor. The line
+    # is only for terminal spacing, so skip it when stdout is redirected to avoid corrupting the output.
 
-    (( rayvnTest_NoEchoOnExit )) || echo
+    (( rayvnTest_NoEchoOnExit )) || { [[ -t 1 ]] && echo; }
     [[ -n ${_rayvnExitMessage} ]] && show "${_rayvnExitMessage}" >&${ttyFd}
 
     # Delete temp dir if we created it

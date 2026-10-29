@@ -28,6 +28,7 @@ main() {
     testRandomInteger
     testTempDirPath
     testConfigDirPathNonIdentifierName
+    testNoExitLineWhenRedirected
     testMakeTempFile
     testMakeTempDir
     testAssertValidFileName
@@ -342,6 +343,13 @@ testConfigDirPathNonIdentifierName() {
     assertTrue "configDirPath creates directory for dotted name" test -d "${dir}"
     assertTrue "configDirPath must not write errors for dotted name" test ! -s "${errFile}"
     rm -rf "${dir}" "${errFile}"
+}
+
+testNoExitLineWhenRedirected() {
+    local dir; dir=${ makeTempDir; }
+    printf '%s\n' '#!/usr/bin/env bash' 'source rayvn.up "rayvn/core" || exit' "printf 'data'" > "${dir}/emit"
+    env -u rayvnTest_NoEchoOnExit bash "${dir}/emit" > "${dir}/out" 2> /dev/null
+    assertEqual "4" "${ wc -c < "${dir}/out" | tr -d ' '; }" "redirected stdout must not get the exit spacing line"
 }
 
 testMakeTempFile() {
