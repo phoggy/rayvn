@@ -21,6 +21,7 @@ main() {
     testGenParserMultipleAliases
     testGenParserExclusionGroups
     testGenParserVariadicOption
+    testGenParserRepeatableOption
     testGenParserDashedNames
     testGenParserVersionType
     testGenCliParser
@@ -400,6 +401,44 @@ testGenParserVariadicOption() {
 
     # A variadic option cannot have a default
     spec=("--record:str*=x")
+    err=${ ( generateParser rayvn spec ) 2>&1; }
+    assertContains "cannot have a default value" "${err}"
+}
+
+testGenParserRepeatableOption() {
+    local spec err
+
+    # One value per occurrence, collected across occurrences; positionals are never consumed
+    spec=("str?" "--recipient|-r:str+" "--force|-f")
+    evalGeneratedParser spec
+    declare -A expectedOptions=(['recipient']="1" ['force']="1")
+    declare -a expectedArgs=("notes.txt")
+    parseArgs -r a notes.txt --recipient b -f
+    assertExpectedParse expectedOptions expectedArgs
+    assertEqual "${_optListRecipient[*]}" "a b" "repeatable values"
+
+    # The '=' form adds one value
+    parseArgs --recipient=a --recipient=b
+    assertEqual "${_optListRecipient[*]}" "a b" "= form values"
+
+    # Resets on every parse, even when the option isn't supplied
+    parseArgs notes.txt
+    assertEqual "${#_optListRecipient[@]}" "0" "_optListRecipient reset when --recipient absent"
+    assertEqual "${_opts['recipient']:-}" "" "absent repeatable option not marked present"
+
+    # Each occurrence requires a value
+    assertGenParseFailsWith "missing value for --recipient" -r
+    assertGenParseFailsWith "missing value for --recipient" -r -f
+
+    # Each value is type-checked
+    spec=("--count:+int+")
+    evalGeneratedParser spec
+    parseArgs --count 3 --count 4
+    assertEqual "${_optListCount[*]}" "3 4" "typed repeatable values"
+    assertGenParseFailsWith "must be a positive integer" --count 3 --count x
+
+    # A repeatable option cannot have a default
+    spec=("--recipient:str+=x")
     err=${ ( generateParser rayvn spec ) 2>&1; }
     assertContains "cannot have a default value" "${err}"
 }

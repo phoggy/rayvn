@@ -21,6 +21,7 @@
 #      type: str | int | +int | bool | file | dir | exe | version | a|b|c (inline enum: value must be one of the alternatives)
 #    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
 #  variadic: --name[|alias...]:type*                e.g. --record:str* — see below
+#  repeated: --name[|alias...]:type+                e.g. --recipient|-r:str+ — see below
 #      flag: --name[|alias...]
 #     group: [--a|--b|...]                          mutually exclusive: at most one may be supplied
 #  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
@@ -47,6 +48,12 @@
 # → `_optListExcludePattern`), reset to empty at the start of every parse whether or not the option was given. The
 # `=` form (`--record=id`) sets a single-element list. Each value is validated against the declared type, same as
 # a scalar option. Variadic options cannot have a default.
+#
+# A repeatable option (type suffix `+`, e.g. `--recipient|-r:str+`) takes exactly one value per occurrence and may be
+# given any number of times; unlike a variadic option it never consumes following positional arguments, so
+# `-r a FILE -r b` collects `a` and `b` and leaves `FILE` positional. Values land in the same kind of `_optList<Name>`
+# global array as a variadic option (reset on every parse) and `_opts[name]` is set to `"1"` when supplied. Each value
+# is validated against the declared type. Repeatable options cannot have a default.
 #
 # The `int` type accepts both positive and negative values; use the `+int` type to accept only positive integers.
 #
@@ -148,6 +155,7 @@ parseArgsWithSpec() {
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
     declare -A _argsOptionVariadic
+    declare -A _argsOptionRepeatable
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -497,6 +505,7 @@ _genArgumentParser() {
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
     declare -A _argsOptionVariadic
+    declare -A _argsOptionRepeatable
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -541,6 +550,7 @@ _genCommandParser() {
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
     declare -A _argsOptionVariadic
+    declare -A _argsOptionRepeatable
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -677,6 +687,7 @@ _genCompletionScript() {
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
     declare -A _argsOptionVariadic
+    declare -A _argsOptionRepeatable
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -929,6 +940,7 @@ _genZshCompletionScript() {
     declare -A _argsOptionTypes
     declare -A _argsOptionDefaults
     declare -A _argsOptionVariadic
+    declare -A _argsOptionRepeatable
     declare -a _argsGroups
     declare -a _argsArgumentTypes
     declare -i _argsMinArgs=0
@@ -1161,7 +1173,11 @@ _genZshCompletionArm() {
             esac
         fi
 
-        _specLines+=("${armIndent}'(${mutexStr})'${braceList}'[${ _escapeZshDesc "${desc}"; }]${action}'")
+        if [[ -n "${_argsOptionRepeatable[${canonical}]+x}" ]]; then
+            _specLines+=("${armIndent}'*'${braceList}'[${ _escapeZshDesc "${desc}"; }]${action}'")
+        else
+            _specLines+=("${armIndent}'(${mutexStr})'${braceList}'[${ _escapeZshDesc "${desc}"; }]${action}'")
+        fi
     done
 
     # Positional args: numbered in spec order (1-based, relative to $words as re-sliced by the
@@ -1354,6 +1370,8 @@ _genUsageFunction() {
         local shortName; shortName="${ _argsOptKey "${canonical}"; }"
         if [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]]; then
             synopsis+=" [${canonical} [${shortName^^}...]]"
+        elif [[ -n "${_argsOptionRepeatable[${canonical}]+x}" ]]; then
+            synopsis+=" [${canonical} ${shortName^^}]..."
         elif [[ -n "${_type}" ]]; then
             local placeholder
             case "${_type}" in
@@ -1722,7 +1740,7 @@ _genParseFunction() {
 
         local _listVarName
         for canonical in "${_canonicals[@]}"; do
-            [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]] || continue
+            [[ -n "${_argsOptionVariadic[${canonical}]+x}" || -n "${_argsOptionRepeatable[${canonical}]+x}" ]] || continue
             _listVarName="${ _argsListVarName "${canonical}"; }"
             echo "    declare -g ${_listVarName}=()"
         done
@@ -1786,6 +1804,11 @@ _genParseFunction() {
                     echo "                    ${listCheck}${listVar}+=(\"\$1\"); shift"
                     echo "                done"
                     echo "                _opts+=(['${shortName}']=\"1\") ;;"
+                    [[ -n "${eqPattern}" ]] && \
+                        echo "            ${eqPattern}) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}${listVar}+=(\"\${_value}\"); _opts+=(['${shortName}']=\"1\"); shift ;;"
+                elif [[ -n "${_argsOptionRepeatable[${canonical}]+x}" ]]; then
+                    local listVar; listVar="${ _argsListVarName "${canonical}"; }"
+                    echo "            ${pattern}) ${missingCheck}; ${check}${listVar}+=(\"\$2\"); _opts+=(['${shortName}']=\"1\"); shift 2 ;;"
                     [[ -n "${eqPattern}" ]] && \
                         echo "            ${eqPattern}) _value=\"\${1#*=}\"; ${eqMissing}; ${eqCheck}${listVar}+=(\"\${_value}\"); _opts+=(['${shortName}']=\"1\"); shift ;;"
                 elif [[ "${type}" == 'bool' ]]; then
@@ -1874,6 +1897,7 @@ _parseArgumentSpec() {
     _argsOptionTypes=()
     _argsOptionDefaults=()
     _argsOptionVariadic=()
+    _argsOptionRepeatable=()
     _argsArgumentTypes=()
     _argsGroups=()
     _argsMinArgs=0
@@ -1909,6 +1933,11 @@ _parseArgumentSpec() {
                         invalidArgs "${_spec}: a variadic option cannot have a default value"
                     _argsOptionVariadic+=([${option}]=1)
                     _type="${_type%\*}"
+                elif [[ ${_type} == ?*'+' ]]; then
+                    [[ -n "${_argsOptionDefaults[${option}]+x}" ]] && \
+                        invalidArgs "${_spec}: a repeatable option cannot have a default value"
+                    _argsOptionRepeatable+=([${option}]=1)
+                    _type="${_type%+}"
                 fi
                 _isKnownType
                 _argsOptionTypes+=([${option}]=${_type})
