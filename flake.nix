@@ -42,6 +42,7 @@
             # Install bin/
             install -Dm755 bin/rayvn "$out/bin/rayvn"
             install -Dm755 bin/rayvn.up "$out/bin/rayvn.up"
+            install -Dm755 bin/rayvn-bash "$out/bin/rayvn-bash"
 
             # Install lib/
             mkdir -p "$out/share/rayvn/lib"
@@ -92,12 +93,12 @@ EOF
           # patchShebangs rewrites #!/usr/bin/env bash to the non-interactive
           # bash, which lacks builtins like compgen. Restore the shebangs so
           # they resolve via PATH, where the wrapper provides bash-interactive.
-          # rayvn-bash is not needed here, since the wrapper's bash is 5.3+.
+          # The '#!/usr/bin/env rayvn-bash' shebangs are kept: rayvn-bash is installed
+          # above and on the wrapper's PATH (also for projects that depend on rayvn).
           postFixup = ''
             for f in "$out/bin/.rayvn-wrapped" "$out/bin/rayvn.up" "$out/share/rayvn/lib/"*.sh; do
               if [ -f "$f" ]; then
                 sed -i "1s|^#\\!.*/bin/bash.*|#!/usr/bin/env bash|" "$f"
-                sed -i "1s|^#\\!/usr/bin/env rayvn-bash$|#!/usr/bin/env bash|" "$f"
               fi
             done
           '';
