@@ -2,7 +2,7 @@
   description = "rayvn - Shared bash library system";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -16,6 +16,7 @@
           pkgs.bash
           pkgs.gawk
           pkgs.gnused
+          pkgs.gnugrep
           pkgs.gh
           pkgs.curl
           pkgs.jq
@@ -91,10 +92,12 @@ EOF
           # patchShebangs rewrites #!/usr/bin/env bash to the non-interactive
           # bash, which lacks builtins like compgen. Restore the shebangs so
           # they resolve via PATH, where the wrapper provides bash-interactive.
+          # rayvn-bash is not needed here, since the wrapper's bash is 5.3+.
           postFixup = ''
             for f in "$out/bin/.rayvn-wrapped" "$out/bin/rayvn.up" "$out/share/rayvn/lib/"*.sh; do
               if [ -f "$f" ]; then
                 sed -i "1s|^#\\!.*/bin/bash.*|#!/usr/bin/env bash|" "$f"
+                sed -i "1s|^#\\!/usr/bin/env rayvn-bash$|#!/usr/bin/env bash|" "$f"
               fi
             done
           '';
