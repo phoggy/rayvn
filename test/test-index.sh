@@ -16,6 +16,7 @@ main() {
     testFlushDocSectionArgsUnknownType
     testFlushDocSectionExample
     testFlushDocSectionNotes
+    testSyncSharedPagesFiles
 }
 
 init() {
@@ -188,6 +189,28 @@ testFlushDocSectionNotes() {
     assertContains '- First note.' "${joined}" "first note rendered"
     assertContains '- Second note.' "${joined}" "second note rendered"
     [[ "${joined}" != *'```'* ]] || fail "Notes should not produce code fence"
+}
+
+# ============================================================================
+# _syncSharedPagesFiles
+# ============================================================================
+
+testSyncSharedPagesFiles() {
+    local site; site=${ makeTempDir; }
+    local sharedDir="${rayvnHome}/etc/pages"
+    local output; output=${ _syncSharedPagesFiles "${site}"; }
+    assertContains "Created _sass/custom/custom.scss" "${output}"
+    assertEqual '' "${ diff -r "${sharedDir}" "${site}"; }" "every shared file must be copied"
+
+    output=${ _syncSharedPagesFiles "${site}"; }
+    assertEqual '' "${output}" "an up to date site must not be changed"
+
+    echo 'edited by hand' >> "${site}/_includes/head_custom.html"
+    echo 'site specific' > "${site}/_includes/site_only.html"
+    output=${ _syncSharedPagesFiles "${site}"; }
+    assertEqual "Updated _includes/head_custom.html" "${output}"
+    assertEqual '' "${ diff "${sharedDir}/_includes/head_custom.html" "${site}/_includes/head_custom.html"; }" "a changed copy must be restored"
+    assertEqual 'site specific' "${ cat "${site}/_includes/site_only.html"; }" "site-specific files must be left alone"
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/index' 'rayvn/test'

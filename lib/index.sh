@@ -326,75 +326,7 @@ _ensurePagesFiles() {
         show "Created index.md (placeholder — update with project description)"
     fi
 
-    local includesDir="${worktreePath}/_includes"
-    local footerFile="${includesDir}/nav_footer_custom.html"
-    if [[ ! -f "${footerFile}" ]]; then
-        ensureDir "${includesDir}"
-        # lint-skip-start
-        cat > "${footerFile}" << 'EOF'
-<button id="theme-toggle" class="btn"></button>
-
-<script>
-  (function () {
-    function init() {
-      var btn = document.getElementById('theme-toggle');
-      if (!btn || typeof jtd === 'undefined') return;
-      function updateLabel() {
-        btn.textContent = jtd.getTheme() === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
-      }
-      btn.addEventListener('click', function () {
-        jtd.setTheme(jtd.getTheme() === 'dark' ? 'light' : 'dark');
-        updateLabel();
-      });
-      updateLabel();
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
-    }
-  })();
-</script>
-EOF
-        # lint-skip-end
-        show "Created _includes/nav_footer_custom.html"
-    fi
-
-    local customScss="${worktreePath}/_sass/custom/custom.scss"
-    local customSrc="${rayvnHome}/etc/pages-custom.scss"
-    local codeSrc="${rayvnHome}/etc/pages-code.scss"
-    if [[ ! -f "${customScss}" || "${customSrc}" -nt "${customScss}" || "${codeSrc}" -nt "${customScss}" ]]; then
-        local customAction; customAction=${ [[ -f "${customScss}" ]] && echo 'Updated' || echo 'Created'; }
-        ensureDir "${worktreePath}/_sass/custom"
-        cat "${customSrc}" "${codeSrc}" > "${customScss}" || fail "could not write custom.scss"
-        show "${customAction} _sass/custom/custom.scss"
-    fi
-
-    local pluginFile="${worktreePath}/_plugins/ruby4_compat.rb"
-    if [[ ! -f "${pluginFile}" ]]; then
-        ensureDir "${worktreePath}/_plugins"
-        cat > "${pluginFile}" << 'EOF'
-# Restore tainted? for Ruby 3.2+ compatibility with Liquid 4.x (removed from Ruby 3.2).
-[String, Integer, Float, Array, Hash, Symbol, NilClass, TrueClass, FalseClass].each do |klass|
-  klass.define_method(:tainted?) { false }
-end
-
-# Patch jekyll-sass-converter 3.x to support silence_deprecations from _config.yml sass section.
-# The converter passes quiet_deps and verbose to sass-embedded but not silence_deprecations.
-Jekyll::Hooks.register :site, :after_init do |site|
-  require "jekyll/converters/scss"
-  Jekyll::Converters::Scss.prepend(Module.new do
-    def sass_configs
-      configs = super
-      silence = jekyll_sass_configuration["silence_deprecations"]
-      configs[:silence_deprecations] = Array(silence).map(&:to_sym) if silence
-      configs
-    end
-  end)
-end
-EOF
-        show "Created _plugins/ruby4_compat.rb"
-    fi
+    _syncSharedPagesFiles "${worktreePath}"
 
     if (( publish )); then
         local changedFiles; changedFiles=${ git -C "${worktreePath}" status --porcelain; }
@@ -406,6 +338,24 @@ EOF
             show success "Pages scaffolding committed and pushed"
         fi
     fi
+}
+
+# Copy the site files shared by all rayvn project sites (styles, includes and plugins, in etc/pages) into a pages
+# worktree, replacing any copy that differs. The copies are committed with each site, since each is built separately.
+
+_syncSharedPagesFiles() {
+    local worktreePath="$1"
+    local sharedDir="${rayvnHome}/etc/pages"
+    local sourceFile relPath targetFile
+    while IFS= read -r sourceFile; do
+        relPath="${sourceFile#"${sharedDir}"/}"
+        targetFile="${worktreePath}/${relPath}"
+        cmp -s "${sourceFile}" "${targetFile}" && continue
+        local action='Updated'; [[ -f "${targetFile}" ]] || action='Created'
+        ensureDir "${ dirname "${targetFile}"; }"
+        cp "${sourceFile}" "${targetFile}" || fail "could not write ${targetFile}"
+        show "${action} ${relPath}"
+    done < <(find "${sharedDir}" -type f | sort)
 }
 
 _ensurePagesWorkflow() {

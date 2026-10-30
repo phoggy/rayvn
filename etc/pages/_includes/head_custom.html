@@ -1,0 +1,30 @@
+{% comment %} Shared rayvn site file, synced by 'rayvn pages': edit rayvn/etc/pages/_includes/head_custom.html, not the copy in a site. {% endcomment %}
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;500;700&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+<!-- Asciinema player -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3/dist/bundle/asciinema-player.min.css">
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3/dist/bundle/asciinema-player.min.js"></script>
+
+<!-- Load light stylesheet alongside the default (dark); toggling media avoids a refetch on every page load. -->
+<link rel="stylesheet" href="{{ '/assets/css/just-the-docs-light.css' | prepend: site.baseurl }}" media="not all" id="jtd-light-stylesheet">
+
+<!-- Activate the correct theme before body renders. No href swap — just flip media on the pre-loaded sheets. -->
+<script>
+(function () {
+  var KEY = 'rayvn-color-scheme';
+  var saved = localStorage.getItem(KEY);
+  var theme = (saved === 'dark' || saved === 'light')
+    ? saved
+    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  if (theme === 'light') {
+    var dark = document.querySelector('link[href*="just-the-docs-default.css"]');
+    var light = document.getElementById('jtd-light-stylesheet');
+    if (dark)  dark.media  = 'not all';
+    if (light) light.media = '';
+  }
+})();
+</script>
