@@ -17,6 +17,7 @@ main() {
     testFlushDocSectionUsagePipes
     testFlushDocSectionArgsEnumType
     testTableCellText
+    testFlushDocSectionContinuationLines
     testFlushDocSectionExample
     testFlushDocSectionNotes
     testSyncSharedPagesFiles
@@ -181,7 +182,7 @@ testFlushDocSectionUsagePipes() {
 
     local joined="${out[*]}"
     assertContains '| `encrypt` | `[INPUT | -v NAME] --passphrase [-o PATH]` |' "${joined}" "another usage form must be code"
-    assertContains '| `-o,` | `--output` PATH  Write to PATH, or - for standard output. |' "${joined}" "option names must be code"
+    assertContains '| `-o, --output PATH` | Write to PATH, or - for standard output. |' "${joined}" "short and long option names must share a cell"
 }
 
 testFlushDocSectionArgsEnumType() {
@@ -190,6 +191,20 @@ testFlushDocSectionArgsEnumType() {
     _flushDocSection ARGS lines out
 
     assertContains "| \`[useCase]\` | ('account'\\|'file')  What it protects. |" "${out[*]}" "an enum type's '|' must be escaped"
+}
+
+# Wrapped descriptions (lines starting with whitespace) continue the previous row, in both usage and args tables.
+
+testFlushDocSectionContinuationLines() {
+    local -a lines=('  myFunc [-o PATH]' '  -o, --output PATH  Write the result to PATH. Any existing file' '                     will be overwritten.')
+    local -a out=()
+    _flushDocSection USAGE lines out
+    assertContains '| `-o, --output PATH` | Write the result to PATH. Any existing file will be overwritten. |' "${out[*]}"
+
+    lines=('  name (string)  The name, which' '                 can be long.')
+    out=()
+    _flushDocSection ARGS lines out
+    assertContains '| `name` *(string)* | The name, which can be long. |' "${out[*]}"
 }
 
 testTableCellText() {

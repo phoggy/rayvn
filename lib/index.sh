@@ -963,6 +963,69 @@ _renderDocMarkdown() {
     done
 }
 
+# Append a two column markdown table of names and descriptions, parsed from doc lines of the form 'NAME [(type)]  DESC'
+# or, for options, '-o, --output PATH  DESC' (the name ends at the first run of two or more spaces). Lines that start
+# with whitespace continue the previous description. Lines naming signatureName are other forms of the call signature,
+# rendered as code.
+# Args: linesRef outputRef signatureName
+_appendDocTableRows() {
+    local -n _dtrLinesRef="$1"
+    local -n _dtrOutRef="$2"
+    local signatureName="$3"
+    local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
+    local parenTypePattern='^([^(]*)\(([^)]+)\)[[:space:]]+(.*)'
+    local optionPattern='^(-[^ ]*( [^ ]+)*)[[:space:]]{2,}(.*)$'
+    local optionTypePattern='^(.+)[[:space:]]+\(([^)]+)\)$'
+    local -a names=() descs=() isCode=()
+    local l argName rest metavar typeWord remaining last i
+
+    for l in "${_dtrLinesRef[@]}"; do
+        l="${l#  }"
+        [[ -z "${l// }" ]] && continue
+        if [[ "${l}" == [[:space:]]* ]]; then
+            (( ${#descs[@]} )) || continue
+            last=$(( ${#descs[@]} - 1 ))
+            descs[last]+=" ${l#"${l%%[![:space:]]*}"}"
+            continue
+        fi
+        if [[ "${l}" =~ ${optionPattern} ]]; then
+            local optionName="${BASH_REMATCH[1]}"
+            descs+=("${BASH_REMATCH[3]}"); isCode+=(0)
+            if [[ "${optionName}" =~ ${optionTypePattern} && " ${knownTypes} " == *" ${BASH_REMATCH[2]} "* ]]; then
+                names+=("\`${BASH_REMATCH[1]}\` *(${BASH_REMATCH[2]})*")
+            else
+                names+=("\`${optionName}\`")
+            fi
+            continue
+        fi
+        IFS=' ' read -r argName rest <<< "${l}"
+        metavar=''
+        if [[ "${rest}" =~ ${parenTypePattern} ]]; then
+            metavar="${BASH_REMATCH[1]% }"
+            typeWord="${BASH_REMATCH[2]}"
+            remaining="${BASH_REMATCH[3]}"
+        else
+            IFS=' ' read -r typeWord remaining <<< "${rest}"
+        fi
+        if [[ " ${knownTypes} " == *" ${typeWord} "* && -n "${remaining}" ]]; then
+            names+=("\`${argName}${metavar:+ ${metavar}}\` *(${typeWord})*"); descs+=("${remaining}"); isCode+=(0)
+        elif [[ -n "${signatureName}" && "${argName}" == "${signatureName}" ]]; then
+            names+=("\`${argName}\`"); descs+=("${rest# }"); isCode+=(1)  # another form of the call signature
+        else
+            names+=("\`${argName}\`"); descs+=("${rest# }"); isCode+=(0)
+        fi
+    done
+
+    _dtrOutRef+=('| | |' '|---|---|')
+    for (( i = 0; i < ${#names[@]}; i++ )); do
+        if (( isCode[i] )); then
+            _dtrOutRef+=("| ${names[i]} | \`${descs[i]}\` |")
+        else
+            _dtrOutRef+=("| ${names[i]} | ${ _tableCellText "${descs[i]}"; } |")
+        fi
+    done
+}
+
 # Flush a collected doc section into the output array with proper markdown formatting.
 # Args: section sectionLinesRef outputRef
 
@@ -970,7 +1033,6 @@ _flushDocSection() {
     local section="$1"
     local -n _fdsLinesRef="$2"
     local -n _fdsOutRef="$3"
-    local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
     local sectionTitle="${section,,}"
 
     _fdsOutRef+=("" "*${sectionTitle}*" "")
@@ -990,30 +1052,7 @@ _flushDocSection() {
                 fi
             done
             [[ -n "${signature}" ]] && _fdsOutRef+=("\`${signature}\`" '{: .usage-signature}' "")
-            _fdsOutRef+=('| | |' '|---|---|')
-            local parenTypePattern='^([^(]*)\(([^)]+)\)[[:space:]]+(.*)'
-            for l in "${optionLines[@]}"; do
-                [[ "${l}" == ' '* ]] && continue
-                local argName rest
-                IFS=' ' read -r argName rest <<< "${l}"
-                [[ -z "${argName}" ]] && continue
-                local metavar='' typeWord remaining
-                if [[ "${rest}" =~ ${parenTypePattern} ]]; then
-                    metavar="${BASH_REMATCH[1]% }"
-                    typeWord="${BASH_REMATCH[2]}"
-                    remaining="${BASH_REMATCH[3]}"
-                else
-                    IFS=' ' read -r typeWord remaining <<< "${rest}"
-                fi
-                if [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
-                    local display="${argName}${metavar:+ ${metavar}}"
-                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${ _tableCellText "${remaining}"; } |")
-                elif [[ "${argName}" == "${signature%% *}" ]]; then
-                    _fdsOutRef+=("| \`${argName}\` | \`${rest# }\` |")  # another form of the call signature
-                else
-                    _fdsOutRef+=("| \`${argName}\` | ${ _tableCellText "${rest# }"; } |")
-                fi
-            done
+            _appendDocTableRows optionLines _fdsOutRef "${signature%% *}"
             _fdsOutRef+=('{: .usage-table}')
             ;;
         EXAMPLE)
@@ -1042,32 +1081,7 @@ _flushDocSection() {
             done
             ;;
         ARGS|RETURNS)
-            _fdsOutRef+=('| | |' '|---|---|')
-            local l
-            for l in "${_fdsLinesRef[@]}"; do
-                [[ -z "${l}" ]] && continue
-                l="${l#  }"
-                [[ "${l}" == ' '* ]] && continue  # skip wrapped continuation lines
-                local argName rest
-                IFS=' ' read -r argName rest <<< "${l}"
-                [[ -z "${argName}" ]] && continue
-                local typeWord remaining
-                local parenTypePattern='^([^(]*)\(([^)]+)\)[[:space:]]+(.*)'
-                local metavar='' typeWord remaining
-                if [[ "${rest}" =~ ${parenTypePattern} ]]; then
-                    metavar="${BASH_REMATCH[1]% }"
-                    typeWord="${BASH_REMATCH[2]}"
-                    remaining="${BASH_REMATCH[3]}"
-                else
-                    IFS=' ' read -r typeWord remaining <<< "${rest}"
-                fi
-                if [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
-                    local display="${argName}${metavar:+ ${metavar}}"
-                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${ _tableCellText "${remaining}"; } |")
-                else
-                    _fdsOutRef+=("| \`${argName}\` | ${ _tableCellText "${rest# }"; } |")
-                fi
-            done
+            _appendDocTableRows _fdsLinesRef _fdsOutRef ''
             _fdsOutRef+=('{: .args-table}')
             ;;
         *)
