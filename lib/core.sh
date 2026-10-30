@@ -1709,7 +1709,7 @@ _init_rayvn_core() {
     elif (( onMacOS )); then
         local _tmpBase
         _tmpBase="${RAYVN_TMP_PATH:-/private/var/rayvn-tmp}"
-        if [[ -d "${_tmpBase}" ]] && mount | grep -q " on ${_tmpBase} (tmpfs"; then
+        if [[ -d "${_tmpBase}" ]] && /sbin/mount | grep -q " on ${_tmpBase} (tmpfs"; then
             declare -gr _secureTempStrategy='macos_tmpfs'
             local _userTmpDir="${_tmpBase}/${UID}"
             [[ -d ${_userTmpDir} ]] || withUmask 0077 mkdir "${_userTmpDir}"
