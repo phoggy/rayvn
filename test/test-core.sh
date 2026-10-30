@@ -29,6 +29,7 @@ main() {
     testTempDirPath
     testConfigDirPathNonIdentifierName
     testNoExitLineWhenRedirected
+    testScriptNameUnwrapsNixWrapper
     testMakeTempFile
     testMakeTempDir
     testAssertValidFileName
@@ -343,6 +344,16 @@ testConfigDirPathNonIdentifierName() {
     assertTrue "configDirPath creates directory for dotted name" test -d "${dir}"
     assertTrue "configDirPath must not write errors for dotted name" test ! -s "${errFile}"
     rm -rf "${dir}" "${errFile}"
+}
+
+# Nix wrapProgram renames a script to .NAME-wrapped; scriptName (used in usage text) must still be NAME.
+
+testScriptNameUnwrapsNixWrapper() {
+    local dir; dir=${ makeTempDir; }
+    printf '%s\n' '#!/usr/bin/env bash' 'source rayvn.up "rayvn/core" || exit' 'printf "%s" "${scriptName}"' > "${dir}/.tool-wrapped"
+    cp "${dir}/.tool-wrapped" "${dir}/plain-tool" || fail
+    assertEqual "tool" "${ bash "${dir}/.tool-wrapped" 2> /dev/null; }" "wrapped script name must be unwrapped"
+    assertEqual "plain-tool" "${ bash "${dir}/plain-tool" 2> /dev/null; }" "unwrapped script name must be unchanged"
 }
 
 testNoExitLineWhenRedirected() {

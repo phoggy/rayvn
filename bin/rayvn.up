@@ -326,7 +326,9 @@ traceUpInit() {
 # bashsupport disable=BP3002
 configure() {
     [[ -v _rayvnProjects ]] || declare -gA _rayvnProjects=()
-    declare -gr scriptName="${0##*/}"
+    local _scriptName="${0##*/}"
+    [[ ${_scriptName} == .*-wrapped ]] && { _scriptName=${_scriptName#.}; _scriptName=${_scriptName%-wrapped}; } # Nix wrapProgram renames scripts to .NAME-wrapped
+    declare -gr scriptName="${_scriptName}"
     declare -gAi _rayvnRequireCounts=()
     declare -gr _projectRootSuffix='::project'
     declare -gr _libraryRootSuffix='::library'
