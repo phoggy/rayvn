@@ -28,6 +28,8 @@ main() {
     testLintAllowsInitFunction
     testLintAllowsPathAssignment
     testLintImplicitGlobalLintOk
+    testLintAllowsMultipleDeclareGlobals
+    testLintTrailingCommentApostrophe
 }
 
 init() {
@@ -206,6 +208,31 @@ testLintImplicitGlobalLintOk() {
     implicitVar="hello" # lint-ok
 }' > /dev/null
     assertTrue "runLint respects # lint-ok on implicit global line" runLint "${lintTestProject}" 2>/dev/null
+}
+
+testLintAllowsMultipleDeclareGlobals() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "declare-g-multi.sh" '_init_lint_test_declareGMulti() {
+    declare -g -A firstGlobal
+    declare -g secondGlobal thirdGlobal
+}
+publicFunc() {
+    firstGlobal=()
+    thirdGlobal="hello"
+}' > /dev/null
+    assertTrue "runLint allows assignment to every name in a declare -g" runLint "${lintTestProject}" 2> /dev/null
+}
+
+# An apostrophe in a trailing comment must not be treated as opening a string.
+
+testLintTrailingCommentApostrophe() {
+    rm -f "${lintTestRoot}"/lib/*.sh
+    _writeLintFixture "trailing-comment.sh" 'publicFunc() {
+    local myVar # don'\''t flag this
+    local other="${#myVar}" # length, not a comment
+    myVar="hello"
+}' > /dev/null
+    assertTrue "runLint ignores apostrophes in trailing comments" runLint "${lintTestProject}" 2> /dev/null
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/lint' 'rayvn/test'

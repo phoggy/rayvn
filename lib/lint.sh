@@ -207,8 +207,8 @@ _preprocessLintFile() {
     # preserving line numbers) so checks don't fire on e.g. gawk programs or test fixtures
     # that contain bash-operator-like syntax inside string literals.
     # Track double-quoted strings too so a ' inside "..." does not corrupt the sq state.
-    # Comment lines (starting with #) are passed through unchanged when not inside a string,
-    # so that apostrophes in natural-language doc comments don't corrupt the sq state.
+    # Comments (whole-line, or trailing: a # starting a word outside a string) are passed through
+    # unchanged, so that apostrophes in natural-language comments don't corrupt the sq state.
     # Backslash in normal mode (outside strings) skips the next char (e.g. \' is a literal
     # apostrophe, not a string-open), matching bash unquoted-context escape semantics.
     local _ppStrippedFile; _ppStrippedFile=${ makeTempFile; }
@@ -226,6 +226,7 @@ _preprocessLintFile() {
                 else r = r c
             } else {
                 if      (c == "\\")   { r = r c; i++; if (i <= length($0)) r = r substr($0, i, 1) }
+                else if (c == "#" && (i == 1 || substr($0, i - 1, 1) ~ /[[:space:];]/)) { r = r substr($0, i); break }
                 else if (c == "\047") { sq = 1; r = r c }
                 else if (c == "\"")   { dq = 1; r = r c }
                 else r = r c
@@ -419,9 +420,16 @@ _lintRunChecks() {
     # pass 2 flags bare assignments to variables not in either localVars or fileGlobals.
     local _implicitGlobalsScript='
         NR == FNR {
-            if (/declare[[:space:]]+-[a-zA-Z]*g[a-zA-Z]*[[:space:]]/)
-                if (match($0, /declare[[:space:]]+-[a-zA-Z]+[[:space:]]+([a-zA-Z_][a-zA-Z0-9_]*)/, m))
-                    fileGlobals[m[1]] = 1
+            if (match($0, /declare[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-[a-zA-Z]*g[a-zA-Z]*[[:space:]]+(.*)/, m)) {
+                n = split(m[2], parts, " ")
+                for (i = 1; i <= n; i++) {
+                    if (parts[i] ~ /^-/) continue
+                    if (parts[i] !~ /^[a-zA-Z_]/) break
+                    match(parts[i], /^[a-zA-Z_][a-zA-Z0-9_]*/)
+                    fileGlobals[substr(parts[i], 1, RLENGTH)] = 1
+                    if (parts[i] ~ /=/) break
+                }
+            }
             next
         }
 
