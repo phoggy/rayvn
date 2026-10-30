@@ -14,6 +14,9 @@ main() {
     testRenderDocMarkdownUsage
     testFlushDocSectionArgsKnownType
     testFlushDocSectionArgsUnknownType
+    testFlushDocSectionUsagePipes
+    testFlushDocSectionArgsEnumType
+    testTableCellText
     testFlushDocSectionExample
     testFlushDocSectionNotes
     testSyncSharedPagesFiles
@@ -166,6 +169,33 @@ testFlushDocSectionArgsUnknownType() {
     local joined="${out[*]}"
     assertContains '`myArg`' "${joined}" "arg name rendered"
     assertContains 'someWord  The argument.' "${joined}" "unknown type treated as description"
+}
+
+# A '|' must not end a table cell: other forms of the call signature become code, and other text is escaped.
+
+testFlushDocSectionUsagePipes() {
+    local -a lines=('  encrypt [INPUT | -v NAME] (-r RECIPIENT)... [-o PATH]' '  encrypt [INPUT | -v NAME] --passphrase [-o PATH]'
+                    '  -o, --output PATH  Write to PATH, or - for standard output.')
+    local -a out=()
+    _flushDocSection USAGE lines out
+
+    local joined="${out[*]}"
+    assertContains '| `encrypt` | `[INPUT | -v NAME] --passphrase [-o PATH]` |' "${joined}" "another usage form must be code"
+    assertContains '| `-o,` | `--output` PATH  Write to PATH, or - for standard output. |' "${joined}" "option names must be code"
+}
+
+testFlushDocSectionArgsEnumType() {
+    local -a lines=("  [useCase] ('account'|'file')  What it protects.")
+    local -a out=()
+    _flushDocSection ARGS lines out
+
+    assertContains "| \`[useCase]\` | ('account'\\|'file')  What it protects. |" "${out[*]}" "an enum type's '|' must be escaped"
+}
+
+testTableCellText() {
+    assertEqual 'Use `--armor` or `-a` (default: `-o`).' "${ _tableCellText 'Use --armor or -a (default: -o).'; }"
+    assertEqual 'a \| b and `c|d`' "${ _tableCellText 'a | b and `c|d`'; }"
+    assertEqual 'x-ray and well-known' "${ _tableCellText 'x-ray and well-known'; }"
 }
 
 testFlushDocSectionExample() {

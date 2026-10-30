@@ -965,6 +965,7 @@ _renderDocMarkdown() {
 
 # Flush a collected doc section into the output array with proper markdown formatting.
 # Args: section sectionLinesRef outputRef
+
 _flushDocSection() {
     local section="$1"
     local -n _fdsLinesRef="$2"
@@ -1006,9 +1007,11 @@ _flushDocSection() {
                 fi
                 if [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
                     local display="${argName}${metavar:+ ${metavar}}"
-                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${remaining} |")
+                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${ _tableCellText "${remaining}"; } |")
+                elif [[ "${argName}" == "${signature%% *}" ]]; then
+                    _fdsOutRef+=("| \`${argName}\` | \`${rest# }\` |")  # another form of the call signature
                 else
-                    _fdsOutRef+=("| \`${argName}\` | ${rest# } |")
+                    _fdsOutRef+=("| \`${argName}\` | ${ _tableCellText "${rest# }"; } |")
                 fi
             done
             _fdsOutRef+=('{: .usage-table}')
@@ -1060,9 +1063,9 @@ _flushDocSection() {
                 fi
                 if [[ " ${knownTypes} " == *" ${typeWord} "* ]] && [[ -n "${remaining}" ]]; then
                     local display="${argName}${metavar:+ ${metavar}}"
-                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${remaining} |")
+                    _fdsOutRef+=("| \`${display}\` *(${typeWord})* | ${ _tableCellText "${remaining}"; } |")
                 else
-                    _fdsOutRef+=("| \`${argName}\` | ${rest# } |")
+                    _fdsOutRef+=("| \`${argName}\` | ${ _tableCellText "${rest# }"; } |")
                 fi
             done
             _fdsOutRef+=('{: .args-table}')
@@ -1124,6 +1127,40 @@ _generateDescriptionFromName() {
     elif [[ "${name}" =~ ^confirm ]]; then echo "request user confirmation"
     else echo "utility function"
     fi
+}
+
+# Format text for a markdown table cell: option names (e.g. --armor, -o) become code, so that markdown does not turn
+# '--' into a dash, and any '|' left outside code is escaped so that it does not end the cell.
+_tableCellText() {
+    printf '%s\n' "$1" | gawk '
+        # Wrap each option name that starts a word in backticks. (A global gensub with backreferences is avoided:
+        # gawk 5.4.0 only fills in the backreferences for the first match.)
+        function wrapOptions(text, boundary,    result, token, before) {
+            result = ""
+            while (match(text, /--?[a-zA-Z][a-zA-Z0-9-]*/)) {
+                before = substr(text, 1, RSTART - 1)
+                token = substr(text, RSTART, RLENGTH)
+                if (RSTART > 1) boundary = substr(text, RSTART - 1, 1)
+                if (boundary ~ /^[[:space:](\[]$/) result = result before "`" token "`"
+                else result = result before token
+                boundary = substr(token, RLENGTH)
+                text = substr(text, RSTART + RLENGTH)
+            }
+            return result text
+        }
+        {
+            n = split($0, parts, "`")
+            out = ""
+            for (i = 1; i <= n; i++) {
+                part = parts[i]
+                if (i % 2 == 1) {
+                    part = wrapOptions(part, i == 1 ? " " : "`")
+                    gsub(/\|/, "\\|", part)
+                }
+                out = out (i > 1 ? "`" : "") part
+            }
+            print out
+        }'
 }
 
 # Wrap bash code patterns in backticks to avoid markdown rendering issues
