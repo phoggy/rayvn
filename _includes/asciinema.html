@@ -1,3 +1,5 @@
+{% comment %} Shared rayvn site file, synced by 'rayvn pages': edit rayvn/etc/pages/_includes/asciinema.html, not the copy in a site. {% endcomment %}
+
 {% if include.scrollable %}<div style="max-height: {{ include.scrollable }}; overflow-y: auto; border-radius: 0.25rem;">{% endif %}
 {% unless include.autoplay %}<div class="ap-pre-play" id="ap-wrap-{{ include.id }}">{% endunless %}
 <div id="asciinema-{{ include.id }}"></div>

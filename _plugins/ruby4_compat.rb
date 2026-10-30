@@ -1,3 +1,5 @@
+# Shared rayvn site file, synced by 'rayvn pages': edit rayvn/etc/pages/_plugins/ruby4_compat.rb, not the copy in a site.
+
 # Restore tainted? for Ruby 3.2+ compatibility with Liquid 4.x (removed from Ruby 3.2).
 [String, Integer, Float, Array, Hash, Symbol, NilClass, TrueClass, FalseClass].each do |klass|
   klass.define_method(:tainted?) { false }

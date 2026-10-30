@@ -1,3 +1,5 @@
+# Shared rayvn site file, synced by 'rayvn pages': edit rayvn/etc/pages/_plugins/highlight_bash_commands.rb, not the copy in a site.
+
 # Post-process bash code blocks to wrap the first word of each line in <span class="nf">
 # (Name.Function), giving command names a distinct color. Rouge's bash lexer leaves
 # unrecognized command names as plain unstyled text, indistinguishable from their arguments.

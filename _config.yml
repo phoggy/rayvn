@@ -6,6 +6,7 @@ color_scheme: dark
 url: https://rayvn.ink
 baseurl: /rayvn
 highlighter: rouge
+attribution: 'favicon by <a href="https://www.flaticon.com/free-icons/crow" title="flaticons">Imogen.Oh</a>'
 
 nav_external_links:
   - title: GitHub
