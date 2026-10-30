@@ -597,6 +597,11 @@ declare -gA usageSpec=(
     #   --repo|-r    Target repo.
     ['new']='new(a|b|c str --repo|-r:str=my/repo --help|-h)'
 
+    # Rank things.
+    #   --level  How hard.
+    #   --mode   Which way.
+    ['rank']='rank(--level:casual|motivated|professional|nation-state=casual --mode:up|down --help|-h)'
+
     # rayvn:usage hand-written
     ['manual']='manual(--help|-h *)'
 )
@@ -612,6 +617,13 @@ EOF
     assertContains "--repo, -r REPO" "${out}"
     assertContains "(default: my/repo)" "${out}"
     assertContains "--help, -h" "${out}"
+
+    # A long enum shows a placeholder and lists its alternatives; a short one stays inline
+    out=${ ( rankCmdUsage ) 2>&1; }
+    assertContains "rank [--level LEVEL] [--mode up|down]" "${out}"
+    assertContains "--level LEVEL" "${out}"
+    assertContains "How hard. One of: casual, motivated, professional, nation-state." "${out}"
+    assertContains "--mode up|down" "${out}"
 
     out=${ ( lintCmdUsage ) 2>&1; }
     assertContains "lint [PROJECT...] [--fix | --ask]" "${out}"

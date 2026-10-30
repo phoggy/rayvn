@@ -1282,6 +1282,13 @@ _genUsageFunction() {
         _aliasesOf[${canonical}]+=", ${alias}"
     done
 
+    # An enum whose alternatives are too long to show inline uses a NAME placeholder instead, with the
+    # alternatives listed in its description, so that it does not push the description column too far right.
+
+    _isLongEnum() {
+        [[ $1 == *'|'* ]] && (( ${#1} > 20 ))
+    }
+
     # Build the option label (aliases plus value placeholder) for a canonical name
 
     _optionLabel() {
@@ -1294,7 +1301,7 @@ _genUsageFunction() {
         elif [[ -n "${_type}" ]]; then
             case "${_type}" in
                 bool)  _label+=" true|false" ;;
-                *'|'*) _label+=" ${_type}" ;;
+                *'|'*) if _isLongEnum "${_type}"; then _label+=" ${_shortName^^}"; else _label+=" ${_type}"; fi ;;
                 *)     _label+=" ${_shortName^^}" ;;
             esac
         fi
@@ -1312,6 +1319,7 @@ _genUsageFunction() {
         [[ -z "${_argsOptionNames[${key}]+x}" && ${key} == -*'|'* ]] && key="${key%%|*}"   # allow alias-list keys, e.g. --repo|-r
         if [[ -n "${_argsOptionNames[${key}]+x}" ]]; then
             canonical="${_argsOptionNames[${key}]}"
+            _isLongEnum "${_argsOptionTypes[${canonical}]:-}" && desc+=" One of: ${_argsOptionTypes[${canonical}]//|/, }."
             [[ -n "${_argsOptionDefaults[${canonical}]+x}" ]] && desc+=" (default: ${_argsOptionDefaults[${canonical}]})"
             _labels+=("${ _optionLabel "${canonical}"; }")
             _descs+=("${desc}")
@@ -1376,7 +1384,7 @@ _genUsageFunction() {
             local placeholder
             case "${_type}" in
                 bool)  placeholder='true|false' ;;
-                *'|'*) placeholder="${_type}" ;;
+                *'|'*) if _isLongEnum "${_type}"; then placeholder="${shortName^^}"; else placeholder="${_type}"; fi ;;
                 *)     placeholder="${shortName^^}" ;;
             esac
             synopsis+=" [${canonical} ${placeholder}]"
