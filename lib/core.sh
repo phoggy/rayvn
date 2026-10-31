@@ -324,12 +324,13 @@ invalidArgs() {
 #
 # · USAGE
 #
-#   fail [--trace] message [FORMAT|TEXT]...
+#   fail [--trace] [message] [FORMAT|TEXT]...
 #
-#   --trace            Force a stack trace regardless of debug mode.
-#   message (string)   Error message text.
-#   [FORMAT] (string)  A show format token; applies to the next [TEXT] arg.
-#   [TEXT] (string)    Text to print with the preceding format applied.
+#   --trace             Force a stack trace regardless of debug mode.
+#   [message] (string)  Error message text. Without one nothing is printed (other than a stack trace), as in
+#                       'cmd || fail' where cmd has already reported the error.
+#   [FORMAT] (string)   A show format token; applies to the next [TEXT] arg.
+#   [TEXT] (string)     Text to print with the preceding format applied.
 
 fail() {
 
@@ -358,9 +359,13 @@ fail() {
         exit 1
     fi
 
-    # Write trace and/or error
+    # Write trace and/or error; without a message, the error was already reported
 
-    (( trace )) && stackTrace "$@" > "${terminalErr}" || error "$@"
+    if (( trace )); then
+        stackTrace "$@" > "${terminalErr}"
+    elif (( $# )); then
+        error "$@"
+    fi
 
     # See ya
 

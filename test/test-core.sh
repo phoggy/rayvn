@@ -436,6 +436,9 @@ testOutputFunctions() {
     assertContains "broken" "${ stripAnsi "${result}"; }" "fail includes message"
     result=${ ( fail "msg" bold "detail" ) 2>&1; }
     assertContains "detail" "${ stripAnsi "${result}"; }" "fail passes remaining args to show"
+    result=${ ( fail ) 2>&1; }
+    assertEqual '' "${ stripAnsi "${result}"; }" "fail without a message prints nothing"
+    assertFalse "fail without a message exits 1" eval '( fail ) 2>/dev/null'
     result=${ ( fail --trace "traced" ) 2>&1; }
     assertContains "traced" "${ stripAnsi "${result}"; }" "fail --trace includes message"
     assertContains "->" "${ stripAnsi "${result}"; }" "fail --trace includes stack"
