@@ -1214,6 +1214,11 @@ testTimeUtilities() {
 
     local stamp; stamp=${ timeStamp; }
     assertTrue "timeStamp matches YYYY-MM-DD_ format" _matchesPattern "${stamp}" '^[0-9]{4}-[0-9]{2}-[0-9]{2}_'
+    assertTrue "timeStamp defaults to UTC" _matchesPattern "${stamp}" '_UTC$'
+    assertTrue "timeStamp local must use the system time zone" _matchesPattern "${ timeStamp local; }" "_${ date '+%Z'; }\$"
+    assertTrue "timeStamp accepts a zone name" _matchesPattern "${ timeStamp America/New_York; }" '_E[SD]T$'
+    local output; output=${ ( timeStamp PDT ) 2>&1; }
+    assertContains "unknown time zone: 'PDT'" "${output}" "an abbreviation must be rejected rather than silently using UTC"
 
     local start; start=${ epochSeconds; }
     local elapsed; elapsed=${ elapsedEpochSeconds "${start}"; }

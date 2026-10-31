@@ -1085,10 +1085,23 @@ replaceRandomHex() {
 #
 # · ARGS
 #
-#   timeZone (string)  Optional timezone name (default: UTC).
+#   timeZone (string)  Optional time zone: 'local' (the system time zone), 'UTC', or a zone name such as
+#                      'America/Los_Angeles' (default: UTC). Fails for an unknown zone name, rather than silently using
+#                      UTC as date does (e.g. for an abbreviation such as 'PDT').
 
 timeStamp() {
-    TZ="${1:-UTC}" date "+%Y-%m-%d_%H.%M.%S_%Z"
+    local timeZone="${1:-UTC}"
+    local format='+%Y-%m-%d_%H.%M.%S_%Z'
+    if [[ ${timeZone} == local ]]; then
+        date "${format}"
+        return
+    fi
+    if [[ ${timeZone} != UTC ]]; then
+        local zoneInfoDir="${TZDIR:-/usr/share/zoneinfo}"
+        [[ ! -d ${zoneInfoDir} || -f ${zoneInfoDir}/${timeZone} ]] || \
+            fail "unknown time zone: '${timeZone}' (use 'local', 'UTC' or a name such as 'America/Los_Angeles')"
+    fi
+    TZ="${timeZone}" date "${format}"
 }
 
 # ◇ Outputs the current epoch time with microsecond precision via EPOCHREALTIME.
