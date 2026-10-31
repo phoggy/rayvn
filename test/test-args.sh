@@ -602,6 +602,17 @@ declare -gA usageSpec=(
     #   --mode   Which way.
     ['rank']='rank(--level:casual|motivated|professional|nation-state=casual --mode:up|down --help|-h)'
 
+    # Take many options, so that the synopsis wraps.
+    #   --alpha     A.
+    #   --bravo     B.
+    #   --charlie   C.
+    #   --delta     D.
+    #   --echo      E.
+    #   --foxtrot   F.
+    #   --golf-course  G.
+    #   --hotel-room   H.
+    ['wide']='wide(--alpha|-a:str --bravo|-b:str+ --charlie|-c:str --delta|-d:str+ --echo|-e:str --foxtrot|-f:str+ --golf-course|-g:str+ --hotel-room|-H:str+ --help|-h)'
+
     # rayvn:usage hand-written
     ['manual']='manual(--help|-h *)'
 )
@@ -612,18 +623,28 @@ EOF
     # Rendered output: synopsis, summary, aligned entries, default text, auto --help
     local out
     out=${ ( newCmdUsage ) 2>&1; }
-    assertContains "new TYPE NAME [--repo REPO]" "${out}"
+    assertContains "new TYPE NAME [-r REPO]" "${out}" "the synopsis uses an option's short form"
     assertContains "Create a new thing." "${out}"
-    assertContains "--repo, -r REPO" "${out}"
+    assertContains "-r, --repo REPO" "${out}" "the option list shows the short form first"
     assertContains "(default: my/repo)" "${out}"
-    assertContains "--help, -h" "${out}"
+    assertContains "-h, --help" "${out}"
 
     # A long enum shows a placeholder and lists its alternatives; a short one stays inline
     out=${ ( rankCmdUsage ) 2>&1; }
-    assertContains "rank [--level LEVEL] [--mode up|down]" "${out}"
+    assertContains "rank [--level LEVEL] [--mode up|down]" "${out}" "options without a short form use the long one"
     assertContains "--level LEVEL" "${out}"
     assertContains "How hard. One of: casual, motivated, professional, nation-state." "${out}"
     assertContains "--mode up|down" "${out}"
+
+    # A wrapped synopsis never breaks inside a bracketed group
+    out=${ ( wideCmdUsage ) 2>&1; }
+    local -a synopsisLines; mapfile -t synopsisLines < <(gsed -n '/Usage:/,/^$/p' <<< "${ stripAnsi "${out}"; }" | gsed '/^$/d')
+    (( ${#synopsisLines[@]} > 1 )) || fail "the wide synopsis must wrap: ${out}"
+    local synopsisLine opens closes
+    for synopsisLine in "${synopsisLines[@]}"; do
+        opens="${synopsisLine//[^\[]/}"; closes="${synopsisLine//[^\]]/}"
+        assertEqual "${#opens}" "${#closes}" "synopsis line must not split a group: '${synopsisLine}'"
+    done
 
     out=${ ( lintCmdUsage ) 2>&1; }
     assertContains "lint [PROJECT...] [--fix | --ask]" "${out}"

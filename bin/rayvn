@@ -847,7 +847,7 @@ argsCmdUsage() {
     option "SCRIPT" "Path to the script to update, or a bare executable name (e.g. 'rayvn'); must contain" 16
     option "" "a rayvn:args or rayvn:cli annotation." 16
     option "--check" "Report drift without updating the file." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     echo
     echo "Annotation formats:"
     echo
@@ -880,7 +880,7 @@ buildCmdUsage() {
     show "Usage:" bold blue "rayvn build" "[PROJECT...]"
     echo
     option "PROJECT..." "Project names (default: current project)." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F buildCmdUsageExtra > /dev/null && buildCmdUsageExtra
     bye "$@"
 }
@@ -906,7 +906,7 @@ collisionsCmdUsage() {
     show "Usage:" bold blue "rayvn collisions" "[PROJECT...]"
     echo
     option "PROJECT..." "Project names (default: current project)." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F collisionsCmdUsageExtra > /dev/null && collisionsCmdUsageExtra
     bye "$@"
 }
@@ -937,7 +937,7 @@ dependenciesCmdUsage() {
     option "PROJECT..." "Project names (default: current project)." 16
     option "--fix" "Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for" 16
     option "" "portability." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F dependenciesCmdUsageExtra > /dev/null && dependenciesCmdUsageExtra
     bye "$@"
 }
@@ -966,7 +966,7 @@ docsAuditCmdUsage() {
     echo
     option "PROJECT..." "Project names to audit (default: all loaded projects)." 16
     option "--release" "Exit 1 if any public functions are missing ◇ doc comments." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F docsAuditCmdUsageExtra > /dev/null && docsAuditCmdUsageExtra
     bye "$@"
 }
@@ -1016,7 +1016,7 @@ docsUpdateCmdUsage() {
     option "--lib LIB" "Limit to a single library by name." 20
     option "--since SINCE" "Skip functions updated within this duration (e.g. '30m', '2h', '1d')." 20
     option "--delay DELAY" "Seconds to sleep between API calls to avoid rate limits. (default: 5)" 20
-    option "--help, -h" "Print this help message." 20
+    option "-h, --help" "Print this help message." 20
     declare -F docsUpdateCmdUsageExtra > /dev/null && docsUpdateCmdUsageExtra
     bye "$@"
 }
@@ -1046,7 +1046,7 @@ functionsCmdUsage() {
     option "ARGS..." "PROJECT/LIBRARY qualified names, or project names optionally followed by library" 16
     option "" "names." 16
     option "--all" "Also list private (_-prefixed) functions." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F functionsCmdUsageExtra > /dev/null && functionsCmdUsageExtra
     bye "$@"
 }
@@ -1083,20 +1083,20 @@ indexCmdUsage() {
     show bold "Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn"
     show bold "guide for Claude Code. Run after adding or modifying library functions to keep the indexes current."
     echo
-    show "Usage:" bold blue "rayvn index" "[PROJECT...] [--claude] [--compact COMPACT] [--hash-file HASH-FILE]"
-    echo "                   [--no-compact] [--no-hash] [--output OUTPUT]"
+    show "Usage:" bold blue "rayvn index" "[PROJECT...] [--claude] [-c COMPACT] [--hash-file HASH-FILE] [--no-compact]"
+    echo "                   [--no-hash] [-o OUTPUT]"
     echo
     option "PROJECT..." "Project names (default: current project)." 27
     option "--claude" "Only update the rayvn guide for Claude Code" 27
     option "" "(~/.config/rayvn/claude-rayvn.md), which is fast. Run it after adding a" 27
     option "" "project to PATH or upgrading rayvn." 27
-    option "--output, -o OUTPUT" "Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)." 27
-    option "--compact, -c COMPACT" "Compact index output file (default:" 27
+    option "-o, --output OUTPUT" "Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)." 27
+    option "-c, --compact COMPACT" "Compact index output file (default:" 27
     option "" "~/.config/rayvn/rayvn-functions-compact.txt)." 27
     option "--no-compact" "Skip generating the compact index." 27
     option "--no-hash" "Skip function hash tracking." 27
     option "--hash-file HASH-FILE" "Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt)." 27
-    option "--help, -h" "Print this help message." 27
+    option "-h, --help" "Print this help message." 27
     declare -F indexCmdUsageExtra > /dev/null && indexCmdUsageExtra
     bye "$@"
 }
@@ -1122,7 +1122,7 @@ librariesCmdUsage() {
     show "Usage:" bold blue "rayvn libraries" "[PROJECT...]"
     echo
     option "PROJECT..." "Project names (default: current project)." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F librariesCmdUsageExtra > /dev/null && librariesCmdUsageExtra
     bye "$@"
 }
@@ -1159,7 +1159,7 @@ lintCmdUsage() {
     option "PROJECT..." "Project names (default: current project); only one may be specified." 16
     option "--fix" "Auto-fix all violations that can be corrected automatically." 16
     option "--ask" "Interactively prompt whether to fix each file with violations." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F lintCmdUsageExtra > /dev/null && lintCmdUsageExtra
     bye "$@"
 }
@@ -1199,7 +1199,7 @@ newCmdUsage() {
     option "TYPE" "What to create: a project, script, library or test." 16
     option "NAME" "The name to create." 16
     option "--local" "Skip GitHub repo creation; initialize a local git repo only." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F newCmdUsageExtra > /dev/null && newCmdUsageExtra
     bye "$@"
 }
@@ -1258,7 +1258,7 @@ pagesCmdUsage() {
     option "--setup" "First-time setup: create gh-pages branch, worktree, and workflow." 26
     option "--publish" "Generate pages, then commit and push to gh-pages." 26
     option "--view" "Generate pages, then serve locally with Jekyll." 26
-    option "--help, -h" "Print this help message." 26
+    option "-h, --help" "Print this help message." 26
     echo
     echo "Record markup (in any .md file in the pages dir):"
     echo
@@ -1299,7 +1299,7 @@ projectsCmdUsage() {
     show "Usage:" bold blue "rayvn projects" "[PROJECT...]"
     echo
     option "PROJECT..." "Project names (default: current project)." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F projectsCmdUsageExtra > /dev/null && projectsCmdUsageExtra
     bye "$@"
 }
@@ -1331,7 +1331,7 @@ registerCmdUsage() {
     show "Usage:" bold blue "rayvn register" "NAME"
     echo
     option "NAME" "The project name to register." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F registerCmdUsageExtra > /dev/null && registerCmdUsageExtra
     bye "$@"
 }
@@ -1364,7 +1364,7 @@ releaseCmdUsage() {
     show "Usage:" bold blue "rayvn release" "VERSION"
     echo
     option "VERSION" "The version to release, e.g. '1.2.3'; must be greater than the current version." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F releaseCmdUsageExtra > /dev/null && releaseCmdUsageExtra
     bye "$@"
 }
@@ -1396,7 +1396,7 @@ testCmdUsage() {
     option "ARGS..." "Project names and/or test name patterns; prefix a pattern with '-' to exclude it." 16
     option "--nix" "Run tests inside a nix develop shell." 16
     option "--all" "Run tests locally and then again inside nix." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F testCmdUsageExtra > /dev/null && testCmdUsageExtra
     bye "$@"
 }
@@ -1424,7 +1424,7 @@ themeCmdUsage() {
     show "Usage:" bold blue "rayvn theme" "[--show]"
     echo
     option "--show" "Show current theme." 16
-    option "--help, -h" "Print this help message." 16
+    option "-h, --help" "Print this help message." 16
     declare -F themeCmdUsageExtra > /dev/null && themeCmdUsageExtra
     bye "$@"
 }

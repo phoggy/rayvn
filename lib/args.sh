@@ -1274,14 +1274,21 @@ _genUsageFunction() {
 
     # Group aliases by canonical, sorted for deterministic output
 
-    declare -A _aliasesOf
+    # An option's short (single letter) alias, if any, is shown in place of its long name in the synopsis and
+    # before it in the option list, e.g. '[-i IDENTITY]' and '-i, --identity IDENTITY'.
+
+    declare -A _aliasesOf _shortOf
     local alias canonical
     local -a _sortedAliases=()
     (( ${#_argsOptionNames[@]} )) && mapfile -t _sortedAliases <<< "${ printf '%s\n' "${!_argsOptionNames[@]}" | sort; }"
     for alias in "${_sortedAliases[@]}"; do
         canonical="${_argsOptionNames[${alias}]}"
         [[ "${alias}" == "${canonical}" ]] && continue
-        _aliasesOf[${canonical}]+=", ${alias}"
+        if [[ ${alias} =~ ^-[a-zA-Z0-9]$ && -z "${_shortOf[${canonical}]+x}" ]]; then
+            _shortOf[${canonical}]="${alias}"
+        else
+            _aliasesOf[${canonical}]+=", ${alias}"
+        fi
     done
 
     # An enum whose alternatives are too long to show inline uses a NAME placeholder instead, with the
@@ -1295,7 +1302,7 @@ _genUsageFunction() {
 
     _optionLabel() {
         local _canonical=$1
-        local _label="${_canonical}${_aliasesOf[${_canonical}]:-}"
+        local _label="${_shortOf[${_canonical}]:+${_shortOf[${_canonical}]}, }${_canonical}${_aliasesOf[${_canonical}]:-}"
         local _type="${_argsOptionTypes[${_canonical}]:-}"
         local _shortName; _shortName="${ _argsOptKey "${_canonical}"; }"
         if [[ -n "${_argsOptionVariadic[${_canonical}]+x}" ]]; then
@@ -1378,10 +1385,11 @@ _genUsageFunction() {
         [[ "${canonical}" == '--help' || -n "${_grouped[${canonical}]+x}" ]] && continue
         local _type="${_argsOptionTypes[${canonical}]:-}"
         local shortName; shortName="${ _argsOptKey "${canonical}"; }"
+        local optionName="${_shortOf[${canonical}]:-${canonical}}"
         if [[ -n "${_argsOptionVariadic[${canonical}]+x}" ]]; then
-            synopsis+=" [${canonical} [${shortName^^}...]]"
+            synopsis+=" [${optionName} [${shortName^^}...]]"
         elif [[ -n "${_argsOptionRepeatable[${canonical}]+x}" ]]; then
-            synopsis+=" [${canonical} ${shortName^^}]..."
+            synopsis+=" [${optionName} ${shortName^^}]..."
         elif [[ -n "${_type}" ]]; then
             local placeholder
             case "${_type}" in
@@ -1389,9 +1397,9 @@ _genUsageFunction() {
                 *'|'*) if _isLongEnum "${_type}"; then placeholder="${shortName^^}"; else placeholder="${_type}"; fi ;;
                 *)     placeholder="${shortName^^}" ;;
             esac
-            synopsis+=" [${canonical} ${placeholder}]"
+            synopsis+=" [${optionName} ${placeholder}]"
         else
-            synopsis+=" [${canonical}]"
+            synopsis+=" [${optionName}]"
         fi
     done
 
@@ -1444,7 +1452,25 @@ _genUsageFunction() {
 
     local synIndent=$(( 7 + ${#project} + 1 + ${#displayName} + 1 ))
     local -a synLines=()
-    [[ -n "${synopsisRest}" ]] && mapfile -t synLines <<< "${ _wrapUsage $(( _argsUsageWidth - synIndent )) "${synopsisRest}"; }"
+    if [[ -n "${synopsisRest}" ]]; then
+
+        # Never break inside a bracketed or parenthesized group (e.g. '[-r RECIPIENT]...'): protect its spaces while wrapping
+
+        local unbroken='' char depth=0 j
+        for (( j = 0; j < ${#synopsisRest}; j++ )); do
+            char="${synopsisRest:j:1}"
+            case "${char}" in
+                '[' | '(') (( depth++ )) ;;
+                ']' | ')') (( depth > 0 )) && (( depth-- )) ;;
+                ' ') (( depth > 0 )) && char=$'\x1f' ;;
+            esac
+            unbroken+="${char}"
+        done
+        mapfile -t synLines <<< "${ _wrapUsage $(( _argsUsageWidth - synIndent )) "${unbroken}"; }"
+        for (( j = 0; j < ${#synLines[@]}; j++ )); do
+            synLines[j]="${synLines[j]//$'\x1f'/ }"
+        done
+    fi
     if (( ${#synLines[@]} )); then
         echo "    show \"Usage:\" bold blue \"${project} ${displayName}\" \"${ _escapeUsage "${synLines[0]}"; }\""
         local synPad; printf -v synPad '%*s' ${synIndent} ''
