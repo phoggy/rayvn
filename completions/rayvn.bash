@@ -78,7 +78,7 @@ __rayvnComplete() {
                     local _relIdx=$(( cword - 2 ))
                     ;;
                 index)
-                    [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--compact --hash-file --help --no-compact --no-hash --output -c -h -o" -- "${cur}")); return; }
+                    [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--claude --compact --hash-file --help --no-compact --no-hash --output -c -h -o" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
                     (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;

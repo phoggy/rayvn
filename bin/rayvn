@@ -39,6 +39,7 @@ usage() {
 
 main() {
     init
+    (( rayvnTest_NonInteractive )) || addExitHandler _updateClaudeGuideOnExit # not under tests, which may change PATH
     parseCommand "$@"
 }
 
@@ -48,6 +49,13 @@ init() {
     declare -gAr rayvnEnvVars=(
         ['RAYVN_DEFAULT_PROJECT']="Default project name (default: rayvn)."
     )
+}
+
+# Keep the rayvn guide for Claude Code current, e.g. after a project is added to PATH or rayvn is upgraded.
+
+_updateClaudeGuideOnExit() {
+    require 'rayvn/claude'
+    updateClaudeGuide -q
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
@@ -115,15 +123,16 @@ declare -gA cliSpec=(
     #   --fix       Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability.
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
 
-    # Generate verbose and compact function indexes used by AI agents (e.g. Claude Code).
+    # Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn guide for Claude Code.
     # Run after adding or modifying library functions to keep the indexes current.
     #   PROJECT...    Project names (default: current project).
+    #   --claude      Only update the rayvn guide for Claude Code (~/.config/rayvn/claude-rayvn.md), which is fast. Every rayvn command also updates it when it is out of date.
     #   --output|-o   Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
     #   --compact|-c  Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
     #   --no-compact  Skip generating the compact index.
     #   --no-hash     Skip function hash tracking.
     #   --hash-file   Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt).
-    ['index']='index(--output|-o:str --compact|-c:str --no-compact --no-hash --hash-file:str --help|-h *)'
+    ['index']='index(--claude --output|-o:str --compact|-c:str --no-compact --no-hash --hash-file:str --help|-h *)'
 
     # Generate and preview the project's gh-pages site.
     #   PROJECT   Project name (default: current directory's project); only one may be specified.
@@ -352,6 +361,11 @@ buildCmd() {
 }
 
 indexCmd() {
+    require 'rayvn/claude'
+    if (( _opts['claude'] )); then
+        updateClaudeGuide
+        return 0
+    fi
     local -a projects=() extraArgs=()
     resolveProjects projects extraArgs
     (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
@@ -363,6 +377,7 @@ indexCmd() {
     [[ -v _opts['no-hash'] ]] && indexArgs+=(--no-hash)
     [[ -v _opts['hash-file'] ]] && indexArgs+=(--hash-file "${_opts['hash-file']}")
     runIndex "${indexArgs[@]}"
+    updateClaudeGuide
 }
 
 pagesCmd() {
@@ -562,6 +577,7 @@ newProject() {
     local readmeTemplate="${templateDir}/readme-template.md"
     local flakeTemplate="${templateDir}/flake-template.nix"
     local formulaTemplate="${templateDir}/formula-template.rb"
+    local claudeTemplate="${templateDir}/claude-template.md"
 
     echo
     show bold "Creating project '${projectName}' in" blue "'${PWD}'"
@@ -617,6 +633,9 @@ newProject() {
     copyFileAndSubstituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${projectName}" || fail
     copyFileAndSubstituteVars "${readmeTemplate}" './README.md' projectName || fail
+    require 'rayvn/claude'
+    local claudeGuideImport; claudeGuideImport="@${ tildePath "${ claudeGuideFile; }"; }"
+    copyFileAndSubstituteVars "${claudeTemplate}" './CLAUDE.md' projectName claudeGuideImport || fail
     copyFileAndSubstituteVars "${flakeTemplate}" './flake.nix' projectName || fail
     makeDir './formula' > /dev/null
     copyFileAndSubstituteVars "${formulaTemplate}" "./formula/${projectName}.rb" projectName projectNameClass || fail
@@ -1045,9 +1064,11 @@ parseIndexArgs() {
     local _value
     while (( $# > 0 )); do
         case "$1" in
-            --compact | -c) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --compact"; _opts+=(['compact']="$2"); shift 2 ;;
+            --claude) _opts+=(['claude']="1"); shift ;;
+            --claude=*) fail "--claude does not accept a value" ;;
+            --compact | -c) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--claude|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --compact"; _opts+=(['compact']="$2"); shift 2 ;;
             --compact=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --compact"; _opts+=(['compact']="${_value}"); shift ;;
-            --hash-file) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --hash-file"; _opts+=(['hash-file']="$2"); shift 2 ;;
+            --hash-file) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--claude|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --hash-file"; _opts+=(['hash-file']="$2"); shift 2 ;;
             --hash-file=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --hash-file"; _opts+=(['hash-file']="${_value}"); shift ;;
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
@@ -1055,7 +1076,7 @@ parseIndexArgs() {
             --no-compact=*) fail "--no-compact does not accept a value" ;;
             --no-hash) _opts+=(['no-hash']="1"); shift ;;
             --no-hash=*) fail "--no-hash does not accept a value" ;;
-            --output | -o) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --output"; _opts+=(['output']="$2"); shift 2 ;;
+            --output | -o) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--output|--hash-file|--compact|-c|-o|-h|--claude|--no-compact|--help|--no-hash)$ ) ]] && fail "missing value for --output"; _opts+=(['output']="$2"); shift 2 ;;
             --output=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --output"; _opts+=(['output']="${_value}"); shift ;;
             --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
@@ -1066,13 +1087,16 @@ parseIndexArgs() {
 
 indexCmdUsage() {
     echo
-    show bold "Generate verbose and compact function indexes used by AI agents (e.g. Claude Code). Run after adding"
-    show bold "or modifying library functions to keep the indexes current."
+    show bold "Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn"
+    show bold "guide for Claude Code. Run after adding or modifying library functions to keep the indexes current."
     echo
-    show "Usage:" bold blue "rayvn index" "[PROJECT...] [--compact COMPACT] [--hash-file HASH-FILE] [--no-compact]"
-    echo "                   [--no-hash] [--output OUTPUT]"
+    show "Usage:" bold blue "rayvn index" "[PROJECT...] [--claude] [--compact COMPACT] [--hash-file HASH-FILE]"
+    echo "                   [--no-compact] [--no-hash] [--output OUTPUT]"
     echo
     option "PROJECT..." "Project names (default: current project)." 27
+    option "--claude" "Only update the rayvn guide for Claude Code" 27
+    option "" "(~/.config/rayvn/claude-rayvn.md), which is fast. Every rayvn command" 27
+    option "" "also updates it when it is out of date." 27
     option "--output, -o OUTPUT" "Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)." 27
     option "--compact, -c COMPACT" "Compact index output file (default:" 27
     option "" "~/.config/rayvn/rayvn-functions-compact.txt)." 27

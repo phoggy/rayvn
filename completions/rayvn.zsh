@@ -37,7 +37,7 @@ _rayvn() {
                 'deps:Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps.'
                 'dependencies:Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps.'
                 'functions:List public functions for project libraries.'
-                'index:Generate verbose and compact function indexes used by AI agents (e.g. Claude Code).'
+                'index:Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn guide for Claude Code.'
                 'libraries:List all libraries for one or more projects.'
                 'lint:Scan project source files for violations of rayvn'\''s bash requirements.'
                 'new:Create a new project, library, script or test from a template.'
@@ -120,6 +120,7 @@ _rayvn() {
                     ;;
                 index)
                     _arguments \
+                    '(--claude)'--claude'[Only update the rayvn guide for Claude Code (~/.config/rayvn/claude-rayvn.md), which is fast. Every rayvn command also updates it when it is out of date.]' \
                     '(--compact -c)'{--compact,-c}'[Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).]:compact:' \
                     '(--hash-file)'--hash-file'[Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt).]:hash-file:' \
                     '(--help -h)'{--help,-h}'[Print this help message.]' \
