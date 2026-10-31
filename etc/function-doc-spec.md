@@ -83,7 +83,9 @@ clearer than a flat ARGS list alone.
 - One synopsis line showing the full call shape; use `[...]` for optional parts, `...` for variadic
 - Include inline per-item descriptions below the synopsis
 - **Types are required** on all data parameters and flag+value entries; pure flags (no value) are exempt
-- Optional entry names use `[name]` to signal optionality, matching the synopsis:
+- Optional positional entry names use `[name]` to signal optionality, matching the synopsis.
+  Option entries never use brackets (write `-n`, `--indent N (int)`, not `[-n]`), since options are optional by
+  nature and the synopsis already shows it; `rayvn docs audit` reports bracketed option entries:
 
 ```
 # · USAGE

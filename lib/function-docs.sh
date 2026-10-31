@@ -9,7 +9,7 @@
 #
 #   auditDocs [--release] [PROJECT]...
 #
-#   --release           Exit 1 if any public functions are missing ◇ doc comments, or any doc comment has an unknown type.
+#   --release           Exit 1 if any public functions are missing ◇ doc comments, or any doc comment entry breaks the spec.
 #   PROJECT (string)    One or more project names to audit (default: all loaded projects).
 
 auditDocs() {
@@ -43,17 +43,17 @@ auditDocs() {
 
     local missingCount=${#_idxMissingDocs[@]}
 
-    # Check doc comment types against the spec
+    # Check doc comment entries against the spec
 
-    local -a invalidTypes=()
-    mapfile -t invalidTypes < <(_findInvalidDocTypes "${libFiles[@]}")
-    if (( ${#invalidTypes[@]} )); then
+    local -a invalidEntries=()
+    mapfile -t invalidEntries < <(_findInvalidDocEntries "${libFiles[@]}")
+    if (( ${#invalidEntries[@]} )); then
         local entry location
         echo
-        show warning "Unknown doc comment types (see" blue "${ tildePath "${rayvnHome}/etc/function-doc-spec.md"; }" glue "):"
-        for entry in "${invalidTypes[@]}"; do
-            location="${entry%:*}"
-            show "  ${ tildePath "${location%:*}"; }:${location##*:}" bold "(${entry##*:})"
+        show warning "Doc comment entries that break the spec (see" blue "${ tildePath "${rayvnHome}/etc/function-doc-spec.md"; }" glue "):"
+        for entry in "${invalidEntries[@]}"; do
+            location="${entry%%:[a-z]* (*}"
+            show "  ${ tildePath "${location%:*}"; }:${location##*:}" bold "${entry#"${location}":}"
         done
     fi
 
@@ -64,8 +64,9 @@ auditDocs() {
             show error "Release blocked: ${missingCount} public function(s) are missing ◇ doc comments."
             blocked=1
         fi
-        if (( ${#invalidTypes[@]} )); then
-            show error "Release blocked: ${#invalidTypes[@]} doc comment(s) have an unknown type."
+        if (( ${#invalidEntries[@]} )); then
+            local entries='entries break'; (( ${#invalidEntries[@]} == 1 )) && entries='entry breaks'
+            show error "Release blocked: ${#invalidEntries[@]} doc comment ${entries} the spec."
             blocked=1
         fi
         (( blocked )) && return 1

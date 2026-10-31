@@ -685,18 +685,23 @@ _isDocType() {
     [[ " ${_idxDocTypes} " == *" $1 "* || $1 =~ ^\'[^\']+\'(\|\'[^\']+\')+$ ]]
 }
 
-# Prints FILE:LINE:TYPE for each doc comment entry (in ARGS, USAGE and RETURNS sections) whose type is not a doc type.
+# Prints FILE:LINE:PROBLEM for each doc comment entry that breaks the spec: an entry (in ARGS, USAGE and RETURNS
+# sections) whose type is not a doc type, or an option entry written in brackets (e.g. '[--indent N]').
 
-_findInvalidDocTypes() {
-    local file type location
+_findInvalidDocEntries() {
+    local file kind location value
     for file in "$@"; do
-        while IFS=$'\t' read -r location type; do
-            _isDocType "${type}" || echo "${file}:${location}:${type}"
+        while IFS=$'\t' read -r kind location value; do
+            case ${kind} in
+                type) _isDocType "${value}" || echo "${file}:${location}:unknown type (${value})" ;;
+                option) echo "${file}:${location}:bracketed option (${value})" ;;
+            esac
         done < <(gawk '
             /^# · / { section = $3 }
             /^[^#]/ || /^$/ { section = "" }
-            (section == "ARGS" || section == "USAGE" || section == "RETURNS") && match($0, /^#   [^ ].*[^ ] \(([^)]+)\)  /, m) {
-                print FNR "\t" m[1]
+            section == "ARGS" || section == "USAGE" || section == "RETURNS" {
+                if (match($0, /^#   [^ ].*[^ ] \(([^)]+)\)  /, m)) print "type\t" FNR "\t" m[1]
+                if (match($0, /^#   (\[-[^]]*\])/, m)) print "option\t" FNR "\t" m[1]
             }' "${file}")
     done
 }

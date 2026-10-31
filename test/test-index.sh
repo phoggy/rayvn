@@ -19,7 +19,7 @@ main() {
     testTableCellText
     testFlushDocSectionContinuationLines
     testIsDocType
-    testFindInvalidDocTypes
+    testFindInvalidDocEntries
     testFlushDocSectionPathAndEnumTypes
     testFlushDocSectionExample
     testFlushDocSectionNotes
@@ -220,7 +220,7 @@ testIsDocType() {
     done
 }
 
-testFindInvalidDocTypes() {
+testFindInvalidDocEntries() {
     local file; file=${ makeTempFile; }
     cat > "${file}" << 'EOF'
 # ◇ Do things.
@@ -235,16 +235,19 @@ testFindInvalidDocTypes() {
 #   things [--count N] name
 #
 #   --count N (count)  Not a type either.
+#   [-v] (bool)        A bracketed option.
+#   [name] (string)    An optional positional, which is fine.
 #   mode ('a'|'b')     An enum.
 
 things() {
     : # (string)  outside a doc comment is ignored
 }
 EOF
-    local -a found=(); mapfile -t found < <(_findInvalidDocTypes "${file}")
-    assertEqual 2 "${#found[@]}" "two unknown types: ${found[*]}"
-    assertEqual "${file}:6:path" "${found[0]}"
-    assertEqual "${file}:12:count" "${found[1]}"
+    local -a found=(); mapfile -t found < <(_findInvalidDocEntries "${file}")
+    assertEqual 3 "${#found[@]}" "three problems: ${found[*]}"
+    assertEqual "${file}:6:unknown type (path)" "${found[0]}"
+    assertEqual "${file}:12:unknown type (count)" "${found[1]}"
+    assertEqual "${file}:13:bracketed option ([-v])" "${found[2]}"
 }
 
 testFlushDocSectionPathAndEnumTypes() {
