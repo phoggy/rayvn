@@ -147,7 +147,7 @@
 # · ARGS
 #
 #   specVar (arrayRef)  The name of the arguments specification array.
-#   args (args)         The arguments to parse.
+#   ... (string)        The arguments to parse.
 
 parseArgsWithSpec() {
     local specVar=$1; shift
@@ -200,10 +200,12 @@ generateParser() {
 #     # rayvn:args specVar [funcName]   argument spec array  → parse${funcName^}Args() (default: parseArgs)
 #     # rayvn:cli  specVar              CLI spec map         → parseCommand() + per-command parsers
 #
-# · ARGS
+# · USAGE
 #
-#   check (flag)      Optional '--check': report drift instead of updating.
-#   scriptFile (exe)  Path to the script to update, or the bare name of an executable on PATH
+#   updateParser [--check] scriptFile
+#
+#   --check            Report drift instead of updating.
+#   scriptFile (exe)   Path to the script to update, or the bare name of an executable on PATH
 #                      (e.g. 'rayvn' resolves the same as 'bin/rayvn' would from its project root).
 
 updateParser() {

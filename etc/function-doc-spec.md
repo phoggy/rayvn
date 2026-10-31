@@ -121,17 +121,23 @@ clearer than a flat ARGS list alone.
 
 ### Types
 
-| Type        | Usage                                  |
-|-------------|----------------------------------------|
-| `string`    | Standard string value                  |
-| `int`       | Integer value                          |
-| `bool`      | Boolean value                          |
-| `stringRef` | Name of var holding a long string      |
-| `arrayRef`  | Name of array var (only way to pass)   |
-| `mapRef`    | Name of map var (only way to pass)     |
-| `fnRef`     | Name of a callback function            |
+| Type              | Usage                                          |
+|-------------------|------------------------------------------------|
+| `string`          | Standard string value                          |
+| `int`             | Integer value                                  |
+| `bool`            | Boolean value                                  |
+| `file`            | Path to a file                                 |
+| `dir`             | Path to a directory                            |
+| `exe`             | Executable: a path, or a bare name on PATH     |
+| `stringRef`       | Name of var holding a long string              |
+| `intRef`          | Name of var to receive an integer              |
+| `arrayRef`        | Name of array var (only way to pass)           |
+| `mapRef`          | Name of map var (only way to pass)             |
+| `fnRef`           | Name of a callback function                    |
+| `'a'\|'b'\|...`   | One of the quoted values (an enum)             |
 
-Flags (`-p`, `--verbose`, etc.) are self-evident and do not use a type.
+No other types are allowed: `rayvn docs audit` reports any others (and `--release` fails). An enum must fit on one
+line. Flags (`-p`, `--verbose`, etc.) are self-evident and do not use a type.
 
 ---
 

@@ -673,7 +673,32 @@ findDependencies() {
 PRIVATE_CODE="--+-+-----+-++(-++(---++++(---+( ⚠️ BEGIN 'rayvn/index' PRIVATE ⚠️ )+---)++++---)++-)++-+------+-+--"
 
 _init_rayvn_index() {
-    :
+
+    # The types allowed in doc comments, as in 'name (type)  Description'. See etc/function-doc-spec.md.
+
+    declare -gr _idxDocTypes='string int bool stringRef intRef arrayRef mapRef fnRef exe file dir'
+}
+
+# Succeeds if type is a doc comment type: one of _idxDocTypes, or an enum of quoted values, e.g. 'account'|'file'.
+
+_isDocType() {
+    [[ " ${_idxDocTypes} " == *" $1 "* || $1 =~ ^\'[^\']+\'(\|\'[^\']+\')+$ ]]
+}
+
+# Prints FILE:LINE:TYPE for each doc comment entry (in ARGS, USAGE and RETURNS sections) whose type is not a doc type.
+
+_findInvalidDocTypes() {
+    local file type location
+    for file in "$@"; do
+        while IFS=$'\t' read -r location type; do
+            _isDocType "${type}" || echo "${file}:${location}:${type}"
+        done < <(gawk '
+            /^# · / { section = $3 }
+            /^[^#]/ || /^$/ { section = "" }
+            (section == "ARGS" || section == "USAGE" || section == "RETURNS") && match($0, /^#   [^ ].*[^ ] \(([^)]+)\)  /, m) {
+                print FNR "\t" m[1]
+            }' "${file}")
+    done
 }
 
 _initIndex() {
@@ -972,7 +997,6 @@ _appendDocTableRows() {
     local -n _dtrLinesRef="$1"
     local -n _dtrOutRef="$2"
     local signatureName="$3"
-    local knownTypes='bool int string stringRef arrayRef assocArrayRef nameRef'
     local parenTypePattern='^([^(]*)\(([^)]+)\)[[:space:]]+(.*)'
     local optionPattern='^(-[^ ]*( [^ ]+)*)[[:space:]]{2,}(.*)$'
     local optionTypePattern='^(.+)[[:space:]]+\(([^)]+)\)$'
@@ -991,8 +1015,9 @@ _appendDocTableRows() {
         if [[ "${l}" =~ ${optionPattern} ]]; then
             local optionName="${BASH_REMATCH[1]}"
             descs+=("${BASH_REMATCH[3]}"); isCode+=(0)
-            if [[ "${optionName}" =~ ${optionTypePattern} && " ${knownTypes} " == *" ${BASH_REMATCH[2]} "* ]]; then
-                names+=("\`${BASH_REMATCH[1]}\` *(${BASH_REMATCH[2]})*")
+            if [[ "${optionName}" =~ ${optionTypePattern} ]] && _isDocType "${BASH_REMATCH[2]}"; then
+                typeWord="${BASH_REMATCH[2]}"
+                names+=("\`${BASH_REMATCH[1]}\` *(${typeWord//|/\\|})*")
             else
                 names+=("\`${optionName}\`")
             fi
@@ -1007,8 +1032,8 @@ _appendDocTableRows() {
         else
             IFS=' ' read -r typeWord remaining <<< "${rest}"
         fi
-        if [[ " ${knownTypes} " == *" ${typeWord} "* && -n "${remaining}" ]]; then
-            names+=("\`${argName}${metavar:+ ${metavar}}\` *(${typeWord})*"); descs+=("${remaining}"); isCode+=(0)
+        if [[ -n "${remaining}" ]] && _isDocType "${typeWord}"; then
+            names+=("\`${argName}${metavar:+ ${metavar}}\` *(${typeWord//|/\\|})*"); descs+=("${remaining}"); isCode+=(0)
         elif [[ -n "${signatureName}" && "${argName}" == "${signatureName}" ]]; then
             names+=("\`${argName}\`"); descs+=("${rest# }"); isCode+=(1)  # another form of the call signature
         else

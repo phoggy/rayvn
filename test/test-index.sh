@@ -18,6 +18,9 @@ main() {
     testFlushDocSectionArgsEnumType
     testTableCellText
     testFlushDocSectionContinuationLines
+    testIsDocType
+    testFindInvalidDocTypes
+    testFlushDocSectionPathAndEnumTypes
     testFlushDocSectionExample
     testFlushDocSectionNotes
     testSyncSharedPagesFiles
@@ -190,7 +193,7 @@ testFlushDocSectionArgsEnumType() {
     local -a out=()
     _flushDocSection ARGS lines out
 
-    assertContains "| \`[useCase]\` | ('account'\\|'file')  What it protects. |" "${out[*]}" "an enum type's '|' must be escaped"
+    assertContains "| \`[useCase]\` *('account'\\|'file')* | What it protects. |" "${out[*]}" "an enum type's '|' must be escaped"
 }
 
 # Wrapped descriptions (lines starting with whitespace) continue the previous row, in both usage and args tables.
@@ -205,6 +208,53 @@ testFlushDocSectionContinuationLines() {
     out=()
     _flushDocSection ARGS lines out
     assertContains '| `name` *(string)* | The name, which can be long. |' "${out[*]}"
+}
+
+testIsDocType() {
+    local type
+    for type in string int bool file dir exe stringRef intRef arrayRef mapRef fnRef "'a'|'b'" "'account'|'file'|'other'"; do
+        assertTrue "${type} must be a doc type" _isDocType "${type}"
+    done
+    for type in flag args 'string...' path "'a'" "a|b" ''; do
+        assertFalse "'${type}' must not be a doc type" _isDocType "${type}"
+    done
+}
+
+testFindInvalidDocTypes() {
+    local file; file=${ makeTempFile; }
+    cat > "${file}" << 'EOF'
+# ◇ Do things.
+#
+# · ARGS
+#
+#   name (string)      The name.
+#   path (path)        Not a type.
+#
+# · USAGE
+#
+#   things [--count N] name
+#
+#   --count N (count)  Not a type either.
+#   mode ('a'|'b')     An enum.
+
+things() {
+    : # (string)  outside a doc comment is ignored
+}
+EOF
+    local -a found=(); mapfile -t found < <(_findInvalidDocTypes "${file}")
+    assertEqual 2 "${#found[@]}" "two unknown types: ${found[*]}"
+    assertEqual "${file}:6:path" "${found[0]}"
+    assertEqual "${file}:12:count" "${found[1]}"
+}
+
+testFlushDocSectionPathAndEnumTypes() {
+    local -a lines=('  script (exe)  The script.' '  dir (dir)  The directory.' "  mode ('a'|'b')  The mode.")
+    local -a out=()
+    _flushDocSection ARGS lines out
+    local joined="${out[*]}"
+    assertContains '| `script` *(exe)* | The script. |' "${joined}"
+    assertContains '| `dir` *(dir)* | The directory. |' "${joined}"
+    assertContains "| \`mode\` *('a'\\|'b')* | The mode. |" "${joined}"
 }
 
 testTableCellText() {

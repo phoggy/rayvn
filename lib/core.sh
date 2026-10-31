@@ -982,10 +982,12 @@ printNumber() {
 
 # ◇ Prints a numbered list of items, with right-aligned numbers padded to a consistent width.
 #
-# · ARGS
+# · USAGE
 #
-#   [--indent N] (int)  Leading spaces before each item; defaults to 4.
-#   items (string...)   Items to list; each becomes one numbered line.
+#   printList [--indent N] ...
+#
+#   --indent N (int)  Leading spaces before each item (default: 4).
+#   ... (string)      Items to list; each becomes one numbered line.
 
 printList() {
     local indent=4

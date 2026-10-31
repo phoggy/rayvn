@@ -9,7 +9,7 @@
 #
 #   auditDocs [--release] [PROJECT]...
 #
-#   --release           Exit 1 if any public functions are missing ◇ doc comments.
+#   --release           Exit 1 if any public functions are missing ◇ doc comments, or any doc comment has an unknown type.
 #   PROJECT (string)    One or more project names to audit (default: all loaded projects).
 
 auditDocs() {
@@ -43,10 +43,32 @@ auditDocs() {
 
     local missingCount=${#_idxMissingDocs[@]}
 
-    if (( doRelease )) && (( missingCount > 0 )); then
+    # Check doc comment types against the spec
+
+    local -a invalidTypes=()
+    mapfile -t invalidTypes < <(_findInvalidDocTypes "${libFiles[@]}")
+    if (( ${#invalidTypes[@]} )); then
+        local entry location
         echo
-        show error "Release blocked: ${missingCount} public function(s) are missing ◇ doc comments."
-        return 1
+        show warning "Unknown doc comment types (see" blue "${ tildePath "${rayvnHome}/etc/function-doc-spec.md"; }" glue "):"
+        for entry in "${invalidTypes[@]}"; do
+            location="${entry%:*}"
+            show "  ${ tildePath "${location%:*}"; }:${location##*:}" bold "(${entry##*:})"
+        done
+    fi
+
+    if (( doRelease )); then
+        local blocked=0
+        if (( missingCount > 0 )); then
+            echo
+            show error "Release blocked: ${missingCount} public function(s) are missing ◇ doc comments."
+            blocked=1
+        fi
+        if (( ${#invalidTypes[@]} )); then
+            show error "Release blocked: ${#invalidTypes[@]} doc comment(s) have an unknown type."
+            blocked=1
+        fi
+        (( blocked )) && return 1
     fi
 
     return 0
