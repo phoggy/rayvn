@@ -120,7 +120,7 @@ _rayvn() {
                     ;;
                 index)
                     _arguments \
-                    '(--claude)'--claude'[Only update the rayvn guide for Claude Code (~/.config/rayvn/claude-rayvn.md), which is fast. Every rayvn command also updates it when it is out of date.]' \
+                    '(--claude)'--claude'[Only update the rayvn guide for Claude Code (~/.config/rayvn/claude-rayvn.md), which is fast. Run it after adding a project to PATH or upgrading rayvn.]' \
                     '(--compact -c)'{--compact,-c}'[Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).]:compact:' \
                     '(--hash-file)'--hash-file'[Function hash file (default: ~/.config/rayvn/rayvn-function-hashes.txt).]:hash-file:' \
                     '(--help -h)'{--help,-h}'[Print this help message.]' \

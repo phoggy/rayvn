@@ -106,6 +106,8 @@ runPages() {
     if (( setup )); then
         assertGitRepo "${projectRoot}"
         _setupPages "${projectName}" "${projectRoot}" "${dir}"
+        require 'rayvn/claude'
+        updateClaudeGuide # it lists each project's pages worktree
         return
     fi
 

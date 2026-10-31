@@ -39,7 +39,6 @@ usage() {
 
 main() {
     init
-    (( rayvnTest_NonInteractive )) || addExitHandler _updateClaudeGuideOnExit # not under tests, which may change PATH
     parseCommand "$@"
 }
 
@@ -49,13 +48,6 @@ init() {
     declare -gAr rayvnEnvVars=(
         ['RAYVN_DEFAULT_PROJECT']="Default project name (default: rayvn)."
     )
-}
-
-# Keep the rayvn guide for Claude Code current, e.g. after a project is added to PATH or rayvn is upgraded.
-
-_updateClaudeGuideOnExit() {
-    require 'rayvn/claude'
-    updateClaudeGuide -q
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
@@ -126,7 +118,7 @@ declare -gA cliSpec=(
     # Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn guide for Claude Code.
     # Run after adding or modifying library functions to keep the indexes current.
     #   PROJECT...    Project names (default: current project).
-    #   --claude      Only update the rayvn guide for Claude Code (~/.config/rayvn/claude-rayvn.md), which is fast. Every rayvn command also updates it when it is out of date.
+    #   --claude      Only update the rayvn guide for Claude Code (~/.config/rayvn/claude-rayvn.md), which is fast. Run it after adding a project to PATH or upgrading rayvn.
     #   --output|-o   Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md).
     #   --compact|-c  Compact index output file (default: ~/.config/rayvn/rayvn-functions-compact.txt).
     #   --no-compact  Skip generating the compact index.
@@ -671,7 +663,8 @@ newProject() {
 remindIfNotInPath() {
     local binDir="$1"
     if [[ ! ":${PATH}:" == *":${binDir}:"* ]]; then
-        show "Remember to add" blue "${binDir}" "to your PATH."
+        show "Remember to add" blue "${binDir}" "to your PATH, then run" blue "rayvn index --claude" \
+             "to add the project to the rayvn guide for Claude Code."
     fi
 }
 
@@ -1095,8 +1088,8 @@ indexCmdUsage() {
     echo
     option "PROJECT..." "Project names (default: current project)." 27
     option "--claude" "Only update the rayvn guide for Claude Code" 27
-    option "" "(~/.config/rayvn/claude-rayvn.md), which is fast. Every rayvn command" 27
-    option "" "also updates it when it is out of date." 27
+    option "" "(~/.config/rayvn/claude-rayvn.md), which is fast. Run it after adding a" 27
+    option "" "project to PATH or upgrading rayvn." 27
     option "--output, -o OUTPUT" "Verbose index output file (default: ~/.config/rayvn/rayvn-functions.md)." 27
     option "--compact, -c COMPACT" "Compact index output file (default:" 27
     option "" "~/.config/rayvn/rayvn-functions-compact.txt)." 27
