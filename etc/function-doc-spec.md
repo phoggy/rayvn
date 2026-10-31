@@ -81,6 +81,8 @@ clearer than a flat ARGS list alone.
 ```
 
 - One synopsis line showing the full call shape; use `[...]` for optional parts, `...` for variadic
+- In the synopsis, write an option that has both forms in its short form (`[-a]`, not `[--armor]`); the entries
+  below show both (`-a, --armor`). `rayvn docs audit` reports long forms in a synopsis
 - Include inline per-item descriptions below the synopsis
 - **Types are required** on all data parameters and flag+value entries; pure flags (no value) are exempt
 - Optional positional entry names use `[name]` to signal optionality, matching the synopsis.

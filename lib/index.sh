@@ -686,7 +686,8 @@ _isDocType() {
 }
 
 # Prints FILE:LINE:PROBLEM for each doc comment entry that breaks the spec: an entry (in ARGS, USAGE and RETURNS
-# sections) whose type is not a doc type, or an option entry written in brackets (e.g. '[--indent N]').
+# sections) whose type is not a doc type, an option entry written in brackets (e.g. '[--indent N]'), or a USAGE
+# signature that uses an option's long form when it has a short one (e.g. '--armor' rather than '-a').
 
 _findInvalidDocEntries() {
     local file kind location value
@@ -695,14 +696,41 @@ _findInvalidDocEntries() {
             case ${kind} in
                 type) _isDocType "${value}" || echo "${file}:${location}:unknown type (${value})" ;;
                 option) echo "${file}:${location}:bracketed option (${value})" ;;
+                longForm) echo "${file}:${location}:long option form in signature (${value})" ;;
             esac
         done < <(gawk '
-            /^# · / { section = $3 }
-            /^[^#]/ || /^$/ { section = "" }
+            # Report USAGE signature lines that use the long form of an option documented as "-x, --long".
+            function checkSignatures(    i, long) {
+                for (long in shortOf) {
+                    for (i = 1; i <= signatureCount; i++) {
+                        if (signatures[i] ~ ("(^|[^a-zA-Z0-9-])" long "([^a-zA-Z0-9-]|$)")) {
+                            print "longForm\t" signatureLines[i] "\t" long ", use " shortOf[long]
+                        }
+                    }
+                }
+                delete shortOf; delete signatures; delete signatureLines
+                signatureCount = 0; inSignature = 0
+            }
+            /^# · / {
+                if (section == "USAGE") checkSignatures()
+                section = $3; inSignature = (section == "USAGE"); signatureCount = 0; next
+            }
+            /^[^#]/ || /^$/ {
+                if (section == "USAGE") checkSignatures()
+                section = ""
+            }
+            section == "USAGE" && inSignature {
+                if ($0 ~ /^#[[:space:]]*$/) { if (signatureCount) inSignature = 0; next }
+                signatures[++signatureCount] = $0; signatureLines[signatureCount] = FNR; next
+            }
+            section == "USAGE" && match($0, /^#   (-[a-zA-Z]), (--[a-zA-Z][a-zA-Z0-9-]*)/, m) {
+                shortOf[m[2]] = m[1]
+            }
             section == "ARGS" || section == "USAGE" || section == "RETURNS" {
                 if (match($0, /^#   [^ ].*[^ ] \(([^)]+)\)  /, m)) print "type\t" FNR "\t" m[1]
                 if (match($0, /^#   (\[-[^]]*\])/, m)) print "option\t" FNR "\t" m[1]
-            }' "${file}")
+            }
+            END { if (section == "USAGE") checkSignatures() }' "${file}")
     done
 }
 

@@ -46,7 +46,7 @@ auditDocs() {
     # Check doc comment entries against the spec
 
     local -a invalidEntries=()
-    mapfile -t invalidEntries < <(_findInvalidDocEntries "${libFiles[@]}")
+    mapfile -t invalidEntries < <(_findInvalidDocEntries "${libFiles[@]}" | sort -t: -k1,1 -k2,2n)
     if (( ${#invalidEntries[@]} )); then
         local entry location
         echo

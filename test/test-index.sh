@@ -232,8 +232,10 @@ testFindInvalidDocEntries() {
 #
 # · USAGE
 #
-#   things [--count N] name
+#   things [--count N] [--all] [-q] name
 #
+#   -a, --all          A long form in the signature.
+#   -q, --quiet        A short form in the signature, which is fine.
 #   --count N (count)  Not a type either.
 #   [-v] (bool)        A bracketed option.
 #   [name] (string)    An optional positional, which is fine.
@@ -243,11 +245,12 @@ things() {
     : # (string)  outside a doc comment is ignored
 }
 EOF
-    local -a found=(); mapfile -t found < <(_findInvalidDocEntries "${file}")
-    assertEqual 3 "${#found[@]}" "three problems: ${found[*]}"
+    local -a found=(); mapfile -t found < <(_findInvalidDocEntries "${file}" | sort -t: -k1,1 -k2,2n)
+    assertEqual 4 "${#found[@]}" "four problems: ${found[*]}"
     assertEqual "${file}:6:unknown type (path)" "${found[0]}"
-    assertEqual "${file}:12:unknown type (count)" "${found[1]}"
-    assertEqual "${file}:13:bracketed option ([-v])" "${found[2]}"
+    assertEqual "${file}:10:long option form in signature (--all, use -a)" "${found[1]}"
+    assertEqual "${file}:14:unknown type (count)" "${found[2]}"
+    assertEqual "${file}:15:bracketed option ([-v])" "${found[3]}"
 }
 
 testFlushDocSectionPathAndEnumTypes() {
