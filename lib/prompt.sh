@@ -271,7 +271,7 @@ _init_rayvn_prompt() {
 
     # Internal state
 
-    declare -g _prompt
+    declare -g _promptText
     declare -g _promptHint
     declare -g _promptInput
     declare -g _promptRow
@@ -321,7 +321,7 @@ _prompt() {
 
     # Set internal state defaults
 
-    _prompt=
+    _promptText=
     _promptHint=
     _promptInput=
     _promptRow=
@@ -379,8 +379,8 @@ _preparePrompt() {
     # Initialize/show hint and prompt
 
     _promptHint="${_promptHintSpace}${ show -n muted italic "[${_promptPlainHint}]" ;}"
-    _prompt="${ show -n bold success "?" bold "${_promptPlain}" ;}${_promptHint} "
-    echo -n "${_prompt}" >&${ttyFd}
+    _promptText="${ show -n bold success "?" bold "${_promptPlain}" ;}${_promptHint} "
+    echo -n "${_promptText}" >&${ttyFd}
 
     # Reserve rows below prompt and set prompt row/col
 
