@@ -382,20 +382,25 @@ unknownArg() {
     fail "unknown argument: $1"
 }
 
-# ◇ Print an optional exit message, show stack if in debug mode, and exit 0.
+# ◇ Exit, showing the stack if in debug mode: with status 0, or with an error message and status 1. This is how usage
+#   functions end, so that 'usage' (help) succeeds and 'usage "unknown argument: x"' fails.
 #
 # · USAGE
 #
 #   bye [message [FORMAT|TEXT]...]
 #
-#   [message] (string)   Exit message text.
+#   [message] (string)   Error message text; if given, the exit status is 1.
 #   [FORMAT] (string)    A show format token; applies to the next [TEXT] arg.
 #   [TEXT] (string)      Text to print with the preceding format applied.
 
 bye() {
-    (( $# )) && show error "$1" "${@:2}"
+    local status=0
+    if (( $# )); then
+        show error "$1" "${@:2}"
+        status=1
+    fi
     debugStack
-    exit 0
+    exit ${status}
 }
 
 # ◇ Print a formatted call stack, optionally preceded by a message.

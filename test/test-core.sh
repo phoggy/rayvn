@@ -443,9 +443,9 @@ testOutputFunctions() {
     assertContains "traced" "${ stripAnsi "${result}"; }" "fail --trace includes message"
     assertContains "->" "${ stripAnsi "${result}"; }" "fail --trace includes stack"
 
-    # bye: exits 0, optional message, show format args
-    assertTrue "bye exits 0" eval '( bye ) 2>/dev/null'
-    assertTrue "bye with message exits 0" eval '( bye "goodbye" ) 2>/dev/null'
+    # bye: exits 0, or 1 with an (error) message, show format args
+    assertTrue "bye exits 0" eval '( bye ) > /dev/null 2>&1'
+    assertFalse "bye with a message exits 1" eval '( bye "unknown argument: x" ) > /dev/null 2>&1'
     result=${ ( bye "farewell" ) 2>&1; }
     assertContains "farewell" "${ stripAnsi "${result}"; }" "bye includes message"
     result=${ ( bye "msg" bold "detail" ) 2>&1; }
