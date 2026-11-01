@@ -932,7 +932,7 @@ dependenciesCmdUsage() {
     show bold "Scan source files for external command dependencies and verify they are declared in flake.nix"
     show bold "runtimeDeps."
     echo
-    show "Usage:" bold blue "rayvn dependencies" "[PROJECT...] [--fix]"
+    show "Usage:" bold blue "rayvn deps" "[PROJECT...] [--fix]"
     echo
     option "PROJECT..." "Project names (default: current project)." 16
     option "--fix" "Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for" 16

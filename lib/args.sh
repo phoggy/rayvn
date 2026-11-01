@@ -645,8 +645,10 @@ _genCommandParser() {
         _genParseFunction argsSpec "${handler}" false _docPosNames
         echo
         if [[ -n "${_argsCliDocs[${command}]+x}" ]]; then
-            local displayName=""
-            [[ "${command}" == *' '* && "${command}" != *'|'* ]] && displayName="${command}"
+            # Show the command as typed (the first name, for aliases like 'new | create'), not the handler name
+
+            local displayName="${command%%|*}"
+            displayName="${displayName% }"
             _genUsageFunction "${project}" "${handler}" "${_argsCliDocs[${command}]}" "${displayName}"
             echo
         fi

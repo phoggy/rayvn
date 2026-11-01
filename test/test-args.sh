@@ -602,6 +602,9 @@ declare -gA usageSpec=(
     #   --mode   Which way.
     ['rank']='rank(--level:casual|motivated|professional|nation-state=casual --mode:up|down --help|-h)'
 
+    # Show a thing.
+    ['show-thing']='showThing(--help|-h)'
+
     # Take many options, so that the synopsis wraps.
     #   --alpha     A.
     #   --bravo     B.
@@ -635,6 +638,11 @@ EOF
     assertContains "--level LEVEL" "${out}"
     assertContains "How hard. One of: casual, motivated, professional, nation-state." "${out}"
     assertContains "--mode up|down" "${out}"
+
+    # The usage shows the command as typed, not the handler name
+    out=${ ( showThingCmdUsage ) 2>&1; }
+    assertContains "show-thing" "${ stripAnsi "${out}"; }" "usage must show the command name"
+    [[ ${ stripAnsi "${out}"; } != *"showThing"* ]] || fail "usage must not show the handler name: ${out}"
 
     # A wrapped synopsis never breaks inside a bracketed group
     out=${ ( wideCmdUsage ) 2>&1; }
