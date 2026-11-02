@@ -1377,9 +1377,16 @@ _genUsageFunction() {
     local group
     local -A _grouped=()
     for group in "${_argsGroups[@]}"; do
-        synopsis+=" [${group//|/ | }]"
-        local -a _members; IFS='|' read -ra _members <<< "${group}"
-        local member; for member in "${_members[@]}"; do _grouped[${member}]=1; done
+        local -a _members=() _shown=()
+        local _member _memberCanonical
+        IFS='|' read -ra _members <<< "${group}"
+        for _member in "${_members[@]}"; do
+            _memberCanonical="${_argsOptionNames[${_member}]:-${_member}}"
+            _shown+=("${_shortOf[${_memberCanonical}]:-${_memberCanonical}}") # short form, as for other options
+            _grouped[${_memberCanonical}]=1
+        done
+        local _groupText; printf -v _groupText '%s | ' "${_shown[@]}"
+        synopsis+=" [${_groupText% | }]"
     done
     local -a _sortedCanonicals=()
     (( ${#_canonicalSet[@]} )) && mapfile -t _sortedCanonicals <<< "${ printf '%s\n' "${!_canonicalSet[@]}" | sort; }"

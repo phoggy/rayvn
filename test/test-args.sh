@@ -605,6 +605,11 @@ declare -gA usageSpec=(
     # Show a thing.
     ['show-thing']='showThing(--help|-h)'
 
+    # Talk.
+    #   --loud   Loudly.
+    #   --quiet  Quietly.
+    ['talk']='talk(--loud|-l --quiet [--loud|--quiet] --help|-h)'
+
     # Take many options, so that the synopsis wraps.
     #   --alpha     A.
     #   --bravo     B.
@@ -638,6 +643,11 @@ EOF
     assertContains "--level LEVEL" "${out}"
     assertContains "How hard. One of: casual, motivated, professional, nation-state." "${out}"
     assertContains "--mode up|down" "${out}"
+
+    # An exclusion group shows its options' short forms, and they are not repeated elsewhere
+    out=${ ( talkCmdUsage ) 2>&1; }
+    assertContains "talk [-l | --quiet]" "${ stripAnsi "${out}"; }"
+    [[ ${ stripAnsi "${out}"; } != *"] [-l]"* ]] || fail "a grouped option must not be repeated: ${out}"
 
     # The usage shows the command as typed, not the handler name
     out=${ ( showThingCmdUsage ) 2>&1; }
