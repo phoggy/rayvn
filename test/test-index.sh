@@ -3,7 +3,7 @@
 main() {
     init "$@"
 
-    testHashString
+    testHashStrings
     testGenerateDescriptionFromName
     testWrapCodeInBackticks
     testRenderDocMarkdownSummary
@@ -17,6 +17,7 @@ main() {
     testFlushDocSectionUsagePipes
     testFlushDocSectionArgsEnumType
     testTableCellText
+    testLibFileNames
     testFlushDocSectionContinuationLines
     testIsDocType
     testFindInvalidDocEntries
@@ -36,17 +37,23 @@ init() {
 }
 
 # ============================================================================
-# _hashString
+# _hashStrings
 # ============================================================================
 
-testHashString() {
-    local h1; h1=${ _hashString 'hello'; }
-    local h2; h2=${ _hashString 'hello'; }
-    local h3; h3=${ _hashString 'world'; }
+testHashStrings() {
+    local -a strings=('hello' 'hello' 'world' '' $'two\nlines\n') hashes=()
+    _hashStrings strings hashes
 
-    assertEqual "${h1}" "${h2}" "same input produces same hash"
-    assertNotEqual "${h1}" "${h3}" "different input produces different hash"
-    assertEqual 16 "${#h1}" "hash is 16 hex chars"
+    assertEqual 5 "${#hashes[@]}" "one hash per string"
+    assertEqual "${hashes[0]}" "${hashes[1]}" "same input produces same hash"
+    assertNotEqual "${hashes[0]}" "${hashes[2]}" "different input produces different hash"
+    assertEqual 16 "${#hashes[0]}" "hash is 16 hex chars"
+
+    # The first 16 hex digits of the SHA-256 digest, as stored in existing hash files
+
+    assertEqual '2cf24dba5fb0a30e' "${hashes[0]}" "hash of 'hello'"
+    assertEqual 'e3b0c44298fc1c14' "${hashes[3]}" "hash of the empty string"
+    assertEqual "${ printf 'two\nlines\n' | shasum -a 256 | cut -c1-16; }" "${hashes[4]}" "trailing newlines are kept"
 }
 
 # ============================================================================
@@ -90,6 +97,10 @@ testWrapCodeInBackticks() {
 
     result=${ _wrapCodeInBackticks 'call myFunc() to do it'; }
     assertContains '`myFunc()`' "${result}" "wraps func() in backticks"
+
+    result=${ _wrapCodeInBackticks 'run ${a} and ${b}, then ${a} again with $(cmd) and f() then g()'; }
+    assertEqual 'run `${a}` and `${b}`, then `${a}` again with `$(cmd)` and `f()` then `g()`' "${result}" \
+        "wraps every match, including repeats"
 }
 
 # ============================================================================
@@ -267,6 +278,15 @@ testTableCellText() {
     assertEqual 'Use `--armor` or `-a` (default: `-o`).' "${ _tableCellText 'Use --armor or -a (default: -o).'; }"
     assertEqual 'a \| b and `c|d`' "${ _tableCellText 'a | b and `c|d`'; }"
     assertEqual 'x-ray and well-known' "${ _tableCellText 'x-ray and well-known'; }"
+    assertEqual '`-a` and `-a` again, [`--b`], (`-c`)' "${ _tableCellText '-a and -a again, [--b], (-c)'; }"
+    assertEqual 'see `--x` or `-y`, not a--b' "${ _tableCellText 'see `--x` or -y, not a--b'; }"
+}
+
+testLibFileNames() {
+    local projectName libraryName
+    _libFileNames /path/to/valt/lib/keys.sh projectName libraryName
+    assertEqual 'valt' "${projectName}"
+    assertEqual 'keys' "${libraryName}"
 }
 
 testFlushDocSectionExample() {

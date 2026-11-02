@@ -696,6 +696,15 @@ _init_rayvn_index() {
 
     declare -gr _idxDocTypes='string int bool stringRef intRef arrayRef mapRef fnRef exe file dir'
 
+    # The command used to hash function bodies and docs for change tracking. sha256sum (coreutils) starts much faster
+    # than shasum (a Perl script), and both print the same digest.
+
+    if command -v sha256sum > /dev/null; then
+        declare -gra _idxHashCommand=(sha256sum)
+    else
+        declare -gra _idxHashCommand=(shasum -a 256)
+    fi
+
     # Commands that come from a package with another name, which 'rayvn deps' maps to that package rather than to one
     # named after the command (a project's rayvn.pkg nixBinaryMap takes precedence)
 
@@ -846,6 +855,18 @@ _getDocsWorktree() {
 }
 
 # Generate markdown index from library files
+# Sets the named vars to a library file's project and library names, e.g. /path/valt/lib/keys.sh → valt, keys.
+
+_libFileNames() {
+    local libFile="$1"
+    local -n _lfnProjectRef=$2
+    local -n _lfnLibraryRef=$3
+    local projectDir="${libFile%/*/*}"
+    _lfnProjectRef="${projectDir##*/}"
+    _lfnLibraryRef="${libFile##*/}"
+    _lfnLibraryRef="${_lfnLibraryRef%.sh}"
+}
+
 _generateIndex() {
     local libFiles=("$@")
 
@@ -858,8 +879,7 @@ _generateIndex() {
 
     local libFile projectName libraryName
     for libFile in "${libFiles[@]}"; do
-        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
-        libraryName=${ basename "${libFile}" .sh; }
+        _libFileNames "${libFile}" projectName libraryName
 
         echo "## ${projectName}/${libraryName}"
         echo ""
@@ -879,8 +899,7 @@ _generateCompactIndex() {
 
     local libFile projectName libraryName
     for libFile in "${libFiles[@]}"; do
-        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
-        libraryName=${ basename "${libFile}" .sh; }
+        _libFileNames "${libFile}" projectName libraryName
         _extractFunctionsCompact "${libFile}" "${projectName}" "${libraryName}"
     done
 }
@@ -1200,13 +1219,14 @@ _extractMeaningfulDescription() {
 
     if [[ -n "${doc}" ]]; then
         while IFS= read -r line; do
+            line="${line#"${line%%[![:space:]]*}"}" # strip leading whitespace
             [[ -z "${line}" ]] && continue
             [[ "${line}" =~ ^shellcheck ]] && continue
             [[ "${line}" =~ ^(Library|Intended for use|IMPORTANT) ]] && continue
             [[ "${line}" =~ ^${functionName} ]] && continue
             briefDesc="${line}"
             break
-        done <<< "${ echo "${doc}" | gsed 's/^[[:space:]]*//'; }"
+        done <<< "${doc}"
     fi
 
     if [[ -z "${briefDesc}" ]]; then
@@ -1244,46 +1264,78 @@ _generateDescriptionFromName() {
 # Format text for a markdown table cell: option names (e.g. --armor, -o) become code, so that markdown does not turn
 # '--' into a dash, and any '|' left outside code is escaped so that it does not end the cell.
 _tableCellText() {
-    printf '%s\n' "$1" | gawk '
-        # Wrap each option name that starts a word in backticks. (A global gensub with backreferences is avoided:
-        # gawk 5.4.0 only fills in the backreferences for the first match.)
-        function wrapOptions(text, boundary,    result, token, before) {
-            result = ""
-            while (match(text, /--?[a-zA-Z][a-zA-Z0-9-]*/)) {
-                before = substr(text, 1, RSTART - 1)
-                token = substr(text, RSTART, RLENGTH)
-                if (RSTART > 1) boundary = substr(text, RSTART - 1, 1)
-                if (boundary ~ /^[[:space:](\[]$/) result = result before "`" token "`"
-                else result = result before token
-                boundary = substr(token, RLENGTH)
-                text = substr(text, RSTART + RLENGTH)
-            }
-            return result text
-        }
-        {
-            n = split($0, parts, "`")
-            out = ""
-            for (i = 1; i <= n; i++) {
-                part = parts[i]
-                if (i % 2 == 1) {
-                    part = wrapOptions(part, i == 1 ? " " : "`")
-                    gsub(/\|/, "\\|", part)
-                }
-                out = out (i > 1 ? "`" : "") part
-            }
-            print out
-        }'
+    local text="$1" out='' part boundary i
+
+    # Split on backticks: the even parts (0, 2, ...) are outside code spans
+
+    local -a parts=()
+    while [[ ${text} == *'`'* ]]; do
+        parts+=("${text%%\`*}")
+        text="${text#*\`}"
+    done
+    parts+=("${text}")
+
+    for (( i = 0; i < ${#parts[@]}; i++ )); do
+        part="${parts[${i}]}"
+        if (( i % 2 == 0 )); then
+            boundary='`'
+            (( i == 0 )) && boundary=' '
+            _wrapOptionNames part "${boundary}"
+            part="${part//|/\\|}"
+        fi
+        (( i > 0 )) && out+='`'
+        out+="${part}"
+    done
+    printf '%s\n' "${out}"
+}
+
+# Wraps each option name in the named var's text in backticks, when it starts a word: when the character before it, or
+# the given boundary character for one at the start, is whitespace, '(' or '['. Avoids a process per table cell.
+
+_wrapOptionNames() {
+    local -n _wonTextRef=$1
+    local boundary="$2"
+    local rest="${_wonTextRef}" result='' match before
+    local optionPattern='--?[a-zA-Z][a-zA-Z0-9-]*' boundaryPattern='^[[:space:](\[]$'
+    while [[ ${rest} =~ ${optionPattern} ]]; do
+        match="${BASH_REMATCH[0]}"
+        before="${rest%%"${match}"*}"
+        [[ -n ${before} ]] && boundary="${before: -1}"
+        if [[ ${boundary} =~ ${boundaryPattern} ]]; then
+            result+="${before}\`${match}\`"
+        else
+            result+="${before}${match}"
+        fi
+        boundary="${match: -1}"
+        rest="${rest#*"${match}"}"
+    done
+    _wonTextRef="${result}${rest}"
 }
 
 # Wrap bash code patterns in backticks to avoid markdown rendering issues
 _wrapCodeInBackticks() {
     local text="$1"
     if [[ "${text}" =~ \$\{|\$\(|[a-zA-Z_][a-zA-Z0-9_]*\(\)|[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
-        text=${ echo "${text}" | gsed -E 's/(\$\{[^}]+\})/`\1`/g'; }
-        text=${ echo "${text}" | gsed -E 's/(\$\([^)]+\))/`\1`/g'; } # lint-ok
-        text=${ echo "${text}" | gsed -E 's/([a-zA-Z_][a-zA-Z0-9_]*\(\))/`\1`/g'; } # lint-ok
+        _wrapMatchesInBackticks text '\$\{[^}]+\}'
+        _wrapMatchesInBackticks text '\$\([^)]+\)'
+        _wrapMatchesInBackticks text '[a-zA-Z_][a-zA-Z0-9_]*\(\)'
     fi
     echo "${text}"
+}
+
+# Wraps each match of an extended regex in the named var's text in backticks, as gsed -E 's/(REGEX)/`\1`/g' does, but
+# without starting a process. The first occurrence of the matched text is where the leftmost match starts.
+
+_wrapMatchesInBackticks() {
+    local -n _wmbTextRef=$1
+    local regex="$2"
+    local rest="${_wmbTextRef}" result='' match
+    while [[ ${rest} =~ ${regex} ]]; do
+        match="${BASH_REMATCH[0]}"
+        result+="${rest%%"${match}"*}\`${match}\`"
+        rest="${rest#*"${match}"}"
+    done
+    _wmbTextRef="${result}${rest}"
 }
 
 # Parse library descriptions, ordering, and categories from the home page's library table.
@@ -1335,8 +1387,7 @@ _updateHomePageLibraryTable() {
     local -a newRows=()
     local libFile projectName libraryName libDescription
     for libFile in "${libFiles[@]}"; do
-        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
-        libraryName=${ basename "${libFile}" .sh; }
+        _libFileNames "${libFile}" projectName libraryName
         [[ -n "${filterProject}" && "${projectName}" != "${filterProject}" ]] && continue
         if [[ -z "${_idxHomePageDescriptions[${projectName}/${libraryName}]:-}" ]]; then
             libDescription=${ _extractLibraryDescription "${libFile}"; }
@@ -1401,8 +1452,7 @@ _updateApiIndexTable() {
     local -A keyToFile=()
     local libFile projectName libraryName key order
     for libFile in "${libFiles[@]}"; do
-        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
-        libraryName=${ basename "${libFile}" .sh; }
+        _libFileNames "${libFile}" projectName libraryName
         [[ -n "${filterProject}" && "${projectName}" != "${filterProject}" ]] && continue
         key="${projectName}/${libraryName}"
         order="${_idxHomePageOrder[${key}]:-9999}"
@@ -1512,8 +1562,7 @@ _generateDocs() {
 
     local libFile projectName libraryName navOrder
     for libFile in "${libFiles[@]}"; do
-        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
-        libraryName=${ basename "${libFile}" .sh; }
+        _libFileNames "${libFile}" projectName libraryName
         if [[ -z "${filterProject}" || "${projectName}" == "${filterProject}" ]]; then
             navOrder="${_idxHomePageOrder[${projectName}/${libraryName}]:-999}"
             _generateLibraryPage "${libFile}" "${projectName}" "${libraryName}" "${navOrder}"
@@ -1800,8 +1849,28 @@ _updateCliPageCommands() {
 }
 
 # Compute a short hash of a string using shasum
-_hashString() {
-    echo -n "$1" | shasum -a 256 | cut -c1-16
+# Hashes the named array's strings, setting the second named array to their hashes (the first 16 hex digits of each
+# SHA-256 digest), in order. The strings are written to temp files and hashed by a single command, since starting a
+# process per string is slow.
+
+_hashStrings() {
+    local -n _hsStringsRef=$1
+    local -n _hsHashesRef=$2
+    _hsHashesRef=()
+    (( ${#_hsStringsRef[@]} )) || return 0
+    local dir; dir="${ makeTempDir; }"
+    local -a files=()
+    local i
+    for (( i = 0; i < ${#_hsStringsRef[@]}; i++ )); do
+        printf '%s' "${_hsStringsRef[${i}]}" > "${dir}/${i}" || fail
+        files+=("${dir}/${i}")
+    done
+    local hash file
+    while read -r hash file; do
+        _hsHashesRef+=("${hash:0:16}")
+    done < <( "${_idxHashCommand[@]}" "${files[@]}" ) || fail
+    (( ${#_hsHashesRef[@]} == ${#_hsStringsRef[@]} )) || fail "hashing failed"
+    rm -rf "${dir}"
 }
 
 # Load stored function hashes from the hash file into _idxStoredHashes.
@@ -1843,6 +1912,9 @@ _hashLibFile() {
         fileLines+=("${line}")
     done < "${libFile}"
 
+    # Collect each public function's key, body, doc and whether it is documented, then hash them all at once
+
+    local -a keys=() hasDocs=() strings=() hashes=()
     local i j k m functionName body doc key bodyHash docHash hasDoc
     for (( i=0; i < ${#fileLines[@]}; i++ )); do
         local line="${fileLines[${i}]}"
@@ -1892,28 +1964,36 @@ _hashLibFile() {
                 [[ "${docLine}" =~ ^#[[:space:]]◇ ]] && hasDoc=1
             done
 
-            key="${projectName}/${libraryName}:${functionName}"
-            bodyHash=${ _hashString "${body}"; }
-            docHash=${ _hashString "${doc}"; }
-            _idxCurrentHashes["${key}:body"]="${bodyHash}"
-            _idxCurrentHashes["${key}:doc"]="${docHash}"
+            keys+=("${projectName}/${libraryName}:${functionName}")
+            hasDocs+=(${hasDoc})
+            strings+=("${body}" "${doc}")
+        fi
+    done
 
-            # Detect missing docs (no # ◇ line)
-            if (( ! hasDoc )); then
-                _idxMissingDocs+=("${key}")
-            else
-                # Detect stale: body hash changed but doc hash unchanged
-                local storedBody="${_idxStoredHashes[${key}:body]:-}"
-                local storedDoc="${_idxStoredHashes[${key}:doc]:-}"
-                if [[ -n "${storedBody}" && "${storedBody}" != "${bodyHash}" && "${storedDoc}" == "${docHash}" ]]; then
-                    _idxStaleDocs+=("${key}")
-                fi
-            fi
+    _hashStrings strings hashes
+    for (( i = 0; i < ${#keys[@]}; i++ )); do
+        key="${keys[${i}]}"
+        hasDoc=${hasDocs[${i}]}
+        bodyHash="${hashes[$(( i * 2 ))]}"
+        docHash="${hashes[$(( i * 2 + 1 ))]}"
+        _idxCurrentHashes["${key}:body"]="${bodyHash}"
+        _idxCurrentHashes["${key}:doc"]="${docHash}"
 
-            # Track changed functions (body hash changed vs stored)
-            if [[ -v "_idxStoredHashes[${key}:body]" ]] && [[ "${_idxStoredHashes[${key}:body]}" != "${bodyHash}" ]]; then
-                _idxChangedFunctions+=("${key}")
+        # Detect missing docs (no # ◇ line)
+        if (( ! hasDoc )); then
+            _idxMissingDocs+=("${key}")
+        else
+            # Detect stale: body hash changed but doc hash unchanged
+            local storedBody="${_idxStoredHashes[${key}:body]:-}"
+            local storedDoc="${_idxStoredHashes[${key}:doc]:-}"
+            if [[ -n "${storedBody}" && "${storedBody}" != "${bodyHash}" && "${storedDoc}" == "${docHash}" ]]; then
+                _idxStaleDocs+=("${key}")
             fi
+        fi
+
+        # Track changed functions (body hash changed vs stored)
+        if [[ -v "_idxStoredHashes[${key}:body]" ]] && [[ "${_idxStoredHashes[${key}:body]}" != "${bodyHash}" ]]; then
+            _idxChangedFunctions+=("${key}")
         fi
     done
 }
@@ -1935,8 +2015,7 @@ _checkAndUpdateHashes() {
 
     local libFile projectName libraryName
     for libFile in "${libFiles[@]}"; do
-        projectName=${ basename "${ dirname "${ dirname "${libFile}"; }"; }"; }
-        libraryName=${ basename "${libFile}" .sh; }
+        _libFileNames "${libFile}" projectName libraryName
         local prevMissing=${#_idxMissingDocs[@]} prevStale=${#_idxStaleDocs[@]}
         _hashLibFile "${libFile}" "${projectName}" "${libraryName}"
         if (( showProgress )); then
