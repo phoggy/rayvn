@@ -11,6 +11,8 @@ main() {
     testGetBrewDependenciesWithExclusions
     testDepsProjectRootFound
     testDepsProjectRootMissing
+    testFindDependenciesReportsOnly
+    testFindDependenciesFix
 }
 
 init() {
@@ -142,5 +144,52 @@ testDepsProjectRootMissing() {
     rm -rf "${dir}"
 }
 
-source rayvn.up 'rayvn/core' 'rayvn/dependencies' 'rayvn/test'
+# ============================================================================
+# findDependencies
+# ============================================================================
+
+# Create a fixture project, registered as 'depsfixture', whose script uses jq and sha1sum (from coreutils), with a
+# trailing comment containing an apostrophe and message text quoting 'awk'. Its flake lists only bash. Sets the named
+# var to the project root.
+
+_newDepsFixtureProject() {
+    local -n rootRef=$1
+    local projectDir; projectDir=${ makeTempDir deps-project-XXXXXX; }
+    mkdir -p "${projectDir}/bin" || fail
+    cat > "${projectDir}/bin/tool" <<'SCRIPT'
+#!/usr/bin/env bash
+main() {
+    jq . "$1" # it's a comment with an apostrophe
+    sha1sum "$1"
+    show "Fixing 'awk' → 'gawk'"
+}
+SCRIPT
+    printf 'runtimeDeps = [\n          pkgs.bash\n];\n' > "${projectDir}/flake.nix"
+    _rayvnProjects[depsfixture::project]="${projectDir}"
+    rootRef="${projectDir}"
+}
+
+testFindDependenciesReportsOnly() {
+    local dir; _newDepsFixtureProject dir
+    local before; readFile "${dir}/flake.nix" before
+    local output; output="${ findDependencies depsfixture 2>&1; }"
+    assertNotEqual 0 $? "missing deps must fail without --fix"
+    assertContains 'pkgs.jq (for jq)' "${output}"
+    assertContains 'pkgs.coreutils (for sha1sum)' "${output}"
+    [[ ${output} != *"'awk' found"* ]] || fail "message text must not be reported as awk: ${output}"
+    local after; readFile "${dir}/flake.nix" after
+    assertEqual "${before}" "${after}" "flake.nix must not change without --fix"
+}
+
+testFindDependenciesFix() {
+    local dir; _newDepsFixtureProject dir
+    local output; output="${ findDependencies depsfixture fix 2>&1; }"
+    assertEqual 0 $? "--fix must succeed: ${output}"
+    assertInFile 'pkgs.jq' "${dir}/flake.nix"
+    assertInFile 'pkgs.coreutils' "${dir}/flake.nix"
+    output="${ findDependencies depsfixture 2>&1; }"
+    assertEqual 0 $? "deps must pass once fixed: ${output}"
+}
+
+source rayvn.up 'rayvn/core' 'rayvn/dependencies' 'rayvn/index' 'rayvn/test'
 main "$@"

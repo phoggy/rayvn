@@ -459,14 +459,16 @@ _showPagesSetupInstructions() {
     echo
 }
 
-# ◇ Scan a project's source files for external command dependencies and sync them to flake.nix.
-#   Confirms external binaries via command -v, maps them to nix package names via rayvn.pkg,
-#   and adds any missing entries to flake.nix. Also delegates npm dependency updates.
+# ◇ Scan a project's source files for external command dependencies and check that they are declared in flake.nix.
+#   Confirms external binaries via command -v and maps them to nix package names via rayvn.pkg (commands from
+#   packages such as coreutils map to that package). Reports missing entries and portability issues, and runs project deps plugins
+#   (plugins/*-plugin.sh). Files are only changed in fix mode. Returns non-zero if any problem is left unfixed.
 #
 # · ARGS
 #
 #   projectName (string)  Name of the rayvn project to scan (e.g. 'valt', 'rayvn').
-#   fixMode     (string)  Optional. Pass 'fix' to auto-replace awk→gawk and sed→gsed in source.
+#   fixMode     (string)  Optional. Pass 'fix' to add missing entries to flake.nix, replace awk→gawk and sed→gsed in
+#                         source, and let plugins apply their fixes.
 
 findDependencies() {
     local projectName="$1"
@@ -478,6 +480,7 @@ findDependencies() {
     [[ -n ${projectRoot} ]] || fail "unknown project: ${projectName}"
 
     header "Finding dependencies for ${projectName}"
+    local -i problems=0
 
     # Collect all source files from bin/, lib/, and plugins/
     local -a sourceFiles=()
@@ -540,7 +543,8 @@ findDependencies() {
         unset nixBinaryMap
         [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
 
-        # Build reverse map: binary name → nix package name (default: same name)
+        # Build reverse map: binary name → nix package name (default: the package that provides it, e.g. coreutils, else the
+        # same name)
         local -A binToNixPkg=()
         local binN nixKey nixN
         for binN in "${confirmedBins[@]}"; do
@@ -551,6 +555,7 @@ findDependencies() {
                     break
                 fi
             done
+            [[ -z ${nixN} ]] && nixN="${_idxCommandPackages[${binN}]:-}"
             binToNixPkg["${binN}"]="${nixN:-${binN}}"
         done
 
@@ -564,25 +569,35 @@ findDependencies() {
             esac
         done < <( _extractFlakeDeps "${projectRoot}" )
 
-        # Add any missing deps to flake.nix
-        local -a added=()
+        # Find deps missing from flake.nix, each with the commands that need it
+        local -a missingPkgs=()
+        local -A missingFor=()
         for binN in "${confirmedBins[@]}"; do
             nixN="${binToNixPkg[${binN}]}"
             [[ ${existingPkgs[${nixN}]+defined} ]] && continue
-            _findDepsAddToFlake "${flakeFile}" "${nixN}" || fail "failed to add pkgs.${nixN} to flake.nix"
-            existingPkgs["${nixN}"]=1
-            added+=("${nixN}")
-            show success "Added pkgs.${nixN} to flake.nix"
+            [[ ${missingFor[${nixN}]+defined} ]] || missingPkgs+=("${nixN}")
+            missingFor["${nixN}"]+="${missingFor[${nixN}]:+, }${binN}"
         done
 
-        if (( ${#added[@]} == 0 )); then
+        if (( ${#missingPkgs[@]} == 0 )); then
             show nl primary "All dependencies already present in flake.nix"
             echo
-        else
-            echo
-            show bold "Added ${#added[@]} dep(s) to flake.nix:" nl primary "${added[*]}"
+        elif [[ ${fixMode} == fix ]]; then
+            for nixN in "${missingPkgs[@]}"; do
+                _findDepsAddToFlake "${flakeFile}" "${nixN}" || fail "failed to add pkgs.${nixN} to flake.nix"
+                show success "Added pkgs.${nixN} to flake.nix (for ${missingFor[${nixN}]})"
+            done
             show nl "Run 'nix build' to verify, then commit the changes"
             echo
+        else
+            show error "Missing from flake.nix runtimeDeps:"
+            echo
+            local -a missingList=()
+            for nixN in "${missingPkgs[@]}"; do missingList+=("pkgs.${nixN} (for ${missingFor[${nixN}]})"); done
+            printList "${missingList[@]}"
+            show nl "Add them with" primary "rayvn deps --fix ${projectName}" glue ", or map or exclude a command in rayvn.pkg."
+            echo
+            (( problems++ ))
         fi
     fi
 
@@ -659,16 +674,17 @@ findDependencies() {
         echo
     fi
 
-    # Run project-specific deps plugins (plugins/*-plugin.sh each implementing findProjectDeps)
+    # Run project-specific deps plugins (plugins/*-plugin.sh each implementing findProjectDeps, which must only change
+    # files in fix mode, and return non-zero if it finds a problem it did not fix)
     local pluginFile
     for pluginFile in "${projectRoot}/plugins/"*-plugin.sh; do
         [[ -f "${pluginFile}" ]] || continue
         source "${pluginFile}"
-        findProjectDeps "${projectName}" "${projectRoot}" "${fixMode}" "${flakeFile}"
+        findProjectDeps "${projectName}" "${projectRoot}" "${fixMode}" "${flakeFile}" || (( problems++ ))
         unset -f findProjectDeps
     done
 
-    (( portabilityErrors )) && return 1
+    (( problems || portabilityErrors )) && return 1
     return 0
 }
 
@@ -679,6 +695,28 @@ _init_rayvn_index() {
     # The types allowed in doc comments, as in 'name (type)  Description'. See etc/function-doc-spec.md.
 
     declare -gr _idxDocTypes='string int bool stringRef intRef arrayRef mapRef fnRef exe file dir'
+
+    # Commands that come from a package with another name, which 'rayvn deps' maps to that package rather than to one
+    # named after the command (a project's rayvn.pkg nixBinaryMap takes precedence)
+
+    declare -gA _idxCommandPackages=()
+    local package command
+    local -A packageCommands=(
+        [coreutils]='arch b2sum base32 base64 basename basenc cat chcon chgrp chmod chown chroot cksum comm cp csplit cut
+            date dd df dir dircolors dirname du echo env expand expr factor false fmt fold groups head hostid id install
+            join kill link ln logname ls md5sum mkdir mkfifo mknod mktemp mv nice nl nohup nproc numfmt od paste pathchk
+            pinky pr printenv printf ptx pwd readlink realpath rm rmdir runcon seq sha1sum sha224sum sha256sum sha384sum
+            sha512sum shred shuf sleep sort split stat stdbuf stty sum sync tac tail tee test timeout touch tr true
+            truncate tsort tty uname unexpand uniq unlink users vdir wc who whoami yes'
+        [diffutils]='cmp diff diff3 sdiff'
+        [findutils]='find locate updatedb xargs'
+    )
+    for package in "${!packageCommands[@]}"; do
+        for command in ${packageCommands[${package}]}; do
+            _idxCommandPackages[${command}]="${package}"
+        done
+    done
+    readonly _idxCommandPackages
 }
 
 # Succeeds if type is a doc comment type: one of _idxDocTypes, or an enum of quoted values, e.g. 'account'|'file'.
@@ -1981,6 +2019,12 @@ _findDepsExtractCommands() {
             while (match(line, dqPat)) { # lint-ok
                 line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
             }
+            # Strip a trailing comment (a # after whitespace, outside single quotes), so that an apostrophe in it (e.g.
+            # "project'"'"'s") does not open a single quote
+            if (match(line, /[[:space:]]#/)) {
+                prefix = substr(line, 1, RSTART - 1)
+                if (gsub(/\x27/, "&", prefix) % 2 == 0) line = prefix
+            }
             # Strip complete inline single-quoted strings (e.g. '"'"'pattern'"'"', '"'"'literal'"'"')
             while (match(line, /\x27[^\x27]*\x27/)) { # lint-ok
                 line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
@@ -2088,7 +2132,7 @@ _findDepsIsExternal() {
         nix|git|grep|egrep|fgrep|find|xargs)                  return 1 ;;
         cat|head|tail|sort|uniq|wc|tr|cut|paste|tee)         return 1 ;;
         date|mkdir|rmdir|rm|mv|cp|ln|chmod|chown|touch)      return 1 ;;
-        diff|patch|stat|file|ls|df|du|mount|umount|ps|lsof|install) return 1 ;;
+        diff|cmp|patch|stat|file|ls|df|du|mount|umount|ps|lsof|install) return 1 ;;
         openssl|base64|shasum|md5sum|sha256sum|sha512sum)     return 1 ;;
         env|uname|hostname|id|whoami|su|sudo)                 return 1 ;;
         tar|gzip|gunzip|bzip2|xz|zip|unzip)                  return 1 ;;
@@ -2105,6 +2149,7 @@ _findDepsIsExternal() {
         bc|expr|seq|od|xxd|strings|nm|strip)                 return 1 ;;
         # macOS-specific system tools
         open|security|osascript|launchctl|defaults|plutil)   return 1 ;;
+        brew)                                                return 1 ;; # the package manager, used to install deps
         sw_vers|system_profiler|diskutil|hdiutil|ditto)      return 1 ;;
         # Network utilities treated as system tools
         nc|netcat|ncat|curl_cmd)                             return 1 ;;

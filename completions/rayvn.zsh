@@ -34,8 +34,8 @@ _rayvn() {
                 'args:Regenerate the parser block in SCRIPT from its spec, or with --check report'
                 'build:Run nix build for one or more projects.'
                 'collisions:Check for function and global variable name collisions across project libraries.'
-                'deps:Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps.'
-                'dependencies:Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps.'
+                'deps:Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps. Reports'
+                'dependencies:Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps. Reports'
                 'functions:List public functions for project libraries.'
                 'index:Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn guide for Claude Code.'
                 'libraries:List all libraries for one or more projects.'
@@ -108,7 +108,7 @@ _rayvn() {
                     ;;
                 deps | dependencies)
                     _arguments \
-                    '(--fix)'--fix'[Auto-replace '\''awk'\'' with '\''gawk'\'' and '\''sed'\'' with '\''gsed'\'' in source files for portability.]' \
+                    '(--fix)'--fix'[Add missing dependencies to flake.nix, replace '\''awk'\'' with '\''gawk'\'' and '\''sed'\'' with '\''gsed'\'' in source files for portability, and apply project plugin fixes (e.g. valt'\''s node/package.json).]' \
                     '(--help -h)'{--help,-h}'[Print this help message.]' \
                     '*:PROJECT...:_rayvn_projects'
                     ;;

@@ -110,9 +110,10 @@ declare -gA cliSpec=(
     #   PROJECT...  Project names (default: current project).
     ['collisions']='collisions(--help|-h *)'
 
-    # Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps.
+    # Scan source files for external command dependencies and verify they are declared in flake.nix runtimeDeps. Reports
+    # problems without changing any files, unless --fix is given.
     #   PROJECT...  Project names (default: current project).
-    #   --fix       Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability.
+    #   --fix       Add missing dependencies to flake.nix, replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for portability, and apply project plugin fixes (e.g. valt's node/package.json).
     ['deps | dependencies']='dependencies(--fix --help|-h *)'
 
     # Generate verbose and compact function indexes used by AI agents (e.g. Claude Code), and the rayvn guide for Claude Code.
@@ -414,6 +415,7 @@ collisionsCmd() {
 dependenciesCmd() {
     local -a projects=() extraArgs=()
     resolveProjects projects extraArgs
+    (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
     (( ${#projects[@]} == 0 )) && dependenciesCmdUsage
     require 'rayvn/index'
     local fixMode=; (( _opts['fix'] )) && fixMode=fix
@@ -930,13 +932,14 @@ parseDependenciesArgs() {
 dependenciesCmdUsage() {
     echo
     show bold "Scan source files for external command dependencies and verify they are declared in flake.nix"
-    show bold "runtimeDeps."
+    show bold "runtimeDeps. Reports problems without changing any files, unless --fix is given."
     echo
     show "Usage:" bold blue "rayvn deps" "[PROJECT...] [--fix]"
     echo
     option "PROJECT..." "Project names (default: current project)." 16
-    option "--fix" "Auto-replace 'awk' with 'gawk' and 'sed' with 'gsed' in source files for" 16
-    option "" "portability." 16
+    option "--fix" "Add missing dependencies to flake.nix, replace 'awk' with 'gawk' and 'sed' with" 16
+    option "" "'gsed' in source files for portability, and apply project plugin fixes (e.g. valt's" 16
+    option "" "node/package.json)." 16
     option "-h, --help" "Print this help message." 16
     declare -F dependenciesCmdUsageExtra > /dev/null && dependenciesCmdUsageExtra
     bye "$@"
