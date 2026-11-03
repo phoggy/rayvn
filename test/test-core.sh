@@ -190,6 +190,11 @@ testStripAnsi() {
     assertEqual "plain" "${ stripAnsi "plain"; }" "stripAnsi leaves plain text"
     local multi=$'\e[1;32mbold green\e[0m'
     assertEqual "bold green" "${ stripAnsi "${multi}"; }" "stripAnsi handles multi-code"
+    local repeated=$'\e[1ma\e[0m-\e[1mb\e[0m-\e[38;2;8;109;221mc\e[0m'
+    assertEqual "a-b-c" "${ stripAnsi "${repeated}"; }" "stripAnsi removes repeated and 24-bit color codes"
+    assertEqual "" "${ stripAnsi $'\e[0m'; }" "stripAnsi leaves nothing of a code alone"
+    assertEqual "" "${ stripAnsi ''; }" "stripAnsi handles an empty string"
+    assertEqual $'a\nb' "${ stripAnsi $'\e[1ma\e[0m\nb'; }" "stripAnsi keeps newlines"
 }
 
 testContainsAnsi() {

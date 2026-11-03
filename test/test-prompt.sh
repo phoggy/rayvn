@@ -10,6 +10,7 @@ main() {
 
     # request tests
     testRequestBasicInput
+    testRequestStyledPromptColumn
     testRequestEmptyInputCancelOnEmpty
     testRequestEmptyInputAllowed
     testRequestEscapeCancel
@@ -111,6 +112,23 @@ testRequestBasicInput() {
         stopInputSimulation
         assertEqual "0" "${exitCode}" "request basic input: exit code"
         assertEqual "hello" "${result}" "request basic input: result"
+    ) || exit 1
+}
+
+# The input column counts only the visible prompt: escape sequences styling part of it take no columns.
+
+testRequestStyledPromptColumn() {
+    (
+        local result plainCol
+        startInputSimulation $'a\n'
+        request "Name for path" result false
+        stopInputSimulation
+        plainCol=${_promptCol}
+
+        startInputSimulation $'a\n'
+        request $'Name for \e[1;34mpath\e[0m' result false
+        stopInputSimulation
+        assertEqual "${plainCol}" "${_promptCol}" "a styled prompt must put input in the same column as a plain one"
     ) || exit 1
 }
 

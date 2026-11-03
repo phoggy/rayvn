@@ -862,7 +862,16 @@ padString() {
 # ◇ Outputs a string with any ANSI escape sequences removed.
 
 stripAnsi() {
-    [[ "$1" =~ $'\e[' ]] && echo -n "$1" | gsed 's/\x1b\[[0-9;]*m//g' || echo -n "$1"
+    local text="$1"
+    local pattern=$'\e\\[[0-9;]*m'
+
+    # Remove each distinct sequence everywhere at once; strings use only a few, so this loops little and starts no
+    # process (unlike gsed, which takes several ms)
+
+    while [[ ${text} =~ ${pattern} ]]; do
+        text="${text//"${BASH_REMATCH[0]}"/}"
+    done
+    echo -n "${text}"
 }
 
 # ◇ Return 0 if a string contains ANSI escape sequences, 1 otherwise.

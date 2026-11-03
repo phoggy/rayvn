@@ -386,7 +386,10 @@ _preparePrompt() {
 
     reserveRows "${_promptReserveRows}"
     _promptRow=${_cursorRow}
-    _promptCol=$(( ${#_promptPlain} + 4 )) # exclude hint, include prefix & trailing space
+    # Exclude hint, include prefix & trailing space. Count only what is visible: callers may style part of the
+    # prompt (e.g. a path in blue), and its escape sequences take no columns.
+    local visiblePrompt; visiblePrompt="${ stripAnsi "${_promptPlain}"; }"
+    _promptCol=$(( ${#visiblePrompt} + 4 ))
 
     # Move the cursor before the hint if it is supposed to be overwritten
 
