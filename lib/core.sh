@@ -1535,7 +1535,22 @@ projectVersion() {
     )
 }
 
-# ◇ Open a URL in the default browser (macOS: open, Linux: xdg-open).
+# ◇ Succeeds if a URL or file can be opened for the user to see (see openUrl): not in an SSH session, where it would
+#   open on the remote machine's screen if anywhere, and on Linux only with a graphical display and xdg-open. Setting
+#   rayvnTest_NoDisplay makes it fail, as without a display.
+
+canOpenUrls() {
+    [[ -n ${rayvnTest_NoDisplay:-} ]] && return 1 # to try or test what happens without a display
+    [[ -n ${SSH_CONNECTION:-} || -n ${SSH_TTY:-} ]] && return 1
+    case "${OSTYPE}" in
+        darwin*) return 0 ;;
+        linux*) [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]] && command -v xdg-open > /dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+
+# ◇ Open a URL in the default browser (macOS: open, Linux: xdg-open). Fails if it cannot be opened for the user to see
+#   (see canOpenUrls), e.g. in an SSH session.
 #
 # · ARGS
 #
@@ -1543,6 +1558,7 @@ projectVersion() {
 
 openUrl() {
     local url="$1"
+    canOpenUrls || fail "cannot open ${url} here: there is no display to show it on (e.g. in an SSH session)"
 
     case "${OSTYPE}" in
         darwin*)
@@ -1837,6 +1853,8 @@ _init_theme() {
             index=3  # Dark Vibrant
         fi
         _setTheme ${index}
+        require 'rayvn/config'
+        sourceConfigFile "${_themeConfigFile}" theme # _setTheme only saves it: load it, so this run has its colors too
         echo -e "\nUsing default theme '${_themeNames[${index}]}'. Run 'rayvn themes' to change.\n"
     else
         index=${theme[1]}
@@ -1900,6 +1918,7 @@ _init_colors() {
 
         # Theme colors
 
+        # The saved theme's colors, in the order _setTheme saves them (see _themeSavedColors in rayvn/theme)
         ['success']=${theme[2]}
         ['error']=${theme[3]}
         ['warning']=${theme[4]}

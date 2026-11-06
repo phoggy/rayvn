@@ -25,6 +25,8 @@ main() {
     testFlushDocSectionExample
     testFlushDocSectionNotes
     testSyncSharedPagesFiles
+    testLibraryDescriptionStopsAtNotes
+    testRunPagesHook
 }
 
 init() {
@@ -332,6 +334,37 @@ testSyncSharedPagesFiles() {
     assertEqual "Updated _includes/head_custom.html" "${output}"
     assertEqual '' "${ diff "${sharedDir}/_includes/head_custom.html" "${site}/_includes/head_custom.html"; }" "a changed copy must be restored"
     assertEqual 'site specific' "${ cat "${site}/_includes/site_only.html"; }" "site-specific files must be left alone"
+}
+
+# A library's description is the header before any #@notes block, not the notes' last paragraph.
+
+testLibraryDescriptionStopsAtNotes() {
+    local lib; lib="${ makeTempDir; }/lib.sh"
+    printf '%s\n' '#!/usr/bin/env bash' '' '# Does things.' "# Use via: require 'x/lib'" '' '#@notes' '# ## Notes' '#' \
+        '# The last paragraph of the notes.' '#@end' '' 'doThings() { :; }' > "${lib}"
+    assertEqual "Does things."$'\n'"Use via: require 'x/lib'" "${ _extractLibraryDescription "${lib}"; }"
+}
+
+# A project's pagesHook, set in its rayvn.pkg, is run from the project root with the pages dir; a failing one fails.
+
+testRunPagesHook() {
+    local root; root="${ makeTempDir; }"
+    local pages; pages="${ makeTempDir; }"
+    printf '%s\n' '#!/usr/bin/env bash' 'pwd > "$1/hook-ran"' > "${root}/hook" && chmod +x "${root}/hook" || fail
+    echo "pagesHook='hook'" > "${root}/rayvn.pkg"
+    ( _runPagesHook x "${root}" "${pages}" ) > /dev/null 2>&1 || fail "the pages hook must succeed"
+    assertEqual "${ cd "${root}" && pwd -P; }" "${ cd "${ cat "${pages}/hook-ran"; }" && pwd -P; }" \
+        "the hook must run from the project root"
+
+    printf '%s\n' '#!/usr/bin/env bash' 'exit 3' > "${root}/hook"
+    ( _runPagesHook x "${root}" "${pages}" ) > /dev/null 2>&1 && fail "a failing pages hook must fail"
+
+    echo "pagesHook='missing'" > "${root}/rayvn.pkg"
+    ( _runPagesHook x "${root}" "${pages}" ) > /dev/null 2>&1 && fail "a missing pages hook must fail"
+
+    rm "${root}/rayvn.pkg"
+    ( _runPagesHook x "${root}" "${pages}" ) > /dev/null 2>&1 || fail "no rayvn.pkg must mean no hook"
+    return 0
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/index' 'rayvn/test'

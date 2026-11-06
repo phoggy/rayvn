@@ -25,6 +25,7 @@ main() {
     testConfirmSelectFirstAnswer
     testConfirmSelectSecondViaArrowRight
     testConfirmSelectFirstViaArrowLeft
+    testConfirmApplicationCursorArrows
     testConfirmDefaultAnswerTwo
     testConfirmEscapeCancel
     testConfirmTimeout
@@ -32,6 +33,7 @@ main() {
     # choose tests
     testChooseSelectFirst
     testChooseNavigateDownAndSelect
+    testChooseApplicationCursorArrows
     testChooseNavigateUpWrapsAround
     testChooseStartIndex
     testChooseEscapeCancel
@@ -252,6 +254,20 @@ testConfirmSelectFirstViaArrowLeft() {
     ) || exit 1
 }
 
+# In application cursor mode, terminals send arrow keys as ESC O C rather than ESC [ C
+
+testConfirmApplicationCursorArrows() {
+    (
+        local result exitCode
+        startInputSimulation $'\eOC\n'
+        confirm "Continue?" "yes" "no" result
+        exitCode=$?
+        stopInputSimulation
+        assertEqual "0" "${exitCode}" "confirm with an application cursor arrow: exit code"
+        assertEqual "1" "${result}" "confirm with an application cursor arrow: result"
+    ) || exit 1
+}
+
 testConfirmDefaultAnswerTwo() {
     (
         local result exitCode
@@ -311,6 +327,19 @@ testChooseNavigateDownAndSelect() {
         stopInputSimulation
         assertEqual "0" "${exitCode}" "choose navigate down and select: exit code"
         assertEqual "2" "${result}" "choose navigate down and select: result"
+    ) || exit 1
+}
+
+testChooseApplicationCursorArrows() {
+    (
+        local choices=("Option A" "Option B" "Option C")
+        local result exitCode
+        startInputSimulation $'\eOB\eOB\eOA\n'
+        choose "Pick" choices result false 0 0 3
+        exitCode=$?
+        stopInputSimulation
+        assertEqual "0" "${exitCode}" "choose with application cursor arrows: exit code"
+        assertEqual "1" "${result}" "choose with application cursor arrows: result"
     ) || exit 1
 }
 

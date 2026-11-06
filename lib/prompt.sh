@@ -554,6 +554,20 @@ _readPromptEscapeSequence() {
                 done
                 ;;
 
+            'O') # SS3 sequence: arrow keys when the terminal is in application cursor mode (e.g. left on by a shell or
+                 # editor), which sends ESC O A rather than ESC [ A
+
+                resultVarRef='?'
+                if read -u ${stdinFd} -n1 -t 0.1 c; then
+                    case "${c}" in
+                        'A') resultVarRef='u' ;;  # Up
+                        'B') resultVarRef='d' ;;  # Down
+                        'C') resultVarRef='r' ;;  # Right
+                        'D') resultVarRef='l' ;;  # Left
+                    esac
+                fi
+                ;;
+
             *)  # Non-CSI escape sequence, consume and log it if debug is enabled.
                     #
                     # NOTE: it is certainly possible that reading these extra characters will

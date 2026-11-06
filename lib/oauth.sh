@@ -249,8 +249,13 @@ _setupOAuthService() {
     local authUrlWithParams="${authUrl}?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${authScope}&access_type=offline"
 
     debug "Starting local OAuth callback server on port ${redirectPort}"
-    show "Opening browser for authorization..."
-    openUrl "${authUrlWithParams}"
+    if canOpenUrls; then
+        show "Opening browser for authorization..."
+        openUrl "${authUrlWithParams}"
+    else
+        show "Open this URL in a browser to authorize (redirecting to port ${redirectPort} here, e.g. forwarded over ssh):"
+        show bold "${authUrlWithParams}"
+    fi
 
     # Capture the authorization code from the callback
     local authCode

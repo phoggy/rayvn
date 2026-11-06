@@ -121,7 +121,7 @@ _setTheme() {
     # Convert to a 'theme' array with the display name as the first element and the index as the second
 
     local theme=("${displayName}" "${themeIndex}")
-    for colorName in "${_themeColors[@]}"; do
+    for colorName in "${_themeSavedColors[@]}"; do
         local colorCode="${themeRef[${colorName}]}"
         theme+=("${colorCode}")
     done
@@ -255,8 +255,12 @@ THEME_DATA="--+-+-----+-++(-++(---++++(---+(  THEME DATA  )+---)++++---)++-)++-+
 # 5. Official themes SHOULD be adjusted as necessary to follow these requirements.
 
 
-# Theme color names
+# Theme color names, in the order themes are shown
 declare -grax _themeColors=(primary secondary accent success error warning info muted)
+
+# The order a saved theme (current.theme) holds its colors in, after its name and index: what _init_colors reads, so it
+# must not change with the display order above
+declare -grax _themeSavedColors=(success error warning info muted accent primary secondary)
 
 # Theme names
 declare -grax _themeBaseNames=(

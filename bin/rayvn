@@ -149,6 +149,10 @@ declare -gA cliSpec=(
     #   pre=     Optional setup command run before recording (not captured).
     #   post=    Optional cleanup command run after recording (not captured).
     #   prompt=  Optional shell prompt string (PS1) shown during recording.
+    #
+    # A project can generate pages of its own: set pagesHook in its rayvn.pkg to an executable (a path relative to
+    # the project root), which is run from the project root with the pages dir as its argument, after the docs are
+    # generated and before they are published or served. If it fails, so does 'rayvn pages'.
     ['pages']='pages(str? --dir:str --record:str* [--setup|--record|--publish|--view] --help|-h)'
 
     # Report missing/stale ◇ doc comments.
@@ -1277,6 +1281,10 @@ pagesCmdUsage() {
     echo "  pre=     Optional setup command run before recording (not captured)."
     echo "  post=    Optional cleanup command run after recording (not captured)."
     echo "  prompt=  Optional shell prompt string (PS1) shown during recording."
+    echo
+    echo "A project can generate pages of its own: set pagesHook in its rayvn.pkg to an executable (a path relative to"
+    echo "the project root), which is run from the project root with the pages dir as its argument, after the docs are"
+    echo "generated and before they are published or served. If it fails, so does 'rayvn pages'."
     declare -F pagesCmdUsageExtra > /dev/null && pagesCmdUsageExtra
     bye "$@"
 }

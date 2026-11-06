@@ -13,6 +13,9 @@ main() {
     testAssertCommandWithEval
     testAssertCommandCaptureStdout
     testTrim
+    testCanOpenUrls
+    testFirstRunHasThemeColors
+    testSavedThemeColorOrder
     testRepeat
     testPadString
     testStripAnsi
@@ -1505,6 +1508,46 @@ testEchoOverride() {
 
 # Force 24-bit color mode if not running in a terminal
 [[ -t 1 && -t 2 ]] || declare -gx rayvnTest_Force24BitColor=1
+
+# The first run in a new HOME picks a default theme, and must use its colors at once, not only from the next run (prompts
+# showed no highlighted choice, so arrow keys seemed to do nothing).
+
+testFirstRunHasThemeColors() {
+    local home; home="${ makeTempDir; }"
+    local output; output="${ env HOME="${home}" rayvnTest_Force24BitColor=1 bash -c \
+        'source rayvn.up; show primary "colored"' 2>&1; }"
+    assertContains "Using default theme" "${output}"
+    [[ ${output} == *$'\e[38;2;'*"colored"* ]] || fail "the first run must show theme colors: ${ debugEscapes "${output}" 2>&1; }"
+}
+
+# A saved theme holds its colors in the order rayvn reads them back: each style must get its own color.
+
+testSavedThemeColorOrder() {
+    local home; home="${ makeTempDir; }"
+    env HOME="${home}" rayvnTest_Force24BitColor=1 bash -c 'source rayvn.up' > /dev/null 2>&1 # saves the default theme
+    local output; output="${ env HOME="${home}" rayvnTest_Force24BitColor=1 bash -c '
+        source rayvn.up "rayvn/theme"
+        declare -n expectedRef="${_themeVarNames[${theme[1]}]}"
+        for name in "${_themeColors[@]}"; do
+            [[ ${_textFormats[${name}]} == "${expectedRef[${name}]}" ]] || echo "${name} has the wrong color"
+        done' 2>&1; }"
+    assertEqual '' "${output}" "every style must have its theme color"
+}
+
+# URLs cannot be opened for the user in an SSH session, nor on Linux without a display.
+
+testCanOpenUrls() {
+    ( unset SSH_CONNECTION SSH_TTY; OSTYPE=darwin24; canOpenUrls ) || fail "macOS outside SSH must open URLs"
+    ( SSH_CONNECTION='1.2.3.4 5 6.7.8.9 22'; OSTYPE=darwin24; canOpenUrls ) && fail "an SSH session must not open URLs"
+    ( unset SSH_CONNECTION; SSH_TTY=/dev/ttys001; OSTYPE=darwin24; canOpenUrls ) && fail "an SSH tty must not open URLs"
+    ( unset SSH_CONNECTION SSH_TTY DISPLAY WAYLAND_DISPLAY; OSTYPE=linux-gnu; canOpenUrls ) \
+        && fail "Linux without a display must not open URLs"
+    ( unset SSH_CONNECTION SSH_TTY; rayvnTest_NoDisplay=1; OSTYPE=darwin24; canOpenUrls ) \
+        && fail "rayvnTest_NoDisplay must act as no display"
+    ( SSH_CONNECTION='1.2.3.4 5 6.7.8.9 22'; OSTYPE=darwin24; openUrl https://example.com ) &> /dev/null \
+        && fail "openUrl must fail when URLs cannot be opened"
+    return 0
+}
 
 source rayvn.up 'rayvn/core' 'rayvn/test'
 main "$@"

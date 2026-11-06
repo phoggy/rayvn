@@ -58,6 +58,8 @@ runIndex() {
 #   --record [ID...]       Re-record asciinema casts with cmd= attributes in markdown files; optional IDs filter to specific casts.
 #   --publish              Commit and push changes to gh-pages after generating.
 #   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
+#
+#   The project's pagesHook, if its rayvn.pkg sets one, is run after the docs are generated (see _runPagesHook).
 
 runPages() {
     local projectName="$1"
@@ -136,6 +138,7 @@ runPages() {
 
     declare -g _idxDocsDir="${dir}"
     _generateDocs --project "${projectName}" "${libFiles[@]}"
+    _runPagesHook "${projectName}" "${projectRoot}" "${dir}"
 
     if (( publish )); then
         assertGitRepo "${dir}"
@@ -825,6 +828,21 @@ _collectLibFiles() {
             _libFilesRef+=("${file}")
         done
     done
+}
+
+# Runs the project's pagesHook, if its rayvn.pkg sets one: an executable, relative to the project root, that generates
+# pages of the project's own. It is run from the project root, with the pages dir as its argument.
+# Args: projectName projectRoot pagesDir
+_runPagesHook() {
+    local projectName="$1" projectRoot="$2" pagesDir="$3"
+    local pkgFile="${projectRoot}/rayvn.pkg"
+    [[ -f ${pkgFile} ]] || return 0
+    local hook; hook=${ ( local pagesHook=''; source "${pkgFile}" 2> /dev/null; echo "${pagesHook}" ); }
+    [[ -n ${hook} ]] || return 0
+    [[ ${hook} == /* ]] || hook="${projectRoot}/${hook}"
+    [[ -x ${hook} ]] || fail "the pagesHook in ${ tildePath "${pkgFile}"; } is not an executable: ${ tildePath "${hook}"; }"
+    show "Running" bold "${projectName}" "pages hook" blue "${ tildePath "${hook}"; }"
+    ( cd "${projectRoot}" && "${hook}" "${pagesDir}" ) || fail "the ${projectName} pages hook failed"
 }
 
 # Get the docs worktree path for a project by reading docsWorktree from its rayvn.pkg.
@@ -1683,6 +1701,7 @@ _extractLibraryDescription() {
         [[ "${line}" =~ ^#[[:space:]]*shellcheck ]] && continue
         [[ "${line}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\)[[:space:]]*\{ ]] && break
         [[ "${line}" =~ ^#[[:space:]]◇ ]] && break
+        [[ "${line}" =~ ^#@ ]] && break # a doc block, e.g. #@notes, follows the description
         if [[ "${line}" =~ ^[[:space:]]*$ ]] || [[ "${line}" == '#' ]]; then
             [[ -n "${currentBlock}" ]] && description="${currentBlock}"
             currentBlock=''
