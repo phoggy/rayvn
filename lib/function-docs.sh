@@ -75,7 +75,10 @@ auditDocs() {
     return 0
 }
 
-# ◇ Generate or update doc comments for public functions using the Claude API.
+# ◇ Generate or update doc comments for public functions using the Claude API. An existing doc is edited rather than
+#   rewritten, given as context the change to the function's body since its doc was last in sync, the docs of the
+#   functions it calls, and its library's description and notes. Functions whose docs are not updated (skipped,
+#   previewed or failed) stay reported as missing or stale.
 #
 # · USAGE
 #
@@ -551,7 +554,7 @@ _buildDocPrompt() {
     local context=''
     [[ -n "${constants}" ]] && context+=$'\n\nCONSTANTS (resolved values of private vars referenced above; use values not names in docs):\n'"${constants}"
     [[ -n "${bodyChange}" ]] && context+=$'\n\nBODY CHANGE (diff of the body since the current doc was last in sync with it; check the doc against what changed):\n'"${bodyChange}"
-    [[ -n "${calledDocs}" ]] && context+=$'\n\nCALLED FUNCTIONS (docs of functions the body calls; use them for defaults and behavior that pass through, e.g. an empty arg passed on gets the callee\'s default):\n'"${calledDocs}"
+    [[ -n "${calledDocs}" ]] && context+=$'\n\nCALLED FUNCTIONS (docs of functions the body calls; use them for defaults and behavior that pass through, e.g. an empty arg passed on gets the default of the function it is passed to):\n'"${calledDocs}"
     [[ -n "${libraryContext}" ]] && context+=$'\n\nLIBRARY (its description and notes; use its terms):\n'"${libraryContext}"
     local task='Generate an accurate doc comment for this function per the spec.'
     [[ -n "${currentDoc}" ]] && task='Edit the current doc comment so that it is accurate for this function and follows the spec. Change only what the body or the spec contradicts; keep its wording, terminology, argument names and facts otherwise, and never remove information unless the body shows it is wrong. If it is already accurate, return it unchanged.'
@@ -824,7 +827,7 @@ _reviewDoc() {
     esac
     local file; file=${ makeTempFile; } || fail
     printf '%s\n' "${_rdDocRef}" > "${file}"
-    sh -c "${VISUAL:-${EDITOR:-vi}}"' "$@"' editor "${file}" || fail "could not run the editor"
+    bash -c "${VISUAL:-${EDITOR:-vi}}"' "$@"' editor "${file}" || fail "could not run the editor"
     readFile "${file}" _rdDocRef
     rm -f "${file}"
     [[ "${_rdDocRef}" == '# ◇'* ]] || { warn "The edited doc must start with '# ◇'"; return 1; }
