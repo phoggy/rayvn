@@ -112,7 +112,7 @@ __rayvnComplete() {
                     local _relIdx=$(( cword - 2 ))
                     ;;
                 release)
-                    [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
+                    [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help --yes -h -y" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
                     ;;
                 test)

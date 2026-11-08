@@ -175,7 +175,8 @@ declare -gA cliSpec=(
     # Create a versioned GitHub release for the current directory's project. The GitHub repository is derived from
     # the git 'origin' remote and confirmed before releasing.
     #   VERSION  The version to release, e.g. '1.2.3'; must be greater than the current version.
-    ['release']='release(version --help|-h)'
+    #   --yes    Answer yes to the questions (release, push), e.g. to run without a terminal. An existing GitHub release of the version is then not deleted, but stops the release.
+    ['release']='release(version --yes|-y --help|-h)'
 
     # Stake a claim on a project name on rayvn central.
     #   NAME  The project name to register.
@@ -466,7 +467,9 @@ releaseCmd() {
     resolveProjects projects extraArgs 1
     assertProjectsSpecified projects extraArgs
     require 'rayvn/release'
-    release "${projects[0]}" "${version}"
+    local -a releaseArgs=()
+    (( _opts['yes'] )) && releaseArgs+=(--yes)
+    release "${releaseArgs[@]}" "${projects[0]}" "${version}"
 }
 
 registerCmd() {
@@ -1362,6 +1365,8 @@ parseReleaseArgs() {
         case "$1" in
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
+            --yes | -y) _opts+=(['yes']="1"); shift ;;
+            --yes=*) fail "--yes does not accept a value" ;;
             --) shift
                 while (( $# > 0 )); do
                     (( _argIndex == 0 )) && assertVersion "$1" || unknownArg "$1"
@@ -1379,9 +1384,11 @@ releaseCmdUsage() {
     show bold "Create a versioned GitHub release for the current directory's project. The GitHub repository is"
     show bold "derived from the git 'origin' remote and confirmed before releasing."
     echo
-    show "Usage:" bold blue "rayvn release" "VERSION"
+    show "Usage:" bold blue "rayvn release" "VERSION [-y]"
     echo
     option "VERSION" "The version to release, e.g. '1.2.3'; must be greater than the current version." 16
+    option "-y, --yes" "Answer yes to the questions (release, push), e.g. to run without a terminal. An" 16
+    option "" "existing GitHub release of the version is then not deleted, but stops the release." 16
     option "-h, --help" "Print this help message." 16
     declare -F releaseCmdUsageExtra > /dev/null && releaseCmdUsageExtra
     bye "$@"

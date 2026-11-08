@@ -8,14 +8,21 @@
 #   current directory's git 'origin' remote, whose repo name must match the project. The release commit sets the
 #   version and release date in rayvn.pkg (and the version in flake.nix), so that the tagged release reports itself as
 #   that release; afterwards rayvn.pkg is marked as the post-release version (VERSION+, no date). Flake inputs that
-#   are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first.
+#   are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first. Rerunning
+#   the release of a version that rayvn.pkg already holds (an interrupted release) continues it.
 #
-# · ARGS
+# · USAGE
 #
+#   release [--yes] project version
+#
+#   --yes             Answer yes to the questions (release, push), e.g. to run without a terminal; an existing
+#                     GitHub release of the version is then not deleted, but stops the release.
 #   project (string)  The project name; must match the current repo's name.
 #   version (string)  Version string to release (e.g. '1.2.3').
 
 release() {
+    local yes=0
+    [[ $1 == --yes ]] && { yes=1; shift; }
     local project="$1"
     local version="$2"
 
@@ -29,14 +36,21 @@ release() {
 
     [[ -f rayvn.pkg ]] || fail "no rayvn.pkg in the current directory; run from the project root"
     local currentVersion; currentVersion=${ gawk -F"'" '/^projectVersion=/{print $2; exit}' rayvn.pkg; }
-    currentVersion="${currentVersion%+}"
     [[ -n "${currentVersion}" ]] || fail "projectVersion not found in rayvn.pkg"
-    _versionGreater "${version}" "${currentVersion}" || \
-        fail "version ${version} must be greater than the current version ${currentVersion}"
+    if [[ "${currentVersion}" != "${version}" ]]; then # the same version, without '+', is an interrupted release
+        currentVersion="${currentVersion%+}"
+        _versionGreater "${version}" "${currentVersion}" || \
+            fail "version ${version} must be greater than the current version ${currentVersion}"
+    fi
 
-    local choiceIndex
-    confirm "Release ${ghRepo} v${version}?" yes no choiceIndex || bye
-    (( choiceIndex == 0 )) || bye
+    if (( yes )); then
+        show "Releasing ${ghRepo} v${version} (--yes)"
+    else
+        local choiceIndex
+        confirm "Release ${ghRepo} v${version}?" yes no choiceIndex || bye
+        (( choiceIndex == 0 )) || bye
+    fi
+    declare -g _releaseYes=${yes}
 
     header "RELEASING ${project^^} v${version}" primary "${ghRepo}"
 
@@ -108,6 +122,7 @@ _checkExistingRelease() {
 
     # Check if the release exists
     if gh release view "${versionTag}" --repo "${ghRepo}" &> /dev/null; then
+        (( _releaseYes )) && fail "Release ${versionTag} already exists; delete it, or rerun without --yes to be asked"
         local choiceIndex
         confirm "Release ${versionTag} already exists. Delete it? " yes no choiceIndex || bye
         if (( choiceIndex == 0 )); then
@@ -326,8 +341,8 @@ _ensureRepoIsReadyForRelease() {
 
     if [[ "${localCommit}" != "${remoteCommit}" ]]; then
         echo "Your local branch is behind the remote. A push is required."
-        local choice
-        confirm "Do you want to push the changes now?" yes no choice || bye
+        local choice=0
+        (( _releaseYes )) || confirm "Do you want to push the changes now?" yes no choice || bye
         if (( choice == 0 )); then
             git push origin "${ git rev-parse --abbrev-ref HEAD; }" &> /dev/null
             echo "Changes pushed to remote."

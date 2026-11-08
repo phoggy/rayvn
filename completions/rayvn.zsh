@@ -172,6 +172,7 @@ _rayvn() {
                 release)
                     _arguments \
                     '(--help -h)'{--help,-h}'[Print this help message.]' \
+                    '(--yes -y)'{--yes,-y}'[Answer yes to the questions (release, push), e.g. to run without a terminal. An existing GitHub release of the version is then not deleted, but stops the release.]' \
                     '1:VERSION:'
                     ;;
                 test)
