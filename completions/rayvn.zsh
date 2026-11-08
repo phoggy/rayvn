@@ -77,13 +77,14 @@ _rayvn() {
                                 update)
                                     _arguments \
                                     '(--delay)'--delay'[Seconds to sleep between API calls to avoid rate limits.]:delay:' \
-                                    '(--dry-run)'--dry-run'[Print proposed docs without writing any changes.]' \
+                                    '(--dry-run)'--dry-run'[Print each proposed change as a diff, without writing any changes.]' \
                                     '(--help -h)'{--help,-h}'[Print this help message.]' \
                                     '(--lib)'--lib'[Limit to a single library by name.]:lib:' \
                                     '(--missing-only)'--missing-only'[Only process functions missing a ◇ doc comment.]' \
                                     '(--regen)'--regen'[Regenerate docs for all public functions, not just missing/stale.]' \
                                     '(--since)'--since'[Skip functions updated within this duration (e.g. '\''30m'\'', '\''2h'\'', '\''1d'\'').]:since:' \
                                     '(--stale-only)'--stale-only'[Only process functions with potentially stale docs.]' \
+                                    '(--yes -y)'{--yes,-y}'[Apply changes without asking. Otherwise, at a terminal, each change is shown as a diff to apply, skip or edit; without one, changes are applied, except those flagged as likely to have lost information.]' \
                                     '*:PROJECT...:_rayvn_projects'
                                     ;;
                             esac

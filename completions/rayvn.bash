@@ -47,7 +47,7 @@ __rayvnComplete() {
             (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
             ;;
         "docs update")
-            [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--delay --dry-run --help --lib --missing-only --regen --since --stale-only -h" -- "${cur}")); return; }
+            [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--delay --dry-run --help --lib --missing-only --regen --since --stale-only --yes -h -y" -- "${cur}")); return; }
             local _relIdx=$(( cword - 3 ))
             (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
             ;;

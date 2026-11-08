@@ -10,6 +10,12 @@ main() {
     testExtractFunctionBodyMultiArg
     testExtractReferencedConstants
     testBuildDocPrompt
+    testBuildDocPromptEditsCurrentDoc
+    testAlignDocColumns
+    testDocProblemsMuchShorter
+    testDocProblemsArgCount
+    testSaveHashesKeepsUnscannedLibraries
+    testSaveDocHashesKeepsUnresolvedStale
     testReplaceDocCommentInsert
     testReplaceDocCommentReplace
     testSaveAndLoadDocTimestamps
@@ -133,6 +139,143 @@ testBuildDocPrompt() {
     assertContains 'myFunc() { echo hi; }' "${prompt}" "prompt includes function body"
     assertContains 'CURRENT DOC' "${prompt}" "prompt includes CURRENT DOC section"
     assertContains '# ◇ Old doc.' "${prompt}" "prompt includes existing doc"
+}
+
+# With a current doc, the prompt asks for an edit that keeps what is still right; without one, for a new doc
+
+testBuildDocPromptEditsCurrentDoc() {
+    local prompt; prompt=${ _buildDocPrompt 'myFunc() { echo hi; }' '# ◇ Old doc.' ''; }
+    assertContains 'Edit the current doc comment' "${prompt}"
+    assertContains 'never remove information' "${prompt}"
+    prompt=${ _buildDocPrompt 'myFunc() { echo hi; }' '' ''; }
+    assertContains 'Generate an accurate doc comment' "${prompt}"
+}
+
+# ============================================================================
+# _alignDocColumns
+# ============================================================================
+
+testAlignDocColumns() {
+    local doc="# ◇ Prompts twice.
+#
+# · ARGS
+#
+#   prompt (string)        Label before the first entry.
+#   resultVarRef (stringRef)  Name of the result var.
+#   [level] ('casual'|'motivated')
+#                          How much guessing power.
+#
+# · RETURNS
+#
+#   0  ok
+#   1    not ok"
+    local expected="# ◇ Prompts twice.
+#
+# · ARGS
+#
+#   prompt (string)           Label before the first entry.
+#   resultVarRef (stringRef)  Name of the result var.
+#   [level] ('casual'|'motivated')
+#                             How much guessing power.
+#
+# · RETURNS
+#
+#   0  ok
+#   1  not ok"
+    assertEqual "${expected}" "${ _alignDocColumns "${doc}"; }" "columns must align to the longest name in each section"
+
+    local usage="# ◇ Does it.
+#
+# · USAGE
+#
+#   doIt [-v]    Do it.
+#   -v      Verbosely."
+    assertEqual "${usage}" "${ _alignDocColumns "${usage}"; }" "USAGE sections must be left alone"
+
+    local typeColumn="# ◇ Checks it.
+#
+# · ARGS
+#
+#   passRef        (stringRef)  Name of the password var.
+#   breachCountRef (intRef)     Name of the count var."
+    assertEqual "${typeColumn}" "${ _alignDocColumns "${typeColumn}"; }" "aligned sections, with types in a column of their own, must be left alone"
+
+    local oneSpace="# ◇ Makes it.
+#
+# · ARGS
+#
+#   phraseRef (string)   Name of the result var.
+#   [separator] (string) Between words."
+    local oneSpaceAligned="# ◇ Makes it.
+#
+# · ARGS
+#
+#   phraseRef (string)    Name of the result var.
+#   [separator] (string)  Between words."
+    assertEqual "${oneSpaceAligned}" "${ _alignDocColumns "${oneSpace}"; }" "one space after a type must still be aligned"
+}
+
+# ============================================================================
+# _docProblems
+# ============================================================================
+
+testDocProblemsMuchShorter() {
+    local -a problems
+    local current='# ◇ One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen.'
+    _docProblems "${current}" '# ◇ One two.' 'f() { :; }' problems
+    assertContains 'much shorter' "${problems[*]}"
+    _docProblems "${current}" "${current} Seventeen." 'f() { :; }' problems
+    assertEqual 0 ${#problems[@]} "a doc that grows must not be flagged"
+}
+
+testDocProblemsArgCount() {
+    local -a problems
+    local doc="# ◇ Does it.
+#
+# · ARGS
+#
+#   first (string)   The first.
+#   second (string)  The second."
+    _docProblems '' "${doc}" 'f() { local a="$1" b="${2:-x}"; gawk '"'"'{ print $3 }'"'"'; }' problems
+    assertEqual 0 ${#problems[@]} "two documented args, two used (awk's \$3 ignored): ${problems[*]}"
+    _docProblems '' "${doc}" 'f() { local a="$1" b="$2" c="$3"; }' problems
+    assertContains 'ARGS has 2 entries, but the body uses 3' "${problems[*]}"
+    _docProblems '' "${doc}" 'f() { while (( $# )); do shift; done; }' problems
+    assertEqual 0 ${#problems[@]} "bodies that shift are not checked"
+}
+
+# ============================================================================
+# _saveHashes, _saveDocHashes
+# ============================================================================
+
+# Saving keeps the stored hashes of libraries not scanned, and drops those of scanned libraries' removed functions
+
+testSaveHashesKeepsUnscannedLibraries() {
+    require 'rayvn/index'
+    local -g _idxHashFile; _idxHashFile=${ makeTempFile; }
+    declare -gA _idxStoredHashes=([p/a:f:body]=1 [p/a:f:doc]=2 [p/a:gone:body]=3 [p/b:g:body]=4 [p/b:g:doc]=5)
+    declare -gA _idxCurrentHashes=([p/a:f:body]=6 [p/a:f:doc]=7)
+    _saveHashes
+    local expected; expected=${ printf '%s\n' p/a:f:body:6 p/a:f:doc:7 p/b:g:body:4 p/b:g:doc:5; }
+    assertEqual "${expected}" "${ cat "${_idxHashFile}"; }"
+}
+
+# A stale function that was not resolved keeps its stored hashes, so it is still reported as stale; one resolved, and
+# one that was not stale, are saved as they are now
+
+testSaveDocHashesKeepsUnresolvedStale() {
+    require 'rayvn/index'
+    local -g _idxHashFile; _idxHashFile=${ makeTempFile; }
+    declare -gA _idxStoredHashes=([p/a:skipped:body]=1 [p/a:skipped:doc]=2 [p/a:done:body]=3 [p/a:done:doc]=4
+                                  [p/a:other:body]=5 [p/a:other:doc]=6)
+    declare -gA _idxCurrentHashes=([p/a:skipped:body]=11 [p/a:skipped:doc]=2 [p/a:done:body]=13 [p/a:done:doc]=4
+                                   [p/a:other:body]=15 [p/a:other:doc]=16)
+    declare -ga _idxStaleDocs=(p/a:skipped p/a:done) _idxMissingDocs=()
+    local -A resolved=([p/a:done]=1) updatedFiles=()
+    _saveDocHashes resolved updatedFiles
+    local expected; expected=${ printf '%s\n' p/a:done:body:13 p/a:done:doc:4 p/a:other:body:15 p/a:other:doc:16 \
+                                                p/a:skipped:body:1 p/a:skipped:doc:2; }
+    assertEqual "${expected}" "${ cat "${_idxHashFile}"; }"
 }
 
 # ============================================================================

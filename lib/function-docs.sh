@@ -79,9 +79,12 @@ auditDocs() {
 #
 # · USAGE
 #
-#   updateDocs [--dry-run] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
+#   updateDocs [--dry-run] [--yes] [--regen] [--missing-only] [--stale-only] [--lib NAME] [--since DURATION] [--delay SECS] [PROJECT...]
 #
-#   --dry-run                   Print proposed docs without writing changes.
+#   --dry-run                   Print each proposed change as a diff, without writing changes.
+#   --yes                       Apply proposed changes without asking. Otherwise, at a terminal, each is shown as a diff
+#                               to apply, skip or edit; without a terminal, changes are applied, except those flagged as
+#                               likely to have lost information.
 #   --regen                     Regenerate docs for all public functions, not just missing or stale.
 #   --missing-only              Only process functions with no doc comment.
 #   --stale-only                Only process functions with stale docs.
@@ -92,6 +95,7 @@ auditDocs() {
 
 updateDocs() {
     local doDryRun=0
+    local doYes=0
     local doRegen=0
     local doMissingOnly=0
     local doStaleOnly=0
@@ -103,6 +107,7 @@ updateDocs() {
     while (( $# > 0 )); do
         case "$1" in
             --dry-run)       doDryRun=1 ;;
+            --yes)           doYes=1 ;;
             --regen)         doRegen=1 ;;
             --missing-only)  doMissingOnly=1 ;;
             --stale-only)    doStaleOnly=1 ;;
@@ -141,8 +146,10 @@ updateDocs() {
 
     (( ${#libFiles[@]} > 0 )) || fail "No library files found"
 
+    # The hashes are saved when done (see _saveDocHashes), so that functions not updated stay missing or stale
+
     _checkAndUpdateHashes --progress "${libFiles[@]}"
-    _saveHashes
+    local -A resolved=() updatedFiles=()
 
     # Build list of functions to process
     local -a targets=()
@@ -180,6 +187,7 @@ updateDocs() {
     fi
 
     if (( ${#targets[@]} == 0 )); then
+        _saveDocHashes resolved updatedFiles
         show success "Nothing to update"
         return 0
     fi
@@ -187,6 +195,8 @@ updateDocs() {
     local dryRunLabel=''
     (( doDryRun )) && dryRunLabel=' (dry run)'
     show nl "Processing ${#targets[@]} function(s)${dryRunLabel}"
+    local review=0
+    (( ! doDryRun && ! doYes )) && [[ -t 0 && -t 1 ]] && review=1
 
     local key
     for key in "${targets[@]}"; do
@@ -232,17 +242,41 @@ updateDocs() {
             continue
         fi
 
-        if (( doDryRun )); then
-            echo "${proposedDoc}"
-            echo
-        else
-            _replaceDocComment "${funcLibFile}" "${funcName}" "${proposedDoc}"
-            _docTimestamps["${key}"]=${ date +%s; }
-            _saveDocTimestamps
-            show success "Updated ${key}"
+        # Align the section columns here rather than trusting the model to, then check for likely mistakes
+
+        proposedDoc=${ _alignDocColumns "${proposedDoc}"; }
+        if [[ "${proposedDoc}" == "${currentDoc}" ]]; then
+            show "No changes needed"
+            (( doDryRun )) || resolved["${key}"]=1
+            continue
         fi
+        local -a problems=()
+        _docProblems "${currentDoc}" "${proposedDoc}" "${body}" problems
+        local shrunk=0 problem
+        for problem in "${problems[@]}"; do [[ ${problem} == 'much shorter'* ]] && shrunk=1; done
+
+        _showDocDiff "${currentDoc}" "${proposedDoc}"
+        for problem in "${problems[@]}"; do warn "${problem}"; done
+        (( doDryRun )) && { echo; continue; }
+
+        if (( review )); then
+            _reviewDoc proposedDoc || case $? in
+                2) show "Stopped; the remaining functions were not processed."; break ;;
+                *) show "Skipped ${key}"; continue ;;
+            esac
+        elif (( shrunk && ! doYes )); then
+            warn "Skipping ${key}: review it with a terminal, or use --yes"
+            continue
+        fi
+        _replaceDocComment "${funcLibFile}" "${funcName}" "${proposedDoc}"
+        _docTimestamps["${key}"]=${ date +%s; }
+        _saveDocTimestamps
+        resolved["${key}"]=1
+        updatedFiles["${funcLibFile}"]="${funcProject} ${funcLibName}"
+        show success "Updated ${key}"
     done
 
+    _saveDocHashes resolved updatedFiles
     echo
     show success "Done"
 }
@@ -445,7 +479,7 @@ _callClaudeApi() {
     local prompt="$1"
     local spec="$2"
     local apiKey="$3"
-    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (4b) ARGS variadic naming: required variadic args use "..." as the name; optional variadic args use "[...]" as the name — e.g. "... (string)" or "[...] (string)". (4c) Flags go in USAGE with inline descriptions, never in ARGS. When USAGE is present, omit ARGS entirely — USAGE inline descriptions replace it. Types are required on all data parameters and flag+value entries (e.g. "--output FILE (string)"); pure flags with no value are exempt. (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst )). When the default is a shell variable, wrap it in ${}: e.g. (default: ${PWD}) not (default: PWD).'
+    local systemPrompt='You are a bash documentation assistant. Generate a doc comment for the given bash function following the spec exactly. Rules: (1) Return ONLY comment lines starting with #. Never include the function declaration line or any non-comment text — not even prefixed with #. The first line of your response must be "# ◇". (2) If the function body is empty or no-op ({ :; } or { return 0; }), return nothing at all. (3) These are shell comments, not markdown: never use backticks — plain unquoted names for functions/variables/options, single quotes only for literal string values. (4) ARGS column alignment: description column = position of longest-arg-name + 2 spaces after it; shorter args get extra spaces to align. All entries in a section must use the same description column. (4b) ARGS variadic naming: required variadic args use "..." as the name; optional variadic args use "[...]" as the name — e.g. "... (string)" or "[...] (string)". (4c) Flags go in USAGE with inline descriptions, never in ARGS. When USAGE is present, omit ARGS entirely — USAGE inline descriptions replace it. Types are required on all data parameters and flag+value entries (e.g. "--output FILE (string)"); pure flags with no value are exempt. (5) Prefer brevity: single ◇ line for simple functions. Only add a section block when it has multiple entries or genuinely non-obvious info. For REQUIRES, omit if only one dependency. For other sections with one obvious entry, fold into the description. (6) Default values: always write (default: value) at the end of the description — never use prose "Defaults to value." style. If a CONSTANTS section is provided in the prompt, use those resolved values (e.g. write (default: 30) not (default: _somePrivateConst )). When the default is a shell variable, wrap it in ${}: e.g. (default: ${PWD}) not (default: PWD). (7) Argument names: use the names the current doc uses for the same arguments; otherwise the name of the local variable the argument is assigned to, without a leading underscore or a function-specific prefix (e.g. for local -n _psScoreRef=$4, write scoreRef). (8) When a CURRENT DOC is given, edit it rather than writing a new one: change only what the function body or the spec contradicts, keep its wording, terminology and facts otherwise, and never drop information unless the body shows it is wrong. If it is still accurate, return it unchanged.'
 
     local payload
     # lint-skip-start (jq variable references inside single-quoted filter)
@@ -496,8 +530,10 @@ _buildDocPrompt() {
     local currentDocText="${currentDoc:-(none)}"
     local constantsSection=''
     [[ -n "${constants}" ]] && constantsSection=$'\n\nCONSTANTS (resolved values of private vars referenced above; use values not names in docs):\n'"${constants}"
-    printf 'FUNCTION:\n%s%s\n\nCURRENT DOC (may be empty):\n%s\n\nGenerate an accurate doc comment for this function per the spec.\n' \
-        "${body}" "${constantsSection}" "${currentDocText}"
+    local task='Generate an accurate doc comment for this function per the spec.'
+    [[ -n "${currentDoc}" ]] && task='Edit the current doc comment so that it is accurate for this function and follows the spec. Change only what the body or the spec contradicts; keep its wording, terminology, argument names and facts otherwise, and never remove information unless the body shows it is wrong. If it is already accurate, return it unchanged.'
+    printf 'FUNCTION:\n%s%s\n\nCURRENT DOC (may be empty):\n%s\n\n%s\n' \
+        "${body}" "${constantsSection}" "${currentDocText}" "${task}"
 }
 
 # Scan a function body for references to private constants (_name), look up their
@@ -533,6 +569,161 @@ _extractReferencedConstants() {
         fi
         [[ -n "${val}" ]] && echo "${name}=${val}"
     done
+}
+
+# Save the function hashes after updating docs. Functions whose docs are missing or stale and were not resolved
+# (applied, or found accurate) keep their stored hashes, so that they are still reported as missing or stale; those
+# resolved, and all others, are saved as they are now. The libraries with updated docs are hashed again first, since
+# their docs have changed.
+# Args: resolvedRef updatedFilesRef
+_saveDocHashes() {
+    local -n _sdhResolvedRef=$1
+    local -n _sdhUpdatedFilesRef=$2
+    local -a unresolved=()
+    local key file project library
+    for key in "${_idxMissingDocs[@]}" "${_idxStaleDocs[@]}"; do
+        [[ -v _sdhResolvedRef["${key}"] ]] || unresolved+=("${key}")
+    done
+    for file in "${!_sdhUpdatedFilesRef[@]}"; do
+        read -r project library <<< "${_sdhUpdatedFilesRef[${file}]}"
+        _hashLibFile "${file}" "${project}" "${library}"
+    done
+    for key in "${unresolved[@]}"; do
+        if [[ -v _idxStoredHashes["${key}:body"] ]]; then
+            _idxCurrentHashes["${key}:body"]="${_idxStoredHashes[${key}:body]}"
+            _idxCurrentHashes["${key}:doc"]="${_idxStoredHashes[${key}:doc]}"
+        fi
+    done
+    _saveHashes
+}
+
+# Re-align the description column of each ARGS, ENV VARS and RETURNS section in a doc comment, unless its
+# descriptions already start in the same column, at least two spaces after their names: each then starts two spaces
+# after the longest name in its section, and continuation lines are indented to match. An entry's name is its first
+# word plus any (type) after it, and its description follows (after a type, one space is enough; otherwise two or
+# more); an entry with no description keeps its line as is. Aligned sections, including those with types in a column
+# of their own, are left alone.
+# Args: doc
+_alignDocColumns() {
+    local doc="$1"
+    # lint-skip-start (gawk program)
+    gawk '
+        function flush(   i, pad, aligned) {
+            aligned = 1
+            for (i = 1; i <= count; i++) {
+                if (kind[i] == "entry" && desc[i] != "" && (start[i] != start[firstDesc] || gap[i] < 2)) aligned = 0
+            }
+            for (i = 1; i <= count; i++) {
+                if (aligned) { print raw[i]; continue }
+                if (kind[i] == "entry" && desc[i] != "") {
+                    pad = col - length(name[i])
+                    printf "#   %s%*s%s\n", name[i], pad, "", desc[i]
+                } else if (kind[i] == "cont") {
+                    printf "#   %*s%s\n", col, "", desc[i]
+                } else {
+                    print raw[i]
+                }
+            }
+            count = 0; col = 0; firstDesc = 0
+        }
+        /^# · / { flush(); inTable = ($0 ~ /^# · (ARGS|RETURNS|ENV VARS)/); print; next }
+        !inTable { print; next }
+        {
+            count++; raw[count] = $0; kind[count] = "other"
+            if ($0 ~ /^#    +[^ ]/) {
+                kind[count] = "cont"; desc[count] = $0; sub(/^#  +/, "", desc[count])
+            } else if ($0 ~ /^#   [^ ]/) {
+                line = substr($0, 5); kind[count] = "entry"; desc[count] = ""; name[count] = line
+                if (match(line, /^[^ ]+ +\([^)]*\) +[^ ]/) || match(line, /^[^ ]+  +[^ ]/)) {
+                    RLENGTH--
+                    head = substr(line, 1, RLENGTH); desc[count] = substr(line, RLENGTH + 1); start[count] = RLENGTH
+                    gap[count] = length(head); sub(/ +$/, "", head); gap[count] -= length(head)
+                    gsub(/  +/, " ", head); name[count] = head
+                    if (length(head) + 2 > col) col = length(head) + 2
+                    if (!firstDesc) firstDesc = count
+                }
+            }
+        }
+        END { flush() }
+    ' <<< "${doc}"
+    # lint-skip-end
+}
+
+# Set the named array to warnings about a proposed doc that suggest a mistake: much shorter than the current doc
+# (information dropped), or an ARGS section whose entries do not match the positional args the body uses (only
+# checked when the body neither shifts nor uses "$@", and ignoring single-quoted text and escaped refs, e.g. in awk
+# programs).
+# Args: currentDoc proposedDoc body problemsRef
+_docProblems() {
+    local currentDoc="$1" proposedDoc="$2" body="$3"
+    local -n _dpProblemsRef=$4
+    _dpProblemsRef=()
+
+    local -a currentWords proposedWords
+    read -r -d '' -a currentWords <<< "${currentDoc//#/ }"
+    read -r -d '' -a proposedWords <<< "${proposedDoc//#/ }"
+    local -i current=${#currentWords[@]} proposed=${#proposedWords[@]}
+    (( current > 15 && proposed * 10 < current * 7 )) &&
+        _dpProblemsRef+=("much shorter than the current doc (${proposed} words, was ${current}): information may have been dropped")
+
+    [[ "${proposedDoc}" == *'# · ARGS'* ]] || return 0
+    local unquoted; unquoted=${ gsed "s/'[^']*'//g" <<< "${body}"; }
+    [[ "${unquoted}" =~ (^|[^[:alnum:]_])shift([^[:alnum:]_]|$) || "${unquoted}" == *'$@'* || "${unquoted}" == *'$*'* ]] && return 0
+    local -i used=0 n
+    local ref
+    while IFS= read -r ref; do
+        n=${ref//[^0-9]/}
+        (( n > used )) && used=n
+    done < <(grep -oE '(^|[^\\])\$\{?[1-9]' <<< "${unquoted}") # not \$1, e.g. in a double-quoted awk program
+    local -i documented
+    documented=${ gawk '/^# · ARGS/ { on = 1; next } /^# · / { on = 0 } on && /^#   [^ ]/ { n++ } END { print n + 0 }' <<< "${proposedDoc}"; }
+    (( documented == used )) ||
+        _dpProblemsRef+=("ARGS has ${documented} entries, but the body uses ${used} positional args")
+    return 0
+}
+
+# Show the change from the current doc to the proposed one as a diff (or the proposed doc, if there is none yet).
+# Args: currentDoc proposedDoc
+_showDocDiff() {
+    local currentDoc="$1" proposedDoc="$2" line
+    if [[ -z "${currentDoc}" ]]; then
+        while IFS= read -r line; do show success "+${line}"; done <<< "${proposedDoc}"
+        return 0
+    fi
+    while IFS= read -r line; do
+        case ${line} in
+            ---* | +++*) ;;
+            @@*) show dim "${line}" ;;
+            -*) show error "${line}" ;;
+            +*) show success "${line}" ;;
+            *) echo "${line}" ;;
+        esac
+    done < <(diff -u <(echo "${currentDoc}") <(echo "${proposedDoc}"))
+    return 0
+}
+
+# Ask whether to apply a proposed doc, skip it, edit it first (in $VISUAL or $EDITOR, run by the shell as git does),
+# or stop. Updates the named var if edited. Returns 0 to apply, 1 to skip, 2 to stop.
+# Args: docRef
+_reviewDoc() {
+    local -n _rdDocRef=$1
+    require 'rayvn/prompt'
+    local -a choices=('Apply' 'Skip' 'Edit, then apply' 'Stop')
+    local choice
+    echo
+    choose "Apply this change?" choices choice false 0 0 0 3600 || return 1
+    case ${choice} in
+        0) return 0 ;;
+        1) return 1 ;;
+        3) return 2 ;;
+    esac
+    local file; file=${ makeTempFile; } || fail
+    printf '%s\n' "${_rdDocRef}" > "${file}"
+    sh -c "${VISUAL:-${EDITOR:-vi}}"' "$@"' editor "${file}" || fail "could not run the editor"
+    readFile "${file}" _rdDocRef
+    rm -f "${file}"
+    [[ "${_rdDocRef}" == '# ◇'* ]] || { warn "The edited doc must start with '# ◇'"; return 1; }
+    return 0
 }
 
 # Sort a targets array in-place by file and line order.

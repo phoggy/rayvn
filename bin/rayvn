@@ -162,14 +162,15 @@ declare -gA cliSpec=(
 
     # Generate or fix ◇ doc comments via Claude API.
     #   PROJECT...      Project names to limit scope (default: all loaded projects).
-    #   --dry-run       Print proposed docs without writing any changes.
+    #   --dry-run       Print each proposed change as a diff, without writing any changes.
+    #   --yes           Apply changes without asking. Otherwise, at a terminal, each change is shown as a diff to apply, skip or edit; without one, changes are applied, except those flagged as likely to have lost information.
     #   --regen         Regenerate docs for all public functions, not just missing/stale.
     #   --missing-only  Only process functions missing a ◇ doc comment.
     #   --stale-only    Only process functions with potentially stale docs.
     #   --lib           Limit to a single library by name.
     #   --since         Skip functions updated within this duration (e.g. '30m', '2h', '1d').
     #   --delay         Seconds to sleep between API calls to avoid rate limits.
-    ['docs update']='docsUpdate(--dry-run --regen --missing-only --stale-only --lib:str --since:str --delay:+int=5 --help|-h *)'
+    ['docs update']='docsUpdate(--dry-run --yes|-y --regen --missing-only --stale-only --lib:str --since:str --delay:+int=5 --help|-h *)'
 
     # Create a versioned GitHub release for the current directory's project. The GitHub repository is derived from
     # the git 'origin' remote and confirmed before releasing.
@@ -448,6 +449,7 @@ docsUpdateCmd() {
     (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
     local -a updateArgs=()
     (( _opts['dry-run'] )) && updateArgs+=(--dry-run)
+    (( _opts['yes'] )) && updateArgs+=(--yes)
     (( _opts['regen'] )) && updateArgs+=(--regen)
     (( _opts['missing-only'] )) && updateArgs+=(--missing-only)
     (( _opts['stale-only'] )) && updateArgs+=(--stale-only)
@@ -985,22 +987,24 @@ parseDocsUpdateArgs() {
     local _value
     while (( $# > 0 )); do
         case "$1" in
-            --delay) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--regen|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --delay"; assertPositiveInt "$2"; _opts+=(['delay']="$2"); shift 2 ;;
+            --delay) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--yes|--regen|-y|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --delay"; assertPositiveInt "$2"; _opts+=(['delay']="$2"); shift 2 ;;
             --delay=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --delay"; assertPositiveInt "${_value}"; _opts+=(['delay']="${_value}"); shift ;;
             --dry-run) _opts+=(['dry-run']="1"); shift ;;
             --dry-run=*) fail "--dry-run does not accept a value" ;;
             --help | -h) _opts+=(['help']="1"); shift ;;
             --help=*) fail "--help does not accept a value" ;;
-            --lib) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--regen|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --lib"; _opts+=(['lib']="$2"); shift 2 ;;
+            --lib) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--yes|--regen|-y|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --lib"; _opts+=(['lib']="$2"); shift 2 ;;
             --lib=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --lib"; _opts+=(['lib']="${_value}"); shift ;;
             --missing-only) _opts+=(['missing-only']="1"); shift ;;
             --missing-only=*) fail "--missing-only does not accept a value" ;;
             --regen) _opts+=(['regen']="1"); shift ;;
             --regen=*) fail "--regen does not accept a value" ;;
-            --since) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--regen|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --since"; _opts+=(['since']="$2"); shift 2 ;;
+            --since) [[ -z "$2" || ( "$2" == -* && "$2" =~ ^(--stale-only|--yes|--regen|-y|-h|--since|--dry-run|--missing-only|--help|--lib|--delay)$ ) ]] && fail "missing value for --since"; _opts+=(['since']="$2"); shift 2 ;;
             --since=*) _value="${1#*=}"; [[ -n "${_value}" ]] || fail "missing value for --since"; _opts+=(['since']="${_value}"); shift ;;
             --stale-only) _opts+=(['stale-only']="1"); shift ;;
             --stale-only=*) fail "--stale-only does not accept a value" ;;
+            --yes | -y) _opts+=(['yes']="1"); shift ;;
+            --yes=*) fail "--yes does not accept a value" ;;
             --) shift; _args+=("$@"); break ;;
             *) _args+=("$1"); shift ;;
         esac
@@ -1013,10 +1017,13 @@ docsUpdateCmdUsage() {
     show bold "Generate or fix ◇ doc comments via Claude API."
     echo
     show "Usage:" bold blue "rayvn docs update" "[PROJECT...] [--delay DELAY] [--dry-run] [--lib LIB] [--missing-only]"
-    echo "                         [--regen] [--since SINCE] [--stale-only]"
+    echo "                         [--regen] [--since SINCE] [--stale-only] [-y]"
     echo
     option "PROJECT..." "Project names to limit scope (default: all loaded projects)." 20
-    option "--dry-run" "Print proposed docs without writing any changes." 20
+    option "--dry-run" "Print each proposed change as a diff, without writing any changes." 20
+    option "-y, --yes" "Apply changes without asking. Otherwise, at a terminal, each change is shown as" 20
+    option "" "a diff to apply, skip or edit; without one, changes are applied, except those" 20
+    option "" "flagged as likely to have lost information." 20
     option "--regen" "Regenerate docs for all public functions, not just missing/stale." 20
     option "--missing-only" "Only process functions missing a ◇ doc comment." 20
     option "--stale-only" "Only process functions with potentially stale docs." 20

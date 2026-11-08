@@ -1908,12 +1908,20 @@ _loadHashes() {
     fi
 }
 
-# Save _idxCurrentHashes to the hash file (sorted for stable diffs)
+# Save _idxCurrentHashes to the hash file (sorted for stable diffs), keeping the stored hashes of libraries that were
+# not scanned this time, so that checking some projects or libraries does not forget the others
 _saveHashes() {
+    local -A scanned=()
     local key
+    for key in "${!_idxCurrentHashes[@]}"; do
+        scanned["${key%%:*}"]=1 # project/library
+    done
     {
         for key in "${!_idxCurrentHashes[@]}"; do
             echo "${key}:${_idxCurrentHashes[${key}]}"
+        done
+        for key in "${!_idxStoredHashes[@]}"; do
+            [[ -v scanned["${key%%:*}"] ]] || echo "${key}:${_idxStoredHashes[${key}]}"
         done
     } | sort > "${_idxHashFile}"
 }
