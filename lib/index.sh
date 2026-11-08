@@ -1215,7 +1215,7 @@ _flushDocSection() {
                 _fdsOutRef+=("${l#  }")
             done
             ;;
-        ARGS|RETURNS)
+        ARGS|RETURNS|"ENV VARS"*)
             _appendDocTableRows _fdsLinesRef _fdsOutRef ''
             _fdsOutRef+=('{: .args-table}')
             ;;
