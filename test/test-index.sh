@@ -324,6 +324,7 @@ testSyncSharedPagesFiles() {
     local output; output=${ _syncSharedPagesFiles "${site}"; }
     assertContains "Created _sass/custom/custom.scss" "${output}"
     assertEqual '' "${ diff -r "${sharedDir}" "${site}"; }" "every shared file must be copied"
+    [[ -w "${site}/_includes/head_custom.html" ]] || fail "copies must be writable, even from a read-only source (e.g. the Nix store)"
 
     output=${ _syncSharedPagesFiles "${site}"; }
     assertEqual '' "${output}" "an up to date site must not be changed"

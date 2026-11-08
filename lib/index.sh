@@ -358,7 +358,12 @@ _syncSharedPagesFiles() {
         cmp -s "${sourceFile}" "${targetFile}" && continue
         local action='Updated'; [[ -f "${targetFile}" ]] || action='Created'
         ensureDir "${ dirname "${targetFile}"; }"
-        cp "${sourceFile}" "${targetFile}" || fail "could not write ${targetFile}"
+
+        # Write the contents rather than copy the file, so that a copy from a read-only source (e.g. the Nix store)
+        # is writable; removing it first replaces any read-only copy an earlier version made
+
+        rm -f "${targetFile}"
+        cat "${sourceFile}" > "${targetFile}" || fail "could not write ${targetFile}"
         show "${action} ${relPath}"
     done < <(find "${sharedDir}" -type f | sort)
 }

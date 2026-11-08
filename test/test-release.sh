@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 
-# The release version written to rayvn.pkg and flake.nix before a release is tagged.
+# Writing the release version, and finding the flake inputs to lock to releases, for a release.
 
 main() {
     init "$@"
 
     testWriteReleaseVersion
+    testOwnFlakeInputs
 
     return 0
 }
@@ -32,6 +33,26 @@ testWriteReleaseVersion() {
     assertInFile "projectReleaseDate='2026-11-08 12:00:00 PST'" "${dir}/rayvn.pkg"
     assertInFile "projectName='demo'" "${dir}/rayvn.pkg"
     assertInFile 'version = "0.5.0";' "${dir}/flake.nix"
+}
+
+# Only root inputs that are the owner's GitHub projects are listed, not other owners' or followed inputs
+
+testOwnFlakeInputs() {
+    local lockFile; lockFile="${ makeTempDir; }/flake.lock"
+    cat > "${lockFile}" <<'LOCK'
+{
+  "nodes": {
+    "nixpkgs": { "original": { "owner": "NixOS", "repo": "nixpkgs", "type": "github" } },
+    "rayvn": { "original": { "owner": "phoggy", "repo": "rayvn", "type": "github" } },
+    "valt": { "inputs": { "rayvn": ["rayvn"] }, "original": { "owner": "Phoggy", "repo": "valt", "type": "github" } },
+    "local": { "original": { "path": "/tmp/x", "type": "path" } },
+    "root": { "inputs": { "nixpkgs": "nixpkgs", "rayvn": "rayvn", "valt": "valt", "local": "local", "other": ["valt", "rayvn"] } }
+  },
+  "root": "root",
+  "version": 7
+}
+LOCK
+    assertEqual $'rayvn rayvn\nvalt valt' "${ _ownFlakeInputs phoggy "${lockFile}"; }"
 }
 
 source rayvn.up 'rayvn/test' 'rayvn/release'

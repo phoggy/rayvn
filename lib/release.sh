@@ -7,7 +7,8 @@
 #   create the GitHub release, and sets the post-release version. The GitHub 'account/repo' is derived from the
 #   current directory's git 'origin' remote, whose repo name must match the project. The release commit sets the
 #   version and release date in rayvn.pkg (and the version in flake.nix), so that the tagged release reports itself as
-#   that release; afterwards rayvn.pkg is marked as the post-release version (VERSION+, no date).
+#   that release; afterwards rayvn.pkg is marked as the post-release version (VERSION+, no date). Flake inputs that
+#   are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first.
 #
 # · ARGS
 #
@@ -49,6 +50,7 @@ release() {
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _setReleaseVersion "${version}" || fail
+    _lockOwnInputsToReleases "${ghRepo}" || fail
     _updateFlakeLock || fail
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
@@ -187,6 +189,46 @@ _markPostRelease() {
     else
         echo "rayvn.pkg already at ${version}+, nothing to commit"
     fi
+}
+
+# Locks each flake input that is one of the owner's own GitHub projects (see _ownFlakeInputs) to that project's
+# latest release, so that a release builds with released dependencies rather than whatever their default branch
+# holds. The inputs keep their flake.nix sources; inputs with no release are left as locked. _updateFlakeLock commits
+# the change.
+_lockOwnInputsToReleases() {
+    local ghRepo="$1"
+    local owner="${ghRepo%%/*}"
+    [[ -f flake.lock ]] || return 0
+    header "Locking ${owner}'s flake inputs to their latest releases"
+
+    local name repo tag output
+    while read -r name repo; do
+        tag=${ gh release view --repo "${owner}/${repo}" --json tagName -q .tagName 2> /dev/null; }
+        if [[ -z ${tag} ]]; then
+            echo "${name}: no release, left as locked"
+            continue
+        fi
+        output=${ nix flake lock --override-input "${name}" "github:${owner}/${repo}/${tag}" 2>&1; } ||
+            fail "could not lock ${name} to ${tag}: ${output}"
+        echo "${name}: ${tag}"
+    done < <(_ownFlakeInputs "${owner}" flake.lock)
+}
+
+# Output the name and repo of each root input in a flake.lock file that is a GitHub project of the given owner, one per
+# line (e.g. 'rayvn rayvn'). Inputs that follow another input are left out.
+# Args: owner lockFile
+_ownFlakeInputs() {
+    local owner="$1" lockFile="$2"
+    # lint-skip-start (jq program)
+    jq -r --arg owner "${owner}" '
+        .nodes as $nodes
+        | .nodes.root.inputs | to_entries[]
+        | select(.value | type == "string")
+        | $nodes[.value].original as $original
+        | select($original.type == "github" and ($original.owner | ascii_downcase) == ($owner | ascii_downcase))
+        | "\(.key) \($original.repo)"
+    ' "${lockFile}" || fail "could not read ${lockFile}"
+    # lint-skip-end
 }
 
 _updateFlakeLock() {
