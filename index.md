@@ -91,5 +91,6 @@ For installation, IDE setup, and development guidance, see the [README](https://
 
 ## Related Projects
 
-- valt — encrypted file archives using age *(renovating, coming soon)*
+- [valt](/valt) — public key encryption for files and archives, using age and minisign, with a printable paper key for
+  recovery
 - wardn — encrypted Bitwarden vault backups *(renovating, coming soon)*
