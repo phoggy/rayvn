@@ -414,7 +414,7 @@ _updateBrewFormula() {
     local ghRepo="$1"
     local version="$2"
     local project="${ghRepo#*/}"
-    local brewTapRepo='rayvn-central/homebrew-brew'
+    local brewTapRepo="${rayvnBrewTap%%/*}/homebrew-${rayvnBrewTap#*/}" # the tap's GitHub repo
 
     header "Updating Homebrew formula for ${project} v${version}"
 

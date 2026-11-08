@@ -8,6 +8,7 @@ main() {
     testExtractFlakeDepsEmpty
     testGetBrewDependenciesBasic
     testGetBrewDependenciesWithMappings
+    testGetBrewDependenciesLocalProjects
     testGetBrewDependenciesWithExclusions
     testDepsProjectRootFound
     testDepsProjectRootMissing
@@ -93,6 +94,22 @@ testGetBrewDependenciesWithMappings() {
     local result; result=${ getBrewDependencies myproject "${dir}"; }
     assertContains 'depends_on "minisign"' "${result}" "outputs minisign without mapping"
     assertContains 'depends_on "rage"' "${result}" "applies nixBrewMap override for rage-encryption"
+
+    rm -rf "${dir}"
+}
+
+# Other rayvn projects are named in the tap releases publish to, unless overridden
+
+testGetBrewDependenciesLocalProjects() {
+    local dir; dir=${ _writeDepsFixture '    rayvnPkg
+    valtPkg
+    mrldPkg'; }
+    printf "declare -A nixPkgTapOverrides=([mrldPkg]='phoggy/mrld/mrld')\n" > "${dir}/rayvn.pkg"
+
+    local result; result=${ getBrewDependencies myproject "${dir}"; }
+    assertContains 'depends_on "rayvn-central/brew/rayvn"' "${result}"
+    assertContains 'depends_on "rayvn-central/brew/valt"' "${result}"
+    assertContains 'depends_on "phoggy/mrld/mrld"' "${result}" "an override names another formula"
 
     rm -rf "${dir}"
 }
