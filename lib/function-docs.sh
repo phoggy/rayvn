@@ -215,8 +215,12 @@ updateDocs() {
         local body; body=${ _extractFunctionBody "${funcLibFile}" "${funcName}"; }
         local currentDoc; currentDoc=${ _extractFunctionDoc "${funcLibFile}" "${funcName}"; }
         local constants; constants=${ _extractReferencedConstants "${body}" "${funcLibFile}"; }
+        local bodyChange; bodyChange=${ _bodyChangeSinceIndex "${funcLibFile}" "${funcName}" "${key}" "${body}"; }
+        local calledDocs; calledDocs=${ _calledFunctionDocs "${body}" "${funcName}" "${funcLibFile}"; }
+        local libraryContext; libraryContext=${ _libraryContext "${funcLibFile}"; }
 
-        local prompt; prompt=${ _buildDocPrompt "${body}" "${currentDoc}" "${constants}"; }
+        local prompt
+        prompt=${ _buildDocPrompt "${body}" "${currentDoc}" "${constants}" "${bodyChange}" "${calledDocs}" "${libraryContext}"; }
 
         local proposedDoc
         proposedDoc=${ _callClaudeApi "${prompt}" "${spec}" "${apiKey}"; } || { warn "API call failed for ${key}"; continue; }
@@ -468,7 +472,8 @@ _replaceDocComment() {
 
 # Call the Claude API with a prompt and return the response text.
 # The spec and system prompt are sent as cached system content blocks to avoid
-# re-processing them on every call (prompt caching).
+# re-processing them on every call (prompt caching). A request the model declines is
+# re-run server-side on the recommended fallback model (fallbacks: "default").
 #
 # · ARGS
 #
@@ -484,13 +489,15 @@ _callClaudeApi() {
     local payload
     # lint-skip-start (jq variable references inside single-quoted filter)
     payload=${ jq -n \
-        --arg model 'claude-sonnet-4-6' \
+        --arg model 'claude-opus-5-5' \
         --arg system "${systemPrompt}" \
         --arg spec "${spec}" \
         --arg user "${prompt}" \
         '{
             model: $model,
-            max_tokens: 1024,
+            max_tokens: 16000,
+            output_config: {effort: "medium"},
+            fallbacks: "default",
             system: [
                 {type: "text", text: $system, cache_control: {type: "ephemeral"}},
                 {type: "text", text: ("SPEC:\n" + $spec), cache_control: {type: "ephemeral"}}
@@ -502,8 +509,8 @@ _callClaudeApi() {
     local response
     response=${ curl -s -X POST 'https://api.anthropic.com/v1/messages' \
         -H "x-api-key: ${apiKey}" \
-        -H 'anthropic-version: 2023-06-01' \
-        -H 'anthropic-beta: prompt-caching-2024-07-31' \
+        -H 'anthropic-version: 2026-10-21' \
+        -H 'anthropic-beta: server-side-fallback-2026-07-01' \
         -H 'content-type: application/json' \
         -d "${payload}"; }
 
@@ -513,27 +520,125 @@ _callClaudeApi() {
         return 1
     fi
 
-    echo "${response}" | jq -r '.content[0].text'
+    # The model thinks first, so the doc is in the text blocks, not necessarily the first block
+
+    local stopReason; stopReason=${ echo "${response}" | jq -r '.stop_reason // empty'; }
+    case ${stopReason} in
+        refusal) error "API declined the request: ${ echo "${response}" | jq -r '.stop_details.category // "no category"'; }"; return 1 ;;
+        max_tokens) error "API response was cut off at max_tokens"; return 1 ;;
+    esac
+    echo "${response}" | jq -r '[.content[] | select(.type == "text") | .text] | join("")'
 }
 
 # Build the per-function Claude prompt (excludes the spec, which is cached in the system block).
-# Args: body currentDoc
+# Args: body currentDoc constants bodyChange calledDocs libraryContext
 #
-#   body (string)        The function body to document.
-#   currentDoc (string)  The existing doc comment (may be empty).
-#   constants (string)   Optional resolved private constant values referenced in the body.
+#   body (string)            The function body to document.
+#   currentDoc (string)      The existing doc comment (may be empty).
+#   constants (string)       Optional resolved private constant values referenced in the body.
+#   bodyChange (string)      Optional diff of the body since its doc was last in sync (see _bodyChangeSinceIndex).
+#   calledDocs (string)      Optional docs of the functions the body calls (see _calledFunctionDocs).
+#   libraryContext (string)  Optional description and notes of the function's library (see _libraryContext).
 _buildDocPrompt() {
     local body="$1"
     local currentDoc="${2:-}"
     local constants="${3:-}"
+    local bodyChange="${4:-}"
+    local calledDocs="${5:-}"
+    local libraryContext="${6:-}"
 
     local currentDocText="${currentDoc:-(none)}"
-    local constantsSection=''
-    [[ -n "${constants}" ]] && constantsSection=$'\n\nCONSTANTS (resolved values of private vars referenced above; use values not names in docs):\n'"${constants}"
+    local context=''
+    [[ -n "${constants}" ]] && context+=$'\n\nCONSTANTS (resolved values of private vars referenced above; use values not names in docs):\n'"${constants}"
+    [[ -n "${bodyChange}" ]] && context+=$'\n\nBODY CHANGE (diff of the body since the current doc was last in sync with it; check the doc against what changed):\n'"${bodyChange}"
+    [[ -n "${calledDocs}" ]] && context+=$'\n\nCALLED FUNCTIONS (docs of functions the body calls; use them for defaults and behavior that pass through, e.g. an empty arg passed on gets the callee\'s default):\n'"${calledDocs}"
+    [[ -n "${libraryContext}" ]] && context+=$'\n\nLIBRARY (its description and notes; use its terms):\n'"${libraryContext}"
     local task='Generate an accurate doc comment for this function per the spec.'
     [[ -n "${currentDoc}" ]] && task='Edit the current doc comment so that it is accurate for this function and follows the spec. Change only what the body or the spec contradicts; keep its wording, terminology, argument names and facts otherwise, and never remove information unless the body shows it is wrong. If it is already accurate, return it unchanged.'
     printf 'FUNCTION:\n%s%s\n\nCURRENT DOC (may be empty):\n%s\n\n%s\n' \
-        "${body}" "${constantsSection}" "${currentDocText}" "${task}"
+        "${body}" "${context}" "${currentDocText}" "${task}"
+}
+
+# Output a unified diff of a function's body from when its doc was last in sync (its stored body hash) to now, by
+# finding that version in the file's git history (the last 30 commits that touched it). Outputs nothing if the body
+# is unchanged, the stored hash is unknown, or no such version is found.
+# Args: libFile funcName key body
+_bodyChangeSinceIndex() {
+    local libFile="$1" funcName="$2" key="$3" body="$4"
+    local storedHash="${_idxStoredHashes[${key}:body]:-}"
+    [[ -n "${storedHash}" ]] || return 0
+    local -a strings=("${body}"$'\n') hashes=()
+    _hashStrings strings hashes
+    [[ "${hashes[0]}" == "${storedHash}" ]] && return 0
+
+    local dir; dir=${ dirName "${libFile}"; }
+    local root; root=${ git -C "${dir}" rev-parse --show-toplevel 2> /dev/null; } || return 0
+    local path="${libFile#"${root}"/}"
+    local tmpFile; tmpFile=${ makeTempFile; } || return 0
+    local commit oldBody
+    while IFS= read -r commit; do
+        git -C "${root}" show "${commit}:${path}" > "${tmpFile}" 2> /dev/null || continue
+        oldBody=${ _extractFunctionBody "${tmpFile}" "${funcName}"; }
+        [[ -n "${oldBody}" ]] || continue
+        strings=("${oldBody}"$'\n')
+        _hashStrings strings hashes
+        if [[ "${hashes[0]}" == "${storedHash}" ]]; then
+            diff -u <(echo "${oldBody}") <(echo "${body}") | tail -n +3
+            break
+        fi
+    done < <(git -C "${root}" log -n 30 --format=%H -- "${path}" 2> /dev/null)
+    rm -f "${tmpFile}"
+    return 0
+}
+
+# Output the docs of the functions a body calls (up to 10), each headed by its name: public functions of any loaded
+# library (from the current hashes), and private ones in the same file. Functions without a doc are left out.
+# Args: body funcName libFile
+_calledFunctionDocs() {
+    local body="$1" funcName="$2" libFile="$3"
+    local -A publicFiles=()
+    local key name project library
+    for key in "${!_idxCurrentHashes[@]}"; do
+        [[ "${key}" == *:body ]] || continue
+        key="${key%:body}"
+        name="${key##*:}"; project="${key%%/*}"; library="${key%:*}"; library="${library#*/}"
+        publicFiles["${name}"]="${_rayvnProjects[${project}::library]:-}/${library}.sh"
+    done
+    local -A privateNames=()
+    while IFS= read -r name; do
+        privateNames["${name}"]=1
+    done < <(grep -oE '^_[a-zA-Z0-9_]+[[:space:]]*\(\)' "${libFile}" | gsed -E 's/[[:space:]]*\(\)$//')
+
+    local -i count=0
+    local file doc
+    while IFS= read -r name; do
+        [[ "${name}" == "${funcName}" ]] && continue
+        if [[ -v publicFiles["${name}"] ]]; then
+            file="${publicFiles[${name}]}"
+        elif [[ -v privateNames["${name}"] ]]; then
+            file="${libFile}"
+        else
+            continue
+        fi
+        [[ -f "${file}" ]] || continue
+        doc=${ _extractFunctionDoc "${file}" "${name}"; }
+        [[ -n "${doc}" ]] || continue
+        printf '%s:\n%s\n\n' "${name}" "${doc}"
+        (( ++count >= 10 )) && break
+    done < <(grep -oE '[a-zA-Z_][a-zA-Z0-9_]*' <<< "${body#*$'\n'}" | gawk '!seen[$0]++')
+    return 0
+}
+
+# Output a library's description and its #@notes block, if any.
+# Args: libFile
+_libraryContext() {
+    local libFile="$1"
+    require 'rayvn/index'
+    local description; description=${ _extractLibraryDescription "${libFile}"; }
+    local notes; notes=${ _extractDocBlock "${libFile}" notes; }
+    [[ -n "${description}" ]] && printf '%s\n' "${description}"
+    [[ -n "${notes}" ]] && printf '\n%s\n' "${notes}"
+    return 0
 }
 
 # Scan a function body for references to private constants (_name), look up their

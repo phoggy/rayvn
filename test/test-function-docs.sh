@@ -11,6 +11,9 @@ main() {
     testExtractReferencedConstants
     testBuildDocPrompt
     testBuildDocPromptEditsCurrentDoc
+    testBuildDocPromptContext
+    testBodyChangeSinceIndex
+    testCalledFunctionDocs
     testAlignDocColumns
     testDocProblemsMuchShorter
     testDocProblemsArgCount
@@ -149,6 +152,72 @@ testBuildDocPromptEditsCurrentDoc() {
     assertContains 'never remove information' "${prompt}"
     prompt=${ _buildDocPrompt 'myFunc() { echo hi; }' '' ''; }
     assertContains 'Generate an accurate doc comment' "${prompt}"
+}
+
+# The body change, called functions' docs and library context are included when given
+
+testBuildDocPromptContext() {
+    local prompt; prompt=${ _buildDocPrompt 'f() { g; }' '# ◇ Old.' '' '-old line' 'g:
+# ◇ G doc.' 'The library.'; }
+    assertContains 'BODY CHANGE' "${prompt}"
+    assertContains '-old line' "${prompt}"
+    assertContains 'CALLED FUNCTIONS' "${prompt}"
+    assertContains '# ◇ G doc.' "${prompt}"
+    assertContains 'LIBRARY' "${prompt}"
+    assertContains 'The library.' "${prompt}"
+    prompt=${ _buildDocPrompt 'f() { g; }' '# ◇ Old.' ''; }
+    [[ ${prompt} != *'BODY CHANGE'* && ${prompt} != *'CALLED FUNCTIONS'* && ${prompt} != *'LIBRARY'* ]] ||
+        fail "sections must be left out when empty: ${prompt}"
+}
+
+# The diff is of the body from the git version whose hash was stored, to the current body
+
+testBodyChangeSinceIndex() {
+    require 'rayvn/index'
+    _initIndex
+    local repo; repo=${ makeTempDir; }
+    git -C "${repo}" init -q && git -C "${repo}" config user.email t@t && git -C "${repo}" config user.name t || fail
+    printf 'f() {\n    echo old\n}\n' > "${repo}/lib.sh"
+    git -C "${repo}" add lib.sh && git -C "${repo}" commit -qm v1 || fail
+    printf 'f() {\n    echo other\n}\n' > "${repo}/lib.sh"
+    git -C "${repo}" commit -qam v2 || fail
+    printf 'f() {\n    echo new\n}\n' > "${repo}/lib.sh"
+
+    local -a strings=($'f() {\n    echo old\n}\n') hashes=()
+    _hashStrings strings hashes
+    declare -gA _idxStoredHashes=([p/lib:f:body]="${hashes[0]}")
+    local body; body=${ _extractFunctionBody "${repo}/lib.sh" f; }
+    local change; change=${ _bodyChangeSinceIndex "${repo}/lib.sh" f p/lib:f "${body}"; }
+    assertContains '-    echo old' "${change}"
+    assertContains '+    echo new' "${change}"
+
+    strings=("${body}"$'\n'); _hashStrings strings hashes
+    _idxStoredHashes[p/lib:f:body]="${hashes[0]}"
+    assertEqual '' "${ _bodyChangeSinceIndex "${repo}/lib.sh" f p/lib:f "${body}"; }" "no diff when unchanged"
+    _idxStoredHashes[p/lib:f:body]='0000000000000000'
+    assertEqual '' "${ _bodyChangeSinceIndex "${repo}/lib.sh" f p/lib:f "${body}"; }" "no diff when no version matches"
+}
+
+# Called private functions in the same file are found, and the function itself and undocumented ones left out
+
+testCalledFunctionDocs() {
+    local file; file=${ _writeFunctionDocsFixture '# Helps.
+_helper() {
+    :
+}
+
+_undocumented() {
+    :
+}
+
+# ◇ Does it.
+doIt() {
+    _helper; _undocumented; doIt
+}'; }
+    declare -gA _idxCurrentHashes=()
+    local body; body=${ _extractFunctionBody "${file}" doIt; }
+    local docs; docs=${ _calledFunctionDocs "${body}" doIt "${file}"; }
+    assertEqual $'_helper:\n# Helps.' "${docs}"
 }
 
 # ============================================================================
