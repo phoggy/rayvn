@@ -5,7 +5,9 @@
 
 # ◇ Perform a full release pipeline for a GitHub project: run tests, update flake.nix and flake.lock, verify the Nix build,
 #   create the GitHub release, and sets the post-release version. The GitHub 'account/repo' is derived from the
-#   current directory's git 'origin' remote, whose repo name must match the project.
+#   current directory's git 'origin' remote, whose repo name must match the project. The release commit sets the
+#   version and release date in rayvn.pkg (and the version in flake.nix), so that the tagged release reports itself as
+#   that release; afterwards rayvn.pkg is marked as the post-release version (VERSION+, no date).
 #
 # · ARGS
 #
@@ -46,7 +48,7 @@ release() {
     _auditDocs "${project}" || fail
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
-    _updateFlakeVersion "${version}" || fail
+    _setReleaseVersion "${version}" || fail
     _updateFlakeLock || fail
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
@@ -129,21 +131,30 @@ _updateFlakeDeps() {
     findDependencies "${project}"
 }
 
-_updateFlakeVersion() {
+# Sets the release version and date in rayvn.pkg and the version in flake.nix (see _writeReleaseVersion), then commits
+# and pushes them, so that the release tag includes them.
+_setReleaseVersion() {
     local version="$1"
-    local flakeFile='flake.nix'
+    header "Setting the release version ${version} in rayvn.pkg and flake.nix"
 
-    header "Updating flake.nix version to ${version}"
-
-    gsed -i "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
-
-    if [[ -n ${ git status --porcelain "${flakeFile}"; } ]]; then
-        git commit -m "Release v${version} flake.nix update" "${flakeFile}" || fail
+    _writeReleaseVersion rayvn.pkg flake.nix "${version}" "${ date '+%Y-%m-%d %H:%M:%S %Z'; }"
+    if [[ -n ${ git status --porcelain rayvn.pkg flake.nix; } ]]; then
+        git commit -m "Release v${version}" rayvn.pkg flake.nix || fail
         git push || fail
-        echo "flake.nix version updated to ${version}"
+        echo "rayvn.pkg and flake.nix set to ${version}"
     else
-        echo "flake.nix already at ${version}, nothing to commit"
+        echo "rayvn.pkg and flake.nix already at ${version}, nothing to commit"
     fi
+}
+
+# Writes a release version and date to a rayvn.pkg file (projectVersion, projectReleaseDate) and the version to a
+# flake.nix file.
+# Args: pkgFile flakeFile version releaseDate
+_writeReleaseVersion() {
+    local pkgFile="$1" flakeFile="$2" version="$3" releaseDate="$4"
+    gsed -i -e "s/^projectVersion='[^']*'/projectVersion='${version}'/" \
+            -e "s/^projectReleaseDate='[^']*'/projectReleaseDate='${releaseDate}'/" "${pkgFile}" || fail
+    gsed -i "s/version = \"[^\"]*\"/version = \"${version}\"/" "${flakeFile}" || fail
 }
 
 _doRelease() {
