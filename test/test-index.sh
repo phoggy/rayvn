@@ -337,13 +337,14 @@ testSyncSharedPagesFiles() {
     assertEqual 'site specific' "${ cat "${site}/_includes/site_only.html"; }" "site-specific files must be left alone"
 }
 
-# A library's description is the header before any #@notes block, not the notes' last paragraph.
+# A library's description is the header before any #@notes block, not the notes' last paragraph, and without its
+# Use via line.
 
 testLibraryDescriptionStopsAtNotes() {
     local lib; lib="${ makeTempDir; }/lib.sh"
     printf '%s\n' '#!/usr/bin/env bash' '' '# Does things.' "# Use via: require 'x/lib'" '' '#@notes' '# ## Notes' '#' \
         '# The last paragraph of the notes.' '#@end' '' 'doThings() { :; }' > "${lib}"
-    assertEqual "Does things."$'\n'"Use via: require 'x/lib'" "${ _extractLibraryDescription "${lib}"; }"
+    assertEqual "Does things." "${ _extractLibraryDescription "${lib}"; }" "the Use via line is left out too"
 }
 
 # A project's pagesHook, set in its rayvn.pkg, is run from the project root with the pages dir; a failing one fails.

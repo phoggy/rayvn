@@ -1414,7 +1414,7 @@ _updateHomePageLibraryTable() {
         [[ -n "${filterProject}" && "${projectName}" != "${filterProject}" ]] && continue
         if [[ -z "${_idxHomePageDescriptions[${projectName}/${libraryName}]:-}" ]]; then
             libDescription=${ _extractLibraryDescription "${libFile}"; }
-            libDescription="${libDescription%%$'\n'*}"
+            libDescription="${libDescription//$'\n'/ }" # one table row
             [[ -z "${libDescription}" ]] && libDescription="TODO: add description"
             newRows+=("| [${projectName}/${libraryName}](/${projectName}/api/${projectName}-${libraryName}) | ${libDescription} |")
         fi
@@ -1523,7 +1523,7 @@ _updateApiIndexTable() {
                     local proj="${key%%/*}"
                     local lib="${key#*/}"
                     local desc="${_idxHomePageDescriptions[${key}]:-}"
-                    [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+                    [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }; desc="${desc//$'\n'/ }"
                     [[ -z "${desc}" ]] && desc="TODO: add description"
                     printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
                     emittedKeys["${key}"]=1
@@ -1542,7 +1542,7 @@ _updateApiIndexTable() {
                     local proj="${key%%/*}"
                     local lib="${key#*/}"
                     local desc="${_idxHomePageDescriptions[${key}]:-}"
-                    [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+                    [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }; desc="${desc//$'\n'/ }"
                     [[ -z "${desc}" ]] && desc="TODO: add description"
                     printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
                 done
@@ -1556,7 +1556,7 @@ _updateApiIndexTable() {
                 local proj="${key%%/*}"
                 local lib="${key#*/}"
                 local desc="${_idxHomePageDescriptions[${key}]:-}"
-                [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }
+                [[ -z "${desc}" ]] && desc=${ _extractLibraryDescription "${keyToFile[${key}]}"; }; desc="${desc//$'\n'/ }"
                 [[ -z "${desc}" ]] && desc="TODO: add description"
                 printf '| [%s](/%s/api/%s-%s) | %s |\n' "${key}" "${proj}" "${proj}" "${lib}" "${desc}"
             done
@@ -1695,7 +1695,7 @@ _generateLibraryPage() {
 }
 
 # Extract the library description from the file preamble (before the first # ◇ or function).
-# Filters out shellcheck directives. Returns the last contiguous comment block before the first
+# Filters out shellcheck directives and "Use via: require ..." lines. Returns the last contiguous comment block before the first
 # function doc marker or declaration.
 _extractLibraryDescription() {
     local libFile="$1"
@@ -1704,6 +1704,7 @@ _extractLibraryDescription() {
     while IFS= read -r line; do
         [[ "${line}" =~ ^#! ]] && continue
         [[ "${line}" =~ ^#[[:space:]]*shellcheck ]] && continue
+        [[ "${line}" =~ ^#[[:space:]]Use\ via: ]] && continue # how to load it, not what it is
         [[ "${line}" =~ ^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(\)[[:space:]]*\{ ]] && break
         [[ "${line}" =~ ^#[[:space:]]◇ ]] && break
         [[ "${line}" =~ ^#@ ]] && break # a doc block, e.g. #@notes, follows the description

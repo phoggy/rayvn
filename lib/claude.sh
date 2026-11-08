@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Guide for Claude Code to working with rayvn projects.
+# The guide for Claude Code on working with rayvn projects.
 # Use via: require 'rayvn/claude'
 
 # ◇ Render the rayvn guide for Claude Code into the rayvn config directory, from etc/claude/rayvn.md with a table of
