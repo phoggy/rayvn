@@ -23,7 +23,7 @@ Credentials resolve in order: caller args → env vars → keychain → interact
 | | |
 |---|---|
 | `providerName` *(string)* | Name of the OAuth provider (e.g. 'google'). |
-| `resultMapRef` | (mapRef)  Associative array to populate with service config. |
+| `resultMapRef` *(mapRef)* | Associative array to populate with service config. |
 | `serviceScope` *(string)* | OAuth scope string. |
 | `clientId` *(string)* | Optional client ID; if empty, resolved automatically. |
 | `clientSecret` *(string)* | Optional client secret; if empty, resolved automatically. |
@@ -38,7 +38,7 @@ Run the full OAuth authorization code flow and store tokens in the keychain.
 
 | | |
 |---|---|
-| `serviceVarName` | (mapRef)  Name of an OAuth service map populated by getOAuthService. |
+| `serviceVarName` *(mapRef)* | Name of an OAuth service map populated by getOAuthService. |
 {: .args-table}
 
 ### getOAuthAccessToken()
@@ -50,6 +50,6 @@ Outputs a valid access token for the service, refreshing it automatically if exp
 
 | | |
 |---|---|
-| `serviceVarName` | (mapRef)  Name of an OAuth service map populated by getOAuthService. |
+| `serviceVarName` *(mapRef)* | Name of an OAuth service map populated by getOAuthService. |
 {: .args-table}
 

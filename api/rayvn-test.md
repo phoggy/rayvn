@@ -167,7 +167,7 @@ Fail if an executable is not found in PATH, or optionally at an unexpected path.
 | | |
 |---|---|
 | `executable` *(string)* | Name of the command that must be in PATH. |
-| `expectedPath` *(string)* | Expected path; checked against both the found path and its |
+| `expectedPath` *(string)* | Expected path; checked against both the found path and its realpath to account for symlinks. |
 {: .args-table}
 
 ### assertFunctionIsNotDefined()
@@ -279,7 +279,7 @@ Fail if a variable is not defined as an associative array (hash table).
 
 | | |
 |---|---|
-| `varName` | (mapRef)  Name of the variable that must be a defined associative array. |
+| `varName` *(mapRef)* | Name of the variable that must be a defined associative array. |
 {: .args-table}
 
 ### assertHashTableIsNotDefined()
@@ -291,7 +291,7 @@ Fail if an associative array variable is currently defined.
 
 | | |
 |---|---|
-| `varName` | (mapRef)  Name of the variable that must not be defined. |
+| `varName` *(mapRef)* | Name of the variable that must not be defined. |
 {: .args-table}
 
 ### assertHashKeyIsDefined()
@@ -303,7 +303,7 @@ Fail if a key is not present in an associative array.
 
 | | |
 |---|---|
-| `varName` | (mapRef)  Name of the associative array variable. |
+| `varName` *(mapRef)* | Name of the associative array variable. |
 | `keyName` *(string)* | Key that must be defined in the array. |
 {: .args-table}
 
@@ -316,7 +316,7 @@ Fail if a key is present in an associative array.
 
 | | |
 |---|---|
-| `varName` | (mapRef)  Name of the associative array variable. |
+| `varName` *(mapRef)* | Name of the associative array variable. |
 | `keyName` *(string)* | Key that must NOT be defined in the array. |
 {: .args-table}
 
@@ -329,7 +329,7 @@ Fail if the value at a key in an associative array does not equal the expected v
 
 | | |
 |---|---|
-| `varName` | (mapRef)        Name of the associative array variable. |
+| `varName` *(mapRef)* | Name of the associative array variable. |
 | `keyName` *(string)* | Key to look up. |
 | `expectedValue` *(string)* | Expected value at that key. |
 {: .args-table}

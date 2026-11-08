@@ -46,16 +46,18 @@ Generate Jekyll pages for a single project's gh-pages site.
 | `PROJECT` *(string)* | The project to generate pages for (e.g. rayvn, valt, wardn). |
 | `--dir DIR` *(string)* | Output directory (default: project's configured worktree). |
 | `--setup` | First-time setup: create gh-pages branch, worktree, and workflow. |
-| `--record` | [ID...]       Re-record asciinema casts with cmd= attributes in markdown files; optional IDs filter to specific casts. |
+| `--record [ID...]` | Re-record asciinema casts with cmd= attributes in markdown files; optional IDs filter to specific casts. |
 | `--publish` | Commit and push changes to gh-pages after generating. |
-| `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with --publish). |
+| `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with `--publish`). |
+| `The` | project's pagesHook, if its rayvn.pkg sets one, is run after the docs are generated (see _runPagesHook). |
 {: .usage-table}
 
 ### findDependencies()
 
-Scan a project's source files for external command dependencies and sync them to flake.nix.
-Confirms external binaries via command -v, maps them to nix package names via rayvn.pkg,
-and adds any missing entries to flake.nix. Also delegates npm dependency updates.
+Scan a project's source files for external command dependencies and check that they are declared in flake.nix.
+Confirms external binaries via command -v and maps them to nix package names via rayvn.pkg (commands from
+packages such as coreutils map to that package). Reports missing entries and portability issues, and runs project deps plugins
+(plugins/*-plugin.sh). Files are only changed in fix mode. Returns non-zero if any problem is left unfixed.
 
 
 *args*
@@ -63,6 +65,6 @@ and adds any missing entries to flake.nix. Also delegates npm dependency updates
 | | |
 |---|---|
 | `projectName` *(string)* | Name of the rayvn project to scan (e.g. 'valt', 'rayvn'). |
-| `fixMode` *(string)* | Optional. Pass 'fix' to auto-replace awk→gawk and sed→gsed in source. |
+| `fixMode` *(string)* | Optional. Pass 'fix' to add missing entries to flake.nix, replace awk→gawk and sed→gsed in source, and let plugins apply their fixes. |
 {: .args-table}
 

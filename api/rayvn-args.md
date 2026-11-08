@@ -27,7 +27,7 @@ that care should embed a generated parser via 'rayvn args SCRIPT' instead. Fills
 | | |
 |---|---|
 | `specVar` *(arrayRef)* | The name of the arguments specification array. |
-| `args` | (args)         The arguments to parse. |
+| `...` *(string)* | The arguments to parse. |
 {: .args-table}
 
 ### generateParser()
@@ -41,7 +41,7 @@ when the spec changes. For argument specs, generates parse`${name^}``Args()`. Fo
 
 | | |
 |---|---|
-| `project` *(string)* | The project name, used to handle the -v and --version arguments. |
+| `project` *(string)* | The project name, used to handle the `-v` and `--version` arguments. |
 | `specVar` *(arrayRef)* | The name of the arguments specification array or CLI specification map. |
 | `name` *(string)* | Optional function name infix for argument specs (default: parseArgs). |
 {: .args-table}
@@ -62,13 +62,16 @@ Annotation formats:
   # rayvn:cli  specVar              CLI spec map         → `parseCommand()` + per-command parsers
 
 
-*args*
+*usage*
+
+`updateParser [--check] scriptFile`
+{: .usage-signature}
 
 | | |
 |---|---|
-| `check` | (flag)      Optional '--check': report drift instead of updating. |
-| `scriptFile` | (exe)  Path to the script to update, or the bare name of an executable on PATH |
-{: .args-table}
+| `--check` | Report drift instead of updating. |
+| `scriptFile` *(exe)* | Path to the script to update, or the bare name of an executable on PATH (e.g. 'rayvn' resolves the same as 'bin/rayvn' would from its project root). |
+{: .usage-table}
 
 
 ## Argument Specification
@@ -88,6 +91,7 @@ that of `tar` args with `-C dir` interspersed and requires the caller to validat
      type: str | int | +int | bool | file | dir | exe | version | a|b|c (inline enum: value must be one of the alternatives)
    option: --name[|alias...]:type[=default]       e.g. --count|-c:+int=5
  variadic: --name[|alias...]:type*                e.g. --record:str* — see below
+ repeated: --name[|alias...]:type+                e.g. --recipient|-r:str+ — see below
      flag: --name[|alias...]
     group: [--a|--b|...]                          mutually exclusive: at most one may be supplied
  argument: type[?]                                positional; required unless the '?' suffix is present (e.g. str?)
@@ -115,6 +119,12 @@ global array `_optList<Name>` (camelCase from the option name, e.g. `--record` �
 `=` form (`--record=id`) sets a single-element list. Each value is validated against the declared type, same as
 a scalar option. Variadic options cannot have a default.
 
+A repeatable option (type suffix `+`, e.g. `--recipient|-r:str+`) takes exactly one value per occurrence and may be
+given any number of times; unlike a variadic option it never consumes following positional arguments, so
+`-r a FILE -r b` collects `a` and `b` and leaves `FILE` positional. Values land in the same kind of `_optList<Name>`
+global array as a variadic option (reset on every parse) and `_opts[name]` is set to `"1"` when supplied. Each value
+is validated against the declared type. Repeatable options cannot have a default.
+
 The `int` type accepts both positive and negative values; use the `+int` type to accept only positive integers.
 
 The `bool` type accepts `true`/`1`/`false`/`0` as input and maps it to `1` or `0` for simpler tests `(( myFlag ))`. Flags are
@@ -137,6 +147,17 @@ trading a ~ms generation cost per run for zero build step and no spec/parser dri
 Generated output is deterministic (options and commands are emitted in sorted order), so a committed block can be
 compared against its spec: `rayvn args SCRIPT --check` (`updateParser --check`) reports a stale or missing block
 without modifying the file, and `rayvn lint` runs this check automatically for annotated `bin/` and `lib/` files.
+
+For CLI specs whose project root is detectable (a `rayvn.pkg` above the script), `updateParser` also (re)generates
+`completions/<project>.bash` and `completions/<project>.zsh` — shell completion for the whole command tree, driven
+by the same spec tables and doc-comment blocks used for parsing and usage text. The zsh completion additionally
+surfaces each option's and positional's doc-comment description in the completion menu (via `_arguments`'
+`[description]` syntax), which bash's `compgen`-based completion has no way to show. Both are covered by
+`--check`/`rayvn lint` the same way the parser block is. The zsh file starts with `#compdef <project>` and ends
+with a `compdef` call, so it works either sourced directly or, like the bash file, via a dynamic-load symlink
+`updateParser` maintains — for zsh this is `_<project>` in rayvn's own shared `zsh-completions` directory
+(there's no bash-completion-v2-equivalent standardized zsh fpath convention to target, so rayvn defines its
+own and `rayvn.up` wires it onto `$fpath` once, via `etc/install-zsh-completions.sh`).
 
 For CLI specs, a comment block directly above a `cliSpec` entry generates a `${handler}CmdUsage()` function.
 Plain comment lines form the command summary; indented `key  description` lines document options (keyed by any

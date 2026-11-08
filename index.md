@@ -88,6 +88,7 @@ For installation, IDE setup, and development guidance, see the [README](https://
 | [rayvn/asciinema](/rayvn/api/rayvn-asciinema) | Asciinema cast recording and post-processing. |
 | [rayvn/typist](/rayvn/api/rayvn-typist) | Typing jitter model (log-normal distribution approximation). |
 | [rayvn/namespace](/rayvn/api/rayvn-namespace) | Detect namespace collisions across registered rayvn project libraries. |
+| [rayvn/claude](/rayvn/api/rayvn-claude) | The guide for Claude Code on working with rayvn projects. |
 
 ## Related Projects
 

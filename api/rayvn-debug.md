@@ -145,6 +145,6 @@ Log the open/closed status and mode of one or more file descriptors. No-op if de
 
 | | |
 |---|---|
-| `fd` | | string  Numeric fd or nameref variable holding an fd; repeatable. |
+| `fd` | \| string  Numeric fd or nameref variable holding an fd; repeatable. |
 {: .args-table}
 

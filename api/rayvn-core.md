@@ -133,7 +133,7 @@ Prints common CLI options, optionally including debug and environment variables 
 | `col` *(int)* | Column width for option alignment (default: 21). |
 | `includeDebug` *(bool)* | Whether to print the debug options section (default: 'true'). |
 | `includeEnvVars` *(bool)* | Whether to print the environment variables section (default: 'true'). |
-| `envMap` | (mapRef)        Optional additional env vars map. |
+| `envMap` *(mapRef)* | Optional additional env vars map. |
 {: .args-table}
 
 ### showDebugOptions()
@@ -158,7 +158,7 @@ Prints environment variables section.
 | | |
 |---|---|
 | `col` *(int)* | Column width for option alignment (default: 21). |
-| `envMap` | (mapRef)  Optional additional env vars map. |
+| `envMap` *(mapRef)* | Optional additional env vars map. |
 {: .args-table}
 
 ### option()
@@ -240,13 +240,13 @@ generated parsers.
 
 *usage*
 
-`fail [--trace] message [FORMAT|TEXT]...`
+`fail [--trace] [message] [FORMAT|TEXT]...`
 {: .usage-signature}
 
 | | |
 |---|---|
 | `--trace` | Force a stack trace regardless of debug mode. |
-| `message` *(string)* | Error message text. |
+| `[message]` *(string)* | Error message text. Without one nothing is printed (other than a stack trace), as in 'cmd \|\| fail' where cmd has already reported the error. |
 | `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
@@ -265,7 +265,8 @@ Fail with "unknown argument: ARG".
 
 ### bye()
 
-Print an optional exit message, show stack if in debug mode, and exit 0.
+Exit, showing the stack if in debug mode: with status 0, or with an error message and status 1. This is how usage
+functions end, so that 'usage' (help) succeeds and 'usage "unknown argument: x"' fails.
 
 
 *usage*
@@ -275,7 +276,7 @@ Print an optional exit message, show stack if in debug mode, and exit 0.
 
 | | |
 |---|---|
-| `[message]` *(string)* | Exit message text. |
+| `[message]` *(string)* | Error message text; if given, the exit status is 1. |
 | `[FORMAT]` *(string)* | A show format token; applies to the next [TEXT] arg. |
 | `[TEXT]` *(string)* | Text to print with the preceding format applied. |
 {: .usage-table}
@@ -319,7 +320,7 @@ Check if an argument matches an expected value, setting a result var via nameref
 
 | | |
 |---|---|
-| `argMatch` *(string)* | Expected argument value to match against (e.g. -n). |
+| `argMatch` *(string)* | Expected argument value to match against (e.g. `-n`). |
 | `argValue` *(string)* | Actual argument value to test. |
 | `argResultRef` *(stringRef)* | Name of var to set to result value on match. |
 | `argNoMatchResultValue` *(string)* | Value to assign when no match. |
@@ -589,7 +590,7 @@ Find the index of a matching element in an array, storing the result in resultRe
 
 | | |
 |---|---|
-| `match` *(string)* | Match value; prefix with -p for prefix match, -s for suffix match, -r for regex. |
+| `match` *(string)* | Match value; prefix with `-p` for prefix match, `-s` for suffix match, `-r` for regex. |
 | `arrayRef` *(arrayRef)* | Name of the indexed array to search. |
 | `resultRef` *(stringRef)* | Name of the variable to store the found index. |
 {: .args-table}
@@ -636,8 +637,8 @@ Copy all key-value pairs from one associative array to another.
 
 | | |
 |---|---|
-| `src` | (mapRef)   Name of the source map. |
-| `dest` | (mapRef)  Name of the destination map (must already be declared with -A). |
+| `src` *(mapRef)* | Name of the source map. |
+| `dest` *(mapRef)* | Name of the destination map (must already be declared with `-A`). |
 {: .args-table}
 
 ## Number & Random Value Functions
@@ -673,13 +674,16 @@ Outputs a number right-aligned within a fixed-width field.
 Prints a numbered list of items, with right-aligned numbers padded to a consistent width.
 
 
-*args*
+*usage*
+
+`printList [--indent N] ...`
+{: .usage-signature}
 
 | | |
 |---|---|
-| `[--indent N]` *(int)* | Leading spaces before each item; defaults to 4. |
-| `items` | (string...)   Items to list; each becomes one numbered line. |
-{: .args-table}
+| `--indent N` *(int)* | Leading spaces before each item (default: 4). |
+| `...` *(string)* | Items to list; each becomes one numbered line. |
+{: .usage-table}
 
 ### randomInteger()
 
@@ -750,7 +754,7 @@ Outputs the current timestamp as a sortable string: YYYY-MM-DD_HH.MM.SS_TZ
 
 | | |
 |---|---|
-| `timeZone` *(string)* | Optional timezone name (default: UTC). |
+| `timeZone` *(string)* | Optional time zone: 'local' (the system time zone), 'UTC', or a zone name such as 'America/Los_Angeles' (default: UTC). Fails for an unknown zone name, rather than silently using UTC as date does (e.g. for an abbreviation such as 'PDT'). |
 {: .args-table}
 
 ### epochSeconds()
@@ -813,7 +817,7 @@ Outputs the session temp directory path, optionally appended with a file name. D
 
 | | |
 |---|---|
-| `-r` | Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if |
+| `-r` | Replace 'X' chars in fileName with random hex chars, or generate an 8-char hex name if fileName is omitted. Ensures that no name collisions occur, regenerating name up to 16 times if required. |
 | `fileName` *(string)* | Optional file name to append to the temp dir path. |
 {: .usage-table}
 
@@ -826,7 +830,7 @@ Creates a unique temp file in the session temp dir, outputting its path.
 
 | | |
 |---|---|
-| `fileName` *(string)* | Optional; see tempDirPath -r. |
+| `fileName` *(string)* | Optional; see tempDirPath `-r`. |
 {: .args-table}
 
 ### makeTempFifo()
@@ -838,7 +842,7 @@ Creates a unique named pipe (FIFO) in the session temp dir, outputting its path.
 
 | | |
 |---|---|
-| `fileName` *(string)* | Optional; see tempDirPath -r. |
+| `fileName` *(string)* | Optional; see tempDirPath `-r`. |
 {: .args-table}
 
 ### makeTempDir()
@@ -850,7 +854,7 @@ Create a unique temp directory in the session temp directory, outputting its pat
 
 | | |
 |---|---|
-| `dirName` *(string)* | Optional; see tempDirPath -r. |
+| `dirName` *(string)* | Optional; see tempDirPath `-r`. |
 {: .args-table}
 
 ### makeSecureTempDir()
@@ -864,7 +868,7 @@ Create a unique temp directory backed by RAM when possible, storing the path in 
 |---|---|
 | `dirRef` *(stringRef)* | Variable to receive the directory path. |
 | `isRamBackedRef` *(stringRef)* | Optional variable name; receives 1 if RAM-backed, 0 if disk-backed (default temp). |
-| `sizeMb` *(int)* | Optional RAM disk size in MB for hdiutil fallback (default: 64). |
+| `sizeMb` *(int)* | Optional RAM disk size in MB for hdiutil fallback (default: 64). Ignored when an existing tmpfs/shm is used. |
 {: .args-table}
 
 *notes*
@@ -1020,9 +1024,16 @@ Outputs the version string for a rayvn project, reading its rayvn.pkg file.
 | `verbose` *(string)* | If non-empty, appends release date or "(development)" to output. |
 {: .args-table}
 
+### canOpenUrls()
+
+Succeeds if a URL or file can be opened for the user to see (see openUrl): not in an SSH session, where it would
+open on the remote machine's screen if anywhere, and on Linux only with a graphical display and xdg-open. Setting
+rayvnTest_NoDisplay makes it fail, as without a display.
+
 ### openUrl()
 
-Open a URL in the default browser (macOS: open, Linux: xdg-open).
+Open a URL in the default browser (macOS: open, Linux: xdg-open). Fails if it cannot be opened for the user to see
+(see canOpenUrls), e.g. in an SSH session.
 
 
 *args*
@@ -1052,6 +1063,6 @@ Enable debug mode.
 | `--debug-new` | Enable debug, clear log file, write output to log file and show on exit. |
 | `--debug-out` | Enable debug, write output to the current terminal. |
 | `--debug-tty TTY` *(string)* | Enable debug, write output to the specified TTY (e.g., /dev/ttys001). |
-| `--debug-tty .  ` *(string)* | Enable debug, write output to the TTY path read from ~/.debug.tty. |
+| `--debug-tty .` | (string)  Enable debug, write output to the TTY path read from ~/.debug.tty. |
 {: .usage-table}
 
