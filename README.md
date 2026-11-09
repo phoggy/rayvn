@@ -63,7 +63,7 @@ nix profile add github:phoggy/rayvn
 To install a specific version:
 
 ```bash
-nix profile add github:phoggy/rayvn/v0.2.4
+nix profile add github:phoggy/rayvn/v0.5.0
 ```
 
 To upgrade to the latest version:
