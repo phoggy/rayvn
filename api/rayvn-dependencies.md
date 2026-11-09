@@ -60,7 +60,8 @@ if any are missing. Reads gemDeps from rayvn.pkg. Silently succeeds if no gemDep
 ### getBrewDependencies()
 
 Outputs 'depends_on' formula lines for a project's brew dependencies. Reads flake.nix deps and applies name
-mappings and exclusions from rayvn.pkg.
+mappings and exclusions from rayvn.pkg. Other rayvn projects (e.g. rayvnPkg) are named in the tap releases publish
+to, e.g. rayvn-central/brew/rayvn, unless nixPkgTapOverrides in rayvn.pkg names another formula.
 
 
 *args*

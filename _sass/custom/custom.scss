@@ -164,6 +164,13 @@ th {
   background-color: $body-background-color;
 }
 
+// Leave room for the pinned header above a heading that a link scrolls to (e.g. #secure-archives), so that the header
+// does not hide it
+.main-content h1[id], .main-content h2[id], .main-content h3[id],
+.main-content h4[id], .main-content h5[id], .main-content h6[id] {
+  scroll-margin-top: calc(#{$header-height} + 1rem);
+}
+
 
 // Active nav item color and highlight background.
 // Must beat the gray-child rule (0,4,0): .nav-list .nav-list-item > .nav-list .nav-list-item .nav-list-link

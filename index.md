@@ -94,4 +94,4 @@ For installation, IDE setup, and development guidance, see the [README](https://
 
 - [valt](/valt) — public key encryption for files and archives, using age and minisign, with a printable paper key for
   recovery
-- [wardn](/wardn) — encrypted Bitwarden vault backup and restore, using valt's secure archives
+- [wardn](/wardn) — encrypted Bitwarden vault backup and restore, using valt's [secure archives](/valt/api/valt-archive#secure-archives)

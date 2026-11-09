@@ -10,7 +10,7 @@ nav_order: 11
 
 Spec-driven argument parsing, usage, and shell completion generation, for scripts and CLIs alike.
 
-See the [Argument Specification](#argument-specification) below for details.
+See [Argument Specification](#argument-specification) below for details.
 
 ## Functions
 

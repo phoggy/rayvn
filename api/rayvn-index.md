@@ -50,6 +50,8 @@ Generate Jekyll pages for a single project's gh-pages site.
 | `--publish` | Commit and push changes to gh-pages after generating. |
 | `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with `--publish`). |
 | `The` | project's pagesHook, if its rayvn.pkg sets one, is run after the docs are generated (see _runPagesHook). |
+| `Libraries` | named in its pagesExclude array, e.g. pagesExclude=('security-kit'), are left out of its pages (see |
+| `_excludePagesLibraries),` | e.g. until they work. |
 {: .usage-table}
 
 ### findDependencies()
