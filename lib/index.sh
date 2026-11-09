@@ -60,6 +60,8 @@ runIndex() {
 #   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
 #
 #   The project's pagesHook, if its rayvn.pkg sets one, is run after the docs are generated (see _runPagesHook).
+#   Libraries named in its pagesExclude array, e.g. pagesExclude=('security-kit'), are left out of its pages (see
+#   _excludePagesLibraries), e.g. until they work.
 
 runPages() {
     local projectName="$1"
@@ -135,6 +137,7 @@ runPages() {
     local libFiles=()
     _collectLibFiles libFiles
     (( ${#libFiles[@]} )) || fail "no library files found"
+    _excludePagesLibraries "${projectName}" "${projectRoot}" "${dir}" libFiles
 
     declare -g _idxDocsDir="${dir}"
     _generateDocs --project "${projectName}" "${libFiles[@]}"
@@ -273,7 +276,6 @@ _setupPages() {
 
     _ensurePagesWorktree "${projectName}" "${projectRoot}" "${worktreePath}"
     _ensurePagesFiles "${projectName}" "${projectRoot}" "${worktreePath}" 1
-    _ensurePagesWorkflow "${projectName}" "${projectRoot}"
     _showPagesSetupInstructions "${projectName}" "${projectRoot}"
 }
 
@@ -345,8 +347,10 @@ _ensurePagesFiles() {
     fi
 }
 
-# Copy the site files shared by all rayvn project sites (styles, includes and plugins, in etc/pages) into a pages
-# worktree, replacing any copy that differs. The copies are committed with each site, since each is built separately.
+# Copy the site files shared by all rayvn project sites (styles, includes, plugins and the GitHub Pages deployment
+# workflow, in etc/pages) into a pages worktree, replacing any copy that differs. The workflow must be in the gh-pages
+# branch itself, since a push to gh-pages only runs the workflows in that branch. The copies are committed with each
+# site, since each is built separately.
 
 _syncSharedPagesFiles() {
     local worktreePath="$1"
@@ -368,88 +372,6 @@ _syncSharedPagesFiles() {
     done < <(find "${sharedDir}" -type f | sort)
 }
 
-_ensurePagesWorkflow() {
-    local projectName="$1"
-    local projectRoot="$2"
-    local workflowDir="${projectRoot}/.github/workflows"
-    local workflowFile="${workflowDir}/deploy-pages.yml"
-
-    if [[ -f "${workflowFile}" ]]; then
-        show success "Workflow already exists: ${ tildePath "${workflowFile}"; }"
-        # Commit and push if it's staged but not yet committed
-        local staged; staged=${ git -C "${projectRoot}" diff --cached --name-only; }
-        if echo "${staged}" | grep -q "deploy-pages.yml"; then
-            git -C "${projectRoot}" commit -m "Add GitHub Pages deployment workflow" || fail "commit failed"
-            git -C "${projectRoot}" push || fail "git push failed"
-            show success "Workflow committed and pushed"
-        fi
-        return 0
-    fi
-
-    ensureDir "${workflowDir}"
-    cat > "${workflowFile}" << 'EOF'
-name: Deploy Pages
-
-on:
-  push:
-    branches: [gh-pages]
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-
-      - name: Configure Pages
-        id: pages
-        uses: actions/configure-pages@v5
-
-      - name: Build with Jekyll
-        run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
-        env:
-          JEKYLL_ENV: production
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-EOF
-
-    git -C "${projectRoot}" add "${workflowFile}" || fail "git add failed"
-    git -C "${projectRoot}" commit -m "Add GitHub Pages deployment workflow" || fail "commit failed"
-    git -C "${projectRoot}" push || fail "git push failed"
-    show success "Workflow committed and pushed to main"
-}
 
 _showPagesSetupInstructions() {
     local projectName="$1"
@@ -833,6 +755,33 @@ _collectLibFiles() {
             _libFilesRef+=("${file}")
         done
     done
+}
+
+# Removes the project's libraries named in its rayvn.pkg pagesExclude array from the named array of library files, and
+# their API pages from the pages dir if earlier runs made them, so that they are left out of the project's pages.
+# Args: projectName projectRoot pagesDir libFilesRef
+_excludePagesLibraries() {
+    local projectName="$1" projectRoot="$2" pagesDir="$3"
+    local -n _eplFilesRef=$4
+    local pkgFile="${projectRoot}/rayvn.pkg"
+    [[ -f ${pkgFile} ]] || return 0
+    local -a excluded=()
+    mapfile -t excluded < <( ( local -a pagesExclude=(); source "${pkgFile}" 2> /dev/null; printf '%s\n' "${pagesExclude[@]}" ) )
+    local library file name page
+    local -a kept=()
+    for file in "${_eplFilesRef[@]}"; do
+        _libFileNames "${file}" name library
+        if [[ ${name} == "${projectName}" ]] && memberOf "${library}" excluded; then
+            page="${pagesDir}/api/${projectName}-${library}.md"
+            if [[ -f ${page} ]]; then
+                rm -f "${page}" || fail "could not remove ${page}"
+                show "Removed" bold "${ tildePath "${page}"; }" glue ", since ${projectName}/${library} is in pagesExclude"
+            fi
+            continue
+        fi
+        kept+=("${file}")
+    done
+    _eplFilesRef=("${kept[@]}")
 }
 
 # Runs the project's pagesHook, if its rayvn.pkg sets one: an executable, relative to the project root, that generates
@@ -1594,9 +1543,118 @@ _generateDocs() {
 
     if [[ -z "${filterProject}" || "${filterProject}" == 'rayvn' ]]; then
         _generateCliPage
+    elif [[ -f "${_idxDocsDir}/cli/index.md" ]]; then
+        _refreshProjectCliPage "${filterProject}" "${_idxDocsDir}/cli/index.md"
     fi
 
     show success "Docs written to ${ tildePath "${_idxDocsDir}"; }"
+}
+
+# Refreshes the help on another project's CLI page (cli/index.md, written by hand) from its current --help output,
+# leaving the rest of the page as it is: the code block under '## Usage' gets 'PROJECT --help', and the one under each
+# '### PROJECT COMMAND' heading (e.g. '### valt archive create') gets that command's --help. If the project's binary
+# declares a cliSpec (see rayvn/args), commands not on the page yet are added under '## Other Commands' (before
+# '## Recovery'), to be moved to where they belong, and commands on the page it no longer has are reported.
+# Args: project pageFile
+_refreshProjectCliPage() {
+    local project="$1" pageFile="$2"
+    local binary="${_rayvnProjects[${project}::project]:-}/bin/${project}"
+    [[ -x "${binary}" ]] || { warn "No ${project} binary at ${ tildePath "${binary}"; }; the CLI page was not refreshed"; return 0; }
+    local -a lines=() refreshed=()
+    mapfile -t lines < "${pageFile}"
+    _addMissingCliCommands "${project}" "${binary}" lines
+
+    local line command='' skipping=0
+    for line in "${lines[@]}"; do
+        if (( skipping )); then
+            [[ ${line} == '```' ]] && { refreshed+=("${line}"); skipping=0; }
+            continue
+        fi
+        refreshed+=("${line}")
+        if [[ ${line} == '## Usage' ]]; then
+            command="${project}"
+        elif [[ ${line} =~ ^'### '("${project}"( [a-z-]+)+)$ ]]; then
+            command="${BASH_REMATCH[1]}"
+        elif [[ ${line} == '```' && -n ${command} ]]; then
+            refreshed+=("${ _cliCommandHelp "${binary}" "${command}"; }")
+            command=''
+            skipping=1
+        elif [[ ${line} == '#'* ]]; then
+            command='' # another heading before a code block: nothing to refresh
+        fi
+    done
+    printf '%s\n' "${refreshed[@]}" > "${pageFile}" || fail "could not write ${pageFile}"
+    show "Refreshed the help on" bold "${ tildePath "${pageFile}"; }"
+}
+
+# Adds a section, with an empty code block for _refreshProjectCliPage to fill, for each command in the binary's cliSpec
+# that has no '### PROJECT COMMAND' heading in the named array of page lines, under '## Other Commands' (added before
+# '## Recovery', or at the end, if not there yet). Warns about headings for commands the binary no longer has. Does
+# nothing if the binary has no cliSpec.
+# Args: project binary pageLinesRef
+_addMissingCliCommands() {
+    local project="$1" binary="$2"
+    local -n _amcLinesRef=$3
+    local -a commands=() missing=()
+    # lint-skip-start (gawk program)
+    mapfile -t commands < <(gawk '/^declare -gA cliSpec=\(/ { on = 1; next } on && /^\)/ { exit }
+                                   on && match($0, /^    \[.([a-z][a-z -]*).\]=/, m) { print m[1] }' "${binary}")
+    # lint-skip-end
+    (( ${#commands[@]} )) || return 0
+
+    local -A documented=()
+    local line command
+    for line in "${_amcLinesRef[@]}"; do
+        [[ ${line} =~ ^'### '"${project}"' '([a-z][a-z -]*)$ ]] && documented["${BASH_REMATCH[1]}"]=1
+    done
+    for command in "${commands[@]}"; do
+        [[ -v documented["${command}"] ]] || missing+=("${command}")
+        unset 'documented[${command}]'
+    done
+    for command in "${!documented[@]}"; do
+        warn "The CLI page documents" bold "${project} ${command}" glue ", which ${project} no longer has; remove it by hand."
+    done
+    (( ${#missing[@]} )) || return 0
+
+    # Insert at the end of '## Other Commands', or add that section before '## Recovery' (or at the end)
+
+    local -i i at=${#_amcLinesRef[@]} other=-1
+    for (( i = 0; i < ${#_amcLinesRef[@]}; i++ )); do
+        [[ ${_amcLinesRef[i]} == '## Other Commands' ]] && other=i
+    done
+    for (( i = other + 1; i < ${#_amcLinesRef[@]}; i++ )); do
+        if (( other >= 0 )); then
+            [[ ${_amcLinesRef[i]} == '## '* ]] && { at=i; break; }
+        else
+            [[ ${_amcLinesRef[i]} == '## Recovery' ]] && { at=i; break; }
+        fi
+    done
+    local -a added=()
+    (( other >= 0 )) || added+=('## Other Commands' '')
+    for command in "${missing[@]}"; do
+        added+=("### ${project} ${command}" '' '```' '```' '')
+        show "Added" bold "${project} ${command}" "to the CLI page, under Other Commands: move it to where it belongs."
+    done
+    _amcLinesRef=("${_amcLinesRef[@]:0:${at}}" "${added[@]}" "${_amcLinesRef[@]:${at}}")
+}
+
+# Outputs the --help of a command line, e.g. 'valt archive create', run with the given binary, as plain text, with the
+# home directory shown as ~ and no blank lines at the start or end. It runs with a temporary home directory and the
+# user name 'alex', so that defaults shown from this computer's settings (e.g. the default key) are generic examples,
+# not this user's.
+# Args: binary commandLine
+_cliCommandHelp() {
+    local binary="$1"
+    local -a words; read -r -a words <<< "$2"
+    local home; home=${ makeTempDir; } || fail
+    local help; help="${ HOME="${home}" USER=alex "${binary}" "${words[@]:1}" --help 2>&1 < /dev/null; }"
+    rm -rf "${home}"
+    help="${ stripAnsi "${help}"; }"
+    help="${help//${home}/\~}"
+    help="${help//${HOME}/\~}"
+    while [[ ${help} == $'\n'* ]]; do help="${help#$'\n'}"; done
+    while [[ ${help} == *$'\n' ]]; do help="${help%$'\n'}"; done
+    printf '%s' "${help}"
 }
 
 # Generate nav category pages (e.g. api/scripting.md) for each category in _idxHomeCategoryList.
@@ -1674,7 +1732,7 @@ _generateLibraryPage() {
         fi
 
         if [[ -n "${notesHeading}" ]]; then
-            printf 'See the [%s](#%s) below for details.\n\n' "${notesHeading}" "${notesAnchor}"
+            printf 'See [%s](#%s) below for details.\n\n' "${notesHeading}" "${notesAnchor}"
         fi
 
         local _hasCategories=0 _scanLine

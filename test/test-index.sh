@@ -25,6 +25,7 @@ main() {
     testFlushDocSectionExample
     testFlushDocSectionNotes
     testSyncSharedPagesFiles
+    testRefreshProjectCliPage
     testLibraryDescriptionStopsAtNotes
     testRunPagesHook
 }
@@ -335,6 +336,45 @@ testSyncSharedPagesFiles() {
     assertEqual "Updated _includes/head_custom.html" "${output}"
     assertEqual '' "${ diff "${sharedDir}/_includes/head_custom.html" "${site}/_includes/head_custom.html"; }" "a changed copy must be restored"
     assertEqual 'site specific' "${ cat "${site}/_includes/site_only.html"; }" "site-specific files must be left alone"
+}
+
+# ============================================================================
+# _refreshProjectCliPage
+# ============================================================================
+
+# Help blocks are refreshed, the rest of the page kept, commands in the cliSpec that are missing added under Other
+# Commands (before Recovery), and the help run with a temporary home, so that it shows no local settings
+
+testRefreshProjectCliPage() {
+    local root; root=${ makeTempDir; }
+    mkdir -p "${root}/bin" || fail
+    cat > "${root}/bin/demo" <<'DEMO'
+#!/usr/bin/env bash
+declare -gA cliSpec=(
+    ['go']='go(--help|-h)'
+    ['stop']='stop(--help|-h)'
+)
+case "$1" in
+    --help) echo; echo "Usage: demo COMMAND (home ${HOME}, user ${USER})"; echo ;;
+    go) echo "Usage: demo go" ;;
+    stop) echo "Usage: demo stop" ;;
+esac
+DEMO
+    chmod +x "${root}/bin/demo" || fail
+    declare -gA _rayvnProjects["demo::project"]="${root}"
+    local page="${root}/cli.md"
+    printf '%s\n' '# demo CLI' '' 'Written by hand.' '' '## Usage' '' '```' 'old usage' '```' '' '### demo go' '' '```' 'old' \
+        '```' '' '### demo gone' '' '```' '```' '' '## Recovery' '' 'Kept.' > "${page}"
+
+    local output; output=${ _refreshProjectCliPage demo "${page}" 2>&1; }
+    local content; content=${ cat "${page}"; }
+    assertContains 'Written by hand.' "${content}"
+    assertContains $'```\nUsage: demo COMMAND (home ~, user alex)\n```' "${content}" "the help, run with a temporary home"
+    assertContains $'### demo go\n\n```\nUsage: demo go\n```' "${content}"
+    assertContains $'## Other Commands\n\n### demo stop\n\n```\nUsage: demo stop\n```\n\n## Recovery' "${content}"
+    assertContains 'Kept.' "${content}"
+    assertContains 'demo gone' "${output}" "a command no longer in the cliSpec must be reported"
+    unset "_rayvnProjects[demo::project]"
 }
 
 # A library's description is the header before any #@notes block, not the notes' last paragraph, and without its
