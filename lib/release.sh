@@ -8,7 +8,8 @@
 #   current directory's git 'origin' remote, whose repo name must match the project. The release commit sets the
 #   version and release date in rayvn.pkg (and the version in flake.nix), so that the tagged release reports itself as
 #   that release; afterwards rayvn.pkg is marked as the post-release version (VERSION+, no date). Flake inputs that
-#   are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first. Rerunning
+#   are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first, before the
+#   tests. Rerunning
 #   the release of a version that rayvn.pkg already holds (an interrupted release) continues it.
 #
 # · USAGE
@@ -57,6 +58,7 @@ release() {
     _checkExistingRelease "${ghRepo}" "${version}" || fail
     _ensureRepoIsReadyForRelease "${version}" || fail
     _validatePkgFile || fail
+    _lockOwnInputsToReleases "${ghRepo}" || fail # first, so that the tests use the released dependencies
     _runTests "${project}" || fail
     _runLint "${project}" || fail
     _checkNamespaces || fail
@@ -64,7 +66,6 @@ release() {
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _setReleaseVersion "${version}" || fail
-    _lockOwnInputsToReleases "${ghRepo}" || fail
     _updateFlakeLock || fail
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
@@ -208,8 +209,8 @@ _markPostRelease() {
 
 # Locks each flake input that is one of the owner's own GitHub projects (see _ownFlakeInputs) to that project's
 # latest release, so that a release builds with released dependencies rather than whatever their default branch
-# holds. The inputs keep their flake.nix sources; inputs with no release are left as locked. _updateFlakeLock commits
-# the change.
+# holds, including in its tests. The inputs keep their flake.nix sources; inputs with no release are left as locked.
+# The change is committed and pushed at once, so that a release stopped by a later step can be rerun from a clean repo.
 _lockOwnInputsToReleases() {
     local ghRepo="$1"
     local owner="${ghRepo%%/*}"
@@ -227,6 +228,11 @@ _lockOwnInputsToReleases() {
             fail "could not lock ${name} to ${tag}: ${output}"
         echo "${name}: ${tag}"
     done < <(_ownFlakeInputs "${owner}" flake.lock)
+    if [[ -n ${ git status --porcelain flake.lock; } ]]; then
+        git commit -m "Lock ${owner}'s flake inputs to their latest releases" flake.lock || fail "failed to commit flake.lock"
+        git push || fail "failed to push flake.lock"
+        echo "flake.lock updated and pushed."
+    fi
 }
 
 # Output the name and repo of each root input in a flake.lock file that is a GitHub project of the given owner, one per
