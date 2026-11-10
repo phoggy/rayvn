@@ -19,7 +19,8 @@ create the GitHub release, and sets the post-release version. The GitHub 'accoun
 current directory's git 'origin' remote, whose repo name must match the project. The release commit sets the
 version and release date in rayvn.pkg (and the version in flake.nix), so that the tagged release reports itself as
 that release; afterwards rayvn.pkg is marked as the post-release version (VERSION+, no date). Flake inputs that
-are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first. Rerunning
+are the same owner's GitHub projects (e.g. rayvn, for valt) are locked to their latest releases first, before the
+tests. Rerunning
 the release of a version that rayvn.pkg already holds (an interrupted release) continues it.
 
 
