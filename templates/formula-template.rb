@@ -1,5 +1,5 @@
 class ${projectNameClass} < Formula
-  desc "${projectName} - ${projectDescription}"
+  desc "${projectDescription}"
   homepage "https://github.com/phoggy/${projectName}"
   url "{URL}"
   sha256 "{SHA256}"

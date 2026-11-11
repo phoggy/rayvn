@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 projectName='rayvn'
-projectDescription='A shared library ecosystem for bash 5.3+.'
+projectDescription='Libraries and tools to build, test, document and release bash 5.3+ programs'
 projectVersion='0.5.0+'
 projectReleaseDate=''
 docsWorktree='../rayvn-pages'

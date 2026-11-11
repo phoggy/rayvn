@@ -1,5 +1,5 @@
 {
-  description = "rayvn - Shared bash library system";
+  description = "rayvn - Libraries and tools to build, test, document and release bash 5.3+ programs";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
@@ -104,7 +104,7 @@ EOF
           '';
 
           meta = with pkgs.lib; {
-            description = "Shared bash library system for managing executables and libraries";
+            description = "Libraries and tools to build, test, document and release bash 5.3+ programs";
             homepage = "https://github.com/phoggy/rayvn";
             license = licenses.gpl3Only;
             platforms = platforms.unix;
