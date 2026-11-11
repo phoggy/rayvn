@@ -1,5 +1,5 @@
 title: rayvn
-description: A shared library based ecosystem for bash 5.3+
+description: Libraries and tools to build, test, document and release bash 5.3+ programs
 theme: just-the-docs
 favicon_ico: "/assets/images/favicon.ico"
 color_scheme: dark

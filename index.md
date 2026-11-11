@@ -6,7 +6,9 @@ nav_order: 1
 
 # rayvn
 
-A shared library based ecosystem for bash 5.3+.
+rayvn helps you write bash 5.3+ programs the way you would in other languages, with shared libraries you load with
+one line. Its commands create projects, scripts, libraries and tests from templates; run tests and lint; generate docs
+and web sites; and release to GitHub, Nix and Homebrew.
 
 ## First Look
 
