@@ -6,10 +6,11 @@
 
 source rayvn.up 'rayvn/core'
 
-# Skips the test, unless releasing (rayvnTest_Release), when it must fail instead: a release must not pass untested
+# Skips the test, unless releasing (rayvnTest_Release) a project whose Linux workflow does not cover Linux
+# (rayvnTest_LinuxCovered), when it must fail instead: a release must not pass untested
 
 skipLinuxTest() {
-    (( rayvnTest_Release )) && fail "the Linux tests must run for a release: $1"
+    (( rayvnTest_Release && ! rayvnTest_LinuxCovered )) && fail "the Linux tests must run for a release: $1"
     echo "Skipping: $1"
     exit 0
 }

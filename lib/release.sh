@@ -140,9 +140,12 @@ _runTests() {
     local -a testProjects=("${project}")
     local -a matchArgs=()
 
-    # Tests that need a missing tool (e.g. docker for the Linux test) fail rather than being skipped
+    # Tests that need a missing tool (e.g. docker for the Linux test) fail rather than being skipped, except that the
+    # local Linux test (in Docker) is optional when the project's Linux workflow tests it on Linux runners (see
+    # _checkLinuxWorkflow): it is then skipped, with a note, if Docker is not available
 
     declare -gx rayvnTest_Release=1
+    [[ -f .github/workflows/linux.yml ]] && declare -gx rayvnTest_LinuxCovered=1
 
     header "Running tests"
 
@@ -156,6 +159,18 @@ _runTests() {
         header "Running the Linux tests"
         executeTests linuxProjects linuxMatchArgs 0 0 || fail "Linux tests failed"
     fi
+    _noteSkippedLinuxTest
+}
+
+# Shows a warning if the local Linux test skipped itself (as it may when the Linux workflow covers Linux), since it
+# still shows as passed.
+
+_noteSkippedLinuxTest() {
+    local log="${_testLogDir}/rayvn-linux.log"
+    [[ -f ${log} ]] || return 0
+    local skipped; skipped="${ grep -m 1 '^Skipping: ' "${log}"; }"
+    [[ -n ${skipped} ]] || return 0
+    show warning "The local Linux test was skipped (${skipped#Skipping: }); the Linux workflow covers Linux."
 }
 
 # Waits for the GitHub Actions run of the project's Linux workflow (.github/workflows/linux.yml) for the commit being
