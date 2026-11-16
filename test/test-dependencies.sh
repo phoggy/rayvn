@@ -14,6 +14,7 @@ main() {
     testDepsProjectRootMissing
     testFindDependenciesReportsOnly
     testFindDependenciesFix
+    testExtractCommandsSkipsCaseLabels
 }
 
 init() {
@@ -206,6 +207,17 @@ testFindDependenciesFix() {
     assertInFile 'pkgs.coreutils' "${dir}/flake.nix"
     output="${ findDependencies depsfixture 2>&1; }"
     assertEqual 0 $? "deps must pass once fixed: ${output}"
+}
+
+# A case pattern with several labels must not make its labels look like commands, while the command after it counts
+
+testExtractCommandsSkipsCaseLabels() {
+    local file; file="${ makeTempFile 'case-XXXXXX.sh'; }"
+    printf '%s\n' 'case "${editor}" in' '    idea | pycharm | webstorm) jq . ;;' '    vim) gawk 1 ;;' 'esac' > "${file}"
+    local words; words="${ _findDepsExtractCommands "${file}" | cut -f1 | sort -u | tr '\n' ' '; }"
+    assertContains 'jq' "${words}" "the command after a case pattern must be found"
+    [[ " ${words} " == *" idea "* || " ${words} " == *" pycharm "* ]] && fail "case labels must not be commands: ${words}"
+    return 0
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/dependencies' 'rayvn/index' 'rayvn/test'

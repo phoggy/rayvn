@@ -2204,6 +2204,9 @@ _findDepsExtractCommands() {
                 sub(/\x27.*$/, "", line)
                 inSingleQuote = 1
             }
+            # Strip a case pattern with several labels (e.g. "idea | code) wait=1"), before splitting on | makes all but
+            # the last label look like commands
+            sub(/^[A-Za-z0-9_.*-]+([[:space:]]*\|[[:space:]]*[A-Za-z0-9_.*-]+)+[[:space:]]*\)/, "", line)
             gsub(/\|\|?|&&|;/, "\n", line)
             n = split(line, segs, "\n")
             for (i=1; i<=n; i++) {
