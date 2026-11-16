@@ -6,13 +6,21 @@
 
 source rayvn.up 'rayvn/core'
 
+# Skips the test, unless releasing (rayvnTest_Release), when it must fail instead: a release must not pass untested
+
+skipLinuxTest() {
+    (( rayvnTest_Release )) && fail "the Linux tests must run for a release: $1"
+    echo "Skipping: $1"
+    exit 0
+}
+
 # Skip if already running inside a container
 if [[ -f /.dockerenv ]]; then
     echo "Skipping: already running inside a container"
     exit 0
 fi
 
-# Skip if running under nix (Docker can't mount nix store paths on macOS)
+# Skip if running under nix (Docker can't mount nix store paths on macOS); a release has run it outside nix first
 if [[ -n ${IN_NIX_SHELL} ]]; then
     echo "Skipping: Docker cannot mount nix store paths"
     exit 0
@@ -20,13 +28,11 @@ fi
 
 # Skip if Docker is not installed (harness checks this before running, but guard for direct invocation)
 if ! command -v docker &> /dev/null; then
-    echo "Skipping: docker not installed"
-    exit 0
+    skipLinuxTest "docker not installed"
 fi
 
 if ! docker info &> /dev/null; then
-    echo "Skipping: Docker daemon is not running"
-    exit 0
+    skipLinuxTest "Docker daemon is not running"
 fi
 
 # Get the directory containing this script

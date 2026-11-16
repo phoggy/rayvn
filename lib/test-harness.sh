@@ -284,7 +284,8 @@ _collectProjectTestTasks() {
             elif [[ ${taskType} == 'local' ]]; then
                 # Check for # REQUIRES: <tool> [description] in test file
                 _findTestRequires "${file}" missingTool missingToolDesc
-                if [[ -n "${missingTool}" ]] && ! command -v "${missingTool}" > /dev/null 2>&1; then
+                # A release runs it anyway (rayvnTest_Release), so that it fails rather than passing by being skipped
+                if [[ -n "${missingTool}" ]] && ! command -v "${missingTool}" > /dev/null 2>&1 && (( ! rayvnTest_Release )); then
                     skip=1
                     skipMsg="skipped, ${missingTool} not installed"
                 else

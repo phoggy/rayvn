@@ -139,9 +139,9 @@ _runTests() {
     local -a testProjects=("${project}")
     local -a matchArgs=()
 
-    # The Linux test skips itself, passing, when it cannot run, so make sure that it can
+    # Tests that need a missing tool (e.g. docker for the Linux test) fail rather than being skipped
 
-    _assertLinuxTestCanRun
+    declare -gx rayvnTest_Release=1
 
     header "Running tests"
 
@@ -155,16 +155,6 @@ _runTests() {
         header "Running the Linux tests"
         executeTests linuxProjects linuxMatchArgs 0 0 || fail "Linux tests failed"
     fi
-}
-
-# Fails unless the Linux test can run: Docker installed and running, and not inside a Nix shell (Docker cannot mount
-# Nix store paths on macOS), or a container (where it is skipped).
-
-_assertLinuxTestCanRun() {
-    [[ -f /.dockerenv ]] && return 0
-    [[ -n ${IN_NIX_SHELL} ]] && fail "The Linux tests cannot run inside a Nix shell; release from outside it."
-    command -v docker > /dev/null || fail "The Linux tests need Docker, which is not installed."
-    docker info > /dev/null 2>&1 || fail "The Linux tests need Docker, which is not running: start Docker Desktop."
 }
 
 _updateFlakeDeps() {

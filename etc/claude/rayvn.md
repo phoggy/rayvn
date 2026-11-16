@@ -250,6 +250,8 @@ All test flags that modify default rayvn behavior use the `rayvnTest_` prefix:
 - `rayvnTest_Force24BitColor` - forces 24-bit color support even without TTY detection
 - `rayvnTest_NoEchoOnExit` - suppresses the newline normally added on exit (only added when stdout is a terminal)
 - `rayvnTest_NonInteractive` - for tests without TTY; sets `terminal="/dev/fd/3"` instead of `/dev/tty`
+- `rayvnTest_Release` - set by `rayvn release` while it runs the tests: a test that needs a missing tool (`# REQUIRES:`)
+  is run rather than skipped, and the Linux test fails rather than skipping itself, so that a release cannot pass untested
 - `rayvnTest_NoDisplay` - makes `canOpenUrls` fail, as in an SSH session, so that code for when there is no display
   (and `openUrl` failing) can be tried and tested
 
