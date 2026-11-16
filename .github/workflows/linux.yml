@@ -19,7 +19,7 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Check out rayvn
         uses: actions/checkout@v4
@@ -46,6 +46,9 @@ jobs:
       - name: Install the keyring used by rayvn's secrets test
         run: sudo apt-get update -q && sudo apt-get install -y -q gnome-keyring dbus-x11 libsecret-tools
 
+      - name: Configure git, which rayvn's create test commits with
+        run: git config --global user.name "Test User" && git config --global user.email "test@example.com"
+
       - name: Run the tests
         working-directory: projects/rayvn
         run: |
@@ -68,7 +71,7 @@ jobs:
           rayvn test rayvn valt wardn -linux
 
       - name: Upload the test logs
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: test-logs-${{ matrix.runner }}

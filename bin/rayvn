@@ -227,7 +227,7 @@ addIfRayvnExecutable() {
     local name="$1"
     local -n _addProjectsRef=$2
     local path root rayvnPkgFile
-    path="${ type -P "${name}"; }"
+    path="${ type -P -- "${name}"; }"
     if [[ -n "${path}" ]]; then
         if [[ "${name}" == 'rayvn'  ]]; then
             _addProjectsRef+=( "${name}" )
