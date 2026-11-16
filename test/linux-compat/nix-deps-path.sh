@@ -1,12 +1,15 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 
 # Outputs a PATH suffix (colon separated, starting with a colon) of the Nix store bin directories from the dev shells
-# of the given projects, which must already be copied to /tmp/PROJECT. Appending it to PATH makes the projects' tools
-# (jq, age, minisign, phraze, typst, ...) available while the system's own commands (sed, gawk, date, ...), which these
-# tests are meant to exercise, still come first. The tools are listed only in each project's flake.nix, so new ones
-# need no change here. Nix keeps what it fetches or builds in the nix-store volume, so only the first run waits.
+# of the given projects, checked out in NIX_DEPS_ROOT/PROJECT (in the container, copied to /tmp/PROJECT). Appending it
+# to PATH makes the projects' tools (jq, age, minisign, phraze, typst, ...) available while the system's own commands
+# (sed, gawk, date, ...), which these tests are meant to exercise, still come first. The tools are listed only in each
+# project's flake.nix, so new ones need no change here. In the container, Nix keeps what it fetches or builds in the
+# nix-store volume, so only the first run waits. Used by the container's runners and by .github/workflows/linux.yml.
 #
 # Usage: PATH="${PATH}${ nix-deps-path.sh PROJECT...; }"
+#
+# NIX_DEPS_ROOT is the directory holding the project checkouts (default: /tmp).
 
 set -uo pipefail
 
@@ -14,7 +17,7 @@ declare -A seen=()
 suffix=''
 
 for project in "$@"; do
-    flake="/tmp/${project}"
+    flake="${NIX_DEPS_ROOT:-/tmp}/${project}"
     [[ -f "${flake}/flake.nix" ]] || continue
     log="/tmp/nix-develop-${project}.log"
     echo "Preparing ${project} dependencies with Nix (only slow the first time)..." >&2

@@ -1,0 +1,75 @@
+# Runs the tests of rayvn, valt and wardn together on Linux (x86_64 and arm64). valt and wardn call this workflow
+# from their own, so that a change in any of them is tested with the others: the calling repo at its commit, the others
+# at main. rayvn release checks that it passed for the commit being released.
+
+name: Linux tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  test:
+    name: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Check out rayvn
+        uses: actions/checkout@v4
+        with:
+          repository: phoggy/rayvn
+          ref: ${{ github.repository == 'phoggy/rayvn' && github.sha || 'main' }}
+          path: projects/rayvn
+      - name: Check out valt
+        uses: actions/checkout@v4
+        with:
+          repository: phoggy/valt
+          ref: ${{ github.repository == 'phoggy/valt' && github.sha || 'main' }}
+          path: projects/valt
+      - name: Check out wardn
+        uses: actions/checkout@v4
+        with:
+          repository: phoggy/wardn
+          ref: ${{ github.repository == 'phoggy/wardn' && github.sha || 'main' }}
+          path: projects/wardn
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Install the keyring used by rayvn's secrets test
+        run: sudo apt-get update -q && sudo apt-get install -y -q gnome-keyring dbus-x11 libsecret-tools
+
+      - name: Run the tests
+        working-directory: projects/rayvn
+        run: |
+          root="${GITHUB_WORKSPACE}/projects"
+
+          # Ubuntu's bash is 5.2; rayvn needs 5.3, so put the one from rayvn's nixpkgs first
+          bashOut="$(nix build --no-link --print-out-paths --inputs-from "path:${root}/rayvn" nixpkgs#bash)"
+          export PATH="${root}/rayvn/bin:${root}/valt/bin:${root}/wardn/bin:${bashOut}/bin:${PATH}"
+
+          # The projects' own tools (jq, age, minisign, ...) from their flake dev shells, after the system's commands
+          export PATH="${PATH}$(NIX_DEPS_ROOT="${root}" "${root}/rayvn/test/linux-compat/nix-deps-path.sh" rayvn valt wardn)"
+
+          eval "$(dbus-launch --sh-syntax)"
+          echo "" | gnome-keyring-daemon --unlock --components=secrets > /dev/null 2>&1 || true
+
+          export rayvnTest_NonInteractive=1
+          bash --version | head -1
+
+          # The linux test runs these same tests in Docker, which is not needed here
+          rayvn test rayvn valt wardn -linux
+
+      - name: Upload the test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-${{ matrix.runner }}
+          path: ~/.config/rayvn/tests/
