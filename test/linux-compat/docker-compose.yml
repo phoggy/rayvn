@@ -14,9 +14,16 @@ services:
       - ./run-tests.sh:/workspace/run-tests.sh:ro
       # Mount host log directory for test results (writable for testuser)
       - /Users/batsatt/.config/rayvn/linux-tests:/home/testuser/.config/rayvn/tests:rw
+      # Keep the Nix store between runs, so that packages Nix has to build from source (e.g. gh, for aarch64-linux)
+      # are built once rather than on every run. 'make clean' removes it.
+      - nix-store:/nix
     working_dir: /workspace
     command: bash run-tests.sh
     environment:
       - TERM=xterm-256color
       # Force terminal detection for rayvn tests
       - FORCE_COLOR=1
+
+volumes:
+  # Starts as a copy of the image's /nix (Nix installed for testuser)
+  nix-store:

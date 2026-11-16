@@ -43,6 +43,10 @@ for project in "${projects[@]}"; do
 done
 export PATH="${path_dirs}${PATH}"
 
+# Add the projects' own tools (from their flake dev shells) after the system's commands
+deps_path="${ /tmp/rayvn/test/linux-compat/nix-deps-path.sh "${projects[@]}"; }"
+export PATH="${PATH}${deps_path}"
+
 # Change to rayvn directory
 cd /tmp/rayvn
 

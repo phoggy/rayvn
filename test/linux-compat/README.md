@@ -126,12 +126,16 @@ Projects are auto-detected via their executables in PATH. Tests run in non-inter
 
 2. **docker-compose.yml** orchestrates the test environment:
    - Mounts rayvn, valt, and wardn as read-only volumes
+   - Keeps the container's Nix store in the `nix-store` volume, so packages Nix builds from source are built only
+     once (`make clean` or `make rebuild` removes it)
    - Sets up proper environment variables
    - Executes the test runner script
 
 3. **run-tests.sh** executes the full test suite:
    - Displays system information
    - Runs compatibility checks for key commands
+   - Adds the projects' own tools (jq, age, minisign, ...) from their flake dev shells to PATH, after the
+     system's commands (`nix-deps-path.sh`)
    - Executes `rayvn test` for all available projects
    - Reports comprehensive results
 

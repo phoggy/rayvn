@@ -85,6 +85,17 @@ run_rayvn_test() {
     done
     export PATH="${path_dirs}${PATH}"
 
+    # Add the projects' own tools (from their flake dev shells) after the system's commands
+    local deps_path
+    if ! deps_path="${ /tmp/rayvn/test/linux-compat/nix-deps-path.sh "${projects[@]}"; }"; then
+        echo -e "${RED}✗ Could not prepare project dependencies with Nix${NC}"
+        ((failed_tests+=1))
+        ((total_tests+=1))
+        failed_projects+=("${project_list}")
+        return 1
+    fi
+    export PATH="${PATH}${deps_path}"
+
     # Change to rayvn directory to run tests
     cd "/tmp/rayvn"
 
