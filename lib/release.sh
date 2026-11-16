@@ -63,6 +63,7 @@ release() {
     _runLint "${project}" || fail
     _checkNamespaces || fail
     _auditDocs "${project}" || fail
+    _checkLinuxWorkflow "${ghRepo}" || fail # after the local tests, as it runs meanwhile
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _setReleaseVersion "${version}" || fail
@@ -155,6 +156,33 @@ _runTests() {
         header "Running the Linux tests"
         executeTests linuxProjects linuxMatchArgs 0 0 || fail "Linux tests failed"
     fi
+}
+
+# Waits for the GitHub Actions run of the project's Linux workflow (.github/workflows/linux.yml) for the commit being
+# released, which was pushed by now, and fails unless it passed: the tests of rayvn, valt and wardn on x86_64 and arm64
+# Linux runners. Skipped for a project without that workflow.
+
+_checkLinuxWorkflow() {
+    local ghRepo="$1"
+    [[ -f .github/workflows/linux.yml ]] || return 0
+    local commit; commit="${ git rev-parse HEAD; }" || fail
+    header "Checking the Linux workflow run for ${commit:0:7}"
+
+    # A run can take a few seconds to appear after a push
+    local runId='' i
+    for (( i=0; i < 30; i++ )); do
+        runId="${ gh run list --repo "${ghRepo}" --workflow linux.yml --commit "${commit}" --limit 1 \
+            --json databaseId --jq '.[0].databaseId // empty'; }" || fail
+        [[ -n ${runId} ]] && break
+        sleep 2
+    done
+    [[ -n ${runId} ]] || fail "no Linux workflow run found for ${commit:0:7}"
+
+    local url; url="${ gh run view "${runId}" --repo "${ghRepo}" --json url --jq .url; }"
+    show "Waiting for" "${url}"
+    gh run watch "${runId}" --repo "${ghRepo}" --exit-status --interval 20 > /dev/null || \
+        fail "the Linux workflow did not pass for ${commit:0:7}: ${url}"
+    echo "Linux workflow passed. ${successCheckMark}"
 }
 
 _updateFlakeDeps() {
