@@ -52,7 +52,7 @@ jobs:
           root="${GITHUB_WORKSPACE}/projects"
 
           # Ubuntu's bash is 5.2; rayvn needs 5.3, so put the one from rayvn's nixpkgs first
-          bashOut="$(nix build --no-link --print-out-paths --inputs-from "path:${root}/rayvn" nixpkgs#bash)"
+          bashOut="$(nix build --no-link --print-out-paths --inputs-from "path:${root}/rayvn" "nixpkgs#bash^out")"
           export PATH="${root}/rayvn/bin:${root}/valt/bin:${root}/wardn/bin:${bashOut}/bin:${PATH}"
 
           # The projects' own tools (jq, age, minisign, ...) from their flake dev shells, after the system's commands
