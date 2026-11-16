@@ -281,7 +281,7 @@ option() {
 
 warn() {
     local msg; msg=${ show warning "⚠️ $1" "${@:2}"; }
-    builtin echo "${msg}" > ${terminalErr}
+    builtin echo "${msg}" >&${terminalErrFd}
 }
 
 # ◇ Print an error message to stderr with a 🔺 prefix.
@@ -296,7 +296,7 @@ warn() {
 
 error() {
     local msg; msg=${ show error "🔺 $1" "${@:2}"; }
-    builtin echo "${msg}" > ${terminalErr}
+    builtin echo "${msg}" >&${terminalErrFd}
 }
 
 # ◇ Fail with a stack trace. Shorthand for fail --trace on invalid arguments.
@@ -362,7 +362,7 @@ fail() {
     # Write trace and/or error; without a message, the error was already reported
 
     if (( trace )); then
-        stackTrace "$@" > "${terminalErr}"
+        stackTrace "$@" >&${terminalErrFd}
     elif (( $# )); then
         error "$@"
     fi
@@ -448,7 +448,7 @@ errorStream() {
         local msg; msg=${ show red "${error}"; }
         builtin echo "${msg}"
     done
-} > "${terminalErr}"
+} >&${terminalErrFd}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1682,6 +1682,8 @@ _init_rayvn_core() {
 
         declare -gr terminal="/dev/tty"
         declare -gr terminalErr="/dev/tty"
+        local ttyFd; exec {ttyFd}> /dev/tty
+        declare -gri terminalErrFd=${ttyFd}
         declare -gri isInteractive=1
 
         # Determine the # of bits of color supported
@@ -1708,6 +1710,11 @@ _init_rayvn_core() {
 
         declare -gr terminal="/dev/null"
         declare -gr terminalErr="/dev/stderr"
+
+        # Write error output with >&${terminalErrFd}, not to ${terminalErr}: on Linux, opening /dev/stderr reopens
+        # the file stderr is redirected to, with its own position, so output written to it and to stdout can
+        # overwrite each other (on macOS it only duplicates the descriptor). Fd 2 follows any later redirection.
+        declare -gri terminalErrFd=2
         declare -gri isInteractive=0
 
         # Turn off colors unless the test flag is set

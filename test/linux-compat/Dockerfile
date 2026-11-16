@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     libsecret-tools \
     gnome-keyring \
     dbus-x11 \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 # Generate en_US.UTF-8 locale to avoid locale warnings

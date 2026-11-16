@@ -17,6 +17,9 @@ services:
       # Keep the Nix store between runs, so that packages Nix has to build from source (e.g. gh, for aarch64-linux)
       # are built once rather than on every run. 'make clean' removes it.
       - nix-store:/nix
+    # Docker's /dev/shm is noexec and 64 MB; make it like a desktop Linux one, since rayvn keeps its temp dirs there
+    tmpfs:
+      - /dev/shm:rw,exec,nosuid,nodev,size=1g
     working_dir: /workspace
     command: bash run-tests.sh
     environment:
