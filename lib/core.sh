@@ -104,14 +104,15 @@ show() {
     echo "${options[@]}" "${output}"
 }
 
-# ◇ Shadows the bash builtin echo. Routes to the terminal device when stdout is a TTY,
-#   enabling tty capture in tests; see startTtyCapture(). Pass '-' as the first arg to
-#   write to stdout directly (bypasses TTY routing, e.g. when redirecting to another fd).
+# ◇ Shadows the bash builtin echo. Routes to the terminal device when stdout is a TTY and rayvn is interactive,
+#   enabling tty capture in tests; see startTtyCapture(). When not interactive (e.g. rayvnTest_NonInteractive with
+#   stdout a TTY, as in a container started with a tty), the terminal device is /dev/null, so it writes to stdout. Pass
+#   '-' as the first arg to write to stdout directly (bypasses TTY routing, e.g. when redirecting to another fd).
 
 echo() {
     if [[ $1 == '-' ]]; then
         shift; builtin echo "$@"
-    elif [[ -t 1 ]]; then
+    elif [[ -t 1 ]] && (( isInteractive )); then
         builtin echo "$@" >&${ttyFd}
     else
         builtin echo "$@"

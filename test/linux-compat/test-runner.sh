@@ -47,6 +47,9 @@ export PATH="${path_dirs}${PATH}"
 deps_path="${ /tmp/rayvn/test/linux-compat/nix-deps-path.sh "${projects[@]}"; }"
 export PATH="${PATH}${deps_path}"
 
+# Start D-Bus session and unlock gnome-keyring (required by test-secrets)
+source /tmp/rayvn/test/linux-compat/start-keyring.sh
+
 # Change to rayvn directory
 cd /tmp/rayvn
 
