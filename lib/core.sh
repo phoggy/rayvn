@@ -1682,8 +1682,6 @@ _init_rayvn_core() {
 
         declare -gr terminal="/dev/tty"
         declare -gr terminalErr="/dev/tty"
-        local ttyFd; exec {ttyFd}> /dev/tty
-        declare -gri terminalErrFd=${ttyFd}
         declare -gri isInteractive=1
 
         # Determine the # of bits of color supported
@@ -1710,11 +1708,6 @@ _init_rayvn_core() {
 
         declare -gr terminal="/dev/null"
         declare -gr terminalErr="/dev/stderr"
-
-        # Write error output with >&${terminalErrFd}, not to ${terminalErr}: on Linux, opening /dev/stderr reopens
-        # the file stderr is redirected to, with its own position, so output written to it and to stdout can
-        # overwrite each other (on macOS it only duplicates the descriptor). Fd 2 follows any later redirection.
-        declare -gri terminalErrFd=2
         declare -gri isInteractive=0
 
         # Turn off colors unless the test flag is set
@@ -1730,6 +1723,17 @@ _init_rayvn_core() {
 
     exec {ttyFd}<>"${terminal}"
     declare -gr ttyFd
+
+    # Write error output with >&${terminalErrFd}, not to ${terminalErr}: the terminal when interactive, else fd 2. On
+    # Linux, opening /dev/stderr reopens the file stderr is redirected to, with its own position, so output written to
+    # it and to stdout can overwrite each other (on macOS it only duplicates the descriptor); fd 2 follows any later
+    # redirection.
+
+    if (( isInteractive )); then
+        declare -gri terminalErrFd=${ttyFd}
+    else
+        declare -gri terminalErrFd=2
+    fi
 
     # Save original terminal settings for restoration on exit or interrupt.
     # Captured here so _restoreTerminal can always replay the exact initial state,
