@@ -23,6 +23,11 @@ jobs:
         run: |
           brew update
           brew tap rayvn-central/brew
+          brew tap phoggy/mrld
+          brew tap sts10/phraze
+          # Homebrew loads formulae from other taps only once they are trusted
+          brew trust --tap rayvn-central/brew
+          brew trust --formula phoggy/mrld/mrld sts10/phraze/phraze
           brew install wardn
 
       - name: Run the formula tests

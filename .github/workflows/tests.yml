@@ -19,7 +19,7 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Check out rayvn
         uses: actions/checkout@v4
@@ -47,10 +47,24 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q gnome-keyring dbus-x11 libsecret-tools
 
+      - name: Install GNU sed, which rayvn uses as gsed (Nix's gnused provides only sed)
+        if: runner.os == 'macOS'
+        run: brew install gnu-sed
+
+      - name: Create an unlocked keychain for rayvn's secrets test, so that it cannot wait on a prompt
+        if: runner.os == 'macOS'
+        run: |
+          security create-keychain -p ci ci.keychain
+          security list-keychains -d user -s ci.keychain
+          security default-keychain -s ci.keychain
+          security unlock-keychain -p ci ci.keychain
+          security set-keychain-settings ci.keychain
+
       - name: Configure git, which rayvn's create test commits with
         run: git config --global user.name "Test User" && git config --global user.email "test@example.com"
 
       - name: Run the tests
+        timeout-minutes: 20 # less than the job's, so that the logs are uploaded if a test hangs
         working-directory: projects/rayvn
         run: |
           root="${GITHUB_WORKSPACE}/projects"
