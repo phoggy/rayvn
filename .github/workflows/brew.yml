@@ -1,6 +1,8 @@
-# Installs the released rayvn, valt and wardn from the Homebrew tap, as users do, on Apple Silicon and Intel Macs, and
-# runs the formulas' tests and each command. Unlike tests.yml, this tests the releases rather than a commit, so it runs
-# weekly, by hand, and after each release (rayvn release starts it once the formula is updated).
+# Installs the released rayvn, valt and wardn from the Homebrew tap, as users do, on an Apple Silicon Mac, and runs the
+# formulas' tests and each command. Not on Intel: Homebrew has no bottles for it, so dependencies such as openssl are
+# built from source, which takes far longer than the rest (tests.yml still tests Intel Macs, with Nix). Unlike
+# tests.yml, this tests the releases rather than a commit, so it runs weekly, by hand, and after each release (rayvn
+# release starts it once the formula is updated).
 
 name: Homebrew install
 
@@ -15,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-15, macos-15-intel]
+        runner: [macos-15]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:

@@ -10,11 +10,14 @@ class ${projectNameClass} < Formula
   def install
     bin.install "bin/rayvn"
     bin.install "bin/rayvn.up"
+    bin.install "bin/rayvn-bash" # the interpreter of rayvn scripts' #!/usr/bin/env rayvn-bash shebang
+    bin.install "bin/rayvn-tmp"
     (share/"rayvn"/"lib").install Dir["lib/*.sh"]
     (share/"rayvn"/"templates").install Dir["templates/*"]
     (share/"rayvn"/"etc").install Dir["etc/*"]
     (share/"rayvn").install "rayvn.pkg"
     bash_completion.install "completions/rayvn.bash" => "rayvn"
+    zsh_completion.install "completions/rayvn.zsh" => "_rayvn"
   end
 
   test do
