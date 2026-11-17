@@ -1566,7 +1566,8 @@ testSecureTempDirIsRamBackedOnMacOS() {
     read -r isRamBacked device dir <<< "${output}"
     assertEqual 1 "${isRamBacked}" "the secure temp dir must be RAM backed: ${output}"
     [[ ${device} == /dev/disk* && ${dir} == /Volumes/* ]] || fail "expected a RAM disk device and its volume: ${output}"
-    hdiutil info | grep -q "^${device}[[:space:]]" && fail "the RAM disk ${device} must be detached on exit"
+    # The volume name is unique, unlike the device, which another test running meanwhile may get once it is detached
+    [[ -d ${dir%/*} ]] && fail "the RAM disk ${device} (${dir%/*}) must be detached on exit"
 
     # One made in a subshell, which does not run the main shell's EXIT trap, must be detached when the subshell exits,
     # and must not be the main shell's
@@ -1579,9 +1580,9 @@ testSecureTempDirIsRamBackedOnMacOS() {
     { read -r subDevice subDir; read -r mainDevice mainDir; } <<< "${output}"
     [[ ${subDevice} == /dev/disk* && ${mainDevice} == /dev/disk* ]] || fail "expected two RAM disks: ${output}"
     [[ ${subDir%/*} != "${mainDir%/*}" ]] || fail "the main shell must not use the subshell's volume: ${output}"
-    local d
-    for d in "${subDevice}" "${mainDevice}"; do
-        hdiutil info | grep -q "^${d}[[:space:]]" && fail "the RAM disk ${d} must be detached on exit: ${output}"
+    local volume
+    for volume in "${subDir%/*}" "${mainDir%/*}"; do
+        [[ -d ${volume} ]] && fail "the RAM disk volume ${volume} must be detached on exit: ${output}"
     done
     return 0
 }
