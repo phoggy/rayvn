@@ -2083,7 +2083,7 @@ _cleanupOrphanedTempDirs() {
     local dir pid
     for dir in "${_secureTempBase}"/rayvn-*; do
         [[ -d ${dir} ]] || continue
-        read -r pid < "${dir}/.pid" 2> /dev/null || pid=''
+        { read -r pid < "${dir}/.pid"; } 2> /dev/null || pid='' # the braces silence a missing file too
         if [[ -n ${pid} ]]; then
             kill -0 "${pid}" 2> /dev/null && continue  # process still alive
         else
