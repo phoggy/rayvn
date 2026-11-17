@@ -252,8 +252,9 @@ All test flags that modify default rayvn behavior use the `rayvnTest_` prefix:
 - `rayvnTest_NonInteractive` - for tests without TTY; sets `terminal="/dev/fd/3"` instead of `/dev/tty`
 - `rayvnTest_Release` - set by `rayvn release` while it runs the tests: a test that needs a missing tool (`# REQUIRES:`)
   is run rather than skipped, and the Linux test fails rather than skipping itself, so that a release cannot pass untested
-- `rayvnTest_LinuxCovered` - set by `rayvn release` for a project with a Linux workflow (`.github/workflows/linux.yml`),
-  whose run the release requires: the local Linux test (in Docker) may then skip itself, with a note
+- `rayvnTest_LinuxCovered` - set by `rayvn release` for a project with a tests workflow
+  (`.github/workflows/tests.yml`), whose run the release requires: the local Linux test (in Docker) may then skip itself,
+  with a note
 - `rayvnTest_NoDisplay` - makes `canOpenUrls` fail, as in an SSH session, so that code for when there is no display
   (and `openUrl` failing) can be tried and tested
 

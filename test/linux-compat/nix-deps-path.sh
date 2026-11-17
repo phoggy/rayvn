@@ -5,7 +5,7 @@
 # to PATH makes the projects' tools (jq, age, minisign, phraze, typst, ...) available while the system's own commands
 # (sed, gawk, date, ...), which these tests are meant to exercise, still come first. The tools are listed only in each
 # project's flake.nix, so new ones need no change here. In the container, Nix keeps what it fetches or builds in the
-# nix-store volume, so only the first run waits. Used by the container's runners and by .github/workflows/linux.yml.
+# nix-store volume, so only the first run waits. Used by the container's runners and by .github/workflows/tests.yml.
 #
 # Usage: PATH="${PATH}${ nix-deps-path.sh PROJECT...; }"
 #

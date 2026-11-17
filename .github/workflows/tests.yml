@@ -1,8 +1,8 @@
-# Runs the tests of rayvn, valt and wardn together on Linux (x86_64 and arm64). valt and wardn call this workflow
-# from their own, so that a change in any of them is tested with the others: the calling repo at its commit, the others
-# at main. rayvn release checks that it passed for the commit being released.
+# Runs the tests of rayvn, valt and wardn together on Linux and macOS, each on x86_64 and arm64. valt and wardn call
+# this workflow from their own, so that a change in any of them is tested with the others: the calling repo at its
+# commit, the others at main. rayvn release checks that it passed for the commit being released.
 
-name: Linux tests
+name: Tests
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        runner: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -44,6 +44,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Install the keyring used by rayvn's secrets test
+        if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q gnome-keyring dbus-x11 libsecret-tools
 
       - name: Configure git, which rayvn's create test commits with
@@ -54,15 +55,17 @@ jobs:
         run: |
           root="${GITHUB_WORKSPACE}/projects"
 
-          # Ubuntu's bash is 5.2; rayvn needs 5.3, so put the one from rayvn's nixpkgs first
+          # The system bash is 5.2 (Ubuntu) or 3.2 (macOS); rayvn needs 5.3, so put the one from rayvn's nixpkgs first
           bashOut="$(nix build --no-link --print-out-paths --inputs-from "path:${root}/rayvn" "nixpkgs#bash^out")"
           export PATH="${root}/rayvn/bin:${root}/valt/bin:${root}/wardn/bin:${bashOut}/bin:${PATH}"
 
           # The projects' own tools (jq, age, minisign, ...) from their flake dev shells, after the system's commands
           export PATH="${PATH}$(NIX_DEPS_ROOT="${root}" "${root}/rayvn/test/linux-compat/nix-deps-path.sh" rayvn valt wardn)"
 
-          eval "$(dbus-launch --sh-syntax)"
-          echo "" | gnome-keyring-daemon --unlock --components=secrets > /dev/null 2>&1 || true
+          if [[ ${RUNNER_OS} == Linux ]]; then
+              eval "$(dbus-launch --sh-syntax)"
+              echo "" | gnome-keyring-daemon --unlock --components=secrets > /dev/null 2>&1 || true
+          fi
 
           export rayvnTest_NonInteractive=1
           bash --version | head -1

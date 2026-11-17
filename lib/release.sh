@@ -63,7 +63,7 @@ release() {
     _runLint "${project}" || fail
     _checkNamespaces || fail
     _auditDocs "${project}" || fail
-    _checkLinuxWorkflow "${ghRepo}" || fail # after the local tests, as it runs meanwhile
+    _checkTestsWorkflow "${ghRepo}" || fail # after the local tests, as it runs meanwhile
     _updateFlakeDeps "${project}" || fail
     _updateExistingTagIfRequired "${ghRepo}" "${version}" || fail
     _setReleaseVersion "${version}" || fail
@@ -71,6 +71,7 @@ release() {
     _doRelease "${ghRepo}" "${version}" || fail
     _verifyNixBuild "${ghRepo}" "${version}" || fail
     _updateBrewFormula "${ghRepo}" "${version}" || fail
+    _startBrewInstallTest "${ghRepo}"
     _markPostRelease "${version}" || fail
 
     echo
@@ -141,11 +142,11 @@ _runTests() {
     local -a matchArgs=()
 
     # Tests that need a missing tool (e.g. docker for the Linux test) fail rather than being skipped, except that the
-    # local Linux test (in Docker) is optional when the project's Linux workflow tests it on Linux runners (see
-    # _checkLinuxWorkflow): it is then skipped, with a note, if Docker is not available
+    # local Linux test (in Docker) is optional when the project's tests workflow runs them on Linux runners (see
+    # _checkTestsWorkflow): it is then skipped, with a note, if Docker is not available
 
     declare -gx rayvnTest_Release=1
-    [[ -f .github/workflows/linux.yml ]] && declare -gx rayvnTest_LinuxCovered=1
+    [[ -f .github/workflows/tests.yml ]] && declare -gx rayvnTest_LinuxCovered=1
 
     header "Running tests"
 
@@ -162,7 +163,7 @@ _runTests() {
     _noteSkippedLinuxTest
 }
 
-# Shows a warning if the local Linux test skipped itself (as it may when the Linux workflow covers Linux), since it
+# Shows a warning if the local Linux test skipped itself (as it may when the tests workflow covers Linux), since it
 # still shows as passed.
 
 _noteSkippedLinuxTest() {
@@ -170,34 +171,34 @@ _noteSkippedLinuxTest() {
     [[ -f ${log} ]] || return 0
     local skipped; skipped="${ grep -m 1 '^Skipping: ' "${log}"; }"
     [[ -n ${skipped} ]] || return 0
-    show warning "The local Linux test was skipped (${skipped#Skipping: }); the Linux workflow covers Linux."
+    show warning "The local Linux test was skipped (${skipped#Skipping: }); the tests workflow covers Linux."
 }
 
-# Waits for the GitHub Actions run of the project's Linux workflow (.github/workflows/linux.yml) for the commit being
+# Waits for the GitHub Actions run of the project's tests workflow (.github/workflows/tests.yml) for the commit being
 # released, which was pushed by now, and fails unless it passed: the tests of rayvn, valt and wardn on x86_64 and arm64
-# Linux runners. Skipped for a project without that workflow.
+# Linux and macOS runners. Skipped for a project without that workflow.
 
-_checkLinuxWorkflow() {
+_checkTestsWorkflow() {
     local ghRepo="$1"
-    [[ -f .github/workflows/linux.yml ]] || return 0
+    [[ -f .github/workflows/tests.yml ]] || return 0
     local commit; commit="${ git rev-parse HEAD; }" || fail
-    header "Checking the Linux workflow run for ${commit:0:7}"
+    header "Checking the tests workflow run for ${commit:0:7}"
 
     # A run can take a few seconds to appear after a push
     local runId='' i
     for (( i=0; i < 30; i++ )); do
-        runId="${ gh run list --repo "${ghRepo}" --workflow linux.yml --commit "${commit}" --limit 1 \
+        runId="${ gh run list --repo "${ghRepo}" --workflow tests.yml --commit "${commit}" --limit 1 \
             --json databaseId --jq '.[0].databaseId // empty'; }" || fail
         [[ -n ${runId} ]] && break
         sleep 2
     done
-    [[ -n ${runId} ]] || fail "no Linux workflow run found for ${commit:0:7}"
+    [[ -n ${runId} ]] || fail "no tests workflow run found for ${commit:0:7}"
 
     local url; url="${ gh run view "${runId}" --repo "${ghRepo}" --json url --jq .url; }"
     show "Waiting for" "${url}"
     gh run watch "${runId}" --repo "${ghRepo}" --exit-status --interval 20 > /dev/null || \
-        fail "the Linux workflow did not pass for ${commit:0:7}: ${url}"
-    echo "Linux workflow passed. ${successCheckMark}"
+        fail "the tests workflow did not pass for ${commit:0:7}: ${url}"
+    echo "Tests workflow passed. ${successCheckMark}"
 }
 
 _updateFlakeDeps() {
@@ -471,6 +472,20 @@ _validatePkgFile() {
     [[ -n ${projectDescription} ]] || fail "rayvn.pkg projectDescription is not set"
     [[ ${projectDescription} != 'TODO' ]] || fail "rayvn.pkg projectDescription must be updated from 'TODO'"
     echo "rayvn.pkg is valid."
+}
+
+# Starts rayvn's Homebrew install workflow (.github/workflows/brew.yml in the owner's rayvn repo), which installs the
+# released formulas from the tap on Apple Silicon and Intel Macs and runs them, and shows where to see its result. The
+# release is out by then, so a failure to start it is only a warning.
+
+_startBrewInstallTest() {
+    local rayvnRepo="${1%%/*}/rayvn"
+    header "Starting the Homebrew install test"
+    if gh workflow run brew.yml --repo "${rayvnRepo}" > /dev/null 2>&1; then
+        show "See its result at" "https://github.com/${rayvnRepo}/actions/workflows/brew.yml"
+    else
+        show warning "Could not start the Homebrew install test (brew.yml in ${rayvnRepo})."
+    fi
 }
 
 _updateBrewFormula() {
