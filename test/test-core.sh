@@ -1529,9 +1529,11 @@ testSavedThemeColorOrder() {
         source rayvn.up "rayvn/theme"
         declare -n expectedRef="${_themeVarNames[${theme[1]}]}"
         for name in "${_themeColors[@]}"; do
-            [[ ${_textFormats[${name}]} == "${expectedRef[${name}]}" ]] || echo "${name} has the wrong color"
+            [[ ${_textFormats[${name}]} == "${expectedRef[${name}]}" ]] ||
+                echo "${name}: expected ${expectedRef[${name}]@Q}, got ${_textFormats[${name}]@Q} (theme ${theme[1]})"
         done' 2>&1; }"
-    assertEqual '' "${output}" "every style must have its theme color"
+    [[ -z ${output} ]] || fail "every style must have its theme color; saved theme: ${ cat "${home}/.config/rayvn/current.theme" \
+        2> /dev/null || echo none; }"$'\n'"${output}"
 }
 
 # URLs cannot be opened for the user in an SSH session, nor on Linux without a display.
