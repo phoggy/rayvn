@@ -1552,20 +1552,37 @@ testCanOpenUrls() {
     return 0
 }
 
-# Without rayvn-tmp's tmpfs, a secure temp dir on macOS is an hdiutil RAM disk, detached when the process exits. (The
-# device name hdiutil printed was padded with tabs as well as spaces, so it never worked, and the disks leaked.)
+# Without rayvn-tmp's tmpfs, a secure temp dir on macOS is an hdiutil RAM disk, detached when the process (or subshell)
+# that made it exits. (The device name hdiutil printed was padded with tabs as well as spaces, so it never worked, and
+# the disks leaked; disks made in subshells leaked too, and shared the main shell's volume name.)
 
 testSecureTempDirIsRamBackedOnMacOS() {
     (( onMacOS )) || return 0
     local output; output="${ env RAYVN_TMP_PATH=/nonexistent-rayvn-tmp bash -c '
         source rayvn.up
         makeSecureTempDir dir isRamBacked 16
-        echo "${isRamBacked} ${_hdiutilSecureDevices[0]} ${dir}"' 2>&1; }"
+        echo "${isRamBacked} ${_hdiutilSecureDevices[0]#*:} ${dir}"' 2>&1; }"
     local isRamBacked device dir
     read -r isRamBacked device dir <<< "${output}"
     assertEqual 1 "${isRamBacked}" "the secure temp dir must be RAM backed: ${output}"
     [[ ${device} == /dev/disk* && ${dir} == /Volumes/* ]] || fail "expected a RAM disk device and its volume: ${output}"
     hdiutil info | grep -q "^${device}[[:space:]]" && fail "the RAM disk ${device} must be detached on exit"
+
+    # One made in a subshell, which does not run the main shell's EXIT trap, must be detached when the subshell exits,
+    # and must not be the main shell's
+    output="${ env RAYVN_TMP_PATH=/nonexistent-rayvn-tmp bash -c '
+        source rayvn.up
+        ( makeSecureTempDir dir isRamBacked 16; echo "${_hdiutilSecureDevices[0]#*:} ${dir}" )
+        makeSecureTempDir dir isRamBacked 16
+        echo "${_hdiutilSecureDevices[0]#*:} ${dir}"' 2>&1; }"
+    local subDevice subDir mainDevice mainDir
+    { read -r subDevice subDir; read -r mainDevice mainDir; } <<< "${output}"
+    [[ ${subDevice} == /dev/disk* && ${mainDevice} == /dev/disk* ]] || fail "expected two RAM disks: ${output}"
+    [[ ${subDir%/*} != "${mainDir%/*}" ]] || fail "the main shell must not use the subshell's volume: ${output}"
+    local d
+    for d in "${subDevice}" "${mainDevice}"; do
+        hdiutil info | grep -q "^${d}[[:space:]]" && fail "the RAM disk ${d} must be detached on exit: ${output}"
+    done
     return 0
 }
 

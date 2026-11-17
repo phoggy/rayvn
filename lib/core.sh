@@ -1280,7 +1280,7 @@ makeTempDir() {
 #   Strategy, in order of preference:
 #     1. Existing tmpfs/shm (set by rayvn-tmp or Linux /dev/shm): zero overhead.
 #     2. hdiutil RAM disk (macOS only, no sudo required): ~1–2s overhead to format and mount.
-#        An exit handler is registered automatically to detach the disk on exit.
+#        It is detached automatically when the process (or subshell) that made it exits.
 #     3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
 #
 #   Callers that require RAM-backing (e.g. to ensure sensitive data never touches disk) should
@@ -1308,15 +1308,17 @@ makeSecureTempDir() {
         _diskDevice=${ hdiutil attach -nomount "ram://${_diskSectors}" 2> /dev/null; }
         _diskDevice="${_diskDevice%%[[:space:]]*}" # hdiutil pads the device name with spaces and tabs
         if [[ -n ${_diskDevice} ]]; then
-            local _diskLabel="rayvn-s-$$-${#_hdiutilSecureDevices[@]}"
+            # Named for this process (BASHPID: a subshell shares $$) and made unique, so that it cannot be mistaken for
+            # another process's disk under /Volumes
+            local _diskLabel="rayvn-s-${BASHPID}-${SRANDOM}"
             if diskutil erasevolume HFS+ "${_diskLabel}" "${_diskDevice}" > /dev/null 2>&1; then
                 local _diskMount="/Volumes/${_diskLabel}"
                 if [[ -d ${_diskMount} ]]; then
                     _resultDir=${ withUmask 0077 mktemp -d "${_diskMount}/tmp.XXXXXX"; }
                     if [[ -n ${_resultDir} && -d ${_resultDir} ]]; then
                         chmod 700 "${_resultDir}"
-                        (( ${#_hdiutilSecureDevices[@]} == 0 )) && addExitHandler '_cleanupHdiutilDevices'
-                        _hdiutilSecureDevices+=("${_diskDevice}")
+                        _registerHdiutilCleanup
+                        _hdiutilSecureDevices+=("${BASHPID}:${_diskDevice}")
                         _isRamBacked=1
                     else
                         hdiutil detach "${_diskDevice}" -force > /dev/null 2>&1 || true
@@ -1754,7 +1756,8 @@ _init_rayvn_core() {
     declare -gr inContainer=${ [[ -f /.dockerenv || -f /run/.containerenv ]] && echo 1 || echo 0; }
     declare -gr inNix=${ [[ ${rayvnHome} == /nix/store/* ]] && echo 1 || echo 0; }
     declare -g _rayvnExitMessage=''
-    declare -ga _hdiutilSecureDevices=()
+    declare -ga _hdiutilSecureDevices=() # PID:DEVICE of each hdiutil RAM disk, see makeSecureTempDir
+    declare -gi _hdiutilCleanupPid=0
     declare -gAr _rayvnEnvVars=(
         ['RAYVN_PROMPT_TIMEOUT']="Default prompt timeout seconds (default: 30)."
     )
@@ -2036,11 +2039,27 @@ _setFileSystemVar() {
     resultVarRef="${realFile}"
 }
 
+# Detaches the hdiutil RAM disks this process created (a subshell inherits the list of its parent's disks too).
+
 _cleanupHdiutilDevices() {
-    local device
-    for device in "${_hdiutilSecureDevices[@]}"; do
-        hdiutil detach "${device}" -force > /dev/null 2>&1 || true
+    local entry
+    for entry in "${_hdiutilSecureDevices[@]}"; do
+        [[ ${entry%%:*} == "${BASHPID}" ]] || continue
+        hdiutil detach "${entry#*:}" -force > /dev/null 2>&1 || true
     done
+}
+
+# Arranges for this process's hdiutil RAM disks to be detached when it exits: by an exit handler in the main shell, or in
+# a subshell, which does not run the main shell's EXIT trap, by a trap of its own.
+
+_registerHdiutilCleanup() {
+    (( _hdiutilCleanupPid == BASHPID )) && return 0
+    _hdiutilCleanupPid=${BASHPID}
+    if (( BASHPID == $$ )); then
+        addExitHandler '_cleanupHdiutilDevices'
+    else
+        trap '_cleanupHdiutilDevices' EXIT
+    fi
 }
 
 _ensureRayvnTempDir() {
