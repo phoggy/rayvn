@@ -53,8 +53,11 @@ main "$@"
 
 ```bash
 brew tap rayvn-central/brew
+brew trust --tap rayvn-central/brew
 brew install rayvn
 ```
+
+Homebrew installs formulae from taps other than its own only once you trust them, hence `brew trust`.
 
 **With Nix:**
 
