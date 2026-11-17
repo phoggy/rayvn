@@ -574,9 +574,14 @@ _bodyChangeSinceIndex() {
     _hashStrings strings hashes
     [[ "${hashes[0]}" == "${storedHash}" ]] && return 0
 
+    # git reports the physical path of the repo (e.g. /private/var/... on macOS, where /var is a symlink), so compare it
+    # with the physical path of the file's directory
+
     local dir; dir=${ dirName "${libFile}"; }
+    dir=${ cd "${dir}" 2> /dev/null && pwd -P; } || return 0
     local root; root=${ git -C "${dir}" rev-parse --show-toplevel 2> /dev/null; } || return 0
-    local path="${libFile#"${root}"/}"
+    local path="${dir}/${libFile##*/}"
+    path="${path#"${root}"/}"
     local tmpFile; tmpFile=${ makeTempFile; } || return 0
     local commit oldBody
     while IFS= read -r commit; do

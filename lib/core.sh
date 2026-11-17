@@ -1306,7 +1306,7 @@ makeSecureTempDir() {
         local _diskSectors=$(( _dirSizeMb * 2048 ))
         local _diskDevice
         _diskDevice=${ hdiutil attach -nomount "ram://${_diskSectors}" 2> /dev/null; }
-        _diskDevice="${_diskDevice// /}"
+        _diskDevice="${_diskDevice%%[[:space:]]*}" # hdiutil pads the device name with spaces and tabs
         if [[ -n ${_diskDevice} ]]; then
             local _diskLabel="rayvn-s-$$-${#_hdiutilSecureDevices[@]}"
             if diskutil erasevolume HFS+ "${_diskLabel}" "${_diskDevice}" > /dev/null 2>&1; then

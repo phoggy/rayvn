@@ -100,6 +100,7 @@ main() {
     testShowEscapeCodesRGBColors
     testShowEscapeCodesStyleCombinations
     testShowEscapeCodesComplexPatterns
+    testSecureTempDirIsRamBackedOnMacOS
 
 }
 
@@ -1548,6 +1549,23 @@ testCanOpenUrls() {
         && fail "rayvnTest_NoDisplay must act as no display"
     ( SSH_CONNECTION='1.2.3.4 5 6.7.8.9 22'; OSTYPE=darwin24; openUrl https://example.com ) &> /dev/null \
         && fail "openUrl must fail when URLs cannot be opened"
+    return 0
+}
+
+# Without rayvn-tmp's tmpfs, a secure temp dir on macOS is an hdiutil RAM disk, detached when the process exits. (The
+# device name hdiutil printed was padded with tabs as well as spaces, so it never worked, and the disks leaked.)
+
+testSecureTempDirIsRamBackedOnMacOS() {
+    (( onMacOS )) || return 0
+    local output; output="${ env RAYVN_TMP_PATH=/nonexistent-rayvn-tmp bash -c '
+        source rayvn.up
+        makeSecureTempDir dir isRamBacked 16
+        echo "${isRamBacked} ${_hdiutilSecureDevices[0]} ${dir}"' 2>&1; }"
+    local isRamBacked device dir
+    read -r isRamBacked device dir <<< "${output}"
+    assertEqual 1 "${isRamBacked}" "the secure temp dir must be RAM backed: ${output}"
+    [[ ${device} == /dev/disk* && ${dir} == /Volumes/* ]] || fail "expected a RAM disk device and its volume: ${output}"
+    hdiutil info | grep -q "^${device}[[:space:]]" && fail "the RAM disk ${device} must be detached on exit"
     return 0
 }
 

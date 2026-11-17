@@ -47,9 +47,10 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -q && sudo apt-get install -y -q gnome-keyring dbus-x11 libsecret-tools
 
-      - name: Install GNU sed, which rayvn uses as gsed (Nix's gnused provides only sed)
+      # Without rayvn-tmp's tmpfs, as on a Mac where it is not installed, so that rayvn's hdiutil RAM disks are tested
+      - name: Install GNU sed and grep, which rayvn uses as gsed and ggrep (Nix's provide only sed and grep)
         if: runner.os == 'macOS'
-        run: brew install gnu-sed
+        run: brew install gnu-sed grep
 
       - name: Create an unlocked keychain for rayvn's secrets test, so that it cannot wait on a prompt
         if: runner.os == 'macOS'
