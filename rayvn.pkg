@@ -2,8 +2,8 @@
 
 projectName='rayvn'
 projectDescription='Libraries and tools to build, test, document and release bash 5.3+ programs'
-projectVersion='0.5.3'
-projectReleaseDate='2026-11-17 00:39:10 PST'
+projectVersion='0.5.3+'
+projectReleaseDate=''
 docsWorktree='../rayvn-pages'
 
 # Brew formula metadata (used by rayvn/dependencies for formula generation and runtime dep checks)
