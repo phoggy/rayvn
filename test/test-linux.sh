@@ -10,7 +10,10 @@ source rayvn.up 'rayvn/core'
 # (rayvnTest_LinuxCovered), when it must fail instead: a release must not pass untested
 
 skipLinuxTest() {
-    (( rayvnTest_Release && ! rayvnTest_LinuxCovered )) && fail "the Linux tests must run for a release: $1"
+    if (( rayvnTest_Release && ! rayvnTest_LinuxCovered )); then
+        echo "Failed: the Linux tests must run for a release: $1"
+        exit 1
+    fi
     echo "Skipping: $1"
     exit 0
 }
@@ -59,6 +62,15 @@ fi
 linuxLogDir="${HOME}/.config/rayvn/linux-tests"
 docker compose up --build --abort-on-container-exit --exit-code-from linux-test
 result=$?
+
+# If Docker stopped while the tests ran (e.g. Docker Desktop was quit), say so rather than showing the logs, which
+# would only mislead: the tests did not fail, the container went away (docker compose says only "unexpected EOF").
+# rayvn release shows the "Failed: " line (see _linuxTestFailure).
+
+if (( result != 0 )) && ! docker info &> /dev/null; then
+    echo "Failed: Docker stopped while the Linux tests ran (was Docker Desktop quit?)"
+    exit 1
+fi
 
 # On failure, show any test logs collected from the container
 if (( result != 0 )) && [[ -d "${linuxLogDir}" ]]; then

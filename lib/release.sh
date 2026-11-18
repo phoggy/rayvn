@@ -158,9 +158,22 @@ _runTests() {
         local -a linuxProjects=(rayvn)
         local -a linuxMatchArgs=(linux)
         header "Running the Linux tests"
-        executeTests linuxProjects linuxMatchArgs 0 0 || fail "Linux tests failed"
+        if ! executeTests linuxProjects linuxMatchArgs 0 0; then
+            local reason; reason="${ _linuxTestFailure "${_testLogDir}/rayvn-linux.log"; }"
+            fail "Linux tests failed${reason:+: ${reason}}"
+        fi
     fi
     _noteSkippedLinuxTest
+}
+
+# Outputs why the Linux test failed, when it says (a "Failed: " line in its log), e.g. that Docker stopped while it ran.
+
+_linuxTestFailure() {
+    local log="$1"
+    [[ -f ${log} ]] || return 0
+    local failed; failed="${ grep -m 1 '^Failed: ' "${log}"; }"
+    [[ -n ${failed} ]] && echo "${failed#Failed: }"
+    return 0
 }
 
 # Shows a warning if the local Linux test skipped itself (as it may when the tests workflow covers Linux), since it

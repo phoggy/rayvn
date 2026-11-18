@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
-# Writing the release version, and finding the flake inputs to lock to releases, for a release.
+# Writing the release version, finding the flake inputs to lock to releases, and reporting why the Linux test failed.
 
 main() {
     init "$@"
 
     testWriteReleaseVersion
     testOwnFlakeInputs
+    testLinuxTestFailure
 
     return 0
 }
@@ -53,6 +54,19 @@ testOwnFlakeInputs() {
 }
 LOCK
     assertEqual $'rayvn rayvn\nvalt valt' "${ _ownFlakeInputs phoggy "${lockFile}"; }"
+}
+
+# The reason the Linux test gives for failing (its first "Failed: " line) is shown, and nothing when it gives none
+
+testLinuxTestFailure() {
+    local dir; dir="${ makeTempDir; }"
+    printf 'Preparing rayvn dependencies...\nunexpected EOF\nFailed: Docker stopped while the Linux tests ran\n' \
+        > "${dir}/with-reason.log"
+    printf 'Preparing rayvn dependencies...\nrayvn test core failed\n' > "${dir}/without-reason.log"
+
+    assertEqual 'Docker stopped while the Linux tests ran' "${ _linuxTestFailure "${dir}/with-reason.log"; }"
+    assertEqual '' "${ _linuxTestFailure "${dir}/without-reason.log"; }"
+    assertEqual '' "${ _linuxTestFailure "${dir}/missing.log"; }" "a missing log gives no reason"
 }
 
 source rayvn.up 'rayvn/test' 'rayvn/release'
