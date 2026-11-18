@@ -24,16 +24,13 @@ jobs:
       - name: Install from the tap
         run: |
           brew update
-          brew tap rayvn-central/brew
-          brew tap phoggy/mrld
-          brew tap sts10/phraze
+          brew tap rayvn-central/tap
           # Homebrew loads formulae from other taps only once they are trusted
-          brew trust --tap rayvn-central/brew
-          brew trust --formula phoggy/mrld/mrld sts10/phraze/phraze
+          brew trust --tap rayvn-central/tap
           brew install wardn
 
       - name: Run the formula tests
-        run: brew test rayvn valt wardn
+        run: brew test rayvn valt wardn phraze
 
       - name: Run the installed commands
         run: |

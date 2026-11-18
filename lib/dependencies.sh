@@ -129,7 +129,7 @@ checkGemDependencies() {
 
 # ◇ Outputs 'depends_on' formula lines for a project's brew dependencies. Reads flake.nix deps and applies name
 #   mappings and exclusions from rayvn.pkg. Other rayvn projects (e.g. rayvnPkg) are named in the tap releases publish
-#   to, e.g. rayvn-central/brew/rayvn, unless nixPkgTapOverrides in rayvn.pkg names another formula.
+#   to, e.g. rayvn-central/tap/rayvn, unless nixPkgTapOverrides in rayvn.pkg names another formula.
 #
 # · ARGS
 #
@@ -182,7 +182,7 @@ _init_rayvn_dependencies() {
     # The Homebrew tap that releases publish formulas to (see 'rayvn release'), so the tap other rayvn projects'
     # formulas are in
 
-    declare -gr rayvnBrewTap='rayvn-central/brew'
+    declare -gr rayvnBrewTap='rayvn-central/tap'
 }
 
 # Find the project root containing flake.nix, setting the result via nameref.

@@ -36,7 +36,8 @@ echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
 **With Homebrew:**
 
 ```bash
-brew tap rayvn-central/brew
+brew tap rayvn-central/tap
+brew trust --tap rayvn-central/tap
 brew install ${projectName}
 ```
 

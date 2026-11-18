@@ -105,12 +105,12 @@ testGetBrewDependenciesLocalProjects() {
     local dir; dir=${ _writeDepsFixture '    rayvnPkg
     valtPkg
     mrldPkg'; }
-    printf "declare -A nixPkgTapOverrides=([mrldPkg]='phoggy/mrld/mrld')\n" > "${dir}/rayvn.pkg"
+    printf "declare -A nixPkgTapOverrides=([mrldPkg]='example/tools/mrld')\n" > "${dir}/rayvn.pkg"
 
     local result; result=${ getBrewDependencies myproject "${dir}"; }
-    assertContains 'depends_on "rayvn-central/brew/rayvn"' "${result}"
-    assertContains 'depends_on "rayvn-central/brew/valt"' "${result}"
-    assertContains 'depends_on "phoggy/mrld/mrld"' "${result}" "an override names another formula"
+    assertContains 'depends_on "rayvn-central/tap/rayvn"' "${result}"
+    assertContains 'depends_on "rayvn-central/tap/valt"' "${result}"
+    assertContains 'depends_on "example/tools/mrld"' "${result}" "an override names another formula"
 
     rm -rf "${dir}"
 }

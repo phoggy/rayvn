@@ -52,8 +52,8 @@ main "$@"
 **With Homebrew:**
 
 ```bash
-brew tap rayvn-central/brew
-brew trust --tap rayvn-central/brew
+brew tap rayvn-central/tap
+brew trust --tap rayvn-central/tap
 brew install rayvn
 ```
 
