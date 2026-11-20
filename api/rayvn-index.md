@@ -49,6 +49,8 @@ Generate Jekyll pages for a single project's gh-pages site.
 | `--record [ID...]` | Re-record asciinema casts with cmd= attributes in markdown files; optional IDs filter to specific casts. |
 | `--publish` | Commit and push changes to gh-pages after generating. |
 | `--view` | Serve pages locally with Jekyll after generating (mutually exclusive with `--publish`). |
+| `The` | project's terminal screenshots, if its rayvn.pkg declares any, are updated first and copied to the site's |
+| `assets/images` | (see updateProjectScreenshots in rayvn/screenshot). |
 | `The` | project's pagesHook, if its rayvn.pkg sets one, is run after the docs are generated (see _runPagesHook). |
 | `Libraries` | named in its pagesExclude array, e.g. pagesExclude=('security-kit'), are left out of its pages (see |
 | `_excludePagesLibraries),` | e.g. until they work. |

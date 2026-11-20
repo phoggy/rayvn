@@ -43,6 +43,7 @@ Documentation for all public functions in rayvn's shared libraries.
 | [rayvn/index](/rayvn/api/rayvn-index) | Generate function indexes for AI agent use. |
 | [rayvn/lint](/rayvn/api/rayvn-lint) | Bash requirement linting. |
 | [rayvn/asciinema](/rayvn/api/rayvn-asciinema) | Asciinema cast recording and post-processing. |
+| [rayvn/screenshot](/rayvn/api/rayvn-screenshot) | Terminal screenshots: command output, with its colors and styles, as SVG images. |
 | [rayvn/typist](/rayvn/api/rayvn-typist) | Typing jitter model (log-normal distribution approximation). |
 | [rayvn/namespace](/rayvn/api/rayvn-namespace) | Detect namespace collisions across registered rayvn project libraries. |
 | [rayvn/claude](/rayvn/api/rayvn-claude) | The guide for Claude Code on working with rayvn projects. |

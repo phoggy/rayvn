@@ -430,3 +430,18 @@ Annotation formats:
 The spec variable must be defined at global scope (not inside a function).
 ```
 
+### screenshots
+
+```
+
+Update the terminal screenshots a project declares in its rayvn.pkg: SVG images of commands' output,
+with the colors and styles a terminal shows, e.g. for a README (see Declaring screenshots in
+rayvn/screenshot). Each is written only if it changed. 'rayvn pages' updates them too, and copies
+them to the site's assets/images.
+
+Usage: rayvn screenshots [PROJECT...]
+
+    PROJECT...  Project names (default: current project).
+    -h, --help  Print this help message.
+```
+

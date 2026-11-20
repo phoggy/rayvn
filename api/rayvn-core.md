@@ -72,9 +72,10 @@ result="${ show bold green "ok"; }"                       # in command substitut
 
 ### echo()
 
-Shadows the bash builtin echo. Routes to the terminal device when stdout is a TTY,
-enabling tty capture in tests; see `startTtyCapture()`. Pass '-' as the first arg to
-write to stdout directly (bypasses TTY routing, e.g. when redirecting to another fd).
+Shadows the bash builtin echo. Routes to the terminal device when stdout is a TTY and rayvn is interactive,
+enabling tty capture in tests; see `startTtyCapture()`. When not interactive (e.g. rayvnTest_NonInteractive with
+stdout a TTY, as in a container started with a tty), the terminal device is /dev/null, so it writes to stdout. Pass
+'-' as the first arg to write to stdout directly (bypasses TTY routing, e.g. when redirecting to another fd).
 
 ### header()
 
@@ -123,18 +124,29 @@ parseCommonOptions myProject "$@; shift $?
 
 ### showCommonOptions()
 
-Prints common CLI options, optionally including debug and environment variables section.
+Prints the common CLI options (version and help), then the debug options and environment variables sections.
+The older positional form, showCommonOptions [col] [includeDebug] [includeEnvVars] [envMap], still works.
 
 
-*args*
+*usage*
+
+`showCommonOptions [--header] [--column N] [--no-debug] [--no-env] [--env-vars MAP]`
+{: .usage-signature}
 
 | | |
 |---|---|
-| `col` *(int)* | Column width for option alignment (default: 21). |
-| `includeDebug` *(bool)* | Whether to print the debug options section (default: 'true'). |
-| `includeEnvVars` *(bool)* | Whether to print the environment variables section (default: 'true'). |
-| `envMap` *(mapRef)* | Optional additional env vars map. |
-{: .args-table}
+| `--header` | First print an "Options" header, as the debug and environment variables sections have; omit it to add the common options to the end of your own options. |
+| `--column N` *(int)* | Column width for option alignment (default: 21). |
+| `--no-debug` | Do not print the debug options section. |
+| `--no-env` | Do not print the environment variables section. |
+| `--env-vars MAP` *(mapRef)* | Your program's environment variables (name → description), listed with rayvn's. |
+{: .usage-table}
+
+*example*
+
+```bash
+showCommonOptions --header --column 25 --env-vars myEnvVars
+```
 
 ### showDebugOptions()
 
@@ -877,7 +889,7 @@ Create a unique temp directory backed by RAM when possible, storing the path in 
 Strategy, in order of preference:
   1. Existing tmpfs/shm (set by rayvn-tmp or Linux /dev/shm): zero overhead.
   2. hdiutil RAM disk (macOS only, no sudo required): ~1–2s overhead to format and mount.
-     An exit handler is registered automatically to detach the disk on exit.
+     It is detached automatically when the process (or subshell) that made it exits.
   3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
 
 Callers that require RAM-backing (e.g. to ensure sensitive data never touches disk) should

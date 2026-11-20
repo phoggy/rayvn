@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="832" height="405" viewBox="0 0 832 405" role="img" aria-label="Output of: greet --help">
+  <rect width="100%" height="100%" rx="6" fill="#2b2b30"/>
+  <g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace" font-size="13.6" fill="#e6e6e6">
+    <text x="16" y="29.6" textLength="236.6" lengthAdjust="spacingAndGlyphs">Usage:&#160;<tspan fill="#6ea8fe" font-weight="bold">greet</tspan>&#160;<tspan font-style="italic">[NAME]</tspan>&#160;[OPTIONS]</text>
+    <text x="16" y="69.0" textLength="57.1" lengthAdjust="spacingAndGlyphs">Options</text>
+    <text x="16" y="108.5" textLength="318.2" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;-v&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Print&#160;the&#160;version.</text>
+    <text x="16" y="128.2" textLength="457.0" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;--version&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Print&#160;the&#160;version&#160;and&#160;release&#160;date.</text>
+    <text x="16" y="147.9" textLength="367.2" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;-h,&#160;--help&#160;&#160;&#160;&#160;&#160;&#160;&#160;Print&#160;this&#160;help&#160;message.</text>
+    <text x="16" y="187.4" textLength="106.1" lengthAdjust="spacingAndGlyphs">Debug&#160;Options</text>
+    <text x="16" y="226.8" textLength="628.3" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;--debug&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;Enable&#160;debug,&#160;write&#160;output&#160;to&#160;log&#160;file&#160;and&#160;show&#160;on&#160;exit.</text>
+    <text x="16" y="246.5" textLength="758.9" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;--debug-new&#160;&#160;&#160;&#160;&#160;&#160;Enable&#160;debug,&#160;clear&#160;log&#160;file,&#160;write&#160;output&#160;to&#160;log&#160;file&#160;and&#160;show&#160;on&#160;exit.</text>
+    <text x="16" y="266.2" textLength="587.5" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;--debug-out&#160;&#160;&#160;&#160;&#160;&#160;Enable&#160;debug,&#160;write&#160;output&#160;to&#160;the&#160;current&#160;terminal.</text>
+    <text x="16" y="286.0" textLength="734.4" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;--debug-tty&#160;TTY&#160;&#160;Enable&#160;debug,&#160;write&#160;output&#160;to&#160;the&#160;specified&#160;TTY&#160;(e.g.,&#160;/dev/ttys001).</text>
+    <text x="16" y="305.7" textLength="799.7" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;--debug-tty&#160;.&#160;&#160;&#160;&#160;Enable&#160;debug,&#160;write&#160;output&#160;to&#160;the&#160;TTY&#160;path&#160;read&#160;from&#160;the&#160;'~/.debug.tty'&#160;file.</text>
+    <text x="16" y="345.1" textLength="171.4" lengthAdjust="spacingAndGlyphs">Environment&#160;Variables</text>
+    <text x="16" y="384.6" textLength="579.4" lengthAdjust="spacingAndGlyphs">&#160;&#160;&#160;&#160;RAYVN_PROMPT_TIMEOUT&#160;&#160;Default&#160;prompt&#160;timeout&#160;seconds&#160;(default:&#160;30).</text>
+  </g>
+</svg>
