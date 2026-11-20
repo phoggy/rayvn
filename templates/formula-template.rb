@@ -1,6 +1,6 @@
 class ${projectNameClass} < Formula
   desc "${projectDescription}"
-  homepage "https://github.com/phoggy/${projectName}"
+  homepage "https://github.com/${githubOwner}/${projectName}"
   url "{URL}"
   sha256 "{SHA256}"
   license "GPL-3.0-only"

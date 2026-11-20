@@ -55,13 +55,13 @@ To remove Homebrew later, see [How do I uninstall Homebrew?](https://docs.brew.s
 If you don't have Nix yet, install it first (see [Installing Nix](#installing-nix)), then:
 
 ```bash
-nix profile add github:phoggy/${projectName}
+nix profile add github:${githubOwner}/${projectName}
 ```
 
 To install a specific version:
 
 ```bash
-nix profile add github:phoggy/${projectName}/v0.1.0
+nix profile add github:${githubOwner}/${projectName}/v0.1.0
 ```
 
 To upgrade to the latest version:
@@ -73,7 +73,7 @@ nix profile upgrade ${projectName}
 To run without installing:
 
 ```bash
-nix run github:phoggy/${projectName}
+nix run github:${githubOwner}/${projectName}
 ```
 
 To build locally:

@@ -1310,7 +1310,8 @@ makeTempDir() {
 #     3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
 #
 #   Callers that require RAM-backing (e.g. to ensure sensitive data never touches disk) should
-#   check isRamBackedRef and warn or abort when it is 0.
+#   check isRamBackedRef and warn or abort when it is 0. rayvnTest_NoRamTemp skips 1 and 2, so that
+#   callers' handling of disk-backed storage can be tried and tested.
 
 makeSecureTempDir() {
     local -n _resultDirRef=$1
@@ -1318,7 +1319,10 @@ makeSecureTempDir() {
     local _dirSizeMb="${3:-64}"
     local _resultDir='' _isRamBacked=0
 
-    if [[ -n ${_secureTempBase} ]]; then
+    if [[ -n ${rayvnTest_NoRamTemp:-} ]]; then
+        : # to try or test what happens without RAM-backed storage
+
+    elif [[ -n ${_secureTempBase} ]]; then
         # Existing tmpfs/shm — use it if it has enough space for the requested size
         local _availMb; _availMb=${ df -m "${_secureTempBase}" | gawk 'NR==2 {print $4}'; }
         if (( _availMb >= _dirSizeMb )); then

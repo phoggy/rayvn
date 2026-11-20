@@ -46,7 +46,7 @@
 # Version metadata (added by Nix build)
 projectVersion='$version'
 projectReleaseDate='$(date "+%Y-%m-%d %H:%M:%S %Z")'
-projectFlake='github:phoggy/${projectName}/v$version'
+projectFlake='github:${githubOwner}/${projectName}/v$version'
 projectBuildRev='${self.shortRev or "dev"}'
 projectNixpkgsRev='${nixpkgs.shortRev}'
 EOF
@@ -69,7 +69,7 @@ EOF
 
           meta = with pkgs.lib; {
             description = "${projectName} - A rayvn-based project";
-            homepage = "https://github.com/phoggy/${projectName}";
+            homepage = "https://github.com/${githubOwner}/${projectName}";
             license = licenses.gpl3Only;
             platforms = platforms.unix;
           };

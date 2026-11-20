@@ -28,7 +28,7 @@ checkProjectDependencies() {
 
     # Load overrides from rayvn.pkg (nixBinaryMap for correct binary names, nixBrewMap for install hints)
     local pkgFile="${projectRoot}/rayvn.pkg"
-    unset nixBinaryMap nixBrewMap nixBrewExclude nixSkipBinaryCheck gemDeps
+    unset nixBinaryMap nixBrewMap nixBrewExclude nixSkipBinaryCheck gemDeps projectFlake
     [[ -f "${pkgFile}" ]] && sourceConfigFile "${pkgFile}"
 
     # Check each dep
@@ -64,7 +64,7 @@ checkProjectDependencies() {
             fi
             echo
             show "  brew envs:" primary "brew install ${formula}" >&2
-            show "   nix envs:" primary "nix profile install github:phoggy/${projectName}" >&2
+            show "   nix envs:" primary "nix profile add ${ _depsFlakeRef "${projectName}" "${projectRoot}"; }" >&2
             echo
         done
         fail "required dependencies not found"
@@ -97,7 +97,7 @@ checkGemDependencies() {
     local pkgFile="${projectRoot}/rayvn.pkg"
     [[ -f "${pkgFile}" ]] || return 0
 
-    unset gemDeps
+    unset gemDeps projectFlake
     sourceConfigFile "${pkgFile}"
     (( ${#gemDeps[@]} )) || return 0
 
@@ -120,7 +120,7 @@ checkGemDependencies() {
             else
                 show "  brew envs:" primary "brew install ruby" dim "(then: gem install ${gemName})" >&2
             fi
-            show "   nix envs:" primary "nix profile install github:phoggy/${projectName}" >&2
+            show "   nix envs:" primary "nix profile add ${ _depsFlakeRef "${projectName}" "${projectRoot}"; }" >&2
             echo
         done
         fail "required gem dependencies not found"
@@ -202,6 +202,21 @@ _depsProjectRoot() {
     fi
 
     return 1  # flake.nix not found — Nix/Homebrew install, skip dep check
+}
+
+# Outputs the project's flake reference, e.g. github:alex/myproj, for install hints: from projectFlake (which a Nix
+# build adds to rayvn.pkg), else the GitHub repo of its git remote or of its flake.nix homepage.
+# Args: projectName projectRoot
+_depsFlakeRef() {
+    local projectName="$1" projectRoot="$2"
+    [[ -n ${projectFlake:-} ]] && { echo "${projectFlake%/v*}"; return 0; }
+    local source; source="${ git -C "${projectRoot}" config --get remote.origin.url 2> /dev/null; }"
+    [[ ${source} == *github.com* ]] || source="${ grep -m1 'homepage = ' "${projectRoot}/flake.nix" 2> /dev/null; }"
+    if [[ ${source} =~ github\.com[:/]([^/]+)/([^/.\"]+) ]]; then
+        echo "github:${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    else
+        echo "github:OWNER/${projectName}"
+    fi
 }
 
 # Parse the runtimeDeps block from flake.nix and print dep entries.

@@ -108,7 +108,7 @@ testUpdateProjectScreenshots() {
 
 testReadmeExampleMatches() {
     local readme="${rayvnHome}/README.md" example
-    example="${ gawk '/^In a project \(see/{f=1} f && /^```bash/{g=1;next} g && /^```/{exit} g' "${readme}"; }"
+    example="${ gawk '/^the \[First Look\]\(#first-look\) script as one/{f=1} f && /^```bash/{g=1;next} g && /^```/{exit} g' "${readme}"; }"
     assertEqual "${ cat "${rayvnHome}/etc/examples/greet"; }" "${example}" \
         "the README's example must match etc/examples/greet (then run: rayvn screenshots rayvn)"
 }

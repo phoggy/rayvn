@@ -46,6 +46,7 @@ init() {
     declare -gAr rayvnEnvVars=(
         ['RAYVN_DEFAULT_PROJECT']="Default project name (default: rayvn)."
     )
+    declare -gr githubOwnerPlaceholder='YOUR_GITHUB_USER' # in a new project's files when its GitHub account is unknown
 }
 
 SECTION="--+-+-----+-++(-++(---++++(---+( ARGUMENT PARSING )+---)++++---)++-)++-+------+-+--"
@@ -639,6 +640,9 @@ newProject() {
     makeDir "${binDir}" > /dev/null
     makeDir "${libDir}" > /dev/null
 
+    # The GitHub account the project's install instructions, flake and formula name
+    local githubOwner; githubOwner="${ _githubOwner "${repoUrl}"; }"
+
     # Ok, directories are ready, copy and substitute files
 
     local quotedName="'${projectName}'"
@@ -652,13 +656,14 @@ newProject() {
     copyFileAndSubstituteVars "${libraryTemplate}" './lib/example.sh' projectName quotedName qualifiedName libraryName libraryNameInitialCap || fail
     copyFileAndSubstituteVars "${scriptTemplate}" "./bin/${projectName}" quotedName qualifiedName libraryCall || fail
     chmod +x "./bin/${projectName}" || fail
-    copyFileAndSubstituteVars "${readmeTemplate}" './README.md' projectName || fail
+    copyFileAndSubstituteVars "${readmeTemplate}" './README.md' projectName githubOwner || fail
     require 'rayvn/claude'
     local claudeGuideImport; claudeGuideImport="@${ tildePath "${ claudeGuideFile; }"; }"
     copyFileAndSubstituteVars "${claudeTemplate}" './CLAUDE.md' projectName claudeGuideImport || fail
-    copyFileAndSubstituteVars "${flakeTemplate}" './flake.nix' projectName || fail
+    copyFileAndSubstituteVars "${flakeTemplate}" './flake.nix' projectName githubOwner || fail
     makeDir './formula' > /dev/null
-    copyFileAndSubstituteVars "${formulaTemplate}" "./formula/${projectName}.rb" projectName projectNameClass || fail
+    copyFileAndSubstituteVars "${formulaTemplate}" "./formula/${projectName}.rb" projectName projectNameClass githubOwner ||
+        fail
 
     # Add and commit
 
@@ -679,13 +684,29 @@ newProject() {
         show bold "Once you create a repo on GitHub, use the following commands to push it:"
         echo
         echo "   cd ${projectRoot}"
-        echo "   git remote add origin https://github.com/YOUR_GH_USER_NAME/${projectName}.git"
+        echo "   git remote add origin https://github.com/${githubOwner}/${projectName}.git"
         echo "   git push -u origin main"
         echo
     fi
 
     show "Please update the" primary "projectDescription" "property in the" blue "rayvn.pkg" "file."
+    [[ ${githubOwner} == "${githubOwnerPlaceholder}" ]] &&
+        show "Replace" primary "${githubOwnerPlaceholder}" "with your GitHub account in" blue "README.md" glue "," \
+             blue "flake.nix" "and" blue "formula/${projectName}.rb" glue "."
     remindIfNotInPath "${binDir}"
+}
+
+# Outputs the GitHub account that owns a new project: that of its repo's URL if given, else the account gh is logged in
+# to, else githubOwnerPlaceholder.
+
+_githubOwner() {
+    local repoUrl="$1" owner=''
+    if [[ ${repoUrl} =~ github\.com[:/]([^/]+)/ ]]; then
+        owner="${BASH_REMATCH[1]}"
+    elif command -v gh &> /dev/null && gh auth status --active &> /dev/null; then
+        owner="${ gh api user --jq .login 2> /dev/null; }"
+    fi
+    echo "${owner:-${githubOwnerPlaceholder}}"
 }
 
 remindIfNotInPath() {

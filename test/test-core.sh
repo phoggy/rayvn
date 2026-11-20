@@ -103,6 +103,7 @@ main() {
     testShowEscapeCodesStyleCombinations
     testShowEscapeCodesComplexPatterns
     testSecureTempDirIsRamBackedOnMacOS
+    testSecureTempDirNoRamTemp
 
 }
 
@@ -1617,6 +1618,15 @@ testSecureTempDirIsRamBackedOnMacOS() {
         [[ -d ${volume} ]] && fail "the RAM disk volume ${volume} must be detached on exit: ${output}"
     done
     return 0
+}
+
+# rayvnTest_NoRamTemp makes a secure temp dir an ordinary (disk-backed) one, as when no RAM-backed storage is available
+
+testSecureTempDirNoRamTemp() {
+    local rayvnTest_NoRamTemp=1 dir isRamBacked=1
+    makeSecureTempDir dir isRamBacked 16
+    assertEqual 0 "${isRamBacked}" "rayvnTest_NoRamTemp must give disk-backed storage"
+    [[ -d ${dir} && ${dir} != /Volumes/* ]] || fail "expected an ordinary temp dir: ${dir}"
 }
 
 source rayvn.up 'rayvn/core' 'rayvn/test'

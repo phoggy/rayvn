@@ -21,6 +21,8 @@ programs need, and makes it easy to write polished, high-quality ones, with:
 - keychain secrets and OAuth
 - secure (RAM-backed) temporary files
 - error handling and debug tracing
+- documentation sites on GitHub Pages, generated from doc comments, like those for [rayvn](https://rayvn.ink/rayvn/),
+  [valt](https://rayvn.ink/valt/) and [wardn](https://rayvn.ink/wardn/)
 
 ## First Look
 
@@ -62,8 +64,41 @@ main "$@"
   output, is always loaded.
 - All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
 
-In a project (see [Creating a project](#creating-a-project)), the same script also takes the standard options for help, version and
-debug output, as scripts made with `rayvn new script` do:
+## Installation
+
+rayvn can be installed with [Homebrew](https://brew.sh) or [Nix](https://nixos.org/): see
+[Install with Homebrew](#install-with-homebrew) or [Install with Nix](#install-with-nix) below.
+
+## Developing With rayvn
+
+rayvn provides two tools for working with projects:
+
+- **[CLI](https://rayvn.ink/rayvn/cli)** — scaffolding, testing, linting, releasing, and more.
+- **[API](https://rayvn.ink/rayvn/api)** — shared libraries your scripts can `require`.
+
+> **Note:** the `rayvn build`, `rayvn test --nix`, and `rayvn release` CLI commands require Nix. See [Installing Nix](#installing-nix).
+
+### Creating a project
+
+`cd` to the desired parent directory, then:
+
+```bash
+rayvn new project my-name          # creates the project and a GitHub repo (after prompt)
+rayvn new project my-name --local  # local git repo only, no GitHub
+```
+
+From within the project, scaffold new components:
+
+```bash
+rayvn new script my-script    # adds bin/my-script
+rayvn new library my-lib      # adds lib/my-lib.sh
+rayvn new test my-test        # adds test/test-my-test.sh
+```
+
+All generated files are automatically staged in git.
+
+A script made with `rayvn new script` also takes the standard options for help, version and debug output. Here is
+the [First Look](#first-look) script as one, in a project's `bin/greet`:
 
 ```bash
 #!/usr/bin/env rayvn-bash
@@ -110,39 +145,6 @@ main "$@"
   `name: 'alex'` in the terminal, and `greet alex --debug` writes it to a log, shown on exit (see
   [Debugging rayvn applications](#debugging-rayvn-applications)).
 - `projectVersion greet` prints the version from the project's `rayvn.pkg`.
-
-## Installation
-
-rayvn can be installed with [Homebrew](https://brew.sh) or [Nix](https://nixos.org/): see
-[Install with Homebrew](#install-with-homebrew) or [Install with Nix](#install-with-nix) below.
-
-## Developing With rayvn
-
-rayvn provides two tools for working with projects:
-
-- **[CLI](https://rayvn.ink/rayvn/cli)** — scaffolding, testing, linting, releasing, and more.
-- **[API](https://rayvn.ink/rayvn/api)** — shared libraries your scripts can `require`.
-
-> **Note:** the `rayvn build`, `rayvn test --nix`, and `rayvn release` CLI commands require Nix. See [Installing Nix](#installing-nix).
-
-### Creating a project
-
-`cd` to the desired parent directory, then:
-
-```bash
-rayvn new project my-name          # creates the project and a GitHub repo (after prompt)
-rayvn new project my-name --local  # local git repo only, no GitHub
-```
-
-From within the project, scaffold new components:
-
-```bash
-rayvn new script my-script    # adds bin/my-script
-rayvn new library my-lib      # adds lib/my-lib.sh
-rayvn new test my-test        # adds test/test-my-test.sh
-```
-
-All generated files are automatically staged in git.
 
 ## Using rayvn within scripts
 

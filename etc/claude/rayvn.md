@@ -257,5 +257,7 @@ All test flags that modify default rayvn behavior use the `rayvnTest_` prefix:
   with a note
 - `rayvnTest_NoDisplay` - makes `canOpenUrls` fail, as in an SSH session, so that code for when there is no display
   (and `openUrl` failing) can be tried and tested
+- `rayvnTest_NoRamTemp` - makes `makeSecureTempDir` use a temp directory on disk, as when no RAM-backed storage is
+  available, so that code for that case can be tried and tested
 
 Projects may add their own `rayvnTest_` hooks; see their CLAUDE.md.

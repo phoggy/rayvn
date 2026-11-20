@@ -78,7 +78,7 @@ release() {
     show bold blue "${project} ${version} release completed"
     echo
     show bold "To use the new release via Nix:"
-    echo "nix run github:phoggy/${project}"
+    echo "nix run github:${ghRepo}"
     echo
 }
 

@@ -7,6 +7,7 @@ main() {
     init "$@"
 
     testNewProject
+    testNewProjectUnknownOwner
     testNewScript
     testNewLibrary
     testNewTest
@@ -30,12 +31,28 @@ init() {
 
 }
 
+# Puts a gh on PATH that is logged in to the given account, or, with none, is not logged in.
+
+useFakeGh() {
+    local account="${1:-}" fakeBin; fakeBin="${ makeTempDir; }"
+    if [[ -n ${account} ]]; then
+        printf '#!/usr/bin/env bash\n[[ $1 == api ]] && echo %q\nexit 0\n' "${account}" > "${fakeBin}/gh"
+    else
+        printf '#!/usr/bin/env bash\nexit 1\n' > "${fakeBin}/gh"
+    fi
+    chmod +x "${fakeBin}/gh"
+    PATH="${fakeBin}:${PATH}"
+}
+
+# The GitHub account in a new project's files is the one gh is logged in to
+
 testNewProject() {
     (
         local projectName="testproj"
         local projectDir="${workDir}/${projectName}"
 
         cd "${workDir}" || exit 1
+        useFakeGh 'alex'
         rayvn new project "${projectName}" --local > /dev/null 2>&1
         local exitCode=$?
         assertEqual "${exitCode}" "0" "rayvn new project exit code"
@@ -80,8 +97,8 @@ testNewProject() {
         # Verify README.md content
 
         assertInFile "# testproj" "${projectDir}/README.md"
-        assertInFile "nix profile add github:phoggy/testproj" "${projectDir}/README.md"
-        assertInFile "nix run github:phoggy/testproj" "${projectDir}/README.md"
+        assertInFile "nix profile add github:alex/testproj" "${projectDir}/README.md"
+        assertInFile "nix run github:alex/testproj" "${projectDir}/README.md"
         assertInFile "nix build" "${projectDir}/README.md"
         assertInFile "rayvn" "${projectDir}/README.md"
         assertInFile "dtr.mn/determinate-nix" "${projectDir}/README.md"
@@ -93,6 +110,7 @@ testNewProject() {
         assertInFile 'description = "testproj' "${projectDir}/flake.nix"
         assertInFile 'pname = "testproj"' "${projectDir}/flake.nix"
         assertInFile 'rayvn.url = "github:phoggy/rayvn"' "${projectDir}/flake.nix"
+        assertInFile 'homepage = "https://github.com/alex/testproj"' "${projectDir}/flake.nix"
         assertInFile "projectVersion=" "${projectDir}/flake.nix"
         assertInFile "projectReleaseDate=" "${projectDir}/flake.nix"
         assertInFile "projectFlake=" "${projectDir}/flake.nix"
@@ -107,7 +125,7 @@ testNewProject() {
         # Verify formula content
 
         assertInFile "class Testproj < Formula" "${projectDir}/formula/${projectName}.rb"
-        assertInFile 'homepage "https://github.com/phoggy/testproj"' "${projectDir}/formula/${projectName}.rb"
+        assertInFile 'homepage "https://github.com/alex/testproj"' "${projectDir}/formula/${projectName}.rb"
         assertInFile '{URL}' "${projectDir}/formula/${projectName}.rb"
         assertInFile '{SHA256}' "${projectDir}/formula/${projectName}.rb"
         assertInFile '{DEPENDS_ON}' "${projectDir}/formula/${projectName}.rb"
@@ -120,6 +138,22 @@ testNewProject() {
         (( commitCount >= 1 )) || fail "project should have at least one git commit"
 
     ) || exit 1
+}
+
+# Without a GitHub account, a new project's files have a placeholder for it, and it says to replace it
+
+testNewProjectUnknownOwner() {
+    (
+        cd "${workDir}" || exit 1
+        useFakeGh
+        local output; output="${ rayvn new project noowner --local 2>&1; }" || fail "rayvn new project failed: ${output}"
+        assertContains 'Replace YOUR_GITHUB_USER with your GitHub account' "${ stripAnsi "${output}"; }"
+        local file
+        for file in README.md flake.nix formula/noowner.rb; do
+            assertInFile 'YOUR_GITHUB_USER/noowner' "noowner/${file}"
+        done
+        assertContains 'git remote add origin https://github.com/YOUR_GITHUB_USER/noowner.git' "${output}"
+    ) || fail
 }
 
 testNewScript() {
