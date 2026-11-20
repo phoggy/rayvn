@@ -24,6 +24,8 @@ programs need, and makes it easy to write polished, high-quality ones, with:
 - keychain secrets and OAuth
 - secure (RAM-backed) temporary files
 - error handling and debug tracing
+- documentation sites on GitHub Pages, generated from doc comments, like those for [rayvn](https://rayvn.ink/rayvn/),
+  [valt](https://rayvn.ink/valt/) and [wardn](https://rayvn.ink/wardn/)
 
 ## First Look
 
@@ -65,8 +67,11 @@ main "$@"
   [rayvn/core](/rayvn/api/rayvn-core), with `show` for styled text output, is always loaded.
 - All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
 
-In a project (see [Creating a project](https://github.com/phoggy/rayvn#creating-a-project)), the same script also takes the standard options for help, version and
-debug output, as scripts made with `rayvn new script` do:
+## A Project Script
+
+A script made with `rayvn new script`, in a project (see
+[Creating a project](https://github.com/phoggy/rayvn#creating-a-project)), also takes the standard options for
+help, version and debug output. Here is the [First Look](#first-look) script as one, in a project's `bin/greet`:
 
 ```bash
 #!/usr/bin/env rayvn-bash

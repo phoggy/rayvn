@@ -893,7 +893,8 @@ Strategy, in order of preference:
   3. Regular mktemp: no overhead, but not RAM-backed; isRamBackedRef receives 0.
 
 Callers that require RAM-backing (e.g. to ensure sensitive data never touches disk) should
-check isRamBackedRef and warn or abort when it is 0.
+check isRamBackedRef and warn or abort when it is 0. rayvnTest_NoRamTemp skips 1 and 2, so that
+callers' handling of disk-backed storage can be tried and tested.
 
 ### configDirPath()
 
