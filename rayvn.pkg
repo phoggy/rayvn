@@ -13,3 +13,6 @@ declare -a nixBrewExclude=('bundler' 'jekyll' 'gnugrep')       # excluded from b
                                                                 # gnugrep: for Nix's minimal PATH, the system grep is used otherwise)
 declare -a nixSkipBinaryCheck=('bash-completion')                # no on-PATH binary to check; it's a sourced shell library
 declare -A gemDeps=([bundler]='bundle')                         # gem name → binary name; jekyll is managed by bundler via Gemfile
+
+# Terminal screenshots for the README and site (see Declaring screenshots in rayvn/screenshot): SVG file → command
+declare -A screenshots=(['etc/greet-help.svg']='etc/examples/greet --help')

@@ -3,25 +3,40 @@
 ![rayvn](etc/rayvn6.png)
 # rayvn
 
-rayvn helps you write bash 5.3+ programs the way you would in other languages, with shared libraries you load with
-one line. Its commands create projects, scripts, libraries and tests from templates; run tests and lint; generate docs
-and web sites; and release to GitHub, Nix and Homebrew.
+rayvn lets you create and maintain bash 5.3+ programs the way you would in other languages:
+
+- use shared libraries, loaded with one line: built-in, your own or from other projects
+- create projects, scripts, libraries and tests from templates
+- run tests and lint
+- generate docs and web sites
+- release to GitHub, Homebrew and Nix
+
+bash is everywhere, stable and small, and has been maintained and improved for decades; rayvn adds what larger
+programs need, and makes it easy to write polished, high-quality ones, with:
+
+- styled output with color themes
+- interactive prompts and spinners
+- generated argument parsing, with usage and shell completions
+- configuration files
+- keychain secrets and OAuth
+- secure (RAM-backed) temporary files
+- error handling and debug tracing
 
 ## First Look
 
-A minimal rayvn script:
+A simple rayvn script:
 
 ```bash
 #!/usr/bin/env rayvn-bash
 
 usage() {
-    show "Usage:" bold blue "${scriptName}" italic "NAME"
+    show "Usage:" bold blue "${scriptName}" italic "[NAME]"
     bye "$@"
 }
 
 main() {
     init "$@"
-    show primary "Hey ${name}!"
+    show primary "Hey ${name^}!"
 }
 
 init() {
@@ -30,131 +45,76 @@ init() {
         case "$1" in
             -h | --help) usage ;;
             -* | --*) usage "unknown option: $1" ;;
-            *) name="${1^}" ;;
+            *) name="$1" ;;
         esac
         shift
     done
-    [[ -n ${name} ]] || usage "NAME is required"
+    [[ -n ${name} ]] || request "What's your name?" name || bye
 }
 
-source rayvn.up
+source rayvn.up 'rayvn/prompt'
 main "$@"
 ```
 
 - `#!/usr/bin/env rayvn-bash` ensures bash 5.3+ if available, regardless of system defaults.
-- `source rayvn.up` bootstraps rayvn, loads the `rayvn/core` library and sets `scriptName`. 
-- The `show` function is in `rayvn/core` and supports colored/styled text output.
+- `source rayvn.up 'rayvn/prompt'` bootstraps rayvn, sets `scriptName` and loads the libraries it names: here
+  `rayvn/prompt` for `request`, which asks for the name if none was given. `rayvn/core`, with `show` for styled text
+  output, is always loaded.
 - All functions are defined before `source rayvn.up` so the file is fully parsed before `main` runs.
-- Pass library names to load additional libraries: `source rayvn.up 'rayvn/spinner' 'rayvn/prompt'`.
+
+In a project (see [Creating a project](#creating-a-project)), the same script also takes the standard options for help, version and
+debug output, as scripts made with `rayvn new script` do:
+
+```bash
+#!/usr/bin/env rayvn-bash
+
+usage() {
+    show "Usage:" bold blue "${scriptName}" italic "[NAME]" "[OPTIONS]"
+    showCommonOptions --header
+    bye "$@"
+}
+
+main() {
+    init "$@"
+    show primary "Hey ${name^}!"
+}
+
+init() {
+    declare -g name
+    while (( $# )); do
+        case "$1" in
+            -h | --help) usage ;;
+            -v) projectVersion greet; exit 0 ;;
+            --version) projectVersion greet true; exit 0 ;;
+            --debug*) setDebug "$@"; shift $? ;;
+            -*) usage "unknown option: $1" ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ -n ${name} ]] || request "What's your name?" name || bye
+    debug "name: '${name}'"
+}
+
+source rayvn.up 'rayvn/prompt'
+main "$@"
+```
+
+`greet --help` shows:
+
+![The help output of greet --help: usage, options, debug options and environment variables](etc/greet-help.svg)
+
+- `showCommonOptions` prints the standard options: version, help and debug, and the environment variables of the
+  libraries loaded (here `RAYVN_PROMPT_TIMEOUT`, from `rayvn/prompt`).
+- `setDebug` handles the `--debug` options, and `debug` writes only when one is given: `greet alex --debug-out` shows
+  `name: 'alex'` in the terminal, and `greet alex --debug` writes it to a log, shown on exit (see
+  [Debugging rayvn applications](#debugging-rayvn-applications)).
+- `projectVersion greet` prints the version from the project's `rayvn.pkg`.
 
 ## Installation
 
-rayvn can be installed with [Homebrew](https://brew.sh) or [Nix](https://nixos.org/).
-
-### Homebrew
-
-```bash
-brew tap rayvn-central/tap
-brew trust --tap rayvn-central/tap
-brew install rayvn
-```
-
-Homebrew installs formulae from taps other than its own only once you trust them, hence `brew trust`. Homebrew
-installs rayvn's dependencies with it.
-
-To upgrade to the latest version:
-
-```bash
-brew upgrade rayvn
-```
-
-### Nix
-
-If you don't have Nix yet, install it first (see [Installing Nix](#installing-nix)), then:
-
-```bash
-nix profile add github:phoggy/rayvn
-```
-
-To install a specific version:
-
-```bash
-nix profile add github:phoggy/rayvn/v0.5.0
-```
-
-To upgrade to the latest version:
-
-```bash
-nix profile upgrade rayvn
-```
-
-To run without installing:
-
-```bash
-nix run github:phoggy/rayvn
-```
-
-All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
-
-#### Installing Nix
-
-**Mac with Apple silicon:** Download and run the [Determinate Nix installer](https://dtr.mn/determinate-nix).
-
-**Mac x86:**
-
-```bash
-curl -L https://nixos.org/nix/install | sh
-```
-
-**Linux:**
-
-```bash
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
-```
-
-**Windows:** Nix runs in Windows' own Linux environment, WSL. In PowerShell as administrator, run `wsl --install`,
-restart, open Ubuntu from the Start menu, and follow the Linux step above inside it (see
-[Install WSL](https://learn.microsoft.com/windows/wsl/install)). Windows files are under `/mnt/c` there.
-
-All installers create a `/nix` volume and take a few minutes to complete. Answer yes to any prompts and allow any
-system dialogs that pop up. Once complete, open a new terminal before continuing.
-
-If you used the Mac x86 installer, enable flakes:
-
-```bash
-mkdir -p ~/.config/nix
-echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
-```
-
-To remove Nix later: after the Determinate installer, run `/nix/nix-installer uninstall`; after the Mac x86 one, see
-[Uninstalling Nix](https://nix.dev/manual/nix/latest/installation/uninstall).
-
-## Shell Completions
-
-Homebrew and Nix installations include bash completions automatically. To activate them,
-ensure [bash-completion](https://github.com/scop/bash-completion) is configured in your shell
-(typically via your package manager).
-
-If you cloned the repo, add to `~/.bash_profile`:
-
-```bash
-source /path/to/rayvn/completions/rayvn.bash
-```
-
-## Optional: RAM-backed Temp Storage
-
-By default, rayvn uses a mode-600 temp directory for secure temporary files. For improved security,
-RAM-backed temp storage can be configured to keep sensitive files out of persistent storage entirely.
-
-On **Linux**, `/dev/shm` is used automatically — nothing to configure.
-
-On **macOS 10.15+**, an optional tmpfs mount can be set up:
-
-```bash
-rayvn-tmp status     # show current strategy and instructions
-rayvn-tmp install    # install LaunchDaemon to auto-mount at boot (requires sudo)
-rayvn-tmp uninstall  # remove the LaunchDaemon (requires sudo)
-```
+rayvn can be installed with [Homebrew](https://brew.sh) or [Nix](https://nixos.org/): see
+[Install with Homebrew](#install-with-homebrew) or [Install with Nix](#install-with-nix) below.
 
 ## Developing With rayvn
 
@@ -205,7 +165,7 @@ source rayvn.up 'rayvn/prompt'
 `rayvn.up` automatically detects other rayvn projects via `PATH`, so:
 
 ```bash
-source rayvn.up 'valt/archive' 
+source rayvn.up 'valt/archive'
 
 ```
 works if the `valt` project is in `PATH`. If a project is not in `PATH`, it can be added explicitly:
@@ -229,7 +189,7 @@ Private functions have an underscore prefix and are **always** *subject to chang
 
 ## Namespaces
 
-Bash has a flat namespace: all functions and global variables from loaded libraries share the same scope. Potential collisions can 
+Bash has a flat namespace: all functions and global variables from loaded libraries share the same scope. Potential collisions can
 be managed via a mandatory prefix (e.g. `rayvn::`), but this adds development friction and is really only warranted when
 wider adoption is expected.
 
@@ -262,7 +222,7 @@ The debug options are processed by the `setDebug` function in `rayvn/core`. You 
 
 ```bash
 debug "processing item ${i} of ${total}"
-debugVars myVar myArray myMap 
+debugVars myVar myArray myMap
 debugTraceOn # set -x directed to debug output
 cmd1
 cmd2
@@ -293,7 +253,7 @@ $ my-rayvn-app --debug-tty .
 ```
 
 ## API/CLI Documentation
-                 
+
 See [rayvn.ink](https://rayvn.ink/rayvn/)
 
 ## IDE Configuration
@@ -333,3 +293,133 @@ directories with the Shell Script language by adding this to your `settings.json
 ```
 
 For linting, install the [ShellCheck extension](https://marketplace.visualstudio.com/items?itemName=timonwong.shellcheck). It will use the `#!/usr/bin/env rayvn-bash` shebang to infer bash dialect automatically once the file is recognized as a shell script.
+
+## Install with Homebrew
+
+If you don't have Homebrew yet, install it first (see [Installing Homebrew](#installing-homebrew)), then:
+
+```bash
+brew tap rayvn-central/tap
+brew trust --tap rayvn-central/tap
+brew install rayvn
+```
+
+Homebrew installs formulae from taps other than its own only once you trust them, hence `brew trust`. Homebrew
+installs rayvn's dependencies with it.
+
+To upgrade to the latest version:
+
+```bash
+brew upgrade rayvn
+```
+
+### Installing Homebrew
+
+**Mac and Linux:**
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+On a Mac, this also installs Apple's Command Line Tools if they are missing; or download and run the `.pkg` installer
+from [Homebrew's latest release](https://github.com/Homebrew/brew/releases/latest) instead. On Linux, first install the
+tools it needs, e.g. on Debian or Ubuntu: `sudo apt-get install build-essential procps curl file git`.
+
+**Windows:** Homebrew runs in Windows' own Linux environment, WSL. In PowerShell as administrator, run `wsl --install`,
+restart, open Ubuntu from the Start menu, and follow the Linux step above inside it (see
+[Install WSL](https://learn.microsoft.com/windows/wsl/install)). Windows files are under `/mnt/c` there.
+
+When it finishes, the installer shows **Next steps**: run the commands it gives to add `brew` to your PATH, then open a
+new terminal before continuing.
+
+To remove Homebrew later, see [How do I uninstall Homebrew?](https://docs.brew.sh/FAQ#how-do-i-uninstall-homebrew).
+
+## Install with Nix
+
+If you don't have Nix yet, install it first (see [Installing Nix](#installing-nix)), then:
+
+```bash
+nix profile add github:phoggy/rayvn
+```
+
+To install a specific version:
+
+```bash
+nix profile add github:phoggy/rayvn/v0.5.0
+```
+
+To upgrade to the latest version:
+
+```bash
+nix profile upgrade rayvn
+```
+
+To run without installing:
+
+```bash
+nix run github:phoggy/rayvn
+```
+
+All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
+
+### Installing Nix
+
+**Mac with Apple silicon:** Download and run the [Determinate Nix installer](https://dtr.mn/determinate-nix).
+
+**Mac x86:**
+
+```bash
+curl -L https://nixos.org/nix/install | sh
+```
+
+**Linux:**
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+**Windows:** Nix runs in Windows' own Linux environment, WSL. In PowerShell as administrator, run `wsl --install`,
+restart, open Ubuntu from the Start menu, and follow the Linux step above inside it (see
+[Install WSL](https://learn.microsoft.com/windows/wsl/install)). Windows files are under `/mnt/c` there.
+
+All installers create a `/nix` volume and take a few minutes to complete. Answer yes to any prompts and allow any
+system dialogs that pop up. Once complete, open a new terminal before continuing.
+
+If you used the Mac x86 installer, enable flakes:
+
+```bash
+mkdir -p ~/.config/nix
+echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+```
+
+To remove Nix later: after the Determinate installer, run `/nix/nix-installer uninstall`; after the Mac x86 one, see
+[Uninstalling Nix](https://nix.dev/manual/nix/latest/installation/uninstall).
+
+## Optional: RAM-backed Temp Storage
+
+rayvn's secure temporary files (`makeSecureTempDir`) are kept in RAM-backed storage when possible, so that sensitive
+files stay out of persistent storage entirely:
+
+- **Linux:** `/dev/shm` is used automatically: nothing to configure.
+- **macOS 10.15+:** a RAM disk is created each time one is needed, which takes a second or two. To skip that, set up a
+  tmpfs mount once, with `rayvn-tmp`:
+
+```bash
+rayvn-tmp status     # show current strategy and instructions
+rayvn-tmp install    # install a LaunchDaemon to mount it at boot (requires sudo)
+rayvn-tmp uninstall  # remove the LaunchDaemon (requires sudo)
+```
+
+Otherwise, a mode-600 temp directory on disk is used, and callers are told so, to warn or abort.
+
+## Shell Completions
+
+Homebrew and Nix installations include bash completions automatically. To activate them,
+ensure [bash-completion](https://github.com/scop/bash-completion) is configured in your shell
+(typically via your package manager).
+
+If you cloned the repo, add to `~/.bash_profile`:
+
+```bash
+source /path/to/rayvn/completions/rayvn.bash
+```

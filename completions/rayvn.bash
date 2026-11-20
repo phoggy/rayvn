@@ -27,7 +27,7 @@ __rayvnComplete() {
     fi
 
     if (( cword == 1 )); then
-        COMPREPLY=($(compgen -W "args build collisions deps dependencies functions index libraries lint new create pages projects register release test theme docs -v --version -h --help" -- "${cur}"))
+        COMPREPLY=($(compgen -W "args build collisions deps dependencies functions index libraries lint new create pages projects register release screenshots test theme docs -v --version -h --help" -- "${cur}"))
         return
     fi
 
@@ -114,6 +114,11 @@ __rayvnComplete() {
                 release)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help --yes -h -y" -- "${cur}")); return; }
                     local _relIdx=$(( cword - 2 ))
+                    ;;
+                screenshots)
+                    [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--help -h" -- "${cur}")); return; }
+                    local _relIdx=$(( cword - 2 ))
+                    (( _relIdx >= 0 )) && { COMPREPLY=($(compgen -W "$(__rayvnCompletionProjects)" -- "${cur}")); return; }
                     ;;
                 test)
                     [[ "${cur}" == -* ]] && { COMPREPLY=($(compgen -W "--all --help --nix -h" -- "${cur}")); return; }

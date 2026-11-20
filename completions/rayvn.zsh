@@ -46,6 +46,7 @@ _rayvn() {
                 'projects:Show info for one or more projects.'
                 'register:Stake a claim on a project name on rayvn central.'
                 'release:Create a versioned GitHub release for the current directory'\''s project. The GitHub repository is derived from'
+                'screenshots:Update the terminal screenshots a project declares in its rayvn.pkg: SVG images of commands'\'' output, with the'
                 'test:Run tests for one or more projects.'
                 'theme:Interactively select a color theme for rayvn output or show the current theme.'
                 'docs:'
@@ -174,6 +175,11 @@ _rayvn() {
                     '(--help -h)'{--help,-h}'[Print this help message.]' \
                     '(--yes -y)'{--yes,-y}'[Answer yes to the questions (release, push), e.g. to run without a terminal. An existing GitHub release of the version is then not deleted, but stops the release.]' \
                     '1:VERSION:'
+                    ;;
+                screenshots)
+                    _arguments \
+                    '(--help -h)'{--help,-h}'[Print this help message.]' \
+                    '*:PROJECT...:_rayvn_projects'
                     ;;
                 test)
                     _arguments \

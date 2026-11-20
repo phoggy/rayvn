@@ -6,10 +6,7 @@ usage() {
     show bold "does" italic "something" glue "."
     echo
     show "Usage:" bold blue "${scriptName}" "[options]"
-    echo
-    echo "Options:"
-    echo
-    showCommonOptions 21 true # description column, show debug options
+    showCommonOptions --header
     bye "$@"
 }
 

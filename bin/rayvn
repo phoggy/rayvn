@@ -23,6 +23,7 @@ usage() {
     echo "    docs audit       Audit function documentation."
     echo "    docs update      Update function documentation."
     echo "    pages            Generate and preview project gh-pages site."
+    echo "    screenshots      Update a project's terminal screenshots (SVG images of commands' output)."
     echo "    build            Run nix build."
     echo "    release          Create a new release."
     echo "    register         Stake a claim on a project name, if available."
@@ -30,10 +31,7 @@ usage() {
     echo "Use COMMAND --help for additional details. PROJECT defaults to the current directory's project"
     show "if within one, otherwise to" italic "\${RAYVN_DEFAULT_PROJECT}" "(default: rayvn). Set to empty to require"
     echo "an explicit project name. Most commands accept multiple project names."
-    echo
-    echo "Options"
-    echo
-    showCommonOptions 21 true true rayvnEnvVars
+    showCommonOptions --header --env-vars rayvnEnvVars
     bye "$@"
 }
 
@@ -153,7 +151,15 @@ declare -gA cliSpec=(
     # A project can generate pages of its own: set pagesHook in its rayvn.pkg to an executable (a path relative to
     # the project root), which is run from the project root with the pages dir as its argument, after the docs are
     # generated and before they are published or served. If it fails, so does 'rayvn pages'.
+    #
+    # The project's terminal screenshots (see 'rayvn screenshots') are updated first, and copied to assets/images.
     ['pages']='pages(str? --dir:str --record:str* [--setup|--record|--publish|--view] --help|-h)'
+
+    # Update the terminal screenshots a project declares in its rayvn.pkg: SVG images of commands' output, with the
+    # colors and styles a terminal shows, e.g. for a README (see Declaring screenshots in rayvn/screenshot). Each is
+    # written only if it changed. 'rayvn pages' updates them too, and copies them to the site's assets/images.
+    #   PROJECT...  Project names (default: current project).
+    ['screenshots']='screenshots(--help|-h *)'
 
     # Report missing/stale ◇ doc comments.
     #   PROJECT...  Project names to audit (default: all loaded projects).
@@ -397,6 +403,17 @@ pagesCmd() {
         pagesArgs+=("${_optListRecord[@]}")
     fi
     runPages "${projects[0]}" "${pagesArgs[@]}"
+}
+
+screenshotsCmd() {
+    local -a projects=() extraArgs=()
+    resolveProjects projects extraArgs
+    (( ${#extraArgs[@]} == 0 )) || unknownArg "${extraArgs[0]}"
+    require 'rayvn/screenshot'
+    local project
+    for project in "${projects[@]}"; do
+        updateProjectScreenshots "${_rayvnProjects[${project}${_projectRootSuffix}]}"
+    done
 }
 
 lintCmd() {
@@ -799,6 +816,7 @@ parseCommand() {
                 projects) shift; parseProjectsArgs "$@"; (( _opts['help'] )) && projectsCmdUsage || projectsCmd ;;
                 register) shift; parseRegisterArgs "$@"; (( _opts['help'] )) && registerCmdUsage || registerCmd ;;
                 release) shift; parseReleaseArgs "$@"; (( _opts['help'] )) && releaseCmdUsage || releaseCmd ;;
+                screenshots) shift; parseScreenshotsArgs "$@"; (( _opts['help'] )) && screenshotsCmdUsage || screenshotsCmd ;;
                 test) shift; parseTestArgs "$@"; (( _opts['help'] )) && testCmdUsage || testCmd ;;
                 theme) shift; parseThemeArgs "$@"; (( _opts['help'] )) && themeCmdUsage || themeCmd ;;
                 docs)
@@ -1295,6 +1313,8 @@ pagesCmdUsage() {
     echo "A project can generate pages of its own: set pagesHook in its rayvn.pkg to an executable (a path relative to"
     echo "the project root), which is run from the project root with the pages dir as its argument, after the docs are"
     echo "generated and before they are published or served. If it fails, so does 'rayvn pages'."
+    echo
+    echo "The project's terminal screenshots (see 'rayvn screenshots') are updated first, and copied to assets/images."
     declare -F pagesCmdUsageExtra > /dev/null && pagesCmdUsageExtra
     bye "$@"
 }
@@ -1391,6 +1411,35 @@ releaseCmdUsage() {
     option "" "existing GitHub release of the version is then not deleted, but stops the release." 16
     option "-h, --help" "Print this help message." 16
     declare -F releaseCmdUsageExtra > /dev/null && releaseCmdUsageExtra
+    bye "$@"
+}
+
+parseScreenshotsArgs() {
+    local _prevFailHandler="${_failHandler}"
+    declare -g _failHandler=screenshotsCmdUsage
+    while (( $# > 0 )); do
+        case "$1" in
+            --help | -h) _opts+=(['help']="1"); shift ;;
+            --help=*) fail "--help does not accept a value" ;;
+            --) shift; _args+=("$@"); break ;;
+            *) _args+=("$1"); shift ;;
+        esac
+    done
+    declare -g _failHandler="${_prevFailHandler}"
+}
+
+screenshotsCmdUsage() {
+    echo
+    show bold "Update the terminal screenshots a project declares in its rayvn.pkg: SVG images of commands' output,"
+    show bold "with the colors and styles a terminal shows, e.g. for a README (see Declaring screenshots in"
+    show bold "rayvn/screenshot). Each is written only if it changed. 'rayvn pages' updates them too, and copies"
+    show bold "them to the site's assets/images."
+    echo
+    show "Usage:" bold blue "rayvn screenshots" "[PROJECT...]"
+    echo
+    option "PROJECT..." "Project names (default: current project)." 16
+    option "-h, --help" "Print this help message." 16
+    declare -F screenshotsCmdUsageExtra > /dev/null && screenshotsCmdUsageExtra
     bye "$@"
 }
 

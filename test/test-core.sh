@@ -31,6 +31,8 @@ main() {
     testRandomInteger
     testTempDirPath
     testConfigDirPathNonIdentifierName
+    testShowCommonOptions
+    testShowCommonOptionsPositional
     testNoExitLineWhenRedirected
     testScriptNameUnwrapsNixWrapper
     testMakeTempFile
@@ -171,6 +173,36 @@ testTrim() {
     assertEqual "" "${ trim ""; }" "trim on empty returns empty"
     assertEqual "tab" "${ trim "	tab	"; }" "trim removes tabs"
     assertEqual "multi  word" "${ trim "  multi  word  "; }" "trim preserves internal spaces"
+}
+
+testShowCommonOptions() {
+    declare -A testEnvVars=(['TEST_VAR']="A test variable.")
+    local output; output="${ showCommonOptions; }"
+    assertContains '-h, --help' "${output}"
+    assertContains 'Debug Options' "${output}"
+    assertContains 'Environment Variables' "${output}"
+    [[ ${output} != *$'\nOptions\n'* ]] || fail "no header unless --header"
+
+    output="${ showCommonOptions --header --no-debug --env-vars testEnvVars; }"
+    assertEqual $'\nOptions\n' "${output:0:9}" "--header prints a header first"
+    [[ ${output} != *'Debug Options'* ]] || fail "--no-debug omits the debug options"
+    assertContains 'TEST_VAR' "${output}"
+
+    output="${ showCommonOptions --no-env --column 30; }"
+    [[ ${output} != *'Environment Variables'* ]] || fail "--no-env omits the environment variables"
+    assertContains "    -h, --help${ repeat ' ' 16; }Print this help message." "${ stripAnsi "${output}"; }"
+
+    ( showCommonOptions --bogus ) &> /dev/null && fail "an unknown option must fail"
+    ( showCommonOptions --column x ) &> /dev/null && fail "--column requires a number"
+    return 0
+}
+
+# The older positional form: [col] [includeDebug] [includeEnvVars] [envMap]
+
+testShowCommonOptionsPositional() {
+    declare -A testEnvVars=(['TEST_VAR']="A test variable.")
+    assertEqual "${ showCommonOptions --column 25 --no-debug --env-vars testEnvVars; }" \
+        "${ showCommonOptions 25 false true testEnvVars; }" "the positional form matches the named one"
 }
 
 testRepeat() {

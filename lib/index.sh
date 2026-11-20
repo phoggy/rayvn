@@ -59,6 +59,8 @@ runIndex() {
 #   --publish              Commit and push changes to gh-pages after generating.
 #   --view                 Serve pages locally with Jekyll after generating (mutually exclusive with --publish).
 #
+#   The project's terminal screenshots, if its rayvn.pkg declares any, are updated first and copied to the site's
+#   assets/images (see updateProjectScreenshots in rayvn/screenshot).
 #   The project's pagesHook, if its rayvn.pkg sets one, is run after the docs are generated (see _runPagesHook).
 #   Libraries named in its pagesExclude array, e.g. pagesExclude=('security-kit'), are left out of its pages (see
 #   _excludePagesLibraries), e.g. until they work.
@@ -133,6 +135,9 @@ runPages() {
     fi
 
     _ensurePagesFiles "${projectName}" "${projectRoot}" "${dir}" "${publish}"
+
+    require 'rayvn/screenshot'
+    updateProjectScreenshots "${projectRoot}" "${dir}/assets/images"
 
     local libFiles=()
     _collectLibFiles libFiles

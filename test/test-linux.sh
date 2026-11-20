@@ -52,15 +52,23 @@ fi
 # Change to linux-compat directory and run tests
 cd "${linux_compat_dir}"
 
-# Check if Docker image exists, build if needed
-if ! docker image inspect linux-compat-test:latest &> /dev/null; then
-    echo "Docker image not found, building..."
-    docker compose build || fail
+# Build the image, or bring it up to date (quick when nothing changed)
+docker compose build || fail
+
+# The nix-store volume keeps the Nix store between runs. Docker copies the image's /nix into it only when it is
+# created, so once the image is rebuilt with a new Nix install (e.g. after the Dockerfile changes before that step),
+# the image's Nix profile points to store paths the volume does not have, and nix is not found. If so, remove the
+# volume (with the stopped container that uses it), so that this run copies /nix from the image again.
+nixVolume="${PWD##*/}_nix-store"
+if docker volume inspect "${nixVolume}" &> /dev/null &&
+   ! docker run --rm -v "${nixVolume}:/nix" linux-compat-test:latest test -x /home/testuser/.nix-profile/bin/nix; then
+    echo "The Nix store volume is older than the image: removing it, to start again from the image's /nix"
+    docker compose down --volumes || fail
 fi
 
 # Run the tests
 linuxLogDir="${HOME}/.config/rayvn/linux-tests"
-docker compose up --build --abort-on-container-exit --exit-code-from linux-test
+docker compose up --abort-on-container-exit --exit-code-from linux-test
 result=$?
 
 # If Docker stopped while the tests ran (e.g. Docker Desktop was quit), say so rather than showing the logs, which

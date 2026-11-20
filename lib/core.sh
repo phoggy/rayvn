@@ -184,20 +184,45 @@ parseCommonOptions() {
     return $(( _argCount - $# ))
 }
 
-# ◇ Prints common CLI options, optionally including debug and environment variables section.
+# ◇ Prints the common CLI options (version and help), then the debug options and environment variables sections.
+#   The older positional form, showCommonOptions [col] [includeDebug] [includeEnvVars] [envMap], still works.
 #
-# · ARGS
+# · USAGE
 #
-#   col (int)              Column width for option alignment (default: 21).
-#   includeDebug (bool)    Whether to print the debug options section (default: 'true').
-#   includeEnvVars (bool)  Whether to print the environment variables section (default: 'true').
-#   envMap (mapRef)        Optional additional env vars map.
+#   showCommonOptions [--header] [--column N] [--no-debug] [--no-env] [--env-vars MAP]
+#
+#   --header                 First print an "Options" header, as the debug and environment variables sections have;
+#                            omit it to add the common options to the end of your own options.
+#   --column N (int)         Column width for option alignment (default: 21).
+#   --no-debug               Do not print the debug options section.
+#   --no-env                 Do not print the environment variables section.
+#   --env-vars MAP (mapRef)  Your program's environment variables (name → description), listed with rayvn's.
+#
+# · EXAMPLE
+#
+#   showCommonOptions --header --column 25 --env-vars myEnvVars
 
 showCommonOptions() {
-    local column=${1:-21}
-    local includeDebug="${2:-true}"
-    local includeEnvVars="${3:-true}"
-    local envVarsMapName="${4:-}"
+    local column=21 includeDebug=true includeEnvVars=true envVarsMapName='' header=0
+    if [[ ${1:-} =~ ^[0-9]+$ ]]; then  # the older positional form
+        column=$1
+        includeDebug="${2:-true}"
+        includeEnvVars="${3:-true}"
+        envVarsMapName="${4:-}"
+    else
+        while (( $# )); do
+            case "$1" in
+                --header) header=1 ;;
+                --column) shift; [[ ${1:-} =~ ^[0-9]+$ ]] || invalidArgs "--column requires a number"; column=$1 ;;
+                --no-debug) includeDebug=false ;;
+                --no-env) includeEnvVars=false ;;
+                --env-vars) shift; [[ -n ${1:-} ]] || invalidArgs "--env-vars requires a map name"; envVarsMapName=$1 ;;
+                *) invalidArgs "unknown option: $1" ;;
+            esac
+            shift
+        done
+    fi
+    (( header )) && { echo; echo "Options"; echo; }
     option "-v"               "Print the version." ${column}
     option "--version"        "Print the version and release date." ${column}
     option "-h, --help"       "Print this help message." ${column}
@@ -220,7 +245,7 @@ showDebugOptions() {
     option "--debug-new"      "Enable debug, clear log file, write output to log file and show on exit." ${column}
     option "--debug-out"      "Enable debug, write output to the current terminal." ${column}
     option "--debug-tty TTY"  "Enable debug, write output to the specified TTY (e.g., /dev/ttys001)." ${column}
-    option "--debug-tty ."    "Enable debug, write output to the TTY path read from the '~/.debug.tty' file" ${column}
+    option "--debug-tty ."    "Enable debug, write output to the TTY path read from the '~/.debug.tty' file." ${column}
 }
 
 # ◇ Prints environment variables section.

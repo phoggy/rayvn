@@ -18,10 +18,7 @@ usage() {
     echo "    status       Show current temp storage strategy (default)."
     echo "    install      Install LaunchDaemon to mount tmpfs at boot (macOS, requires sudo)."
     echo "    uninstall    Remove the LaunchDaemon and unmount tmpfs (macOS, requires sudo)."
-    echo
-    echo "Options"
-    echo
-    showCommonOptions 17 false
+    showCommonOptions --header --column 17 --no-debug
     bye "$@"
 }
 

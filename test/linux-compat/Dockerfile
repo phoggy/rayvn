@@ -46,23 +46,25 @@ RUN cd /tmp && \
     ln -sf /usr/local/bin/bash /bin/bash
 
 # Install Bitwarden CLI (required for wardn tests)
-# Dynamically fetch and install the latest CLI release
+# Dynamically fetch and install the latest CLI release. Since cli-v2026.11.0 the zips are named bw-oss-linux[-arm64]-*
+# (the open source build; bw-bit-* has Bitwarden licensed features); earlier ones were bw-linux-* (x86_64 only).
 RUN cd /tmp && \
     # Get all releases and filter for CLI releases only
     wget -qO- https://api.github.com/repos/bitwarden/clients/releases > releases.json && \
-    # Extract the first (latest) CLI version tag (e.g., "cli-v2024.12.0")
+    # Extract the first (latest) CLI version tag (e.g., "cli-v2026.11.0")
     TAG=$(grep '"tag_name"' releases.json | grep 'cli-v' | head -1 | sed 's/.*"tag_name": "\(cli-v[^"]*\)".*/\1/') && \
-    # Extract version number (e.g., "2024.12.0")
+    # Extract version number (e.g., "2026.11.0")
     VERSION=$(echo "$TAG" | sed 's/cli-v//') && \
-    # Construct download URL
-    DOWNLOAD_URL="https://github.com/bitwarden/clients/releases/download/${TAG}/bw-linux-${VERSION}.zip" && \
-    # Download and install
-    wget "$DOWNLOAD_URL" && \
-    unzip "bw-linux-${VERSION}.zip" && \
+    case "$(uname -m)" in aarch64 | arm64) ARCH='-arm64' ;; *) ARCH='' ;; esac && \
+    BASE_URL="https://github.com/bitwarden/clients/releases/download/${TAG}" && \
+    # Download (the current name for this architecture, else the old one) and install
+    { wget -O bw.zip "${BASE_URL}/bw-oss-linux${ARCH}-${VERSION}.zip" || \
+      wget -O bw.zip "${BASE_URL}/bw-linux-${VERSION}.zip"; } && \
+    unzip bw.zip && \
     chmod +x bw && \
     mv bw /usr/local/bin/ && \
     cd / && \
-    rm -rf /tmp/bw-linux-*.zip /tmp/releases.json
+    rm -rf /tmp/bw.zip /tmp/releases.json
 
 # Set bash as the default shell
 SHELL ["/usr/local/bin/bash", "-c"]

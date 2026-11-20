@@ -1,0 +1,32 @@
+#!/usr/bin/env rayvn-bash
+
+usage() {
+    show "Usage:" bold blue "${scriptName}" italic "[NAME]" "[OPTIONS]"
+    showCommonOptions --header
+    bye "$@"
+}
+
+main() {
+    init "$@"
+    show primary "Hey ${name^}!"
+}
+
+init() {
+    declare -g name
+    while (( $# )); do
+        case "$1" in
+            -h | --help) usage ;;
+            -v) projectVersion greet; exit 0 ;;
+            --version) projectVersion greet true; exit 0 ;;
+            --debug*) setDebug "$@"; shift $? ;;
+            -*) usage "unknown option: $1" ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ -n ${name} ]] || request "What's your name?" name || bye
+    debug "name: '${name}'"
+}
+
+source rayvn.up 'rayvn/prompt'
+main "$@"

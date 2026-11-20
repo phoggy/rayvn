@@ -4,9 +4,16 @@ A [rayvn](https://github.com/phoggy/rayvn) project.
 
 ## Installation
 
-${projectName} can be installed with [Homebrew](https://brew.sh) or [Nix](https://nixos.org/).
+${projectName} can be installed with [Homebrew](https://brew.sh) or [Nix](https://nixos.org/): see
+[Install with Homebrew](#install-with-homebrew) or [Install with Nix](#install-with-nix) below.
 
-### Homebrew
+## Development
+
+See the [rayvn](https://github.com/phoggy/rayvn) documentation for development details.
+
+## Install with Homebrew
+
+If you don't have Homebrew yet, install it first (see [Installing Homebrew](#installing-homebrew)), then:
 
 ```bash
 brew tap rayvn-central/tap
@@ -22,7 +29,28 @@ To upgrade to the latest version:
 brew upgrade ${projectName}
 ```
 
-### Nix
+### Installing Homebrew
+
+**Mac and Linux:**
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+On a Mac, this also installs Apple's Command Line Tools if they are missing; or download and run the `.pkg` installer
+from [Homebrew's latest release](https://github.com/Homebrew/brew/releases/latest) instead. On Linux, first install the
+tools it needs, e.g. on Debian or Ubuntu: `sudo apt-get install build-essential procps curl file git`.
+
+**Windows:** Homebrew runs in Windows' own Linux environment, WSL. In PowerShell as administrator, run `wsl --install`,
+restart, open Ubuntu from the Start menu, and follow the Linux step above inside it (see
+[Install WSL](https://learn.microsoft.com/windows/wsl/install)). Windows files are under `/mnt/c` there.
+
+When it finishes, the installer shows **Next steps**: run the commands it gives to add `brew` to your PATH, then open a
+new terminal before continuing.
+
+To remove Homebrew later, see [How do I uninstall Homebrew?](https://docs.brew.sh/FAQ#how-do-i-uninstall-homebrew).
+
+## Install with Nix
 
 If you don't have Nix yet, install it first (see [Installing Nix](#installing-nix)), then:
 
@@ -56,7 +84,7 @@ nix build
 
 All dependencies are declared in the `flake.nix` file in the `runtimeDeps` list. New dependencies must be added there.
 
-#### Installing Nix
+### Installing Nix
 
 **Mac with Apple silicon:** Download and run the [Determinate Nix installer](https://dtr.mn/determinate-nix).
 
@@ -88,7 +116,3 @@ echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
 
 To remove Nix later: after the Determinate installer, run `/nix/nix-installer uninstall`; after the Mac x86 one, see
 [Uninstalling Nix](https://nix.dev/manual/nix/latest/installation/uninstall).
-
-## Development
-
-See the [rayvn](https://github.com/phoggy/rayvn) documentation for development details.
