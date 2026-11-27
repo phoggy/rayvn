@@ -468,6 +468,7 @@ _preparePromptChoices() {
 }
 
 _executePrompt() {
+    local key # local, or a caller's own key would be overwritten
     SECONDS=0 # Reset seconds counter
     [[ -t ${stdinFd} ]] && stty cbreak -echo
 

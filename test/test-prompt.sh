@@ -11,6 +11,7 @@ main() {
     # request tests
     testRequestBasicInput
     testRequestStyledPromptColumn
+    testRequestKeepsCallerVariables
     testRequestEmptyInputCancelOnEmpty
     testRequestEmptyInputAllowed
     testRequestEscapeCancel
@@ -131,6 +132,20 @@ testRequestStyledPromptColumn() {
         request $'Name for \e[1;34mpath\e[0m' result false
         stopInputSimulation
         assertEqual "${plainCol}" "${_promptCol}" "a styled prompt must put input in the same column as a plain one"
+    ) || exit 1
+}
+
+# A caller's own variables are untouched, even those with the names the prompt uses internally (e.g. key).
+
+testRequestKeepsCallerVariables() {
+    (
+        local result key='mine' c='mine'
+        startInputSimulation $'hello\n'
+        request "Name" result false
+        stopInputSimulation
+        assertEqual "hello" "${result}" "request keeps caller variables: result"
+        assertEqual "mine" "${key}" "request must not change the caller's key"
+        assertEqual "mine" "${c}" "request must not change the caller's c"
     ) || exit 1
 }
 
